@@ -1,5 +1,5 @@
 [build]
-buildCommand = "pnpm run build"
+buildCommand = "pnpm --filter @stopbet/backend build"
 
 [deploy]
 startCommand = "node dist/main"
