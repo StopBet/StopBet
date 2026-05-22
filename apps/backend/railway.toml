@@ -2,7 +2,7 @@
 buildCommand = "pnpm --filter @stopbet/backend build"
 
 [deploy]
-startCommand = "node dist/main"
+startCommand = "node apps/backend/dist/main"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "on_failure"
