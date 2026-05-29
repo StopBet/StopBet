@@ -25,7 +25,7 @@ El MVP cubre las HdU 01, 03, 04 y 05 (13 SP totales). La HdU 02 está documentad
 | HdU | Nombre | SP | Categoría | Estado |
 |-----|--------|----|-----------|--------|
 | HdU01 | Botón de Pánico | 3 (de 5) | Importante | Sprint 0 |
-| HdU02 | Asistente Virtual IA | 5 (de 13) | Esencial | Pendiente (sprint futuro) |
+| HdU02 | Asistente Virtual IA | 5 (de 13) | Esencial | Sprint 0 — pendiente de planificación interna |
 | HdU03 | Tracker de Logros y Gamificación | 2 (de 3) | Deseable | Sprint 0 |
 | HdU04 | Dashboard Clínico para Psicólogos | 3 (de 5) | Importante | Sprint 0 |
 | HdU05 | Comunidad y Red de Apoyo | 5 (de 8) | Esencial | Sprint 0 |
