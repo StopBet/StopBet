@@ -23,6 +23,7 @@ import { RegistrationRequest } from './registration/entities/registration-reques
 import { Subscription } from './subscriptions/entities/subscription.entity';
 import { AbstinencePeriod } from './achievements/entities/abstinence-period.entity';
 import { EarnedBadge } from './achievements/entities/earned-badge.entity';
+import { ValidatedMessage } from './achievements/entities/validated-message.entity';
 import { CommunityPost } from './community/entities/community-post.entity';
 import { PostReply } from './community/entities/post-reply.entity';
 import { PostReaction } from './community/entities/post-reaction.entity';
@@ -47,7 +48,7 @@ import { PanicAlert } from './panic/entities/panic-alert.entity';
         entities: [
           User, CheckIn, Notification, Sede,
           RegistrationRequest, Subscription,
-          AbstinencePeriod, EarnedBadge,
+          AbstinencePeriod, EarnedBadge, ValidatedMessage,
           CommunityPost, PostReply, PostReaction, PostReport, AttendanceConfirmation,
           Invoice,
           AiSession, AiMessage, AiSessionSummary,

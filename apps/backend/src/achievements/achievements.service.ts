@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import {
@@ -6,23 +6,48 @@ import {
   AchievementsData,
   BadgeMilestone,
   EarnedBadge as EarnedBadgeType,
+  RelapseResponse,
 } from '@stopbet/shared-types';
 import { AbstinencePeriod } from './entities/abstinence-period.entity';
 import { EarnedBadge } from './entities/earned-badge.entity';
+import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
+import { CommunityPost } from '../community/entities/community-post.entity';
 
 const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
 
+// Mensajes de contención validados por AJUTER (no modificar sin revisión clínica)
+const SEED_VALIDATED_MESSAGES = [
+  'Tu esfuerzo anterior no se borra. Estamos aquí para retomar el camino contigo.',
+  'Una recaída no anula tu progreso. Cada intento te enseña algo valioso.',
+  'Lo importante es volver a levantarse. Sigues siendo más fuerte que ayer.',
+  'Esto es parte del proceso. No estás solo, seguimos acompañándote.',
+  'Reconocer la recaída ya es un acto de valentía. Sigamos adelante, paso a paso.',
+];
+
 @Injectable()
-export class AchievementsService {
+export class AchievementsService implements OnModuleInit {
   constructor(
     @InjectRepository(AbstinencePeriod)
     private readonly periodRepo: Repository<AbstinencePeriod>,
     @InjectRepository(EarnedBadge)
     private readonly badgeRepo: Repository<EarnedBadge>,
+    @InjectRepository(ValidatedMessage)
+    private readonly messageRepo: Repository<ValidatedMessage>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(CommunityPost)
+    private readonly postRepo: Repository<CommunityPost>,
   ) {}
+
+  async onModuleInit() {
+    const count = await this.messageRepo.count();
+    if (count === 0) {
+      await this.messageRepo.save(
+        SEED_VALIDATED_MESSAGES.map((body) => this.messageRepo.create({ body })),
+      );
+    }
+  }
 
   async getAchievements(userId: string): Promise<AchievementsData> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
@@ -88,7 +113,7 @@ export class AchievementsService {
     };
   }
 
-  async reportRelapse(userId: string): Promise<AbstinencePeriodType> {
+  async reportRelapse(userId: string): Promise<RelapseResponse> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
@@ -114,11 +139,36 @@ export class AchievementsService {
       }),
     );
 
-    return this.mapPeriod({ ...newPeriod, earnedBadges: [] }, 0);
+    return {
+      period: this.mapPeriod({ ...newPeriod, earnedBadges: [] }, 0),
+      message: await this.randomValidatedMessage(),
+    };
   }
 
+  // CA3: mensaje de contención elegido al azar de la tabla validada
+  private async randomValidatedMessage(): Promise<string> {
+    const messages = await this.messageRepo.find();
+    if (!messages.length) return SEED_VALIDATED_MESSAGES[0];
+    return messages[Math.floor(Math.random() * messages.length)].body;
+  }
+
+  // CA1: compartir insignia publica un anuncio de felicitación en el foro de la sede
   async shareBadge(userId: string, milestone: number): Promise<void> {
     await this.badgeRepo.update({ userId, milestone }, { sharedToCommunity: true });
+
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user?.sedeId) return;
+
+    await this.postRepo.save(
+      this.postRepo.create({
+        authorId: userId,
+        type: 'forum_post',
+        sede: user.sedeId,
+        body: `🎉 ${user.firstName} alcanzó ${milestone} ${
+          milestone === 1 ? 'día' : 'días'
+        } sin apostar. ¡Un logro que merece celebrarse en comunidad!`,
+      }),
+    );
   }
 
   private today(): string {

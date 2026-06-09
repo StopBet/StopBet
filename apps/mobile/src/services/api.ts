@@ -1,7 +1,7 @@
 import type {
-  AbstinencePeriod,
   ActiveAlertResponse,
   AchievementsData,
+  RelapseResponse,
   AiSessionSummary,
   BadgeMilestone,
   BillingStatus,
@@ -129,7 +129,7 @@ export const api = {
     request<AchievementsData>('/achievements', { userId }),
 
   reportRelapse: (userId: string) =>
-    request<AbstinencePeriod>('/achievements/relapse', {
+    request<RelapseResponse>('/achievements/relapse', {
       userId,
       method: 'POST',
     }),
