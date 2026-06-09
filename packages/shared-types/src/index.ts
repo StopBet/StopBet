@@ -109,6 +109,33 @@ export interface Subscription {
   createdAt: string;
 }
 
+// ── Facturación y suspensión de cuenta ───────────────────────────────────
+
+export type AccountStatus = 'active' | 'suspended';
+
+export type InvoiceStatus = 'pending' | 'paid' | 'overdue';
+
+export interface Invoice {
+  id: string;
+  userId: string;
+  month: string;        // 'YYYY-MM'
+  amountCLP: number;
+  status: InvoiceStatus;
+  dueDate: string;      // 'YYYY-MM-DD'
+  paidAt: string | null;
+  createdAt: string;
+}
+
+export interface BillingStatus {
+  accountStatus: AccountStatus;
+  overdueInvoices: Invoice[];
+  totalOwedCLP: number;
+  overdueMonths: number;
+  firstOverdueDate: string | null;
+  daysOverdue: number;
+  nextPaymentDate: string | null;
+}
+
 // ── Logros y gamificación ─────────────────────────────────────────────────
 
 export type BadgeMilestone = 1 | 3 | 7 | 14 | 21 | 30 | 45 | 60 | 75 | 90;
@@ -135,6 +162,56 @@ export interface AchievementsData {
   currentPeriod: AbstinencePeriod;
   historicalPeriods: AbstinencePeriod[];
   newestMilestone: BadgeMilestone | null;
+}
+
+// ── Asistente Virtual IA ─────────────────────────────────────────────────
+
+export type AISessionStatus = 'active' | 'closed';
+export type RiskLevel = 'low' | 'medium' | 'high';
+export type TechniqueType = 'breathing' | 'grounding' | 'postponement';
+
+export interface AIMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  techniqueTriggered: TechniqueType | null;
+  createdAt: string;
+}
+
+export interface AISession {
+  id: string;
+  userId: string;
+  status: AISessionStatus;
+  previousContext: string | null;
+  startedAt: string;
+  closedAt: string | null;
+  lastActivityAt: string | null;
+}
+
+export interface AiSessionSummary {
+  id: string;
+  sessionId: string;
+  userId: string;
+  mood: string | null;
+  techniqueUsed: string | null;
+  trigger: string | null;
+  riskLevel: RiskLevel;
+  durationMinutes: number;
+  progressNote: string | null;
+  createdAt: string;
+}
+
+export interface StartSessionResponse {
+  session: AISession;
+  messages: AIMessage[];
+  previousContext: string | null;
+}
+
+export interface SendMessageResponse {
+  userMessage: AIMessage;
+  assistantMessage: AIMessage;
+  techniqueTriggered: TechniqueType | null;
 }
 
 // ── Comunidad y Red de Apoyo ──────────────────────────────────────────────
@@ -173,4 +250,33 @@ export interface CommunityReply {
   authorRole: UserRole;
   body: string;
   createdAt: string;
+}
+
+// ── Botón de Pánico ───────────────────────────────────────────────────────
+
+export type PanicAlertStatus = 'pending' | 'responded' | 'escalated' | 'cancelled';
+
+export interface SponsorInfo {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  isOnline: boolean;
+}
+
+export interface PanicAlertDto {
+  id: string;
+  patientId: string;
+  sponsorId: string;
+  status: PanicAlertStatus;
+  communityNotified: boolean;
+  respondedAt: string | null;
+  escalatedAt: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+}
+
+export interface ActiveAlertResponse {
+  alert: PanicAlertDto | null;
+  sponsor: SponsorInfo | null;
 }

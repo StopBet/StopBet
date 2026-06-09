@@ -1,13 +1,20 @@
 import type {
   AbstinencePeriod,
+  ActiveAlertResponse,
   AchievementsData,
+  AiSessionSummary,
   BadgeMilestone,
+  BillingStatus,
   CheckIn,
   EmotionType,
   Notification,
+  PanicAlertDto,
   PatientProgress,
   PaymentMethod,
   Sede,
+  SendMessageResponse,
+  SponsorInfo,
+  StartSessionResponse,
   SubmitRegistrationResponse,
 } from '@stopbet/shared-types';
 
@@ -92,6 +99,16 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
+  // ── Facturación / suspensión ─────────────────────────────────────────
+  getBillingStatus: (userId: string) =>
+    request<BillingStatus>('/billing/status', { userId }),
+
+  payOverdue: (userId: string) =>
+    request<BillingStatus>('/billing/pay', { userId, method: 'POST' }),
+
+  getFamilyLink: (userId: string) =>
+    request<{ token: string; url: string }>('/billing/family-link', { userId }),
+
   // ── Logros y gamificación ────────────────────────────────────────────
   getAchievements: (userId: string) =>
     request<AchievementsData>('/achievements', { userId }),
@@ -107,4 +124,67 @@ export const api = {
       userId,
       method: 'POST',
     }),
+
+  // ── Asistente IA ─────────────────────────────────────────────────────
+  startAiSession: (userId: string) =>
+    request<StartSessionResponse>('/ai/sessions', {
+      userId,
+      method: 'POST',
+    }),
+
+  getActiveAiSession: (userId: string) =>
+    request<StartSessionResponse | null>('/ai/sessions/active', { userId }),
+
+  sendAiMessage: (userId: string, sessionId: string, content: string) =>
+    request<SendMessageResponse>(`/ai/sessions/${sessionId}/messages`, {
+      userId,
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    }),
+
+  closeAiSession: (userId: string, sessionId: string) =>
+    request<AiSessionSummary>(`/ai/sessions/${sessionId}/close`, {
+      userId,
+      method: 'POST',
+    }),
+
+  getAiSummaries: (userId: string) =>
+    request<AiSessionSummary[]>('/ai/sessions/summaries', { userId }),
+
+  // ── Botón de pánico ──────────────────────────────────────────────────
+  getSponsorInfo: (userId: string) =>
+    request<SponsorInfo | null>('/panic/sponsor', { userId }),
+
+  createPanicAlert: (userId: string) =>
+    request<PanicAlertDto>('/panic/alerts', { userId, method: 'POST' }),
+
+  getPanicActiveAlert: (userId: string) =>
+    request<ActiveAlertResponse>('/panic/alerts/active', { userId }),
+
+  respondToPanicAlert: (sponsorId: string, alertId: string) =>
+    request<PanicAlertDto>(`/panic/alerts/${alertId}/respond`, {
+      userId: sponsorId,
+      method: 'POST',
+    }),
+
+  cancelPanicAlert: (userId: string, alertId: string) =>
+    request<PanicAlertDto>(`/panic/alerts/${alertId}/cancel`, {
+      userId,
+      method: 'POST',
+    }),
+
+  escalatePanicAlert: (userId: string, alertId: string) =>
+    request<PanicAlertDto>(`/panic/alerts/${alertId}/escalate`, {
+      userId,
+      method: 'POST',
+    }),
+
+  notifyCommunity: (userId: string, alertId: string) =>
+    request<{ communityNotified: boolean }>(`/panic/alerts/${alertId}/community`, {
+      userId,
+      method: 'POST',
+    }),
+
+  getPendingPanicAlerts: (sponsorId: string) =>
+    request<PanicAlertDto[]>('/panic/pending', { userId: sponsorId }),
 };
