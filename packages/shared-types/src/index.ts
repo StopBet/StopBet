@@ -164,6 +164,12 @@ export interface AchievementsData {
   newestMilestone: BadgeMilestone | null;
 }
 
+export interface RelapseResponse {
+  period: AbstinencePeriod;
+  // Mensaje de contención validado por AJUTER, elegido al azar
+  message: string;
+}
+
 // ── Asistente Virtual IA ─────────────────────────────────────────────────
 
 export type AISessionStatus = 'active' | 'closed';

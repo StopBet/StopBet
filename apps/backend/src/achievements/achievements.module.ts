@@ -4,10 +4,20 @@ import { AchievementsController } from './achievements.controller';
 import { AchievementsService } from './achievements.service';
 import { AbstinencePeriod } from './entities/abstinence-period.entity';
 import { EarnedBadge } from './entities/earned-badge.entity';
+import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
+import { CommunityPost } from '../community/entities/community-post.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AbstinencePeriod, EarnedBadge, User])],
+  imports: [
+    TypeOrmModule.forFeature([
+      AbstinencePeriod,
+      EarnedBadge,
+      ValidatedMessage,
+      User,
+      CommunityPost,
+    ]),
+  ],
   controllers: [AchievementsController],
   providers: [AchievementsService],
 })

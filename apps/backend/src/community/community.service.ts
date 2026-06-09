@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { ReactionEmoji, ReactionSummary } from '@stopbet/shared-types';
 import { CommunityPost } from './entities/community-post.entity';
 import { PostReply } from './entities/post-reply.entity';
@@ -11,6 +15,9 @@ import { User } from '../users/entities/user.entity';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
+
+// CA3: a partir de 5 reportes una publicación entra a la cola de moderación
+const REPORT_THRESHOLD = 5;
 
 @Injectable()
 export class CommunityService {
@@ -182,6 +189,33 @@ export class CommunityService {
       await this.postRepo.increment({ id: postId }, 'reportCount', 1);
     }
     return { reported: true };
+  }
+
+  // CA3: cola de moderación — publicaciones con 5+ reportes para revisión del psicólogo
+  async findFlaggedPosts(sede: string, requesterId: string) {
+    await this.assertPsychologist(requesterId);
+    const posts = await this.postRepo.find({
+      where: { sede, reportCount: MoreThanOrEqual(REPORT_THRESHOLD) },
+      relations: ['author'],
+      order: { reportCount: 'DESC' },
+    });
+    return posts.map((p) => this.serializePost(p, [], 0, requesterId));
+  }
+
+  // CA3: el psicólogo elimina una publicación reportada desde el dashboard
+  async deletePost(postId: string, requesterId: string) {
+    await this.assertPsychologist(requesterId);
+    const post = await this.postRepo.findOne({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Publicación no encontrada');
+    await this.postRepo.delete(postId);
+    return { deleted: true };
+  }
+
+  private async assertPsychologist(userId: string) {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user || user.role !== 'psychologist') {
+      throw new ForbiddenException('Solo un psicólogo puede moderar la comunidad');
+    }
   }
 
   private async reactionSummary(postId: string, userId: string) {

@@ -80,6 +80,7 @@ export function AchievementsScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('achievements');
   const [relapseModal, setRelapseModal] = useState(false);
+  const [relapseMessage, setRelapseMessage] = useState('');
   const [shareMilestone, setShareMilestone] = useState<BadgeMilestone | null>(null);
   const shareShownRef = useRef(false);
 
@@ -112,9 +113,10 @@ export function AchievementsScreen({ navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.reportRelapse(TEMP_USER_ID);
+              const { message } = await api.reportRelapse(TEMP_USER_ID);
               shareShownRef.current = false;
               await load();
+              setRelapseMessage(message);
               setRelapseModal(true);
             } catch {
               Alert.alert('Error', 'No se pudo registrar la recaída. Inténtalo de nuevo.');
@@ -286,10 +288,8 @@ export function AchievementsScreen({ navigation }: Props) {
             <View style={styles.modalIcon}>
               <Text style={styles.modalIconEmoji}>❤️</Text>
             </View>
-            <Text style={styles.modalTitle}>Tu esfuerzo anterior no se borra</Text>
-            <Text style={styles.modalText}>
-              Estamos aquí para retomar el camino contigo. Esto forma parte del proceso.
-            </Text>
+            <Text style={styles.modalTitle}>No estás solo en esto</Text>
+            <Text style={styles.modalText}>{relapseMessage}</Text>
             <TouchableOpacity
               style={styles.btnPrimary}
               onPress={() => {
