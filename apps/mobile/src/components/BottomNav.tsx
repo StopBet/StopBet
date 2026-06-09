@@ -1,0 +1,116 @@
+import React from 'react';
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  AccessibilityInfo,
+} from 'react-native';
+import { Colors } from '../constants/colors';
+
+export type NavTab = 'home' | 'community' | 'achievements' | 'profile';
+
+const LEFT_TABS: { id: NavTab; emoji: string; label: string }[] = [
+  { id: 'home',      emoji: '🏠', label: 'Inicio'    },
+  { id: 'community', emoji: '💬', label: 'Comunidad' },
+];
+const RIGHT_TABS: { id: NavTab; emoji: string; label: string }[] = [
+  { id: 'achievements', emoji: '🏆', label: 'Logros'  },
+  { id: 'profile',      emoji: '👤', label: 'Perfil'  },
+];
+
+interface Props {
+  active: NavTab;
+  onTabPress: (tab: NavTab) => void;
+  onPanicPress: () => void;
+}
+
+export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
+  const renderTab = (tab: { id: NavTab; emoji: string; label: string }) => {
+    const isActive = active === tab.id;
+    return (
+      <TouchableOpacity
+        key={tab.id}
+        onPress={() => onTabPress(tab.id)}
+        style={styles.tab}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.tabEmoji}>{tab.emoji}</Text>
+        <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
+          {tab.label}
+        </Text>
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <View style={styles.bar}>
+      {LEFT_TABS.map(renderTab)}
+
+      <TouchableOpacity
+        onPress={onPanicPress}
+        activeOpacity={0.85}
+        accessible
+        accessibilityLabel="Botón de pánico"
+        accessibilityRole="button"
+        style={styles.panicButton}
+      >
+        <Text style={styles.panicIcon}>🆘</Text>
+      </TouchableOpacity>
+
+      {RIGHT_TABS.map(renderTab)}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  bar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
+    backgroundColor: Colors.bg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    paddingHorizontal: 8,
+    paddingTop: 10,
+    paddingBottom: 22,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 4,
+  },
+  tabEmoji: {
+    fontSize: 24,
+  },
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.fg2,
+  },
+  tabLabelActive: {
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  panicButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.danger,
+    borderWidth: 5,
+    borderColor: Colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -28,
+    marginHorizontal: 4,
+    shadowColor: Colors.danger,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  panicIcon: {
+    fontSize: 26,
+  },
+});
