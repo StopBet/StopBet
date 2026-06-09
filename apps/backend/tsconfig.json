@@ -16,9 +16,6 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false,
-    "paths": {
-      "@stopbet/shared-types": ["../../packages/shared-types/src"]
-    }
+    "noFallthroughCasesInSwitch": false
   }
 }
