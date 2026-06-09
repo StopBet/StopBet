@@ -15,6 +15,7 @@ import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { PanicAlert } from './entities/panic-alert.entity';
 import { User } from '../users/entities/user.entity';
 import { CommunityPost } from '../community/entities/community-post.entity';
+import { Notification } from '../notifications/entities/notification.entity';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
 
 const ESCALATION_MS = 3 * 60 * 1000; // 3 minutos
@@ -31,6 +32,8 @@ export class PanicService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(CommunityPost)
     private readonly postRepo: Repository<CommunityPost>,
+    @InjectRepository(Notification)
+    private readonly notificationRepo: Repository<Notification>,
   ) {}
 
   // ── Sponsor ────────────────────────────────────────────────────────────
@@ -87,6 +90,21 @@ export class PanicService {
         status: 'pending',
       }),
     );
+
+    // CA1: avisar al padrino con el mensaje de contención inmediata
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    const patientName = patient
+      ? `${patient.firstName} ${patient.lastName}`
+      : 'Un paciente';
+    await this.notificationRepo.save(
+      this.notificationRepo.create({
+        userId: assignment.sponsorId,
+        type: 'danger',
+        title: 'Alerta de pánico',
+        body: `Alerta: El paciente ${patientName} requiere contención inmediata por riesgo de recaída`,
+      }),
+    );
+
     return this.serializeAlert(alert);
   }
 
