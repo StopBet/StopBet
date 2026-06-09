@@ -49,13 +49,6 @@ export function AssistantScreen() {
   const listRef = useRef<FlatList>(null);
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const resetInactivityTimer = useCallback(() => {
-    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-    inactivityTimer.current = setTimeout(() => {
-      handleAutoClose();
-    }, INACTIVITY_MS);
-  }, [handleAutoClose]);
-
   const handleAutoClose = useCallback(async () => {
     if (!sessionId) return;
     try {
@@ -66,6 +59,13 @@ export function AssistantScreen() {
       // Auto-close silencioso si falla la red
     }
   }, [sessionId]);
+
+  const resetInactivityTimer = useCallback(() => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    inactivityTimer.current = setTimeout(() => {
+      handleAutoClose();
+    }, INACTIVITY_MS);
+  }, [handleAutoClose]);
 
   const addTypingIndicator = () => {
     setItems((prev) => [...prev, { type: 'typing', id: '__typing__' }]);

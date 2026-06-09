@@ -4,7 +4,8 @@
     "baseUrl": ".",
     "paths": {
       "@stopbet/shared-types": ["../../packages/shared-types/src"]
-    }
+    },
+    "types": []
   },
   "include": ["**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules", "android", "ios"]

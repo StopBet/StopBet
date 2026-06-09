@@ -19,7 +19,7 @@ import type {
 } from '@stopbet/shared-types';
 
 // localhost funciona en dispositivo real gracias a `adb reverse tcp:3000 tcp:3000`
-const BASE_URL = process.env.API_URL ?? 'http://localhost:3000';
+const BASE_URL = 'http://localhost:3000';
 
 const REQUEST_TIMEOUT_MS = 8000;
 

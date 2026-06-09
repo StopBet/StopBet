@@ -46,13 +46,7 @@ export function WelcomeScreen({ navigation }: Props) {
           <Text style={styles.btnPrimaryText}>Comenzar registro</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={styles.btnLink}
-          onPress={() => navigation.navigate('Login')}
-        >
-          <Text style={styles.btnLinkText}>Ya tengo cuenta · Iniciar sesión</Text>
-        </TouchableOpacity>
+        {/* Login pendiente de implementar en sprint de autenticación */}
       </View>
     </SafeAreaView>
   );
