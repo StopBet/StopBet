@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -121,11 +122,16 @@ export class CommunityController {
   @ApiParam({ name: 'id', description: 'UUID de la publicación' })
   @ApiParam({ name: 'emoji', description: 'Emoji url-encoded (%F0%9F%92%AA para 💪)' })
   @ApiResponse({ status: 200, description: 'Resumen actualizado de reacciones' })
+  @ApiResponse({ status: 400, description: 'Emoji inválido' })
   removeReaction(
     @Param('id') id: string,
     @Param('emoji') emoji: string,
     @Headers('x-user-id') userId: string,
   ) {
+    const VALID_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];
+    if (!VALID_EMOJIS.includes(emoji as ReactionEmoji)) {
+      throw new BadRequestException('Emoji inválido');
+    }
     return this.service.removeReaction(id, emoji as ReactionEmoji, userId);
   }
 

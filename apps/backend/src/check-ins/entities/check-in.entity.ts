@@ -5,12 +5,15 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { EmotionType } from '@stopbet/shared-types';
 import { User } from '../../users/entities/user.entity';
 
 const EMOTIONS: EmotionType[] = ['tired', 'anxious', 'angry', 'lonely', 'good'];
 
+// Garantiza a nivel DB que solo exista un check-in por usuario por día
+@Unique(['userId', 'date'])
 @Entity('check_ins')
 export class CheckIn {
   @PrimaryGeneratedColumn('uuid')

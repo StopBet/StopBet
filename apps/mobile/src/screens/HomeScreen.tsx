@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { EmotionType, Notification, PatientProgress } from '@stopbet/shared-types';
+import type { AppStackParamList } from '../navigation/types';
 import { DayCounter } from '../components/DayCounter';
 import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
@@ -23,16 +24,7 @@ import { api } from '../services/api';
 const TEMP_USER_ID = 'TEMP_USER_ID';
 const TEMP_FIRST_NAME = 'Carlos';
 
-export type RootStackParamList = {
-  Home: undefined;
-  Assistant: undefined;
-  Community: undefined;
-  Achievements: undefined;
-  Profile: undefined;
-  Panic: undefined;
-};
-
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
 
 export function HomeScreen({ navigation }: Props) {
   const [progress, setProgress] = useState<PatientProgress | null>(null);
@@ -44,6 +36,13 @@ export function HomeScreen({ navigation }: Props) {
 
   const load = useCallback(async () => {
     try {
+      // Verifica suspensión antes de cargar el resto
+      const billing = await api.getBillingStatus(TEMP_USER_ID);
+      if (billing.accountStatus === 'suspended') {
+        navigation.replace('SuspendedAccount');
+        return;
+      }
+
       const [prog, checkIn, notifs] = await Promise.all([
         api.getProgress(TEMP_USER_ID),
         api.getTodayCheckIn(TEMP_USER_ID),
@@ -61,7 +60,7 @@ export function HomeScreen({ navigation }: Props) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [navigation]);
 
   useEffect(() => { load(); }, [load]);
 

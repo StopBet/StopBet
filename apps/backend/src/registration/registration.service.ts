@@ -57,13 +57,10 @@ export class RegistrationService {
     return { userId: user.id, requestId: request.id, status: 'pending' };
   }
 
-  async getStatus(requestId: string): Promise<RegistrationRequest> {
-    const req = await this.requestRepo.findOne({
-      where: { id: requestId },
-      relations: ['user'],
-    });
+  async getStatus(requestId: string): Promise<{ id: string; status: string; userId: string; sedeId: string }> {
+    const req = await this.requestRepo.findOne({ where: { id: requestId } });
     if (!req) throw new NotFoundException('Solicitud no encontrada');
-    return req;
+    return { id: req.id, status: req.status, userId: req.userId, sedeId: req.sedeId };
   }
 
   async approve(requestId: string, psychologistId: string): Promise<void> {
