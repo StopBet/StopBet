@@ -39,6 +39,13 @@ const ROLE_LABEL: Record<UserRole, string> = {
   family: 'Familiar',
 };
 
+// Caché en memoria de lo último cargado, para mostrarlo sin conexión (CA4).
+// Persiste mientras la app sigue viva; sobrevive a navegar entre pantallas.
+const offlineCache: { announcements: CommunityPost[]; posts: CommunityPost[] } = {
+  announcements: [],
+  posts: [],
+};
+
 type Tab = 'announcements' | 'forum';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Community'>;
@@ -68,13 +75,16 @@ export function CommunityScreen({ navigation }: Props) {
       setAnnouncements(anns);
       setPosts(forum.data);
       setOffline(false);
+      // Guarda lo cargado para poder mostrarlo sin conexión (CA4)
+      offlineCache.announcements = anns;
+      offlineCache.posts = forum.data;
     } catch (err) {
-      const message = (err as Error).message ?? '';
-      const isNetworkError =
-        message.includes('Network') || message.includes('Aborted') || message.includes('aborted');
-      setOffline(isNetworkError);
+      // Sin conexión: caemos al último contenido cacheado (CA4)
+      setOffline(true);
+      setAnnouncements(offlineCache.announcements);
+      setPosts(offlineCache.posts);
       // No exponemos datos del paciente en logs
-      console.error('[CommunityScreen] load error', message);
+      console.error('[CommunityScreen] load error', (err as Error).message);
     } finally {
       setLoading(false);
     }
