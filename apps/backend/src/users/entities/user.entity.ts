@@ -5,7 +5,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { OnboardingStatus, UserRole } from '@stopbet/shared-types';
+import { AccountStatus, OnboardingStatus, UserRole } from '@stopbet/shared-types';
 
 const ROLES: UserRole[] = ['patient', 'psychologist', 'sponsor', 'family'];
 const ONBOARDING_STATUSES: OnboardingStatus[] = [
@@ -13,6 +13,7 @@ const ONBOARDING_STATUSES: OnboardingStatus[] = [
   'payment_pending',
   'complete',
 ];
+const ACCOUNT_STATUSES: AccountStatus[] = ['active', 'suspended'];
 
 @Entity('users')
 export class User {
@@ -62,6 +63,11 @@ export class User {
     nullable: true,
   })
   onboardingStatus: OnboardingStatus | null;
+
+  // ── Estado de cuenta ─────────────────────────────────────────────────
+
+  @Column({ type: 'enum', enum: ACCOUNT_STATUSES, default: 'active' })
+  accountStatus: AccountStatus;
 
   // ── Progreso ──────────────────────────────────────────────────────────
 
