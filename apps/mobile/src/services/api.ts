@@ -6,11 +6,16 @@ import type {
   BadgeMilestone,
   BillingStatus,
   CheckIn,
+  CommunityPost,
+  CommunityReply,
   EmotionType,
   Notification,
+  PaginatedResponse,
   PanicAlertDto,
   PatientProgress,
   PaymentMethod,
+  ReactionEmoji,
+  ReactionSummary,
   Sede,
   SendMessageResponse,
   SponsorInfo,
@@ -197,4 +202,59 @@ export const api = {
 
   getPendingPanicAlerts: (sponsorId: string) =>
     request<PanicAlertDto[]>('/panic/pending', { userId: sponsorId }),
+
+  // ── Comunidad y red de apoyo ─────────────────────────────────────────
+  getAnnouncements: (userId: string, sede: string) =>
+    request<CommunityPost[]>(
+      `/community/announcements?sede=${encodeURIComponent(sede)}`,
+      { userId },
+    ),
+
+  toggleAttendance: (userId: string, announcementId: string) =>
+    request<{ attends: boolean }>(
+      `/community/announcements/${announcementId}/attend`,
+      { userId, method: 'POST' },
+    ),
+
+  getForumPosts: (userId: string, sede: string, page = 1, limit = 20) =>
+    request<PaginatedResponse<CommunityPost>>(
+      `/community/posts?sede=${encodeURIComponent(sede)}&page=${page}&limit=${limit}`,
+      { userId },
+    ),
+
+  createForumPost: (userId: string, sede: string, body: string) =>
+    request<CommunityPost>('/community/posts', {
+      userId,
+      method: 'POST',
+      body: JSON.stringify({ sede, body }),
+    }),
+
+  addReaction: (userId: string, postId: string, emoji: ReactionEmoji) =>
+    request<ReactionSummary[]>(`/community/posts/${postId}/reactions`, {
+      userId,
+      method: 'POST',
+      body: JSON.stringify({ emoji }),
+    }),
+
+  removeReaction: (userId: string, postId: string, emoji: ReactionEmoji) =>
+    request<ReactionSummary[]>(
+      `/community/posts/${postId}/reactions/${encodeURIComponent(emoji)}`,
+      { userId, method: 'DELETE' },
+    ),
+
+  getReplies: (userId: string, postId: string) =>
+    request<CommunityReply[]>(`/community/posts/${postId}/replies`, { userId }),
+
+  createReply: (userId: string, postId: string, body: string) =>
+    request<CommunityReply>(`/community/posts/${postId}/replies`, {
+      userId,
+      method: 'POST',
+      body: JSON.stringify({ body }),
+    }),
+
+  reportPost: (userId: string, postId: string) =>
+    request<{ reported: boolean }>(`/community/posts/${postId}/report`, {
+      userId,
+      method: 'POST',
+    }),
 };
