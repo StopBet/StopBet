@@ -18,28 +18,38 @@ import type {
   SubmitRegistrationResponse,
 } from '@stopbet/shared-types';
 
-const BASE_URL = process.env.API_URL ?? 'http://10.0.2.2:3000'; // 10.0.2.2 = localhost desde emulador Android
+// localhost funciona en dispositivo real gracias a `adb reverse tcp:3000 tcp:3000`
+const BASE_URL = process.env.API_URL ?? 'http://localhost:3000';
+
+const REQUEST_TIMEOUT_MS = 8000;
 
 async function request<T>(
   path: string,
   options?: RequestInit & { userId?: string },
 ): Promise<T> {
   const { userId, ...fetchOpts } = options ?? {};
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...fetchOpts,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(userId ? { 'x-user-id': userId } : {}),
-      ...fetchOpts.headers,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`${res.status} ${body}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${BASE_URL}${path}`, {
+      ...fetchOpts,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(userId ? { 'x-user-id': userId } : {}),
+        ...fetchOpts.headers,
+      },
+    });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`${res.status} ${body}`);
+    }
+    // 204 No Content
+    if (res.status === 204) return undefined as unknown as T;
+    return res.json() as Promise<T>;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  // 204 No Content
-  if (res.status === 204) return undefined as unknown as T;
-  return res.json() as Promise<T>;
 }
 
 export const api = {

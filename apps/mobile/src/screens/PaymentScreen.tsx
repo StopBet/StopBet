@@ -61,7 +61,7 @@ export function PaymentScreen({ navigation, route }: Props) {
         'Tu pago fue procesado correctamente. Bienvenido a StopBet · AJUTER.',
         [{ text: 'Ir al inicio', onPress: () => navigation.navigate('Welcome') }],
       );
-    } catch (err: any) {
+    } catch {
       Alert.alert('Error en el pago', 'No se pudo procesar el pago. Inténtalo de nuevo.');
     } finally {
       setPaying(false);

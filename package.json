@@ -6,7 +6,10 @@
     "web": "pnpm --filter @stopbet/web dev",
     "backend": "pnpm --filter @stopbet/backend start:dev",
     "build:web": "pnpm --filter @stopbet/web build",
-    "build:backend": "pnpm --filter @stopbet/backend build"
+    "build:backend": "pnpm --filter @stopbet/backend build",
+    "android:device": "powershell -ExecutionPolicy Bypass -File scripts\\android-run.ps1",
+    "android:device:fresh": "powershell -ExecutionPolicy Bypass -File scripts\\android-run.ps1 -ResetCache",
+    "android:reload": "powershell -ExecutionPolicy Bypass -File scripts\\android-run.ps1 -SkipBuild"
   },
   "engines": {
     "node": ">=20.0.0",

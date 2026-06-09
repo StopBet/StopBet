@@ -1,6 +1,5 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 import { Colors } from '../constants/colors';
 
 interface Props {
@@ -8,33 +7,14 @@ interface Props {
   milestone: number;
 }
 
-const RING_RADIUS = 60;
-const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-
 export function DayCounter({ days, milestone }: Props) {
   const pct = Math.min(days / milestone, 1);
-  const offset = CIRCUMFERENCE * (1 - pct);
   const daysLeft = milestone - days;
 
   return (
     <View style={styles.card}>
       <View style={styles.ringContainer}>
-        <Svg width={140} height={140} style={styles.svg}>
-          <Circle
-            cx={70} cy={70} r={RING_RADIUS}
-            fill="none" stroke={Colors.sage50} strokeWidth={10}
-          />
-          <Circle
-            cx={70} cy={70} r={RING_RADIUS}
-            fill="none" stroke={Colors.sage500} strokeWidth={10}
-            strokeLinecap="round"
-            strokeDasharray={`${CIRCUMFERENCE} ${CIRCUMFERENCE}`}
-            strokeDashoffset={offset}
-            // Rotación para que el arco empiece arriba
-            rotation="-90" origin="70, 70"
-          />
-        </Svg>
-        <View style={styles.ringLabel}>
+        <View style={styles.ring}>
           <Text style={styles.daysNumber}>{days}</Text>
           <Text style={styles.daysText}>días sin apostar</Text>
         </View>
@@ -71,12 +51,14 @@ const styles = StyleSheet.create({
   },
   ringContainer: {
     alignItems: 'center',
-    position: 'relative',
   },
-  svg: {},
-  ringLabel: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
+  ring: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 10,
+    borderColor: Colors.sage500,
+    backgroundColor: Colors.sage50,
     alignItems: 'center',
     justifyContent: 'center',
   },

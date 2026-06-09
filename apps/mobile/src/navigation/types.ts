@@ -18,7 +18,6 @@ export type AuthStackParamList = {
   RegisterStep2: { institutionId: string; basicData: BasicRegistrationData };
   RequestSent: { requestId: string; email: string };
   Payment: { userId: string; requestId: string };
-  Login: undefined;
 };
 
 export type AppStackParamList = {
@@ -28,4 +27,5 @@ export type AppStackParamList = {
   Achievements: undefined;
   Profile: undefined;
   Panic: undefined;
+  SuspendedAccount: undefined;
 };

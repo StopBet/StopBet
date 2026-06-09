@@ -47,9 +47,9 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         requestId: result.requestId,
         email: basicData.email,
       });
-    } catch (err: any) {
+    } catch (err) {
       const msg =
-        err?.message?.includes('409')
+        (err as Error).message?.includes('409')
           ? 'Ya existe una cuenta con ese correo electrónico.'
           : 'No se pudo enviar la solicitud. Inténtalo de nuevo.';
       Alert.alert('Error', msg);

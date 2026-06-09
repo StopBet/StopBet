@@ -64,11 +64,20 @@ function nextMilestoneFor(days: number): BadgeMilestone | null {
   return MILESTONES.find((m) => m > days) ?? null;
 }
 
+const EMPTY_DATA: AchievementsData = {
+  currentPeriod: {
+    id: '', userId: '', startDate: new Date().toISOString().split('T')[0],
+    endDate: null, daysAchieved: 0, attemptNumber: 1, earnedBadges: [],
+  },
+  historicalPeriods: [],
+  newestMilestone: null,
+};
+
 type Props = NativeStackScreenProps<AppStackParamList, 'Achievements'>;
 
 export function AchievementsScreen({ navigation }: Props) {
-  const [data, setData] = useState<AchievementsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState<AchievementsData>(EMPTY_DATA);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('achievements');
   const [relapseModal, setRelapseModal] = useState(false);
   const [shareMilestone, setShareMilestone] = useState<BadgeMilestone | null>(null);
@@ -146,10 +155,10 @@ export function AchievementsScreen({ navigation }: Props) {
     else if (tab === 'profile') navigation.navigate('Profile');
   };
 
-  const currentPeriod = data?.currentPeriod;
-  const days = currentPeriod?.daysAchieved ?? 0;
-  const earnedSet = new Set(currentPeriod?.earnedBadges.map((b) => b.milestone) ?? []);
-  const newestEarnedMilestone = currentPeriod?.earnedBadges
+  const currentPeriod = data.currentPeriod;
+  const days = currentPeriod.daysAchieved;
+  const earnedSet = new Set(currentPeriod.earnedBadges.map((b) => b.milestone));
+  const newestEarnedMilestone = currentPeriod.earnedBadges
     .filter((b) => !b.sharedToCommunity)
     .sort((a, b) => b.milestone - a.milestone)[0]?.milestone as BadgeMilestone | undefined;
 
@@ -248,10 +257,10 @@ export function AchievementsScreen({ navigation }: Props) {
           </View>
 
           {/* ── Ciclos históricos ── */}
-          {(data?.historicalPeriods.length ?? 0) > 0 && (
+          {data.historicalPeriods.length > 0 && (
             <>
               <Text style={styles.sectionTitle}>Ciclos históricos</Text>
-              {data!.historicalPeriods.map((period) => (
+              {data.historicalPeriods.map((period) => (
                 <CycleCard key={period.id} period={period} />
               ))}
             </>

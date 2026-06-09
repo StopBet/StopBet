@@ -1,0 +1,60 @@
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import type { AppStackParamList, AuthStackParamList } from './src/navigation/types';
+
+// Auth screens
+import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { SelectInstitutionScreen } from './src/screens/SelectInstitutionScreen';
+import { RegisterStep1Screen } from './src/screens/RegisterStep1Screen';
+import { RegisterStep2Screen } from './src/screens/RegisterStep2Screen';
+import { RequestSentScreen } from './src/screens/RequestSentScreen';
+import { PaymentScreen } from './src/screens/PaymentScreen';
+
+// App screens
+import { HomeScreen } from './src/screens/HomeScreen';
+import { AssistantScreen } from './src/screens/AssistantScreen';
+import { AchievementsScreen } from './src/screens/AchievementsScreen';
+import { PanicScreen } from './src/screens/PanicScreen';
+import { SuspendedAccountScreen } from './src/screens/SuspendedAccountScreen';
+import { CommunityScreen } from './src/screens/CommunityScreen';
+import { ProfileScreen } from './src/screens/ProfileScreen';
+
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const AppStack = createNativeStackNavigator<AppStackParamList>();
+
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Welcome" component={WelcomeScreen} />
+      <AuthStack.Screen name="SelectInstitution" component={SelectInstitutionScreen} />
+      <AuthStack.Screen name="RegisterStep1" component={RegisterStep1Screen} />
+      <AuthStack.Screen name="RegisterStep2" component={RegisterStep2Screen} />
+      <AuthStack.Screen name="RequestSent" component={RequestSentScreen} />
+      <AuthStack.Screen name="Payment" component={PaymentScreen} />
+    </AuthStack.Navigator>
+  );
+}
+
+function AppNavigator() {
+  return (
+    <AppStack.Navigator screenOptions={{ headerShown: false }}>
+      <AppStack.Screen name="Home" component={HomeScreen} />
+      <AppStack.Screen name="Assistant" component={AssistantScreen} />
+      <AppStack.Screen name="Community" component={CommunityScreen} />
+      <AppStack.Screen name="Achievements" component={AchievementsScreen} />
+      <AppStack.Screen name="Profile" component={ProfileScreen} />
+      <AppStack.Screen name="Panic" component={PanicScreen} />
+      <AppStack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
+    </AppStack.Navigator>
+  );
+}
+
+// MVP: arrancar directo en la app (sin auth real aún)
+export default function App() {
+  return (
+    <NavigationContainer>
+      <AppNavigator />
+    </NavigationContainer>
+  );
+}

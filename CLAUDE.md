@@ -142,6 +142,45 @@ npm run backend                # http://localhost:3000
 npm run build:web
 ```
 
+## App Mobile en dispositivo Android físico
+
+### Prerrequisitos (una vez por máquina)
+1. **Android Studio** instalado → [developer.android.com/studio](https://developer.android.com/studio)
+2. **`adb` en el PATH**: agregar `C:\Users\<usuario>\AppData\Local\Android\Sdk\platform-tools`
+3. **Node.js 20+** en el PATH
+4. **En el celular**: Ajustes → Opciones de desarrollador → Depuración USB (ON)
+
+> Java 17+ se instala automáticamente si no está presente.
+
+### Comandos
+
+```bash
+# Primera vez o después de cambios nativos (demora ~5–15 min, Gradle compila)
+npm run android:device
+
+# Veces posteriores (solo recarga JS, segundos)
+npm run android:reload
+
+# Si hay errores raros de Metro
+npm run android:device:fresh
+```
+
+### Qué hace el script automáticamente
+1. Verifica que el celular esté conectado por USB
+2. Detecta Java 17+ o lo instala con `winget`
+3. Configura `adb reverse` para puertos 8081 (Metro) y 3000 (Backend)
+4. Abre Metro bundler en una ventana CMD separada
+5. Compila el APK con Gradle e instala en el dispositivo
+6. Lanza la app automáticamente
+
+### Flujo de trabajo diario
+```
+Terminal A: npm run backend          # API en localhost:3000
+Terminal B: (abre automáticamente)   # Metro bundler (ventana CMD)
+Celular:    app StopBet              # conectado por USB
+```
+Para ver datos reales, el backend debe estar corriendo antes de abrir la app.
+
 ## Variables de entorno requeridas
 
 ### Backend (`apps/backend/.env`)
