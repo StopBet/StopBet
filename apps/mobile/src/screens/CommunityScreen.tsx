@@ -23,6 +23,7 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { BottomNav } from '../components/BottomNav';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
@@ -210,7 +211,10 @@ export function CommunityScreen({ navigation }: Props) {
           activeOpacity={0.85}
           onPress={() => navigation.navigate('Panic')}
         >
-          <Text style={styles.panicBtnText}>🆘 Pánico</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Icon name="siren" size={14} color={Colors.white} />
+            <Text style={styles.panicBtnText}>Pánico</Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -230,7 +234,10 @@ export function CommunityScreen({ navigation }: Props) {
 
       {offline && (
         <View style={styles.offlineBanner}>
-          <Text style={styles.offlineText}>⚠️ Sin conexión · Solo lectura</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="triangle-alert" size={14} color={Colors.accent} />
+            <Text style={styles.offlineText}>Sin conexión · Solo lectura</Text>
+          </View>
         </View>
       )}
 
@@ -252,7 +259,7 @@ export function CommunityScreen({ navigation }: Props) {
             >
               {announcements.length === 0 ? (
                 <EmptyState
-                  emoji="📣"
+                  iconName="megaphone"
                   title="Sin anuncios"
                   text="Aquí verás los avisos y eventos de tu sede AJUTER."
                 />
@@ -267,7 +274,10 @@ export function CommunityScreen({ navigation }: Props) {
                 ))
               )}
               <View style={styles.readonlyNote}>
-                <Text style={styles.readonlyNoteText}>🔒 Solo el equipo puede publicar en Anuncios</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon name="lock" size={13} color={Colors.fg2} />
+                  <Text style={styles.readonlyNoteText}>Solo el equipo puede publicar en Anuncios</Text>
+                </View>
               </View>
             </ScrollView>
           ) : (
@@ -279,7 +289,7 @@ export function CommunityScreen({ navigation }: Props) {
               >
                 {posts.length === 0 ? (
                   <EmptyState
-                    emoji="💬"
+                    iconName="message-circle"
                     title="Sé el primero en escribir"
                     text="Comparte cómo te sientes o anima a quienes están en el mismo camino."
                   />
@@ -324,7 +334,7 @@ export function CommunityScreen({ navigation }: Props) {
                   {posting ? (
                     <ActivityIndicator size="small" color={Colors.white} />
                   ) : (
-                    <Text style={styles.sendBtnText}>➤</Text>
+                    <Icon name="send" size={18} color={Colors.white} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -340,10 +350,10 @@ export function CommunityScreen({ navigation }: Props) {
 
 // ── Subcomponentes ─────────────────────────────────────────────────────────
 
-function EmptyState({ emoji, title, text }: { emoji: string; title: string; text: string }) {
+function EmptyState({ iconName, title, text }: { iconName: string; title: string; text: string }) {
   return (
     <View style={styles.emptyCard}>
-      <Text style={styles.emptyEmoji}>{emoji}</Text>
+      <Icon name={iconName} size={44} color={Colors.fg2} />
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyText}>{text}</Text>
     </View>
@@ -362,7 +372,10 @@ function AnnouncementCard({
   const isPsychologist = announcement.authorRole === 'psychologist';
   return (
     <View style={styles.pinCard}>
-      <Text style={styles.pinFlag}>🔔 Equipo clínico · Sede {announcement.sede}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
+        <Icon name="bell" size={12} color={Colors.fg2} />
+        <Text style={styles.pinFlag}>Equipo clínico · Sede {announcement.sede}</Text>
+      </View>
       <View style={styles.pinHead}>
         <View style={[styles.avatar, { backgroundColor: isPsychologist ? Colors.primary : Colors.accent }]}>
           <Text style={styles.avatarLetter}>{initial(announcement.authorName)}</Text>
@@ -383,16 +396,24 @@ function AnnouncementCard({
       <Text style={styles.pinBody}>{announcement.body}</Text>
       {!!announcement.eventDate && (
         <View style={styles.annCta}>
-          <Text style={styles.annDate}>📅 {formatEventDate(announcement.eventDate)}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Icon name="calendar" size={12} color={Colors.fg2} />
+            <Text style={styles.annDate}>{formatEventDate(announcement.eventDate)}</Text>
+          </View>
           <TouchableOpacity
             style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
             onPress={onToggleAttendance}
             disabled={disabled}
             activeOpacity={0.85}
           >
-            <Text style={[styles.attendBtnText, announcement.userAttends && styles.attendBtnTextOn]}>
-              {announcement.userAttends ? '✓ Asistiré' : 'Confirmar asistencia'}
-            </Text>
+            {announcement.userAttends ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <Icon name="check" size={14} color={Colors.white} />
+                <Text style={[styles.attendBtnText, styles.attendBtnTextOn]}>Asistiré</Text>
+              </View>
+            ) : (
+              <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
+            )}
           </TouchableOpacity>
         </View>
       )}
@@ -437,7 +458,7 @@ function PostCard({
           <Text style={styles.authorMeta}>{timeAgo(post.createdAt)}</Text>
         </View>
         <TouchableOpacity onPress={onReport} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.moreBtn}>⋯</Text>
+          <Icon name="ellipsis" size={20} color={Colors.fg2} />
         </TouchableOpacity>
       </View>
 
@@ -606,8 +627,8 @@ const styles = StyleSheet.create({
     padding: 28,
     alignItems: 'center',
     marginTop: 8,
+    gap: 12,
   },
-  emptyEmoji: { fontSize: 44, marginBottom: 12 },
   emptyTitle: { fontWeight: '700', fontSize: 18, color: Colors.ink900, marginBottom: 8 },
   emptyText: { fontSize: 14, color: Colors.fg2, textAlign: 'center', lineHeight: 21 },
 
@@ -624,7 +645,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  pinFlag: { fontSize: 11, fontWeight: '600', color: Colors.fg2, marginBottom: 10 },
+  pinFlag: { fontSize: 11, fontWeight: '600', color: Colors.fg2 },
   pinHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pinTitle: { fontWeight: '700', fontSize: 15, color: Colors.primary, marginTop: 11 },
   pinBody: { fontSize: 15, color: Colors.ink900, lineHeight: 22, marginTop: 6 },
@@ -680,7 +701,6 @@ const styles = StyleSheet.create({
   },
   msgHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   msgBody: { fontSize: 15, color: Colors.ink900, lineHeight: 22, paddingTop: 10 },
-  moreBtn: { fontSize: 20, color: Colors.fg2, paddingHorizontal: 4 },
 
   reactRow: {
     flexDirection: 'row',
@@ -785,7 +805,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: Colors.border },
-  sendBtnText: { color: Colors.white, fontSize: 18, fontWeight: '700' },
 
   readonlyNote: {
     alignItems: 'center',

@@ -20,6 +20,7 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { BottomNav, NavTab } from '../components/BottomNav';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
@@ -179,7 +180,7 @@ export function AchievementsScreen({ navigation }: Props) {
           <Text style={styles.headerSub}>Periodo actual: {days} días</Text>
         </View>
         <View style={styles.trophyCircle}>
-          <Text style={styles.trophyEmoji}>🏆</Text>
+          <Icon name="trophy" size={22} color={Colors.white} />
         </View>
       </View>
 
@@ -198,9 +199,10 @@ export function AchievementsScreen({ navigation }: Props) {
             <Text style={styles.counterNum}>{days}</Text>
             <Text style={styles.counterUnit}>días sin apostar</Text>
             {currentPeriod?.startDate && (
-              <Text style={styles.counterStart}>
-                📅 Comenzaste el {formatDateLong(currentPeriod.startDate)}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 }}>
+                <Icon name="calendar" size={13} color={Colors.fg2} />
+                <Text style={styles.counterStart}>Comenzaste el {formatDateLong(currentPeriod.startDate)}</Text>
+              </View>
             )}
 
             {/* Barra de progreso */}
@@ -209,14 +211,18 @@ export function AchievementsScreen({ navigation }: Props) {
                 <View style={styles.progressTrack}>
                   <View style={[styles.progressFill, { width: `${progressFraction * 100}%` }]} />
                 </View>
-                <Text style={styles.progressLabel}>
-                  🎯 Próximo hito: {nextM} días · faltan {daysLeft} día{daysLeft !== 1 ? 's' : ''}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 10 }}>
+                  <Icon name="target" size={13} color={Colors.gold} />
+                  <Text style={styles.progressLabel}>Próximo hito: {nextM} días · faltan {daysLeft} día{daysLeft !== 1 ? 's' : ''}</Text>
+                </View>
               </View>
             )}
 
             <TouchableOpacity style={styles.relapseBtn} onPress={handleRelapse} activeOpacity={0.8}>
-              <Text style={styles.relapseBtnText}>❤️ Reportar recaída</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name="heart" size={14} color={Colors.danger} />
+                <Text style={styles.relapseBtnText}>Reportar recaída</Text>
+              </View>
             </TouchableOpacity>
           </View>
 
@@ -246,7 +252,7 @@ export function AchievementsScreen({ navigation }: Props) {
                   </View>
                   {!earned && (
                     <View style={styles.badgeLock}>
-                      <Text style={styles.badgeLockText}>🔒</Text>
+                      <Icon name="lock" size={10} color={Colors.white} />
                     </View>
                   )}
                   <Text style={[styles.badgeLabel, !earned && styles.badgeLabelLocked]}>
@@ -286,7 +292,7 @@ export function AchievementsScreen({ navigation }: Props) {
         <View style={styles.overlay}>
           <View style={styles.modal}>
             <View style={styles.modalIcon}>
-              <Text style={styles.modalIconEmoji}>❤️</Text>
+              <Icon name="heart" size={42} color={Colors.sage500} />
             </View>
             <Text style={styles.modalTitle}>No estás solo en esto</Text>
             <Text style={styles.modalText}>{relapseMessage}</Text>
@@ -298,7 +304,10 @@ export function AchievementsScreen({ navigation }: Props) {
               }}
               activeOpacity={0.85}
             >
-              <Text style={styles.btnPrimaryText}>💬 Hablar con el asistente ahora</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name="message-circle" size={18} color={Colors.white} />
+                <Text style={styles.btnPrimaryText}>Hablar con el asistente ahora</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setRelapseModal(false)} style={styles.btnLink}>
               <Text style={styles.btnLinkText}>Cerrar</Text>
@@ -330,10 +339,16 @@ export function AchievementsScreen({ navigation }: Props) {
                   <Text style={styles.shareUnit}>
                     sin apostar · {BADGE_CONFIG[shareMilestone].label}
                   </Text>
-                  <Text style={styles.shareBy}>❤️ StopBet · AJUTER</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14 }}>
+                    <Icon name="heart" size={12} color="rgba(255,255,255,0.7)" />
+                    <Text style={styles.shareBy}>StopBet · AJUTER</Text>
+                  </View>
                 </View>
                 <TouchableOpacity style={styles.btnPrimary} onPress={handleShare} activeOpacity={0.85}>
-                  <Text style={styles.btnPrimaryText}>👥 Compartir en la comunidad de mi sede</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Icon name="users" size={18} color={Colors.white} />
+                    <Text style={styles.btnPrimaryText}>Compartir en la comunidad de mi sede</Text>
+                  </View>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setShareMilestone(null)} style={styles.btnLink}>
                   <Text style={styles.btnLinkText}>Ahora no</Text>
@@ -372,9 +387,10 @@ function CycleCard({ period }: { period: AbstinencePeriod }) {
         </View>
       )}
       <View style={styles.cycleNote}>
-        <Text style={styles.cycleNoteText}>
-          🌿 Cada intento cuenta. Aprendiste algo valioso.
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+          <Icon name="leaf" size={12} color={Colors.fg2} />
+          <Text style={styles.cycleNoteText}>Cada intento cuenta. Aprendiste algo valioso.</Text>
+        </View>
       </View>
     </View>
   );
@@ -405,7 +421,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trophyEmoji: { fontSize: 22 },
 
   loader: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
 
@@ -433,7 +448,7 @@ const styles = StyleSheet.create({
     lineHeight: 80,
   },
   counterUnit: { fontWeight: '600', fontSize: 18, color: Colors.fg2, marginTop: 2 },
-  counterStart: { fontSize: 12, color: Colors.fg2, marginTop: 10 },
+  counterStart: { fontSize: 12, color: Colors.fg2 },
 
   progressWrap: { width: '100%', marginTop: 20 },
   progressTrack: {
@@ -451,7 +466,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.gold,
     fontWeight: '600',
-    marginTop: 10,
     textAlign: 'center',
   },
 
@@ -520,7 +534,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeLockText: { fontSize: 9 },
   newChip: {
     position: 'absolute',
     top: -7,
@@ -615,7 +628,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalIconEmoji: { fontSize: 42 },
   modalTitle: {
     fontWeight: '700',
     fontSize: 22,
@@ -674,7 +686,7 @@ const styles = StyleSheet.create({
     lineHeight: 40,
   },
   shareUnit: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
-  shareBy: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 14 },
+  shareBy: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
 
   /* Buttons */
   btnPrimary: {

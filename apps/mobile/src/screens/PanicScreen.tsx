@@ -18,6 +18,7 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { Colors } from '../constants/colors';
+import { Icon } from '../components/Icon';
 import { api } from '../services/api';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -270,7 +271,10 @@ export function PanicScreen({ navigation }: Props) {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor={Colors.danger} />
         <View style={styles.offlineBanner}>
-          <Text style={styles.offlineBannerText}>⚠️  Sin conexión a internet</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="triangle-alert" size={14} color="#fff" />
+            <Text style={styles.offlineBannerText}>Sin conexión a internet</Text>
+          </View>
         </View>
         <ScrollView
           style={styles.scroll}
@@ -282,14 +286,17 @@ export function PanicScreen({ navigation }: Props) {
 
           <View style={styles.disabledBtnWrap}>
             <View style={[styles.panicBtn, styles.panicBtnDisabled]}>
-              <Text style={styles.panicBtnIcon}>✋</Text>
+              <Icon name="hand" size={40} color="#fff" />
               <Text style={styles.panicBtnLabel}>PÁNICO</Text>
             </View>
             <Text style={styles.holdHintDisabled}>Necesitas conexión para activarlo</Text>
           </View>
 
           <View style={styles.warnCard}>
-            <Text style={styles.warnCardTitle}>⚠️  No fue posible enviar el aviso</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="triangle-alert" size={14} color={Colors.accent} />
+              <Text style={styles.warnCardTitle}>No fue posible enviar el aviso</Text>
+            </View>
             <Text style={styles.warnCardBody}>Conéctate a internet e inténtalo nuevamente.</Text>
           </View>
 
@@ -298,12 +305,12 @@ export function PanicScreen({ navigation }: Props) {
             onPress={() => Linking.openURL('tel:+56987654321')}
             accessibilityLabel="Llamar directamente al padrino"
           >
-            <View style={styles.callIcon}><Text>📞</Text></View>
+            <View style={styles.callIcon}><Icon name="phone" size={20} color={Colors.primary} /></View>
             <View style={styles.callMeta}>
               <Text style={styles.callLabel}>Llama directamente a tu padrino</Text>
               <Text style={styles.callNumber}>+56 9 8765 4321</Text>
             </View>
-            <Text style={styles.callChevron}>›</Text>
+            <Icon name="chevron-right" size={20} color={Colors.fg2} />
           </Pressable>
 
           <Pressable
@@ -311,7 +318,7 @@ export function PanicScreen({ navigation }: Props) {
             onPress={() => Linking.openURL(`tel:${CRISIS_LINE}`)}
             accessibilityLabel="Llamar a la línea de prevención del suicidio *4141"
           >
-            <View style={[styles.callIcon, styles.callIconDanger]}><Text>🆘</Text></View>
+            <View style={[styles.callIcon, styles.callIconDanger]}><Icon name="siren" size={20} color={Colors.danger} /></View>
             <View style={styles.callMeta}>
               <Text style={[styles.callLabel, { fontWeight: '700', color: Colors.ink900 }]}>
                 Línea de prevención del suicidio
@@ -321,7 +328,7 @@ export function PanicScreen({ navigation }: Props) {
               </Text>
               <Text style={styles.callSubLabel}>Gratuita · 24 horas · Confidencial</Text>
             </View>
-            <Text style={[styles.callChevron, { color: Colors.danger }]}>📞</Text>
+            <Icon name="chevron-right" size={20} color={Colors.danger} />
           </Pressable>
         </ScrollView>
       </SafeAreaView>
@@ -340,7 +347,7 @@ export function PanicScreen({ navigation }: Props) {
         >
           <View style={styles.respondedTop}>
             <View style={styles.checkBadge}>
-              <Text style={styles.checkBadgeIcon}>✅</Text>
+              <Icon name="circle-check" size={52} color={Colors.sage500} />
             </View>
             <Text style={styles.respondedTitle}>
               {state.kind === 'responded' && sponsor
@@ -367,7 +374,7 @@ export function PanicScreen({ navigation }: Props) {
                   <Text style={styles.sponsorName}>{sponsor.firstName} {sponsor.lastName}</Text>
                   <Text style={styles.sponsorStatus}>Respondió · disponible</Text>
                 </View>
-                <Text>🤝</Text>
+                <Icon name="handshake" size={24} color={Colors.sage500} />
               </View>
             </View>
           )}
@@ -375,11 +382,17 @@ export function PanicScreen({ navigation }: Props) {
           <View style={styles.actions}>
             {state.kind === 'responded' && (
               <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => navigation.navigate('Assistant')}>
-                <Text style={styles.btnTextLight}>💬  Iniciar chat con {sponsor?.firstName ?? 'padrino'}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Icon name="message-circle" size={18} color="#fff" />
+                  <Text style={styles.btnTextLight}>Iniciar chat con {sponsor?.firstName ?? 'padrino'}</Text>
+                </View>
               </Pressable>
             )}
             <Pressable style={[styles.btn, styles.btnOutlineTeal]} onPress={() => navigation.navigate('Assistant')}>
-              <Text style={styles.btnTextPrimary}>✨  Hablar con asistente IA</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name="sparkles" size={18} color={Colors.primary} />
+                <Text style={styles.btnTextPrimary}>Hablar con asistente IA</Text>
+              </View>
             </Pressable>
           </View>
         </ScrollView>
@@ -435,13 +448,13 @@ export function PanicScreen({ navigation }: Props) {
                 </Text>
                 <Text style={styles.notifTime}>hace un momento</Text>
               </View>
-              <Text style={{ color: Colors.accent }}>🔔</Text>
+              <Icon name="bell" size={18} color={Colors.accent} />
             </View>
           </View>
 
           {/* IA banner */}
           <View style={styles.iaBanner}>
-            <Text style={styles.iaBannerIcon}>✨</Text>
+            <Icon name="sparkles" size={20} color={Colors.accent} />
             <View style={{ flex: 1 }}>
               <Text style={styles.iaBannerTitle}>Asistente IA disponible</Text>
               <Text style={styles.iaBannerBody}>
@@ -455,7 +468,7 @@ export function PanicScreen({ navigation }: Props) {
           {/* Comunidad */}
           {!alert.communityNotified && (
             <View style={styles.communityCard}>
-              <Text style={styles.communityIcon}>👥</Text>
+              <Icon name="users" size={22} color={Colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.communityTitle}>¿Avisar a la Comunidad?</Text>
                 <Text style={styles.communityBody}>Tu red de apoyo también puede saber que necesitas ayuda.</Text>
@@ -465,19 +478,28 @@ export function PanicScreen({ navigation }: Props) {
 
           {!alert.communityNotified && (
             <Pressable style={[styles.btn, styles.btnOutlineTeal]} onPress={handleAlertCommunity}>
-              <Text style={styles.btnTextPrimary}>👥  Alertar a mi comunidad</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name="users" size={18} color={Colors.primary} />
+                <Text style={styles.btnTextPrimary}>Alertar a mi comunidad</Text>
+              </View>
             </Pressable>
           )}
 
           <Pressable style={[styles.btn, styles.btnOutlineTeal]} onPress={handleEscalateToAI}>
-            <Text style={styles.btnTextPrimary}>✨  Hablar con el asistente ahora</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Icon name="sparkles" size={18} color={Colors.primary} />
+              <Text style={styles.btnTextPrimary}>Hablar con el asistente ahora</Text>
+            </View>
           </Pressable>
 
           <Pressable
             style={[styles.btn, styles.btnOutlineDanger, { marginBottom: 24 }]}
             onPress={handleCancel}
           >
-            <Text style={styles.btnTextDanger}>✕  Cancelar alerta</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Icon name="x" size={18} color={Colors.danger} />
+              <Text style={styles.btnTextDanger}>Cancelar alerta</Text>
+            </View>
           </Pressable>
         </ScrollView>
       </SafeAreaView>
@@ -515,12 +537,15 @@ export function PanicScreen({ navigation }: Props) {
                 accessibilityLabel="Botón de pánico. Mantén presionado 2 segundos para activar"
                 accessibilityRole="button"
               >
-                <Text style={styles.panicBtnIcon}>✋</Text>
+                <Icon name="hand" size={40} color="#fff" />
                 <Text style={styles.panicBtnLabel}>PÁNICO</Text>
               </Pressable>
             </Animated.View>
           </View>
-          <Text style={styles.holdHint}>🕐  Mantén presionado 2 segundos para activar</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+            <Icon name="clock" size={14} color={Colors.fg2} />
+            <Text style={styles.holdHint}>Mantén presionado 2 segundos para activar</Text>
+          </View>
         </View>
 
         {/* Sponsor card */}
@@ -543,7 +568,10 @@ export function PanicScreen({ navigation }: Props) {
                     onPress={() => Linking.openURL(`tel:${sponsor.phone}`)}
                     accessibilityLabel={`Llamar a ${sponsor.firstName}`}
                   >
-                    <Text style={styles.callSmallBtnText}>📞 Llamar</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Icon name="phone" size={14} color={Colors.primary} />
+                      <Text style={styles.callSmallBtnText}>Llamar</Text>
+                    </View>
                   </Pressable>
                 )}
               </>
@@ -659,10 +687,6 @@ const styles = StyleSheet.create({
     color: Colors.fg2,
     marginTop: 2,
   },
-  callChevron: {
-    fontSize: 20,
-    color: Colors.fg2,
-  },
 
   // ── Textos generales ──
   title: {
@@ -721,10 +745,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ccc',
     shadowOpacity: 0,
     elevation: 0,
-  },
-  panicBtnIcon: {
-    fontSize: 40,
-    color: '#fff',
   },
   panicBtnLabel: {
     color: '#fff',
@@ -922,7 +942,6 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'flex-start',
   },
-  iaBannerIcon: { fontSize: 20 },
   iaBannerTitle: {
     fontWeight: '700',
     fontSize: 13.5,
@@ -946,7 +965,6 @@ const styles = StyleSheet.create({
     gap: 12,
     alignItems: 'flex-start',
   },
-  communityIcon: { fontSize: 22 },
   communityTitle: {
     fontWeight: '700',
     fontSize: 13.5,
@@ -976,7 +994,6 @@ const styles = StyleSheet.create({
     borderWidth: 5,
     borderColor: Colors.sage500,
   },
-  checkBadgeIcon: { fontSize: 52 },
   respondedTitle: {
     fontWeight: '700',
     fontSize: 24,
