@@ -4,10 +4,16 @@ const path = require('path');
 const monorepoRoot = path.resolve(__dirname, '../..');
 
 const config = {
-  // Solo observar node_modules propio y packages/ — no todo el monorepo (evita escanear backend/node_modules)
-  // node_modules local es obligatorio: el dev server resuelve ahí los polyfills de metro-runtime
+  // Limitar workers en máquinas con poca RAM (8 workers saturan la memoria en la serialización
+  // final del bundle). 2 workers liberan ~500MB y permiten completar el build sin que el SO mate procesos.
+  maxWorkers: 2,
+
+  // node_modules local resuelve los polyfills de metro-runtime; node_modules raíz es obligatorio
+  // porque pnpm symlinkea los paquetes (ej: @babel/runtime) hacia el store .pnpm que vive ahí.
+  // No se observa todo el monorepo para evitar escanear apps/backend/node_modules.
   watchFolders: [
     path.resolve(__dirname, 'node_modules'),
+    path.resolve(monorepoRoot, 'node_modules'),
     path.resolve(monorepoRoot, 'packages'),
   ],
 
