@@ -27,7 +27,7 @@ const INACTIVITY_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class AiAssistantService {
-  private llm: ChatGoogleGenerativeAI;
+  private llm: ChatGoogleGenerativeAI | null;
 
   constructor(
     @InjectRepository(AiSession)
@@ -38,12 +38,10 @@ export class AiAssistantService {
     private readonly summaryRepo: Repository<AiSessionSummary>,
     private readonly configService: ConfigService,
   ) {
-    this.llm = new ChatGoogleGenerativeAI({
-      apiKey: this.configService.get<string>('GEMINI_API_KEY') ?? '',
-      model: 'gemini-1.5-flash',
-      temperature: 0.75,
-      maxOutputTokens: 350,
-    });
+    const apiKey = this.configService.get<string>('GEMINI_API_KEY');
+    this.llm = apiKey
+      ? new ChatGoogleGenerativeAI({ apiKey, model: 'gemini-1.5-flash', temperature: 0.75, maxOutputTokens: 350 })
+      : null;
   }
 
   // ── Inicio de sesión ────────────────────────────────────────────────────
@@ -225,6 +223,7 @@ export class AiAssistantService {
       ? `${AJUTER_SYSTEM_PROMPT}\n\nContexto de sesión anterior: ${previousContext}`
       : AJUTER_SYSTEM_PROMPT;
 
+    if (!this.llm) return 'Hola, estoy aquí contigo. ¿Cómo te sientes en este momento?';
     try {
       const response = await this.llm.invoke([
         new SystemMessage(systemWithContext),
@@ -253,6 +252,7 @@ export class AiAssistantService {
       ),
     ];
 
+    if (!this.llm) return 'Entiendo cómo te sientes. ¿Puedes contarme un poco más sobre lo que está pasando?';
     try {
       const response = await this.llm.invoke(lcMessages);
       return (response.content as string).trim();
@@ -270,7 +270,7 @@ export class AiAssistantService {
       .map((m) => m.content)
       .join(' ');
 
-    if (!userContent.trim()) {
+    if (!userContent.trim() || !this.llm) {
       return { mood: null, trigger: null, riskLevel: 'low', techniqueUsed: null, progressNote: null };
     }
 
