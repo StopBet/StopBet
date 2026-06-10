@@ -16,15 +16,16 @@ import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
 import { FormInput } from '../components/FormInput';
+import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Payment'>;
 
-const PAYMENT_METHODS: { id: PaymentMethod; icon: string; label: string }[] = [
-  { id: 'card',     icon: '💳', label: 'Tarjeta de crédito/débito' },
-  { id: 'webpay',   icon: '📱', label: 'Webpay Plus' },
-  { id: 'transfer', icon: '🏦', label: 'Transferencia bancaria' },
+const PAYMENT_METHODS: { id: PaymentMethod; icon: IconName; label: string }[] = [
+  { id: 'card',     icon: 'credit-card', label: 'Tarjeta de crédito/débito' },
+  { id: 'webpay',   icon: 'smartphone',  label: 'Webpay Plus' },
+  { id: 'transfer', icon: 'landmark',    label: 'Transferencia bancaria' },
 ];
 
 const PLAN_FEATURES = [
@@ -97,7 +98,7 @@ export function PaymentScreen({ navigation, route }: Props) {
           <View style={styles.planSep} />
           {PLAN_FEATURES.map((f) => (
             <View key={f} style={styles.planFeat}>
-              <Text style={styles.planFeatCheck}>✓</Text>
+              <Icon name="circle-check" size={16} color={Colors.sage500} />
               <Text style={styles.planFeatText}>{f}</Text>
             </View>
           ))}
@@ -118,7 +119,7 @@ export function PaymentScreen({ navigation, route }: Props) {
                 style={[styles.methodCard, sel && styles.methodCardSel]}
               >
                 <View style={[styles.methodIcon, sel && styles.methodIconSel]}>
-                  <Text style={styles.methodEmoji}>{m.icon}</Text>
+                  <Icon name={m.icon} size={20} color={sel ? Colors.white : Colors.primary} />
                 </View>
                 <Text style={styles.methodLabel}>{m.label}</Text>
                 <View style={[styles.radio, sel && styles.radioSel]}>
@@ -150,7 +151,7 @@ export function PaymentScreen({ navigation, route }: Props) {
         })}
 
         <View style={styles.secureNote}>
-          <Text style={styles.secureIcon}>🔒</Text>
+          <Icon name="lock" size={14} color={Colors.fg2} />
           <Text style={styles.secureText}>Pago seguro · TLS 1.2+</Text>
         </View>
       </ScrollView>
@@ -165,7 +166,10 @@ export function PaymentScreen({ navigation, route }: Props) {
           {paying ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
-            <Text style={styles.btnText}>🔒 Pagar $30.000 y continuar</Text>
+            <>
+              <Icon name="lock" size={17} color={Colors.white} />
+              <Text style={styles.btnText}>Pagar $30.000 y continuar</Text>
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -207,8 +211,7 @@ const styles = StyleSheet.create({
   planAmt: { fontWeight: '800', fontSize: 40, color: Colors.primary, letterSpacing: -0.8 },
   planPer: { fontSize: 18, color: Colors.fg2 },
   planSep: { height: 1, backgroundColor: Colors.border, marginBottom: 16 },
-  planFeat: { flexDirection: 'row', gap: 10, marginBottom: 11 },
-  planFeatCheck: { fontSize: 16, color: Colors.sage500, width: 18 },
+  planFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 11 },
   planFeatText: { flex: 1, fontSize: 14, color: Colors.ink900, lineHeight: 20 },
   planRenew: { fontSize: 11, fontStyle: 'italic', color: Colors.fg2, lineHeight: 16, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.border },
 
@@ -226,7 +229,6 @@ const styles = StyleSheet.create({
   methodCardSel: { borderColor: Colors.primary, backgroundColor: '#EAF3F2' },
   methodIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
   methodIconSel: { backgroundColor: Colors.white },
-  methodEmoji: { fontSize: 20 },
   methodLabel: { flex: 1, fontWeight: '600', fontSize: 15, color: Colors.ink900 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
   radioSel: { borderColor: Colors.primary },
@@ -237,11 +239,10 @@ const styles = StyleSheet.create({
   halfField: { flex: 1 },
 
   secureNote: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 16, marginBottom: 2 },
-  secureIcon: { fontSize: 13 },
   secureText: { fontSize: 11, color: Colors.fg2 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
-  btn: { backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
+  btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.5 },
   btnText: { fontWeight: '700', fontSize: 16, color: Colors.white },
 });

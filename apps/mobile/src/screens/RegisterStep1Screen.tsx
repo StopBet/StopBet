@@ -15,6 +15,7 @@ import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
 import { FormInput } from '../components/FormInput';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterStep1'>;
@@ -80,36 +81,37 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
           <Text style={styles.subtitle}>Esta información es confidencial y solo la ve tu psicólogo.</Text>
 
           <FormInput label="Nombre(s)" required value={firstName} onChangeText={setFirstName}
-            leadingIcon="👤" placeholder="Juan" error={errors.firstName} />
+            leadingIcon="user" placeholder="Juan" error={errors.firstName} />
           <FormInput label="Apellido(s)" required value={lastName} onChangeText={setLastName}
-            leadingIcon="👤" placeholder="Pérez" error={errors.lastName} />
+            leadingIcon="user" placeholder="Pérez" error={errors.lastName} />
           <FormInput label="RUT" required value={rut} onChangeText={setRut}
-            leadingIcon="🪪" placeholder="12.345.678-9" error={errors.rut}
+            leadingIcon="id-card" placeholder="12.345.678-9" error={errors.rut}
             hint="Ingresa el RUT con puntos y guión" />
           <FormInput label="Correo electrónico" value={email} onChangeText={setEmail}
-            leadingIcon="✉️" placeholder="tu@correo.cl"
+            leadingIcon="mail" placeholder="tu@correo.cl"
             keyboardType="email-address" error={errors.email} />
           <FormInput label="Teléfono" value={phone} onChangeText={setPhone}
             prefix="+56" placeholder="9 8765 4321"
             keyboardType="phone-pad" />
           <FormInput label="Fecha de nacimiento" value={birthDate} onChangeText={setBirthDate}
-            leadingIcon="📅" placeholder="14/03/1992" trailingIcon="▾" />
+            leadingIcon="calendar" placeholder="14/03/1992" trailingIcon="chevron-down" />
           <FormInput label="Dirección" required value={address} onChangeText={setAddress}
-            leadingIcon="📍" placeholder="Av. Providencia 1234, depto 5" />
+            leadingIcon="map-pin" placeholder="Av. Providencia 1234, depto 5" />
           <FormInput
             label="¿Cómo conociste AJUTER?"
             value={referralSource}
             onChangeText={setReferralSource}
-            leadingIcon="🔍"
+            leadingIcon="search"
             placeholder="Médico / Psicólogo"
-            trailingIcon="▾"
+            trailingIcon="chevron-down"
           />
         </ScrollView>
       </KeyboardAvoidingView>
 
       <View style={styles.footer}>
         <TouchableOpacity activeOpacity={0.85} style={styles.btn} onPress={handleContinue}>
-          <Text style={styles.btnText}>Continuar →</Text>
+          <Text style={styles.btnText}>Continuar</Text>
+          <Icon name="arrow-right" size={18} color={Colors.white} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -124,6 +126,6 @@ const styles = StyleSheet.create({
   title: { fontWeight: '700', fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6, marginBottom: 0 },
   subtitle: { fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
-  btn: { backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
+  btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontWeight: '700', fontSize: 16, color: Colors.white },
 });

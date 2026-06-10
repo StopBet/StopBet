@@ -20,6 +20,7 @@ import { PrivacyCard } from '../components/PrivacyCard';
 import { TechniqueCard } from '../components/TechniqueCard';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
+import { Icon } from '../components/Icon';
 import type { AppStackParamList } from '../navigation/types';
 
 const PLACEHOLDER_USER_ID = '1'; // TODO: reemplazar con ID real del contexto de auth
@@ -214,7 +215,9 @@ export function AssistantScreen() {
     if (item.type === 'recall') {
       return (
         <View style={styles.recallBanner}>
-          <Text style={styles.recallIcon}>💡</Text>
+          <View style={styles.recallIcon}>
+            <Icon name="lightbulb" size={18} color={Colors.accent} />
+          </View>
           <View style={styles.recallText}>
             <Text style={styles.recallTitle}>Retomamos donde lo dejaste</Text>
             <Text style={styles.recallBody}>{item.context}</Text>
@@ -272,7 +275,7 @@ export function AssistantScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backIcon}>←</Text>
+          <Icon name="arrow-left" size={20} color={Colors.fg1} />
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
@@ -294,7 +297,7 @@ export function AssistantScreen() {
             style={styles.panicBtn}
             accessibilityLabel="Botón de pánico"
           >
-            <Text style={styles.panicIcon}>🆘</Text>
+            <Icon name="siren" size={20} color={Colors.danger} />
           </TouchableOpacity>
         </View>
       </View>
@@ -335,7 +338,7 @@ export function AssistantScreen() {
               (!inputText.trim() || isSending) && styles.sendBtnDisabled,
             ]}
           >
-            <Text style={styles.sendIcon}>↑</Text>
+            <Icon name="arrow-up" size={20} color={Colors.white} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -372,7 +375,6 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   backBtn: { padding: 6, marginRight: 6 },
-  backIcon: { fontSize: 22, color: Colors.ink900 },
   headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatarDot: {
     width: 38,
@@ -399,8 +401,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  panicIcon: { fontSize: 16 },
-
   listContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 10 },
 
   sectionPad: { marginBottom: 4 },
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
     gap: 10,
     alignItems: 'flex-start',
   },
-  recallIcon: { fontSize: 18, marginTop: 1 },
+  recallIcon: { marginTop: 1 },
   recallText: { flex: 1 },
   recallTitle: { fontWeight: '700', fontSize: 13, color: Colors.sage500 },
   recallBody: { fontSize: 12.5, color: Colors.fg2, lineHeight: 17, marginTop: 3 },
@@ -472,5 +472,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: Colors.border },
-  sendIcon: { fontSize: 20, color: Colors.white, fontWeight: '700', marginTop: -2 },
 });

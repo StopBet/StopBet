@@ -10,6 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RequestSent'>;
@@ -32,10 +33,10 @@ const TIMELINE: TimelineItem[] = [
 function TlDot({ state }: { state: TlState }) {
   const bg = state === 'done' ? Colors.sage500 : state === 'current' ? Colors.accent : 'transparent';
   const border = state === 'todo' ? Colors.border : bg;
-  const icon = state === 'done' ? '✓' : state === 'current' ? '⏳' : '';
   return (
     <View style={[styles.tlDot, { backgroundColor: bg, borderColor: border }]}>
-      {icon ? <Text style={styles.tlDotIcon}>{icon}</Text> : null}
+      {state === 'done' && <Icon name="check" size={12} color={Colors.white} />}
+      {state === 'current' && <Icon name="hourglass" size={12} color={Colors.white} />}
     </View>
   );
 }
@@ -53,7 +54,7 @@ export function RequestSentScreen({ navigation, route }: Props) {
       >
         {/* Badge de reloj */}
         <View style={styles.badge}>
-          <Text style={styles.badgeIcon}>⏳</Text>
+          <Icon name="hourglass" size={40} color={Colors.primary} />
         </View>
 
         <Text style={styles.title}>¡Solicitud enviada!</Text>
@@ -126,8 +127,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 22,
   },
-  badgeIcon: { fontSize: 40 },
-
   title: { fontWeight: '700', fontSize: 28, color: Colors.ink900, letterSpacing: -0.3, textAlign: 'center' },
   subtitle: { fontWeight: '600', fontSize: 15, color: Colors.sage500, marginTop: 12, textAlign: 'center' },
 
@@ -154,7 +153,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tlDotIcon: { fontSize: 11, color: Colors.white, fontWeight: '800' },
   tlLine: { width: 2, flex: 1, minHeight: 16, marginVertical: 3, backgroundColor: Colors.border },
   tlLineDone: { backgroundColor: Colors.sage500 },
   tlBody: { flex: 1, paddingBottom: 18 },

@@ -15,6 +15,7 @@ import type { Sede } from '@stopbet/shared-types';
 import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
+import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
@@ -58,7 +59,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
     }
   };
 
-  const sedeIcon = (type: Sede['type']) => (type === 'online' ? '📱' : '📍');
+  const sedeIcon = (type: Sede['type']): IconName => (type === 'online' ? 'smartphone' : 'map-pin');
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -89,17 +90,18 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
                 style={[styles.card, sel && styles.cardSelected]}
               >
                 <View style={[styles.pin, sel && styles.pinSelected]}>
-                  <Text style={styles.pinIcon}>{sedeIcon(sede.type)}</Text>
+                  <Icon name={sedeIcon(sede.type)} size={18} color={sel ? Colors.white : Colors.primary} />
                 </View>
                 <View style={styles.cardBody}>
                   <Text style={styles.cardName}>{sede.name}</Text>
                   <Text style={styles.cardAddr}>{sede.address}</Text>
                   <View style={styles.metaPill}>
-                    <Text style={styles.metaText}>👥 {sede.activeGroups} grupos activos</Text>
+                    <Icon name="users" size={13} color={Colors.sage500} />
+                    <Text style={styles.metaText}>{sede.activeGroups} grupos activos</Text>
                   </View>
                 </View>
                 {sel ? (
-                  <Text style={styles.checkIcon}>✓</Text>
+                  <Icon name="check" size={20} color={Colors.primary} />
                 ) : (
                   <View style={styles.radio} />
                 )}
@@ -119,7 +121,10 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
           {submitting ? (
             <ActivityIndicator color={Colors.white} />
           ) : (
-            <Text style={styles.btnText}>📤 Enviar solicitud</Text>
+            <>
+              <Icon name="share" size={18} color={Colors.white} />
+              <Text style={styles.btnText}>Enviar solicitud</Text>
+            </>
           )}
         </TouchableOpacity>
       </View>
@@ -155,11 +160,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pinSelected: { backgroundColor: Colors.white },
-  pinIcon: { fontSize: 20 },
   cardBody: { flex: 1 },
   cardName: { fontWeight: '700', fontSize: 16, color: Colors.ink900 },
   cardAddr: { fontSize: 13, color: Colors.fg2, marginTop: 1 },
   metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     alignSelf: 'flex-start',
     backgroundColor: Colors.sage50,
     borderRadius: 9999,
@@ -168,11 +175,10 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   metaText: { fontWeight: '600', fontSize: 11.5, color: Colors.sage500 },
-  checkIcon: { fontSize: 20, color: Colors.primary, fontWeight: '800' },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
-  btn: { backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
+  btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.4 },
   btnText: { fontWeight: '700', fontSize: 16, color: Colors.white },
 });

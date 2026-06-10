@@ -17,6 +17,7 @@ import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
 import { BottomNav, NavTab } from '../components/BottomNav';
 import { NotificationSection } from '../components/NotificationSection';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
@@ -111,7 +112,10 @@ export function HomeScreen({ navigation }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Text style={styles.greeting}>Hola, {TEMP_FIRST_NAME} 👋</Text>
+          <View style={styles.greetingRow}>
+            <Text style={styles.greeting}>Hola, {TEMP_FIRST_NAME}</Text>
+            <Icon name="hand" size={20} color={Colors.white} />
+          </View>
           <Text style={styles.subtitle}>
             Día {progress?.daysStreak ?? '…'} de tu camino
           </Text>
@@ -188,6 +192,11 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
     minWidth: 0,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   greeting: {
     fontWeight: '700',

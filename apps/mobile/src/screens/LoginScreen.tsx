@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { AuthContext } from '../context/AuthContext';
 
@@ -56,7 +57,8 @@ export function LoginScreen({ navigation }: Props) {
           {/* Botón volver */}
           <View style={styles.headerRow}>
             <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={12}>
-              <Text style={styles.backText}>←  Volver</Text>
+              <Icon name="arrow-left" size={18} color={Colors.primary} />
+              <Text style={styles.backText}>Volver</Text>
             </Pressable>
           </View>
 
@@ -66,7 +68,7 @@ export function LoginScreen({ navigation }: Props) {
               <View style={styles.ringMid}>
                 <View style={styles.ringInner}>
                   <View style={styles.logoBadge}>
-                    <Text style={styles.logoBadgeHeart}>♥</Text>
+                    <Icon name="heart" size={28} color={Colors.white} />
                   </View>
                 </View>
               </View>
@@ -192,6 +194,9 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     paddingVertical: 8,
     alignSelf: 'flex-start',
   },
@@ -239,10 +244,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  logoBadgeHeart: {
-    fontSize: 28,
-    color: Colors.white,
   },
   logoText: {
     fontSize: 32,

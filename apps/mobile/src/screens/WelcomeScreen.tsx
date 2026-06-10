@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
@@ -24,7 +25,7 @@ export function WelcomeScreen({ navigation }: Props) {
           <View style={styles.ringMid}>
             <View style={styles.ringInner}>
               <View style={styles.badge}>
-                <Text style={styles.badgeHeart}>♥</Text>
+                <Icon name="heart" size={36} color={Colors.white} />
               </View>
             </View>
           </View>
@@ -103,10 +104,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  badgeHeart: {
-    fontSize: 36,
-    color: Colors.white,
   },
   logo: {
     fontWeight: '800',

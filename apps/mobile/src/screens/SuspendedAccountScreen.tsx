@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BillingStatus, Invoice } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
@@ -149,7 +150,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               ]}
             />
             <View style={styles.checkBadge}>
-              <Text style={styles.checkEmoji}>✅</Text>
+              <Icon name="circle-check" size={44} color={Colors.sage500} />
             </View>
           </View>
 
@@ -162,7 +163,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
 
           {billingStatus?.nextPaymentDate && (
             <View style={styles.nextPaymentRow}>
-              <Text style={styles.nextPaymentLabel}>📅</Text>
+              <Icon name="calendar" size={15} color={Colors.fg2} />
               <Text style={styles.nextPaymentText}>Próxima mensualidad:</Text>
               <Text style={styles.nextPaymentVal}>
                 {formatDate(billingStatus.nextPaymentDate)}
@@ -171,7 +172,8 @@ export function SuspendedAccountScreen({ navigation }: Props) {
           )}
 
           <TouchableOpacity style={styles.btnPrimary} onPress={handleGoHome} activeOpacity={0.85}>
-            <Text style={styles.btnPrimaryText}>🏠 Ir a mi inicio</Text>
+            <Icon name="house" size={17} color={Colors.white} />
+            <Text style={styles.btnPrimaryText}>Ir a mi inicio</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

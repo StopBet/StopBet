@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList } from '../navigation/types';
 import { BottomNav } from '../components/BottomNav';
+import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
@@ -45,19 +46,22 @@ export function ProfileScreen({ navigation }: Props) {
               style={[styles.menuRow, i < MENU_ITEMS.length - 1 && styles.menuRowBorder]}
               activeOpacity={0.7}
             >
-              <Text style={styles.menuEmoji}>{item.emoji}</Text>
+              <View style={styles.menuIcon}>
+                <Icon name={item.icon} size={22} color={Colors.primary} />
+              </View>
               <View style={styles.menuText}>
                 <Text style={styles.menuLabel}>{item.label}</Text>
                 <Text style={styles.menuSub}>{item.sub}</Text>
               </View>
-              <Text style={styles.menuArrow}>›</Text>
+              <Icon name="chevron-right" size={20} color={Colors.fg2} />
             </TouchableOpacity>
           ))}
         </View>
 
         <View style={styles.comingSoonCard}>
+          <Icon name="settings" size={15} color={Colors.fg2} />
           <Text style={styles.comingSoonText}>
-            ⚙️ Configuración completa disponible próximamente
+            Configuración completa disponible próximamente
           </Text>
         </View>
       </ScrollView>
@@ -75,11 +79,11 @@ export function ProfileScreen({ navigation }: Props) {
   );
 }
 
-const MENU_ITEMS = [
-  { emoji: '👤', label: 'Datos personales', sub: 'Nombre, RUT, contacto' },
-  { emoji: '🏥', label: 'Mi sede AJUTER', sub: 'Centro de tratamiento asignado' },
-  { emoji: '🔔', label: 'Notificaciones', sub: 'Recordatorios y alertas' },
-  { emoji: '🔒', label: 'Privacidad', sub: 'Gestión de datos y permisos' },
+const MENU_ITEMS: { icon: IconName; label: string; sub: string }[] = [
+  { icon: 'user',     label: 'Datos personales', sub: 'Nombre, RUT, contacto' },
+  { icon: 'hospital', label: 'Mi sede AJUTER', sub: 'Centro de tratamiento asignado' },
+  { icon: 'bell',     label: 'Notificaciones', sub: 'Recordatorios y alertas' },
+  { icon: 'lock',     label: 'Privacidad', sub: 'Gestión de datos y permisos' },
 ];
 
 const styles = StyleSheet.create({
@@ -142,17 +146,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  menuEmoji: { fontSize: 24 },
+  menuIcon: { width: 28, alignItems: 'center' },
   menuText: { flex: 1 },
   menuLabel: { fontWeight: '600', fontSize: 15, color: Colors.ink900 },
   menuSub: { fontSize: 13, color: Colors.fg2, marginTop: 2 },
-  menuArrow: { fontSize: 22, color: Colors.fg2, fontWeight: '300' },
 
   comingSoonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     backgroundColor: Colors.surface,
     borderRadius: 12,
     padding: 16,
-    alignItems: 'center',
   },
   comingSoonText: { fontSize: 13, color: Colors.fg2, textAlign: 'center' },
 });

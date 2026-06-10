@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
+import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 
 const INSTITUTION_ID = 'AJUTER';
@@ -49,11 +50,12 @@ export function SelectInstitutionScreen({ navigation }: Props) {
             <Text style={styles.cardName}>AJUTER</Text>
             <Text style={styles.cardAddr}>Asociación de Jugadores en Terapia y Rehabilitación</Text>
             <View style={styles.metaPill}>
-              <Text style={styles.metaText}>📍 3 sedes · Chile</Text>
+              <Icon name="map-pin" size={12} color={Colors.primary} />
+              <Text style={styles.metaText}>3 sedes · Chile</Text>
             </View>
           </View>
           {selected === INSTITUTION_ID && (
-            <Text style={styles.checkIcon}>✓</Text>
+            <Icon name="check" size={20} color={Colors.primary} />
           )}
         </TouchableOpacity>
 
@@ -66,7 +68,8 @@ export function SelectInstitutionScreen({ navigation }: Props) {
             <Text style={styles.cardNameSoon}>Más instituciones</Text>
             <Text style={styles.cardAddr}>Pronto podrás elegir entre más centros aliados.</Text>
             <View style={[styles.metaPill, styles.metaSoon]}>
-              <Text style={styles.metaTextSoon}>🕐 Próximamente</Text>
+              <Icon name="clock" size={12} color={Colors.fg2} />
+              <Text style={styles.metaTextSoon}>Próximamente</Text>
             </View>
           </View>
         </View>
@@ -81,7 +84,8 @@ export function SelectInstitutionScreen({ navigation }: Props) {
           }
           disabled={!selected}
         >
-          <Text style={styles.btnText}>Continuar →</Text>
+          <Text style={styles.btnText}>Continuar</Text>
+          <Icon name="arrow-right" size={18} color={Colors.white} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -136,6 +140,9 @@ const styles = StyleSheet.create({
   cardAddr: { fontSize: 13, color: Colors.fg2, marginTop: 1 },
 
   metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     alignSelf: 'flex-start',
     backgroundColor: Colors.sage50,
     borderRadius: 9999,
@@ -147,10 +154,10 @@ const styles = StyleSheet.create({
   metaText: { fontWeight: '600', fontSize: 11.5, color: Colors.sage500 },
   metaTextSoon: { fontWeight: '600', fontSize: 11.5, color: Colors.fg2 },
 
-  checkIcon: { fontSize: 20, color: Colors.primary, fontWeight: '800' },
-
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
   btn: {
+    flexDirection: 'row',
+    gap: 8,
     backgroundColor: Colors.primary,
     borderRadius: 9999,
     height: 54,
