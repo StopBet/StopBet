@@ -156,6 +156,22 @@ export class AchievementsService implements OnModuleInit {
   }
 
   // CA1: compartir insignia publica un anuncio de felicitación en el foro de la sede
+  private milestoneMessage(milestone: number): string {
+    const messages: Record<number, string> = {
+      1:  'Hoy es el primer día de mi abstinencia. Espero que sea el inicio de un gran camino.',
+      3:  'Tres días y aquí sigo. Cada día que pasa me demuestra que puedo lograrlo.',
+      7:  'Una semana completa sin apostar. Nunca creí que llegaría aquí tan rápido.',
+      14: 'Dos semanas de constancia. Estoy aprendiendo que hay vida más allá del juego.',
+      21: '21 días. Lo que empezó como un reto se está convirtiendo en un hábito.',
+      30: 'Un mes entero sin apostar. Hoy siento que realmente estoy cambiando.',
+      45: '45 días. Cada vez que siento el impulso, recuerdo lo lejos que he llegado.',
+      60: 'Dos meses sin apostar. Es más de lo que me imaginé cuando empecé.',
+      75: '75 días enfocado en lo que realmente importa. El camino sigue y yo también.',
+      90: 'Tres meses. No fue fácil, pero cada día valió la pena. Gracias a todos los que me acompañaron.',
+    };
+    return messages[milestone] ?? `Hoy celebro ${milestone} días sin apostar. Cada día cuenta.`;
+  }
+
   async shareBadge(userId: string, milestone: number): Promise<void> {
     await this.badgeRepo.update({ userId, milestone }, { sharedToCommunity: true });
 
@@ -170,9 +186,7 @@ export class AchievementsService implements OnModuleInit {
         authorId: userId,
         type: 'forum_post',
         sede: sede.name,
-        body: `🎉 ${user.firstName} alcanzó ${milestone} ${
-          milestone === 1 ? 'día' : 'días'
-        } sin apostar. ¡Un logro que merece celebrarse en comunidad!`,
+        body: this.milestoneMessage(milestone),
       }),
     );
   }

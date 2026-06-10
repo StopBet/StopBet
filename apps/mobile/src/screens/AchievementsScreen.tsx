@@ -347,7 +347,7 @@ export function AchievementsScreen({ navigation }: Props) {
                 <TouchableOpacity style={styles.btnPrimary} onPress={handleShare} activeOpacity={0.85}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Icon name="users" size={18} color={Colors.white} />
-                    <Text style={styles.btnPrimaryText}>Compartir en la comunidad de mi sede</Text>
+                    <Text style={styles.btnPrimaryText}>Compartir con la comunidad</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setShareMilestone(null)} style={styles.btnLink}>
