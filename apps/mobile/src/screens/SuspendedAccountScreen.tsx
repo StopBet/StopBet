@@ -189,8 +189,9 @@ export function SuspendedAccountScreen({ navigation }: Props) {
 
       {/* Banner de suspensión */}
       <View style={styles.suspBanner}>
+        <Icon name="triangle-alert" size={15} color={Colors.accent} />
         <Text style={styles.suspBannerText}>
-          ⚠️ Cuenta suspendida · {billingStatus?.overdueMonths ?? 3} meses de mora
+          Cuenta suspendida · {billingStatus?.overdueMonths ?? 3} meses de mora
         </Text>
       </View>
 
@@ -202,7 +203,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
         {/* Bloque central: ícono + título */}
         <View style={styles.centerBlock}>
           <View style={styles.lockBadge}>
-            <Text style={styles.lockEmoji}>🔒</Text>
+            <Icon name="lock" size={44} color={Colors.accent} />
           </View>
           <Text style={styles.mainTitle}>Tu cuenta está suspendida</Text>
           <Text style={styles.mainSub}>
@@ -213,9 +214,12 @@ export function SuspendedAccountScreen({ navigation }: Props) {
 
         {/* Tarjeta de adeudos */}
         <View style={styles.overdueCard}>
-          <Text style={styles.overdueCardTitle}>
-            📅 {billingStatus?.overdueMonths ?? overdue.length} mensualidades vencidas
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+            <Icon name="calendar" size={15} color={Colors.accent} />
+            <Text style={styles.overdueCardTitle}>
+              {billingStatus?.overdueMonths ?? overdue.length} mensualidades vencidas
+            </Text>
+          </View>
 
           <View style={styles.overdueMonths}>
             {overdue.length > 0
@@ -241,10 +245,13 @@ export function SuspendedAccountScreen({ navigation }: Props) {
           <View style={styles.divider} />
 
           {billingStatus?.firstOverdueDate && (
-            <Text style={styles.overdueDate}>
-              ⏰ Primera mora: {formatDate(billingStatus.firstOverdueDate)} · hace{' '}
-              {billingStatus.daysOverdue} día{billingStatus.daysOverdue !== 1 ? 's' : ''}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="clock" size={13} color={Colors.danger} />
+              <Text style={styles.overdueDate}>
+                Primera mora: {formatDate(billingStatus.firstOverdueDate)} · hace{' '}
+                {billingStatus.daysOverdue} día{billingStatus.daysOverdue !== 1 ? 's' : ''}
+              </Text>
+            </View>
           )}
         </View>
 
@@ -256,9 +263,14 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             activeOpacity={0.85}
             disabled={paying}
           >
-            <Text style={styles.btnPrimaryText}>
-              {paying ? 'Procesando...' : '💳 Pagar ahora y reactivar'}
-            </Text>
+            {paying ? (
+              <Text style={styles.btnPrimaryText}>Procesando...</Text>
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Icon name="credit-card" size={17} color={Colors.white} />
+                <Text style={styles.btnPrimaryText}>Pagar ahora y reactivar</Text>
+              </View>
+            )}
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -266,7 +278,10 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             onPress={handleOpenFamilySheet}
             activeOpacity={0.8}
           >
-            <Text style={styles.btnOutlineText}>👥 Avisar a mi familiar</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Icon name="users" size={17} color={Colors.primary} />
+              <Text style={styles.btnOutlineText}>Avisar a mi familiar</Text>
+            </View>
           </TouchableOpacity>
 
           <Text style={styles.helpLink}>
@@ -278,7 +293,10 @@ export function SuspendedAccountScreen({ navigation }: Props) {
         {/* Divisor de emergencia */}
         <View style={styles.emDivider}>
           <View style={styles.emDividerLine} />
-          <Text style={styles.emDividerText}>🆘 Emergencia</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+            <Icon name="siren" size={11} color={Colors.danger} />
+            <Text style={styles.emDividerText}>Emergencia</Text>
+          </View>
           <View style={styles.emDividerLine} />
         </View>
 
@@ -294,10 +312,13 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             accessibilityLabel="Botón de pánico"
             accessibilityRole="button"
           >
-            <Text style={styles.panicButtonEmoji}>🆘</Text>
+            <Icon name="siren" size={30} color={Colors.white} />
           </TouchableOpacity>
           <Text style={styles.panicButtonLabel}>BOTÓN DE PÁNICO</Text>
-          <Text style={styles.panicFoot}>❤️ Tu padrino siempre estará disponible</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="heart" size={13} color={Colors.danger} />
+            <Text style={styles.panicFoot}>Tu padrino siempre estará disponible</Text>
+          </View>
         </View>
       </ScrollView>
 
@@ -329,7 +350,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
                 <Text style={styles.famName}>Patricia Soto</Text>
                 <Text style={styles.famRel}>Madre · familiar de apoyo</Text>
               </View>
-              <Text style={{ fontSize: 20 }}>✅</Text>
+              <Icon name="circle-check" size={20} color={Colors.sage500} />
             </View>
 
             {/* Enlace de pago */}

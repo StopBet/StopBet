@@ -54,7 +54,8 @@ function AppNavigator() {
 }
 
 export default function App() {
-  const [isSignedIn, setIsSignedIn] = React.useState(false);
+  // TODO(auth): cambiar a false cuando el módulo auth esté implementado
+  const [isSignedIn, setIsSignedIn] = React.useState(true);
 
   return (
     <AuthContext.Provider value={{ signIn: () => setIsSignedIn(true) }}>

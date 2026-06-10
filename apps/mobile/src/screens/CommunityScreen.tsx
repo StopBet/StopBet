@@ -110,7 +110,7 @@ export function CommunityScreen({ navigation }: Props) {
     const current = post.reactions.find((r) => r.emoji === emoji);
     const reacting = !current?.userReacted;
     try {
-      const reactions = reacting
+      const { reactions } = reacting
         ? await api.addReaction(TEMP_USER_ID, post.id, emoji)
         : await api.removeReaction(TEMP_USER_ID, post.id, emoji);
       setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, reactions } : p)));

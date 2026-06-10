@@ -35,8 +35,9 @@ export function LoginScreen({ navigation }: Props) {
     if (!canSubmit || formState === 'loading') return;
     setFormState('loading');
     // TODO: POST /auth/login cuando el módulo de auth esté implementado en el backend
+    // Por ahora, cualquier credencial entra en modo demo (usuario hardcodeado TEMP_USER_ID)
     await new Promise<void>(resolve => setTimeout(() => resolve(), 900));
-    setFormState('error');
+    signIn();
   };
 
   const isLoading = formState === 'loading';

@@ -119,7 +119,7 @@ export function AchievementsScreen({ navigation }: Props) {
               await load();
               setRelapseMessage(message);
               setRelapseModal(true);
-            } catch {
+            } catch (err) {
               Alert.alert('Error', 'No se pudo registrar la recaída. Inténtalo de nuevo.');
             }
           },

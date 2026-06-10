@@ -231,14 +231,14 @@ export const api = {
     }),
 
   addReaction: (userId: string, postId: string, emoji: ReactionEmoji) =>
-    request<ReactionSummary[]>(`/community/posts/${postId}/reactions`, {
+    request<{ reactions: ReactionSummary[] }>(`/community/posts/${postId}/reactions`, {
       userId,
       method: 'POST',
       body: JSON.stringify({ emoji }),
     }),
 
   removeReaction: (userId: string, postId: string, emoji: ReactionEmoji) =>
-    request<ReactionSummary[]>(
+    request<{ reactions: ReactionSummary[] }>(
       `/community/posts/${postId}/reactions/${encodeURIComponent(emoji)}`,
       { userId, method: 'DELETE' },
     ),
