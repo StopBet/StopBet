@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
 import { Icon, type IconName } from './Icon';
 
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
+  const { bottom } = useSafeAreaInsets();
   const renderTab = (tab: { id: NavTab; icon: IconName; label: string }) => {
     const isActive = active === tab.id;
     return (
@@ -44,7 +46,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
   };
 
   return (
-    <View style={styles.bar}>
+    <View style={[styles.bar, { paddingBottom: Math.max(bottom, 12) }]}>
       {LEFT_TABS.map(renderTab)}
 
       <TouchableOpacity
@@ -73,7 +75,6 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
     paddingHorizontal: 8,
     paddingTop: 10,
-    paddingBottom: 22,
   },
   tab: {
     flex: 1,

@@ -22,6 +22,24 @@ $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot   = Split-Path -Parent $ScriptDir
 $MobileDir  = Join-Path $RepoRoot "apps\mobile"
 
+# Workaround: el path largo de OneDrive supera los 260 chars de ninja.
+# Creamos un drive virtual S: con un path corto y compilamos desde ahi.
+if ($RepoRoot -notmatch '^S:\\') {
+    subst S: $RepoRoot 2>$null
+    $ScriptInS = "S:\scripts\android-run.ps1"
+    if (Test-Path $ScriptInS) {
+        # Pasar el path real (C:\...) para que metro.config.js lo agregue a watchFolders.
+        # pnpm usa junctions en Windows: Node sigue el junction y __dirname queda en C:\...
+        # aunque Metro arranque desde S:\. Sin esto Metro no puede calcular el SHA-1.
+        $env:STOPBET_REAL_ROOT = $RepoRoot
+        $forwardArgs = @()
+        if ($ResetCache) { $forwardArgs += '-ResetCache' }
+        if ($SkipBuild)  { $forwardArgs += '-SkipBuild' }
+        & powershell -ExecutionPolicy Bypass -File $ScriptInS @forwardArgs
+        exit $LASTEXITCODE
+    }
+}
+
 function Write-Step ([string]$msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Write-OK   ([string]$msg) { Write-Host "  [OK] $msg" -ForegroundColor Green }
 function Write-Warn ([string]$msg) { Write-Host "  [!]  $msg" -ForegroundColor Yellow }
@@ -149,7 +167,13 @@ Write-OK "Puerto 8081 (Metro) y 3000 (Backend) -> PC"
 Write-Step "Iniciando Metro bundler..."
 
 $metroFlags  = if ($ResetCache) { "--port 8081 --reset-cache" } else { "--port 8081" }
-$metroScript = "cd /d `"$MobileDir`" && npx react-native start $metroFlags"
+
+# Metro debe correr desde el path REAL (C:\...), no desde S:\.
+# pnpm usa junctions: Node los sigue y __dirname queda en C:\... aunque corra desde S:\.
+# Si Metro vigila S:\ pero los archivos se resuelven a C:\... el SHA-1 falla.
+# Gradle sí necesita S:\ (ninja tiene limite de 260 chars), pero Metro no.
+$metroDir = if ($env:STOPBET_REAL_ROOT) { Join-Path $env:STOPBET_REAL_ROOT "apps\mobile" } else { $MobileDir }
+$metroScript = "cd /d `"$metroDir`" && npx react-native start $metroFlags"
 
 Start-Process "cmd.exe" -ArgumentList "/k title Metro - StopBet && $metroScript" -WindowStyle Normal
 Write-OK "Metro abierto en ventana separada (no cerrarla mientras usas la app)"

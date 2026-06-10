@@ -23,7 +23,7 @@ import { SessionSummaryModal } from '../components/SessionSummaryModal';
 import { Icon } from '../components/Icon';
 import type { AppStackParamList } from '../navigation/types';
 
-const PLACEHOLDER_USER_ID = '1'; // TODO: reemplazar con ID real del contexto de auth
+const PLACEHOLDER_USER_ID = '11111111-1111-1111-1111-111111111111'; // TODO: reemplazar con ID real del contexto de auth
 const INACTIVITY_MS = 10 * 60 * 1000;
 
 type Nav = NativeStackNavigationProp<AppStackParamList, 'Assistant'>;

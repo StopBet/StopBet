@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   Animated,
   Linking,
@@ -29,6 +30,7 @@ const HOLD_DURATION_MS = 2000;
 const POLL_INTERVAL_MS = 5000;
 const ESCALATION_SECONDS = 180; // 3 minutos
 const CRISIS_LINE = '*4141';
+const AUTO_RESET_MS = 30_000; // 30 s tras respuesta/comunidad/escalada
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tipos internos
@@ -54,9 +56,16 @@ export function PanicScreen({ navigation }: Props) {
   const holdAnim = useRef<Animated.CompositeAnimation | null>(null);
   const isActivating = useRef(false);
 
-  // ── Polls ──────────────────────────────────────────────────────────────
+  // ── Polls / timers ─────────────────────────────────────────────────────
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const autoResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Refleja state.kind sin stale-closure; el poll lo usa para guardar navegación
+  const stateKindRef = useRef<ScreenState['kind']>('loading');
+
+  // Mantener stateKindRef en sync para que callbacks sin acceso al state actual
+  // (como el interval del poll) puedan consultar el kind sin stale-closure.
+  useEffect(() => { stateKindRef.current = state.kind; }, [state.kind]);
 
   // ──────────────────────────────────────────────────────────────────────
   // Load inicial
@@ -74,8 +83,12 @@ export function PanicScreen({ navigation }: Props) {
           startPolling();
         } else if (alert.status === 'responded') {
           setState({ kind: 'responded', alert, sponsor });
+          scheduleAutoReset(alert.id, sponsor);
         } else if (alert.status === 'escalated') {
-          setState({ kind: 'escalated', alert });
+          // Ya navegamos al asistente cuando se escaló. Al volver a esta pantalla
+          // no tiene sentido bloquearla con "Asistente IA listo" — ir directo a idle.
+          setState({ kind: 'idle', sponsor: sponsorInfo });
+          api.cancelPanicAlert(TEMP_USER_ID, alert.id).catch(() => {});
         } else {
           setState({ kind: 'idle', sponsor: sponsorInfo });
         }
@@ -89,13 +102,16 @@ export function PanicScreen({ navigation }: Props) {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-    return () => {
-      stopPolling();
-      stopCountdown();
-    };
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      return () => {
+        stopPolling();
+        stopCountdown();
+        clearAutoReset();
+      };
+    }, [load]),
+  );
 
   // ──────────────────────────────────────────────────────────────────────
   // Polling
@@ -111,16 +127,20 @@ export function PanicScreen({ navigation }: Props) {
           stopPolling();
           stopCountdown();
           setState({ kind: 'responded', alert, sponsor });
+          scheduleAutoReset(alert.id, sponsor);
         } else if (alert.status === 'escalated') {
-          stopPolling();
-          stopCountdown();
-          setState({ kind: 'escalated', alert });
+          // Solo navegar si el usuario no canceló mientras el callback estaba en vuelo
+          if (stateKindRef.current === 'waiting') {
+            stopPolling();
+            stopCountdown();
+            navigation.navigate('Assistant');
+          }
         }
       } catch {
         // Red fluctuante — seguir intentando
       }
     }, POLL_INTERVAL_MS);
-  }, []);
+  }, [navigation]);
 
   const stopPolling = () => {
     if (pollRef.current) {
@@ -148,6 +168,23 @@ export function PanicScreen({ navigation }: Props) {
       clearInterval(countdownRef.current);
       countdownRef.current = null;
     }
+  };
+
+  const clearAutoReset = () => {
+    if (autoResetRef.current) {
+      clearTimeout(autoResetRef.current);
+      autoResetRef.current = null;
+    }
+  };
+
+  const scheduleAutoReset = (alertId: string, sponsorForIdle: SponsorInfo | null) => {
+    clearAutoReset();
+    autoResetRef.current = setTimeout(async () => {
+      try {
+        await api.cancelPanicAlert(TEMP_USER_ID, alertId);
+      } catch { /* best effort */ }
+      setState({ kind: 'idle', sponsor: sponsorForIdle });
+    }, AUTO_RESET_MS);
   };
 
   // ──────────────────────────────────────────────────────────────────────
@@ -199,22 +236,24 @@ export function PanicScreen({ navigation }: Props) {
 
   const handleCancel = useCallback(async () => {
     if (state.kind !== 'waiting') return;
+    // Parar todo antes del await para evitar race condition con el poll
+    stopPolling();
+    stopCountdown();
+    clearAutoReset();
+    setState({ kind: 'idle', sponsor: state.sponsor });
     try {
       await api.cancelPanicAlert(TEMP_USER_ID, state.alert.id);
     } catch {
-      // Si falla la cancelación igual volvemos al estado idle
+      // Best effort — el estado local ya volvió a idle
     }
-    stopPolling();
-    stopCountdown();
-    setState({ kind: 'idle', sponsor: state.sponsor });
-    load();
-  }, [state, load]);
+  }, [state]);
 
   const handleAlertCommunity = useCallback(async () => {
     if (state.kind !== 'waiting') return;
     try {
       await api.notifyCommunity(TEMP_USER_ID, state.alert.id);
       setState({ kind: 'waiting', alert: { ...state.alert, communityNotified: true }, sponsor: state.sponsor });
+      scheduleAutoReset(state.alert.id, state.sponsor);
     } catch {
       // Silencioso
     }
@@ -222,15 +261,17 @@ export function PanicScreen({ navigation }: Props) {
 
   const handleEscalateToAI = useCallback(async () => {
     if (state.kind !== 'waiting') return;
+    const { id: alertId, } = state.alert;
+    const sponsor = state.sponsor;
     try {
-      const alert = await api.escalatePanicAlert(TEMP_USER_ID, state.alert.id);
-      stopPolling();
-      stopCountdown();
-      setState({ kind: 'escalated', alert });
-      navigation.navigate('Assistant');
+      await api.escalatePanicAlert(TEMP_USER_ID, alertId);
     } catch {
-      navigation.navigate('Assistant');
+      // Si falla la escalada igual redirigimos al asistente
     }
+    stopPolling();
+    stopCountdown();
+    scheduleAutoReset(alertId, sponsor);
+    navigation.navigate('Assistant');
   }, [state, navigation]);
 
   // ──────────────────────────────────────────────────────────────────────

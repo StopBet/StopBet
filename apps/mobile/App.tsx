@@ -54,8 +54,8 @@ function AppNavigator() {
 }
 
 export default function App() {
-  // TODO(auth): cambiar a false cuando el módulo auth esté implementado
-  const [isSignedIn, setIsSignedIn] = React.useState(true);
+  // TODO(auth): reemplazar con estado real de sesión (JWT) cuando auth esté implementado
+  const [isSignedIn, setIsSignedIn] = React.useState(false);
 
   return (
     <AuthContext.Provider value={{ signIn: () => setIsSignedIn(true) }}>

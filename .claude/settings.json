@@ -1,4 +1,33 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\Alexd\\\\OneDrive\\\\Escritorio\\\\StopBet\\\\Repo\\\\StopBet\\\\apps\\\\web\\\\src\" -Directory)",
+      "Bash(Select-Object Name)",
+      "Bash(pnpm --filter @stopbet/web add @tanstack/react-query)",
+      "PowerShell($env:PGPASSWORD = \"password\"; & \"C:\\\\Users\\\\Alexd\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python313\\\\python.exe\" \"c:\\\\Users\\\\Alexd\\\\OneDrive\\\\Escritorio\\\\StopBet\\\\Repo\\\\StopBet\\\\scripts\\\\populate_db.py\" 2>&1)",
+      "PowerShell(py --version 2>&1)",
+      "PowerShell($env:PGPASSWORD = \"password\"; cd \"c:\\\\Users\\\\Alexd\\\\OneDrive\\\\Escritorio\\\\StopBet\\\\Repo\\\\StopBet\"; py scripts/populate_db.py 2>&1)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "PowerShell(Start-Process \"cmd.exe\" -ArgumentList '/k title Backend-StopBet && cd /d \"c:\\\\Users\\\\Alexd\\\\OneDrive\\\\Escritorio\\\\StopBet\\\\Repo\\\\StopBet\" && npm run backend' -WindowStyle Normal)",
+      "PowerShell(Start-Process \"cmd.exe\" -ArgumentList '/k title Web-StopBet && cd /d \"c:\\\\Users\\\\Alexd\\\\OneDrive\\\\Escritorio\\\\StopBet\\\\Repo\\\\StopBet\" && npm run web' -WindowStyle Normal)",
+      "Bash(curl -s http://localhost:3000/users/patients)",
+      "Bash(curl -s http://localhost:3000/registration/pending)",
+      "Bash(curl -s http://localhost:3000/panic/alerts/history)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5173)",
+      "PowerShell($env:PGPASSWORD = \"password\"; cd \"c:\\\\Users\\\\Alexd\\\\OneDrive\\\\Escritorio\\\\StopBet\\\\Repo\\\\StopBet\"; py scripts/populate_community.py 2>&1)",
+      "PowerShell(Start-Process \"powershell\" -ArgumentList '-ExecutionPolicy Bypass -File \"c:\\\\Users\\\\Alexd\\\\OneDrive\\\\Escritorio\\\\StopBet\\\\Repo\\\\StopBet\\\\scripts\\\\android-run.ps1\" -SkipBuild' -WindowStyle Normal)",
+      "PowerShell($env:PGPASSWORD = \"password\"; py scripts/populate_community.py)",
+      "PowerShell(Get-Process -Name \"node\" -ErrorAction SilentlyContinue)",
+      "PowerShell(netstat -ano)",
+      "PowerShell(Stop-Process -Id 22632 -Force)",
+      "PowerShell(Start-Process \"cmd.exe\" -ArgumentList \"/k\", \"cd /d C:\\\\Users\\\\Alexd\\\\OneDrive\\\\Escritorio\\\\StopBet\\\\Repo\\\\StopBet && npm run backend\" -WindowStyle Normal)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  },
   "enabledPlugins": {
     "superpowers@claude-plugins-official": true
   }
