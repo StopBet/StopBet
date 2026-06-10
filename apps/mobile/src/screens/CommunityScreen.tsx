@@ -51,15 +51,15 @@ type Tab = 'announcements' | 'forum';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Community'>;
 
-export function CommunityScreen({ navigation }: Props) {
-  const [tab, setTab] = useState<Tab>('announcements');
+export function CommunityScreen({ navigation, route }: Props) {
+  const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'announcements');
   const [announcements, setAnnouncements] = useState<CommunityPost[]>([]);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
 
   // Composer del foro
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(route.params?.draft ?? '');
   const [posting, setPosting] = useState(false);
 
   // Respuestas: expansión y cache por post

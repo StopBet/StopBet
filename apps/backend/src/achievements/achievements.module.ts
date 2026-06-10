@@ -6,8 +6,6 @@ import { AbstinencePeriod } from './entities/abstinence-period.entity';
 import { EarnedBadge } from './entities/earned-badge.entity';
 import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
-import { CommunityPost } from '../community/entities/community-post.entity';
-import { Sede } from '../sedes/entities/sede.entity';
 
 @Module({
   imports: [
@@ -16,8 +14,6 @@ import { Sede } from '../sedes/entities/sede.entity';
       EarnedBadge,
       ValidatedMessage,
       User,
-      CommunityPost,
-      Sede,
     ]),
   ],
   controllers: [AchievementsController],

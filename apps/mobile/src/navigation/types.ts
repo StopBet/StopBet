@@ -24,7 +24,7 @@ export type AuthStackParamList = {
 export type AppStackParamList = {
   Home: undefined;
   Assistant: undefined;
-  Community: undefined;
+  Community: { initialTab?: 'announcements' | 'forum'; draft?: string } | undefined;
   Achievements: undefined;
   Profile: undefined;
   Panic: undefined;

@@ -38,6 +38,19 @@ const MONTHS_SHORT = [
 
 const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
 
+const MILESTONE_DRAFT: Record<BadgeMilestone, string> = {
+  1:  'Hoy es el primer día de mi abstinencia. Espero que sea el inicio de un gran camino.',
+  3:  'Tres días y aquí sigo. Cada día que pasa me demuestra que puedo lograrlo.',
+  7:  'Una semana completa sin apostar. Nunca creí que llegaría aquí tan rápido.',
+  14: 'Dos semanas de constancia. Estoy aprendiendo que hay vida más allá del juego.',
+  21: '21 días. Lo que empezó como un reto se está convirtiendo en un hábito.',
+  30: 'Un mes entero sin apostar. Hoy siento que realmente estoy cambiando.',
+  45: '45 días. Cada vez que siento el impulso, recuerdo lo lejos que he llegado.',
+  60: 'Dos meses sin apostar. Es más de lo que me imaginé cuando empecé.',
+  75: '75 días enfocado en lo que realmente importa. El camino sigue y yo también.',
+  90: 'Tres meses. No fue fácil, pero cada día valió la pena. Gracias a todos los que me acompañaron.',
+};
+
 const BADGE_CONFIG: Record<BadgeMilestone, { label: string; emoji: string; daysLabel: string }> = {
   1:  { label: 'Primer día',    emoji: '🌱', daysLabel: '1 día' },
   3:  { label: 'Primeros pasos',emoji: '📈', daysLabel: '3 días' },
@@ -132,20 +145,18 @@ export function AchievementsScreen({ navigation }: Props) {
     if (!shareMilestone) return;
     try {
       await api.shareBadge(TEMP_USER_ID, shareMilestone);
+      setData((prev) => ({
+        ...prev,
+        currentPeriod: {
+          ...prev.currentPeriod,
+          earnedBadges: prev.currentPeriod.earnedBadges.map((b) =>
+            b.milestone === shareMilestone ? { ...b, sharedToCommunity: true } : b,
+          ),
+        },
+      }));
+      const draft = MILESTONE_DRAFT[shareMilestone] ?? `¡${shareMilestone} días sin apostar!`;
       setShareMilestone(null);
-      // Actualiza el estado local para reflejar sharedToCommunity: true
-      setData((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          currentPeriod: {
-            ...prev.currentPeriod,
-            earnedBadges: prev.currentPeriod.earnedBadges.map((b) =>
-              b.milestone === shareMilestone ? { ...b, sharedToCommunity: true } : b,
-            ),
-          },
-        };
-      });
+      navigation.navigate('Community', { initialTab: 'forum', draft });
     } catch {
       Alert.alert('Error', 'No se pudo compartir la insignia.');
     }
