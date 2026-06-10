@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Icon } from './Icon';
 
 interface Props {
   title: string;
@@ -13,7 +14,7 @@ export function TopBar({ title, stepLabel, onBack }: Props) {
     <View style={styles.bar}>
       {onBack ? (
         <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={styles.backBtn}>
-          <Text style={styles.backArrow}>←</Text>
+          <Icon name="arrow-left" size={18} color={Colors.fg1} />
         </TouchableOpacity>
       ) : (
         <View style={styles.backBtn} />
@@ -46,10 +47,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 18,
-    color: Colors.fg1,
   },
   title: {
     flex: 1,

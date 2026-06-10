@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Icon } from './Icon';
 
 interface Props {
   onPressAssistant: () => void;
@@ -18,13 +19,13 @@ export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchieve
         style={styles.primaryButton}
       >
         <View style={styles.primaryIcon}>
-          <Text style={styles.primaryIconText}>✦</Text>
+          <Icon name="sparkles" size={24} color={Colors.white} />
         </View>
         <View style={styles.primaryText}>
           <Text style={styles.primaryTitle}>Hablar con el asistente</Text>
           <Text style={styles.primarySubtitle}>Apoyo inmediato · disponible ahora</Text>
         </View>
-        <Text style={styles.chevron}>›</Text>
+        <Icon name="chevron-right" size={22} color={Colors.overlayWhite72} />
       </TouchableOpacity>
 
       {/* Grid secundario */}
@@ -35,7 +36,7 @@ export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchieve
           style={styles.secondaryButton}
         >
           <View style={[styles.secondaryIcon, { backgroundColor: '#E6F4F2' }]}>
-            <Text style={styles.secondaryIconText}>👥</Text>
+            <Icon name="users" size={20} color={Colors.primary} />
           </View>
           <Text style={styles.secondaryLabel}>Comunidad</Text>
         </TouchableOpacity>
@@ -46,7 +47,7 @@ export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchieve
           style={styles.secondaryButton}
         >
           <View style={[styles.secondaryIcon, { backgroundColor: Colors.gold50 }]}>
-            <Text style={styles.secondaryIconText}>🏆</Text>
+            <Icon name="trophy" size={20} color={Colors.gold} />
           </View>
           <Text style={styles.secondaryLabel}>Mis logros</Text>
         </TouchableOpacity>
@@ -83,10 +84,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryIconText: {
-    fontSize: 24,
-    color: Colors.white,
-  },
   primaryText: {
     flex: 1,
   },
@@ -100,10 +97,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.overlayWhite72,
     marginTop: 4,
-  },
-  chevron: {
-    fontSize: 22,
-    color: 'rgba(255,255,255,0.55)',
   },
   grid: {
     flexDirection: 'row',
@@ -128,9 +121,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  secondaryIconText: {
-    fontSize: 20,
   },
   secondaryLabel: {
     fontWeight: '700',

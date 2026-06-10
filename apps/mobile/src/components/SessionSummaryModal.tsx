@@ -8,10 +8,12 @@ import {
 } from 'react-native';
 import type { AiSessionSummary } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Icon, type IconName } from './Icon';
 
 interface SummaryChip {
   bg: string;
-  icon: string;
+  icon: IconName;
+  iconColor: string;
   label: string;
   value: string;
   valueColor?: string;
@@ -21,26 +23,30 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number): Summary
   return [
     {
       bg: '#EAF3F2',
-      icon: '📊',
+      icon: 'chart-column',
+      iconColor: Colors.primary,
       label: 'Estado anímico',
       value: summary.mood ?? 'No registrado',
     },
     {
       bg: Colors.sage50,
-      icon: '🌿',
+      icon: 'leaf',
+      iconColor: Colors.sage500,
       label: 'Hoy fue intenso',
       value: summary.progressNote ?? 'Estás avanzando',
       valueColor: Colors.sage500,
     },
     {
       bg: '#EAF3F2',
-      icon: '🌬️',
+      icon: 'wind',
+      iconColor: Colors.primary,
       label: 'Técnica usada',
       value: summary.techniqueUsed ?? 'Ninguna',
     },
     {
       bg: Colors.sage50,
-      icon: '🌙',
+      icon: 'moon',
+      iconColor: Colors.sage500,
       label: 'Detonante',
       value: summary.trigger ?? 'No identificado',
     },
@@ -77,9 +83,9 @@ export function SessionSummaryModal({
         <View style={styles.modal}>
           {/* Ícono central */}
           <View style={styles.iconWrap}>
-            <Text style={styles.iconMain}>📋</Text>
+            <Icon name="clipboard-list" size={28} color={Colors.primary} />
             <View style={styles.iconCheck}>
-              <Text style={styles.iconCheckText}>✓</Text>
+              <Icon name="check" size={13} color={Colors.white} />
             </View>
           </View>
 
@@ -93,7 +99,7 @@ export function SessionSummaryModal({
             {chips.map((c, i) => (
               <View key={i} style={[styles.chip, { backgroundColor: c.bg }]}>
                 <View style={styles.chipIcon}>
-                  <Text style={styles.chipEmoji}>{c.icon}</Text>
+                  <Icon name={c.icon} size={16} color={c.iconColor} />
                 </View>
                 <View style={styles.chipText}>
                   <Text style={styles.chipLabel}>{c.label}</Text>
@@ -105,9 +111,12 @@ export function SessionSummaryModal({
             ))}
           </View>
 
-          <Text style={styles.note}>
-            🔒 Solo se guarda este resumen general; el contenido de la conversación es privado y no se almacena. Tu psicólogo ve tu evolución para acompañarte mejor.
-          </Text>
+          <View style={styles.noteRow}>
+            <Icon name="lock" size={14} color={Colors.fg2} />
+            <Text style={styles.note}>
+              Solo se guarda este resumen general; el contenido de la conversación es privado y no se almacena. Tu psicólogo ve tu evolución para acompañarte mejor.
+            </Text>
+          </View>
 
           <TouchableOpacity activeOpacity={0.85} onPress={onContinue} style={styles.btn}>
             <Text style={styles.btnText}>Continuar</Text>
@@ -151,7 +160,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     position: 'relative',
   },
-  iconMain: { fontSize: 28 },
   iconCheck: {
     position: 'absolute',
     right: -4,
@@ -165,8 +173,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  iconCheckText: { fontSize: 11, color: Colors.white, fontWeight: '800' },
-
   title: { fontWeight: '800', fontSize: 22, color: Colors.ink900, marginTop: 16 },
   sub: { fontSize: 13, color: Colors.fg2, lineHeight: 18, textAlign: 'center', marginTop: 4 },
 
@@ -193,18 +199,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipEmoji: { fontSize: 16 },
   chipText: { flex: 1 },
   chipLabel: { fontSize: 10, color: Colors.fg2, fontWeight: '600', letterSpacing: 0.3 },
   chipValue: { fontWeight: '700', fontSize: 13.5, color: Colors.ink900, marginTop: 2 },
 
+  noteRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 18,
+    marginBottom: 18,
+  },
   note: {
+    flex: 1,
     fontSize: 13,
     color: Colors.fg2,
     lineHeight: 18,
-    textAlign: 'center',
-    marginTop: 18,
-    marginBottom: 18,
   },
   btn: {
     width: '100%',

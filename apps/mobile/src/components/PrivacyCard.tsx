@@ -1,13 +1,14 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Icon } from './Icon';
 
 export function PrivacyCard() {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.shield}>
-          <Text style={styles.shieldIcon}>🛡️</Text>
+          <Icon name="shield" size={18} color={Colors.primary} />
         </View>
         <Text style={styles.title}>Esta conversación es privada</Text>
       </View>
@@ -19,13 +20,17 @@ export function PrivacyCard() {
 
       <View style={styles.list}>
         <View style={styles.listItem}>
-          <Text style={styles.checkIcon}>✓</Text>
+          <View style={styles.listIcon}>
+            <Icon name="check" size={14} color={Colors.sage500} />
+          </View>
           <Text style={styles.listText}>
             Solo se registran datos generales: ánimo, técnica usada y nivel de riesgo.
           </Text>
         </View>
         <View style={styles.listItem}>
-          <Text style={styles.crossIcon}>✕</Text>
+          <View style={styles.listIcon}>
+            <Icon name="x" size={14} color={Colors.fg2} />
+          </View>
           <Text style={styles.listText}>No se guarda el contenido de los mensajes.</Text>
         </View>
       </View>
@@ -59,7 +64,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  shieldIcon: { fontSize: 18 },
   title: {
     flex: 1,
     fontWeight: '700',
@@ -82,17 +86,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 9,
   },
-  checkIcon: {
-    fontSize: 14,
-    color: Colors.sage500,
-    fontWeight: '700',
-    width: 16,
-    marginTop: 1,
-  },
-  crossIcon: {
-    fontSize: 14,
-    color: Colors.fg2,
-    fontWeight: '700',
+  listIcon: {
     width: 16,
     marginTop: 1,
   },

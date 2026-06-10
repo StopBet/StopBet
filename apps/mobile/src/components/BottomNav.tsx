@@ -4,19 +4,19 @@ import {
   Text,
   TouchableOpacity,
   View,
-  AccessibilityInfo,
 } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Icon, type IconName } from './Icon';
 
 export type NavTab = 'home' | 'community' | 'achievements' | 'profile';
 
-const LEFT_TABS: { id: NavTab; emoji: string; label: string }[] = [
-  { id: 'home',      emoji: '🏠', label: 'Inicio'    },
-  { id: 'community', emoji: '💬', label: 'Comunidad' },
+const LEFT_TABS: { id: NavTab; icon: IconName; label: string }[] = [
+  { id: 'home',      icon: 'house',          label: 'Inicio'    },
+  { id: 'community', icon: 'message-circle', label: 'Comunidad' },
 ];
-const RIGHT_TABS: { id: NavTab; emoji: string; label: string }[] = [
-  { id: 'achievements', emoji: '🏆', label: 'Logros'  },
-  { id: 'profile',      emoji: '👤', label: 'Perfil'  },
+const RIGHT_TABS: { id: NavTab; icon: IconName; label: string }[] = [
+  { id: 'achievements', icon: 'trophy', label: 'Logros'  },
+  { id: 'profile',      icon: 'user',   label: 'Perfil'  },
 ];
 
 interface Props {
@@ -26,7 +26,7 @@ interface Props {
 }
 
 export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
-  const renderTab = (tab: { id: NavTab; emoji: string; label: string }) => {
+  const renderTab = (tab: { id: NavTab; icon: IconName; label: string }) => {
     const isActive = active === tab.id;
     return (
       <TouchableOpacity
@@ -35,7 +35,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
         style={styles.tab}
         activeOpacity={0.7}
       >
-        <Text style={styles.tabEmoji}>{tab.emoji}</Text>
+        <Icon name={tab.icon} size={24} color={isActive ? Colors.primary : Colors.fg2} />
         <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
           {tab.label}
         </Text>
@@ -55,7 +55,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
         accessibilityRole="button"
         style={styles.panicButton}
       >
-        <Text style={styles.panicIcon}>🆘</Text>
+        <Icon name="siren" size={28} color={Colors.white} />
       </TouchableOpacity>
 
       {RIGHT_TABS.map(renderTab)}
@@ -80,9 +80,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     paddingVertical: 4,
-  },
-  tabEmoji: {
-    fontSize: 24,
   },
   tabLabel: {
     fontSize: 12,
@@ -109,8 +106,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 10,
     elevation: 10,
-  },
-  panicIcon: {
-    fontSize: 26,
   },
 });

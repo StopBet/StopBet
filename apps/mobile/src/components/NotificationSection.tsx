@@ -2,35 +2,36 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Notification } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Icon, type IconName } from './Icon';
 
-const TYPE_STYLES = {
+const TYPE_STYLES: Record<string, { bg: string; border: string; iconColor: string; titleColor: string; icon: IconName }> = {
   warning: {
     bg: Colors.amber50,
     border: '#F3CDB9',
     iconColor: Colors.accent,
     titleColor: Colors.accent,
-    icon: '⚠️',
+    icon: 'triangle-alert',
   },
   info: {
     bg: '#EAF3F2',
     border: '#C2DBD8',
     iconColor: Colors.primary,
     titleColor: Colors.primary,
-    icon: '📅',
+    icon: 'calendar',
   },
   success: {
     bg: Colors.sage50,
     border: '#BDD6C7',
     iconColor: Colors.sage500,
     titleColor: Colors.sage500,
-    icon: '✅',
+    icon: 'circle-check',
   },
   danger: {
     bg: '#FEECEC',
     border: '#F5C2C2',
     iconColor: Colors.danger,
     titleColor: Colors.danger,
-    icon: '🚨',
+    icon: 'siren',
   },
 };
 
@@ -54,7 +55,7 @@ export function NotificationSection({ notifications, onViewAll, onMarkRead }: Pr
     <View style={styles.wrapper}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.bellIcon}>🔔</Text>
+          <Icon name="bell" size={16} color={Colors.ink900} />
           <Text style={styles.title}>Notificaciones</Text>
         </View>
         <TouchableOpacity onPress={onViewAll}>
@@ -73,7 +74,7 @@ export function NotificationSection({ notifications, onViewAll, onMarkRead }: Pr
               style={[styles.card, { backgroundColor: s.bg, borderColor: s.border }]}
             >
               <View style={styles.iconWrap}>
-                <Text style={styles.cardIcon}>{s.icon}</Text>
+                <Icon name={s.icon} size={16} color={s.iconColor} />
               </View>
               <View style={styles.content}>
                 <View style={styles.cardHeader}>
@@ -105,9 +106,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  bellIcon: {
-    fontSize: 16,
-  },
   title: {
     fontWeight: '600',
     fontSize: 16,
@@ -136,9 +134,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.7)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cardIcon: {
-    fontSize: 16,
   },
   content: {
     flex: 1,

@@ -8,6 +8,7 @@ import {
   View,
 } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Icon, type IconName } from './Icon';
 
 interface Props {
   label: string;
@@ -15,14 +16,14 @@ interface Props {
   placeholder?: string;
   value: string;
   onChangeText: (text: string) => void;
-  leadingIcon?: string;       // emoji usado como ícono
+  leadingIcon?: IconName;     // nombre de ícono Lucide
   prefix?: string;            // ej. "+56" para teléfono
   error?: string;
   hint?: string;
   keyboardType?: KeyboardTypeOptions;
   secureTextEntry?: boolean;
   editable?: boolean;
-  trailingIcon?: string;      // emoji para chevron/ojo etc.
+  trailingIcon?: IconName;    // ícono para chevron/etc.
 }
 
 export function FormInput({
@@ -60,7 +61,7 @@ export function FormInput({
 
       <View style={[styles.inputRow, { borderColor }, focused && !error && styles.inputFocused]}>
         {leadingIcon && (
-          <Text style={[styles.icon, focused && styles.iconFocused]}>{leadingIcon}</Text>
+          <Icon name={leadingIcon} size={18} color={focused ? Colors.primary : Colors.fg2} />
         )}
         {prefix && (
           <Text style={styles.prefix}>{prefix}</Text>
@@ -79,16 +80,21 @@ export function FormInput({
         />
         {secureTextEntry && (
           <TouchableOpacity onPress={() => setSecure((v) => !v)} style={styles.eyeBtn}>
-            <Text style={styles.icon}>{secure ? '👁️' : '🙈'}</Text>
+            <Icon name={secure ? 'eye' : 'eye-off'} size={18} color={Colors.fg2} />
           </TouchableOpacity>
         )}
         {trailingIcon && !secureTextEntry && (
-          <Text style={styles.trailing}>{trailingIcon}</Text>
+          <View style={styles.trailing}>
+            <Icon name={trailingIcon} size={18} color={Colors.fg2} />
+          </View>
         )}
       </View>
 
       {error && (
-        <Text style={styles.error}>⚠ {error}</Text>
+        <View style={styles.errorRow}>
+          <Icon name="triangle-alert" size={13} color={Colors.danger} />
+          <Text style={styles.error}>{error}</Text>
+        </View>
       )}
       {hint && !error && (
         <Text style={styles.hint}>{hint}</Text>
@@ -127,13 +133,6 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  icon: {
-    fontSize: 17,
-    color: Colors.fg2,
-  },
-  iconFocused: {
-    color: Colors.primary,
-  },
   prefix: {
     fontWeight: '600',
     fontSize: 15,
@@ -153,14 +152,17 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   trailing: {
-    fontSize: 17,
-    color: Colors.fg2,
     marginLeft: 'auto',
+  },
+  errorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    marginTop: 7,
   },
   error: {
     fontSize: 12,
     color: Colors.danger,
-    marginTop: 7,
   },
   hint: {
     fontSize: 12,

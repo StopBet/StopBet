@@ -2,13 +2,14 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { EmotionType } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Icon, type IconName } from './Icon';
 
-const EMOTIONS: { type: EmotionType; emoji: string; label: string }[] = [
-  { type: 'tired',   emoji: '😴', label: 'Cansado'  },
-  { type: 'anxious', emoji: '😰', label: 'Ansioso'  },
-  { type: 'angry',   emoji: '😤', label: 'Enojado'  },
-  { type: 'lonely',  emoji: '😔', label: 'Solo'      },
-  { type: 'good',    emoji: '😊', label: 'Bien'      },
+const EMOTIONS: { type: EmotionType; icon: IconName; label: string }[] = [
+  { type: 'tired',   icon: 'moon',    label: 'Cansado'  },
+  { type: 'anxious', icon: 'annoyed', label: 'Ansioso'  },
+  { type: 'angry',   icon: 'angry',   label: 'Enojado'  },
+  { type: 'lonely',  icon: 'frown',   label: 'Solo'      },
+  { type: 'good',    icon: 'smile',   label: 'Bien'      },
 ];
 
 interface Props {
@@ -24,7 +25,8 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
         <Text style={styles.title}>Check emocional diario</Text>
         {done && (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>✓ Completado hoy</Text>
+            <Icon name="check" size={13} color={Colors.sage500} />
+            <Text style={styles.badgeText}>Completado hoy</Text>
           </View>
         )}
       </View>
@@ -49,7 +51,7 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
                 dimmed && styles.emotionCardDimmed,
               ]}
             >
-              <Text style={styles.emoji}>{o.emoji}</Text>
+              <Icon name={o.icon} size={26} color={isSelected ? Colors.sage500 : Colors.fg1} />
               <Text style={[styles.label, isSelected && styles.labelSelected]}>
                 {o.label}
               </Text>
@@ -78,6 +80,9 @@ const styles = StyleSheet.create({
     color: Colors.ink900,
   },
   badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     backgroundColor: Colors.sage50,
     borderRadius: 9999,
     paddingHorizontal: 11,
@@ -117,10 +122,6 @@ const styles = StyleSheet.create({
   },
   emotionCardDimmed: {
     opacity: 0.5,
-  },
-  emoji: {
-    fontSize: 26,
-    lineHeight: 30,
   },
   label: {
     fontSize: 11.5,

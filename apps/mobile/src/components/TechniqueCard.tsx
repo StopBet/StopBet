@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { TechniqueType } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Icon, type IconName } from './Icon';
 
 interface TechniqueStep {
   label: string;
@@ -10,11 +11,11 @@ interface TechniqueStep {
 
 const TECHNIQUES: Record<
   TechniqueType,
-  { title: string; icon: string; steps: TechniqueStep[] }
+  { title: string; icon: IconName; steps: TechniqueStep[] }
 > = {
   breathing: {
     title: 'Respiración 4-7-8',
-    icon: '🌬️',
+    icon: 'wind',
     steps: [
       { label: 'Inhala por la nariz',  secs: '4 seg' },
       { label: 'Mantén el aire',        secs: '7 seg' },
@@ -23,7 +24,7 @@ const TECHNIQUES: Record<
   },
   grounding: {
     title: 'Grounding 5-4-3-2-1',
-    icon: '🌿',
+    icon: 'leaf',
     steps: [
       { label: 'Nombra 5 cosas que ves' },
       { label: 'Toca 4 cosas a tu alrededor' },
@@ -34,7 +35,7 @@ const TECHNIQUES: Record<
   },
   postponement: {
     title: 'Postponer el impulso',
-    icon: '⏳',
+    icon: 'hourglass',
     steps: [
       { label: 'Reconoce el impulso sin actuar' },
       { label: 'Comprométete a esperar 30 minutos' },
@@ -53,9 +54,10 @@ export function TechniqueCard({ type, onStart }: Props) {
   const t = TECHNIQUES[type];
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>
-        {t.icon} {t.title}
-      </Text>
+      <View style={styles.titleRow}>
+        <Icon name={t.icon} size={16} color={Colors.primary} />
+        <Text style={styles.title}>{t.title}</Text>
+      </View>
 
       <View style={styles.steps}>
         {t.steps.map((step, i) => (
@@ -70,7 +72,8 @@ export function TechniqueCard({ type, onStart }: Props) {
       </View>
 
       <TouchableOpacity activeOpacity={0.85} onPress={onStart} style={styles.cta}>
-        <Text style={styles.ctaText}>{t.icon} Iniciar guía</Text>
+        <Icon name={t.icon} size={15} color={Colors.white} />
+        <Text style={styles.ctaText}>Iniciar guía</Text>
       </TouchableOpacity>
     </View>
   );
@@ -85,6 +88,11 @@ const styles = StyleSheet.create({
     padding: 14,
     maxWidth: '88%',
     alignSelf: 'flex-start',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: {
     fontWeight: '600',
@@ -124,6 +132,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
     alignSelf: 'flex-start',
     backgroundColor: Colors.primary,
     borderRadius: 9999,

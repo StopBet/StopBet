@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Icon } from './Icon';
 
 interface Props {
   current: 1 | 2 | 3;
@@ -25,7 +26,7 @@ export function StepperHeader({ current, labels = ['Datos', 'Sede', 'Pago'] }: P
             <View style={styles.item}>
               <View style={[styles.dot, s === 'active' && styles.dotActive, s === 'done' && styles.dotDone]}>
                 {s === 'done' ? (
-                  <Text style={styles.dotCheck}>✓</Text>
+                  <Icon name="check" size={15} color={Colors.white} />
                 ) : (
                   <Text style={[styles.dotNum, s === 'active' && styles.dotNumActive]}>{step}</Text>
                 )}
@@ -86,11 +87,6 @@ const styles = StyleSheet.create({
     color: Colors.fg2,
   },
   dotNumActive: {
-    color: Colors.white,
-  },
-  dotCheck: {
-    fontWeight: '800',
-    fontSize: 14,
     color: Colors.white,
   },
   cap: {

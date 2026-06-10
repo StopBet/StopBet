@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Icon } from './Icon';
 
 interface Props {
   days: number;
@@ -29,9 +30,12 @@ export function DayCounter({ days, milestone }: Props) {
         <View style={[styles.progressFill, { width: `${pct * 100}%` }]} />
       </View>
 
-      <Text style={styles.daysLeftText}>
-        {daysLeft} días para tu próxima insignia 🏅
-      </Text>
+      <View style={styles.daysLeftRow}>
+        <Text style={styles.daysLeftText}>
+          {daysLeft} días para tu próxima insignia
+        </Text>
+        <Icon name="medal" size={15} color={Colors.gold} />
+      </View>
     </View>
   );
 }
@@ -101,10 +105,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.sage500,
     borderRadius: 9999,
   },
+  daysLeftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginTop: 10,
+  },
   daysLeftText: {
     fontSize: 13,
     color: Colors.fg2,
-    marginTop: 10,
     textAlign: 'center',
   },
 });
