@@ -22,6 +22,14 @@ const config = {
       path.resolve(__dirname, 'node_modules'),
       path.resolve(monorepoRoot, 'node_modules'),
     ],
+    // Excluir las carpetas de build de Android: CMake crea/borra directorios
+    // temporales (.cxx) durante la compilacion nativa y el watcher de Windows
+    // (sin watchman) crashea con ENOENT al intentar observarlos.
+    blockList: [
+      /.*\/android\/build\/.*/,
+      /.*\/android\/\.cxx\/.*/,
+      /.*\/android\/app\/build\/.*/,
+    ],
   },
 };
 

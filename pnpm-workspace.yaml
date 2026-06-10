@@ -1,6 +1,9 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+# React Native (Metro + paths hardcodeados en gradle) requiere un node_modules
+# plano estilo npm. 'hoisted' desactiva los symlinks del store aislado de pnpm.
+nodeLinker: hoisted
 allowBuilds:
   '@nestjs/core': true
   esbuild: true
