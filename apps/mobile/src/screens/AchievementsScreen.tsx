@@ -24,7 +24,7 @@ import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
 // Ajustar cuando se conecte autenticación real
-const TEMP_USER_ID = 'TEMP_USER_ID';
+const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 
 const MONTHS_LONG = [
   'enero','febrero','marzo','abril','mayo','junio',

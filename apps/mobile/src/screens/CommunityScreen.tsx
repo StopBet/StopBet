@@ -27,7 +27,7 @@ import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
 // Ajustar cuando se conecte la autenticación real
-const TEMP_USER_ID = 'TEMP_USER_ID';
+const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_SEDE = 'Santiago';
 
 const REACTION_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];

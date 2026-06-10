@@ -18,7 +18,7 @@ import type { AppStackParamList } from '../navigation/types';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
-const TEMP_USER_ID = 'TEMP_USER_ID';
+const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
 
 const MONTH_LABELS: Record<string, string> = {

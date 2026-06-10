@@ -23,7 +23,7 @@ import { api } from '../services/api';
 // ──────────────────────────────────────────────────────────────────────────────
 // Constantes
 
-const TEMP_USER_ID = 'TEMP_USER_ID';
+const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const HOLD_DURATION_MS = 2000;
 const POLL_INTERVAL_MS = 5000;
 const ESCALATION_SECONDS = 180; // 3 minutos
