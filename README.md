@@ -47,7 +47,7 @@ Asegúrate de tener instalado lo siguiente antes de comenzar:
 | Herramienta | Versión mínima | Verificar con |
 |-------------|---------------|---------------|
 | Node.js | 20.x | `node -v` |
-| npm | 10.x | `npm -v` |
+| pnpm | 10.x | `pnpm -v` |
 | Git | cualquiera | `git --version` |
 | PostgreSQL | 15.x | `psql --version` |
 
@@ -58,7 +58,7 @@ Asegúrate de tener instalado lo siguiente antes de comenzar:
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/holyusm/StopBet.git
+git clone https://github.com/StopBet/StopBet.git
 cd StopBet
 ```
 
@@ -69,8 +69,10 @@ cd StopBet
 Desde la **raíz** del monorepo instala todos los workspaces de una sola vez:
 
 ```bash
-npm install
+pnpm install
 ```
+
+> ⚠️ **Usa `pnpm`, no `npm`.** Este es un monorepo **pnpm**. Correr `npm install` genera un `package-lock.json` que rompe la consistencia de dependencias del equipo. Si no tienes pnpm: `npm install -g pnpm` o `corepack enable`.
 
 ---
 
@@ -146,25 +148,38 @@ Disponible en: `http://localhost:5173`
 
 ### Mobile
 
-> El desarrollo mobile requiere configuración adicional de herramientas nativas. Ver instrucciones completas en [apps/mobile/README.md](apps/mobile/README.md).
+> Setup nativo, flujo completo y *gotchas* del monorepo en **[apps/mobile/README.md](apps/mobile/README.md)**. Acá va solo el resumen.
 
 **Requisitos adicionales:**
 
 | Herramienta | Uso |
 |-------------|-----|
-| JDK 17 | Compilación Android |
-| Android Studio | SDK Manager + emulador |
+| JDK 17 | Compilación Android (Gradle lo exige) |
+| Android Studio | SDK Manager + AVD (emulador) |
+| `adb` en el PATH | Conexión con el dispositivo/emulador |
 | Variable `ANDROID_HOME` | Apunta al SDK de Android |
 | Variable `JAVA_HOME` | Apunta al JDK 17 |
 
-Una vez configurado el entorno nativo, desde `apps/mobile/`:
+En el MVP la app corre en **dispositivo Android físico** (depuración USB) o emulador. Le pega al backend en `http://localhost:3000`, así que necesita el backend corriendo y los puentes `adb reverse`.
+
+**Windows** (script automático que hace todo):
 
 ```bash
-# Iniciar Metro Bundler
-npm run start
+pnpm run android:device      # primera vez / cambios nativos
+pnpm run android:reload      # recargas posteriores (solo JS)
+```
 
-# En otra terminal, lanzar en emulador Android
-npm run android
+**Linux / macOS** (el script de arriba es PowerShell; acá es manual):
+
+```bash
+# Terminal 1 (raíz): backend
+pnpm run backend
+# Terminal 2 (apps/mobile): Metro
+npx react-native start
+# Terminal 3: puentes para que el dispositivo alcance el localhost del PC
+adb reverse tcp:8081 tcp:8081 && adb reverse tcp:3000 tcp:3000
+# Terminal 3: compilar e instalar (luego basta apretar "r" en Metro)
+npx react-native run-android
 ```
 
 ---
