@@ -248,8 +248,8 @@ export function CommunityScreen({ navigation, route }: Props) {
       ) : (
         <KeyboardAvoidingView
           style={styles.flex}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={90}
+          behavior="padding"
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 120}
         >
           {tab === 'announcements' ? (
             <ScrollView
