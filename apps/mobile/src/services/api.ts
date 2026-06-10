@@ -49,9 +49,10 @@ async function request<T>(
       const body = await res.text();
       throw new Error(`${res.status} ${body}`);
     }
-    // 204 No Content
+    // 204 No Content o 200 con cuerpo vacío (algunos endpoints devuelven body vacío)
     if (res.status === 204) return undefined as unknown as T;
-    return res.json() as Promise<T>;
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
   } finally {
     clearTimeout(timeoutId);
   }
