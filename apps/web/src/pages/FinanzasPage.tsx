@@ -119,7 +119,7 @@ export function FinanzasPage() {
                   </td>
                   <td style={{ padding: '13px 14px' }}><PayStatusChip status={p.status} /></td>
                   <td style={{ padding: '13px 14px' }}>
-                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver →</button>
+                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver <WIcon name="arrow-right" size={13} /></button>
                   </td>
                 </tr>
               ))}
@@ -161,8 +161,8 @@ export function FinanzasPage() {
                 </div>
               ))}
             </div>
-            <button style={{ marginTop: 14, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-              Ver historial completo →
+            <button style={{ marginTop: 14, display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+              Ver historial completo <WIcon name="arrow-right" size={14} />
             </button>
           </div>
 

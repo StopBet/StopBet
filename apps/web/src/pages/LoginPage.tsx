@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { WIcon } from '../components/WIcon'
 
 function SupportNetwork() {
   const nodes = [
@@ -128,8 +129,8 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   width: 22, height: 22, borderRadius: '50%',
                   background: 'rgba(255,255,255,0.18)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, fontSize: 12, fontWeight: 700,
-                }}>✓</span>
+                  flexShrink: 0,
+                }}><WIcon name="check" size={13} /></span>
                 <span style={{ fontSize: 15 }}>{item}</span>
               </li>
             ))}

@@ -115,7 +115,7 @@ export function AlertasPage() {
                   </td>
                   <td style={{ padding: '14px 14px' }}><AlertStatusBadge status={a.status} /></td>
                   <td style={{ padding: '14px 14px' }}>
-                    <button style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver →</button>
+                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver <WIcon name="arrow-right" size={13} /></button>
                   </td>
                 </tr>
               ))}

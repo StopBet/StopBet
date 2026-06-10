@@ -320,15 +320,15 @@ function PanicPanel({ onOpenPatient }: { onOpenPatient: (name: string) => void }
                   <WIcon name="circle-alert" size={13} /> Sin resolver
                 </span>
               )}
-              <button onClick={() => onOpenPatient(a.name)} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                Ver sesión →
+              <button onClick={() => onOpenPatient(a.name)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                Ver sesión <WIcon name="arrow-right" size={13} />
               </button>
             </div>
           </div>
         ))}
       </div>
-      <button style={{ marginTop: 16, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
-        Ver historial completo →
+      <button style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+        Ver historial completo <WIcon name="arrow-right" size={14} />
       </button>
     </div>
   )
