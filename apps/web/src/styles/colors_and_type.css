@@ -1,0 +1,129 @@
+/* ============================================================
+   StopBet Design System — Core Tokens
+   Colors, Typography, Spacing, Radius, Shadow, Motion
+   Warm, safe, human — the opposite of a casino.
+   ============================================================ */
+
+/* ---------- Fuentes self-hosted (woff2 en ./fonts/) ---------- */
+@font-face {
+  font-family: "Nunito";
+  src: url("./fonts/Nunito-400.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Nunito";
+  src: url("./fonts/Nunito-600.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Nunito";
+  src: url("./fonts/Nunito-700.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("./fonts/Inter-400.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("./fonts/Inter-600.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("./fonts/Inter-700.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
+:root {
+  /* ============ COLOR — RAW PALETTE ============ */
+  --teal-700: #1E7A6E;
+  --teal-400: #4AADA0;
+  --sage-500: #6A9E6A;
+  --amber-500: #E8895A;
+  --red-600: #B83232;
+  --gold-500: #C9954A;
+
+  --cream-50: #F8F4EF;
+  --white: #FFFFFF;
+
+  --ink-900: #1E2D2C;
+  --ink-500: #6B7B7A;
+  --border-200: #E2D9CE;
+  --disabled-300: #C4BCB3;
+
+  /* Soft tints */
+  --teal-50: #E8F2F0;
+  --sage-50: #EDF3ED;
+  --amber-50: #FCEDE4;
+  --red-50: #F7E7E7;
+  --gold-50: #F6EEDF;
+
+  /* ============ SEMANTIC COLOR ============ */
+  --bg: var(--cream-50);
+  --surface: var(--white);
+  --surface-alt: var(--teal-50);
+
+  --primary: var(--teal-700);
+  --primary-hover: var(--teal-400);
+  --secondary: var(--sage-500);
+  --accent: var(--amber-500);
+  --danger: var(--red-600);
+  --gold: var(--gold-500);
+
+  --fg1: var(--ink-900);
+  --fg2: var(--ink-500);
+  --fg-on-primary: #FFFFFF;
+  --border: var(--border-200);
+  --disabled: var(--disabled-300);
+
+  /* ============ TYPOGRAPHY ============ */
+  --font-heading: "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --fw-regular: 400;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  --fs-12: 0.75rem;
+  --fs-14: 0.875rem;
+  --fs-16: 1rem;
+  --fs-18: 1.125rem;
+  --fs-22: 1.375rem;
+  --fs-28: 1.75rem;
+  --fs-36: 2.25rem;
+
+  --lh-body: 1.5;
+  --lh-heading: 1.2;
+
+  /* ============ SPACING (base 4px) ============ */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* ============ RADIUS ============ */
+  --r-sm: 8px;
+  --r-md: 16px;
+  --r-lg: 24px;
+  --r-full: 9999px;
+
+  /* ============ SHADOW ============ */
+  --shadow-soft: 0 2px 8px rgba(30,45,44,0.08);
+  --shadow-medium: 0 4px 16px rgba(30,45,44,0.12);
+  --shadow-strong: 0 8px 32px rgba(30,45,44,0.18);
+  --glow-gold: 0 0 0 4px rgba(201,149,74,0.18), 0 4px 16px rgba(201,149,74,0.28);
+  --glow-danger: 0 6px 24px rgba(184,50,50,0.32);
+
+  /* ============ MOTION ============ */
+  --ease-calm: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+  --dur-slow: 420ms;
+}

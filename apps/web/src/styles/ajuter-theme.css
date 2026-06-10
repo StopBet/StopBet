@@ -1,0 +1,52 @@
+/* ============================================================
+   AJUTER Theme Override — Warm Vibrant Palette
+   Overrides the StopBet base tokens for vistas de AJUTER.
+   Import AFTER colors_and_type.css para que los overrides tomen efecto.
+   ============================================================ */
+
+:root {
+  /* ---- AJUTER brand palette ---- */
+  --color-ajuter-gold:       #F0B040;
+  --color-ajuter-orange:     #E8883A;
+  --color-ajuter-red-orange: #D06A30;
+  --color-ajuter-black:      #2A2624;
+  --color-ajuter-gray-dark:  #574F4A;
+  --color-ajuter-gray-mid:   #8E857E;
+  --color-ajuter-gray-light: #FAF7F4;
+
+  /* ---- Override raw palette: primary ---- */
+  --teal-700: #E8883A;   /* primary main   → naranja AJUTER */
+  --teal-400: #C8513B;   /* primary hover  → coral-rojo cálido */
+  --teal-50:  #FFF5EB;   /* primary tint   */
+
+  /* ---- Override raw palette: accent ---- */
+  --amber-500: #F0B040;
+  --amber-50:  #FEF5E0;
+
+  /* ---- Override raw palette: gold ---- */
+  --gold-500: #F0B040;
+  --gold-50:  #FEF5E0;
+
+  /* ---- Background ---- */
+  --cream-50: #FAF7F4;
+
+  /* ---- Text ---- */
+  --ink-900: #2A2624;
+  --ink-500: #574F4A;
+
+  /* ---- Neutrals ---- */
+  --border-200:   #E8E2DC;
+  --disabled-300: #C0B8B0;
+
+  /* ---- Shadows: neutral ---- */
+  --shadow-soft:   0 2px 8px  rgba(28,28,28,0.07);
+  --shadow-medium: 0 4px 16px rgba(28,28,28,0.10);
+  --shadow-strong: 0 8px 32px rgba(28,28,28,0.16);
+
+  /* ---- Glows ---- */
+  --glow-gold: 0 0 0 4px rgba(245,166,35,0.18),
+               0 4px 16px rgba(245,166,35,0.28);
+
+  /* ---- Gradiente institucional AJUTER ---- */
+  --ajuter-gradient: linear-gradient(90deg, #F0B040 0%, #E8883A 50%, #D06A30 100%);
+}
