@@ -57,6 +57,7 @@ Write-Step "Buscando Java 17+..."
 
 function Get-ValidJavaHome {
     $patterns = @(
+        "C:\Program Files\Android\Android Studio\jbr*",
         "C:\Program Files\Microsoft\jdk-17*",
         "C:\Program Files\Microsoft\jdk-21*",
         "C:\Program Files\Eclipse Adoptium\jdk-17*",
@@ -72,7 +73,10 @@ function Get-ValidJavaHome {
         foreach ($dir in $dirs) {
             $javaExe = Join-Path $dir.FullName "bin\java.exe"
             if (-not (Test-Path $javaExe)) { continue }
+            # java -version writes to stderr; suppress NativeCommandError in PS5.1
+            $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
             $versionOut = & $javaExe -version 2>&1 | Out-String
+            $ErrorActionPreference = $prev
             if ($versionOut -match '"(\d+)') {
                 if ([int]$Matches[1] -ge 17) { return $dir.FullName }
             }
@@ -98,12 +102,12 @@ $env:JAVA_HOME = $javaHome
 $env:PATH      = "$javaHome\bin;" + $env:PATH
 Write-OK "JAVA_HOME: $javaHome"
 
-# ── 3. Verificar dependencias npm ────────────────────────────────────────────
-Write-Step "Verificando dependencias npm..."
+# ── 3. Verificar dependencias pnpm ───────────────────────────────────────────
+Write-Step "Verificando dependencias pnpm..."
 if (-not (Test-Path (Join-Path $MobileDir "node_modules"))) {
-    Write-Warn "node_modules ausente. Ejecutando npm install..."
-    Set-Location $MobileDir
-    npm install
+    Write-Warn "node_modules ausente. Ejecutando pnpm install..."
+    Set-Location $RepoRoot
+    pnpm install
     Set-Location $RepoRoot
 }
 Write-OK "Dependencias OK"
@@ -151,7 +155,7 @@ Write-Host @"
   =====================================================
 
   Metro: ventana CMD separada (no cerrarla)
-  Backend: ejecutar 'npm run backend' para datos reales
+  Backend: ejecutar 'pnpm run backend' para datos reales
   Recargar app: sacudir el celular > Reload
 
   Proximas veces (sin recompilar APK):
