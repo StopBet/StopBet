@@ -98,7 +98,7 @@ JWT_SECRET=cualquier_string_largo_para_desarrollo
 GEMINI_API_KEY=tu_api_key_de_google_ai_studio
 ```
 
-> Obtén tu `GEMINI_API_KEY` gratis en [Google AI Studio](https://aistudio.google.com).
+> Obtén tu `GEMINI_API_KEY` gratis en [Google AI Studio](https://aistudio.google.com). Es **opcional**: si la dejas vacía el backend levanta igual y el chatbot responde con mensajes de fallback.
 
 #### `apps/web/.env`
 
@@ -123,14 +123,24 @@ psql -U postgres -c "CREATE DATABASE stopbet;"
 
 ---
 
-### 5. Levantar los servicios
+### 5. Poblar la base de datos con datos de prueba
+
+```bash
+pnpm run seed
+```
+
+Crea las tablas (si no existen) y el **usuario demo** que usa la app mobile mientras no hay autenticación real. Es idempotente: si los datos ya existen, no hace nada.
+
+---
+
+### 6. Levantar los servicios
 
 Abre **dos terminales** en la raíz del proyecto:
 
 **Terminal 1 — Backend API:**
 
 ```bash
-npm run backend
+pnpm run backend
 ```
 
 Disponible en: `http://localhost:3000`  
@@ -139,7 +149,7 @@ Swagger (documentación de la API): `http://localhost:3000/api/docs`
 **Terminal 2 — Dashboard Web:**
 
 ```bash
-npm run web
+pnpm run web
 ```
 
 Disponible en: `http://localhost:5173`
@@ -149,6 +159,15 @@ Disponible en: `http://localhost:5173`
 ### Mobile
 
 > Setup nativo, flujo completo y *gotchas* del monorepo en **[apps/mobile/README.md](apps/mobile/README.md)**. Acá va solo el resumen.
+
+#### ¿Qué es Metro y por qué lo usamos?
+
+**Metro** es el bundler de JavaScript que viene incluido con React Native. Su trabajo es servir el código JS al dispositivo en tiempo real: cuando la app arranca en el celular, le pide el bundle a Metro (que corre en tu PC en el puerto 8081). Cuando cambias código, Metro lo detecta y recarga la app automáticamente sin recompilar el APK.
+
+Es parte del framework — no es opcional ni reemplazable con React Native CLI.
+
+> **En Windows** el script `android-run.ps1` abre Metro automáticamente en una ventana separada. Solo debes **no cerrarla** mientras usas la app.  
+> **En Linux/macOS** hay que levantarlo manualmente (ver comandos abajo).
 
 **Requisitos adicionales:**
 

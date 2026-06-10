@@ -64,7 +64,13 @@ No hay login aún. Las 5 pantallas que consultan el backend (`HomeScreen`, `Achi
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 ```
 
-Ese usuario (Carlos, racha de 45 días) **debe existir en la tabla `users`** de la base `stopbet`. Si los endpoints devuelven **500**, lo más probable es que el usuario demo no esté en la BD (hoy se crea con SQL manual; aún no hay seeder). El backend espera un UUID válido en `users.id`: un string que no sea UUID da 500, no 404.
+Ese usuario (Carlos, racha de 45 días) **debe existir en la tabla `users`** de la base `stopbet`. Si los endpoints devuelven **500**, lo más probable es que el usuario demo no esté en la BD — corrígelo con:
+
+```bash
+pnpm run seed
+```
+
+El seed es idempotente; puedes correrlo cuantas veces quieras sin duplicar datos. El backend espera un UUID válido en `users.id`: un string que no sea UUID da 500, no 404.
 
 ## Estructura
 
