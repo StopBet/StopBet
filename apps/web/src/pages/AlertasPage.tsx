@@ -1,13 +1,41 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
 import { MetricCard } from '../components/MetricCard'
-import { ALERT_DATA, type AlertData } from '../data/mockData'
+import { api } from '../services/api'
+import type { AlertHistoryItem } from '../services/api'
 
 type FilterChip = 'todas' | 'sin-resolver' | 'resuelto-ia' | 'resuelto-manual'
 
-function AlertStatusBadge({ status }: { status: AlertData['status'] }) {
-  const map: Record<AlertData['status'], { bg: string; fg: string; label: string; icon: string }> = {
-    'resuelto-ia':      { bg: 'var(--teal-50)',  fg: 'var(--primary)',   label: 'Resuelto con IA',    icon: 'sparkles'      },
+type AlertStatus = 'sin-resolver' | 'resuelto-ia' | 'resuelto-manual'
+
+interface AlertRow {
+  id: string
+  initials: string
+  name: string
+  sede: string
+  fecha: string
+  tipo: string
+  status: AlertStatus
+}
+
+function mapStatus(s: AlertHistoryItem['status']): AlertStatus {
+  if (s === 'escalated') return 'resuelto-ia'
+  if (s === 'responded') return 'resuelto-manual'
+  return 'sin-resolver'
+}
+
+function shortSedeName(name: string): string {
+  if (name.includes('Santiago')) return 'Santiago'
+  if (name.includes('Viña')) return 'Viña del Mar'
+  if (name.includes('Online')) return 'Online'
+  if (name.includes('Concepción')) return 'Concepción'
+  return name
+}
+
+function AlertStatusBadge({ status }: { status: AlertStatus }) {
+  const map: Record<AlertStatus, { bg: string; fg: string; label: string; icon: string }> = {
+    'resuelto-ia':      { bg: 'var(--teal-50)',  fg: 'var(--primary)',   label: 'Resuelto con IA',      icon: 'sparkles'      },
     'resuelto-manual':  { bg: 'var(--sage-50)',  fg: 'var(--sage-500)', label: 'Resuelto manualmente', icon: 'circle-check'  },
     'sin-resolver':     { bg: 'var(--red-50)',   fg: 'var(--danger)',   label: 'Sin resolver',          icon: 'circle-alert'  },
   }
@@ -30,9 +58,34 @@ const FILTER_LABELS: Record<FilterChip, string> = {
 export function AlertasPage() {
   const [filter, setFilter] = useState<FilterChip>('todas')
 
-  const rows = filter === 'todas' ? ALERT_DATA : ALERT_DATA.filter(a => a.status === filter)
-  const unresolved = ALERT_DATA.filter(a => a.status === 'sin-resolver')
-  const resolvedIA = ALERT_DATA.filter(a => a.status === 'resuelto-ia')
+  const { data: alertHistory = [], isLoading } = useQuery({
+    queryKey: ['alerts', 'history'],
+    queryFn: api.getAlertHistory,
+  })
+
+  const { data: sedes = [] } = useQuery({
+    queryKey: ['sedes'],
+    queryFn: api.getSedes,
+  })
+
+  const sedeMap = Object.fromEntries(sedes.map(s => [s.id, s.name]))
+
+  const allRows: AlertRow[] = alertHistory.map(a => ({
+    id: a.id,
+    initials: a.patientName.split(' ').map(n => n[0] ?? '').slice(0, 2).join('').toUpperCase(),
+    name: a.patientName,
+    sede: shortSedeName(sedeMap[a.sedeId ?? ''] ?? a.sedeId ?? '—'),
+    fecha: new Date(a.createdAt).toLocaleString('es-CL', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }),
+    tipo: 'Botón de pánico',
+    status: mapStatus(a.status),
+  }))
+
+  const rows = filter === 'todas' ? allRows : allRows.filter(a => a.status === filter)
+  const unresolved = allRows.filter(a => a.status === 'sin-resolver')
+  const resolvedIA  = allRows.filter(a => a.status === 'resuelto-ia')
 
   const Head = ({ label }: { label: string }) => (
     <th style={{ textAlign: 'left', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 14px 12px' }}>{label}</th>
@@ -42,8 +95,8 @@ export function AlertasPage() {
     <div style={{ padding: 32, maxWidth: 1440, minWidth: 1100, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* Metrics */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-        <MetricCard icon="triangle-alert" label="Total alertas hoy" value={ALERT_DATA.length} tone="red" important
-          sub="botones de pánico activados hoy" />
+        <MetricCard icon="triangle-alert" label="Total alertas" value={allRows.length} tone="red" important
+          sub="historial completo de botones de pánico" />
         <MetricCard icon="circle-alert" label="Sin resolver" value={unresolved.length} tone="amber" important
           sub="requieren atención manual" />
         <MetricCard icon="sparkles" label="Resueltos con IA" value={resolvedIA.length} tone="teal" important
@@ -80,50 +133,54 @@ export function AlertasPage() {
             </div>
           </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup>
-              <col /><col style={{ width: 100 }} /><col style={{ width: 160 }} />
-              <col style={{ width: 140 }} /><col style={{ width: 190 }} /><col style={{ width: 80 }} />
-            </colgroup>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <Head label="Paciente" /><Head label="Sede" /><Head label="Fecha" />
-                <Head label="Tipo" /><Head label="Estado" /><Head label="" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(a => (
-                <tr key={a.id}
-                  style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--teal-50)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '14px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: a.status === 'sin-resolver' ? 'var(--red-50)' : 'var(--teal-50)', color: a.status === 'sin-resolver' ? 'var(--danger)' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{a.name}</span>
-                    </div>
-                  </td>
-                  <td style={{ padding: '14px 14px' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
-                  </td>
-                  <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg2)', whiteSpace: 'nowrap' }}>{a.fecha}</td>
-                  <td style={{ padding: '14px 14px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
-                      <WIcon name="triangle-alert" size={13} /> {a.tipo}
-                    </span>
-                  </td>
-                  <td style={{ padding: '14px 14px' }}><AlertStatusBadge status={a.status} /></td>
-                  <td style={{ padding: '14px 14px' }}>
-                    <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver <WIcon name="arrow-right" size={13} /></button>
-                  </td>
+          {isLoading ? (
+            <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Cargando alertas…</div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col /><col style={{ width: 100 }} /><col style={{ width: 160 }} />
+                <col style={{ width: 140 }} /><col style={{ width: 190 }} /><col style={{ width: 80 }} />
+              </colgroup>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <Head label="Paciente" /><Head label="Sede" /><Head label="Fecha" />
+                  <Head label="Tipo" /><Head label="Estado" /><Head label="" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map(a => (
+                  <tr key={a.id}
+                    style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--teal-50)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ padding: '14px 14px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: a.status === 'sin-resolver' ? 'var(--red-50)' : 'var(--teal-50)', color: a.status === 'sin-resolver' ? 'var(--danger)' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
+                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{a.name}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px 14px' }}>
+                      <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
+                    </td>
+                    <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg2)', whiteSpace: 'nowrap' }}>{a.fecha}</td>
+                    <td style={{ padding: '14px 14px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>
+                        <WIcon name="triangle-alert" size={13} /> {a.tipo}
+                      </span>
+                    </td>
+                    <td style={{ padding: '14px 14px' }}><AlertStatusBadge status={a.status} /></td>
+                    <td style={{ padding: '14px 14px' }}>
+                      <button style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Ver <WIcon name="arrow-right" size={13} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
 
           <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--fg2)' }}>
-            Mostrando {rows.length} de {ALERT_DATA.length} alertas
+            Mostrando {rows.length} de {allRows.length} alertas
           </div>
         </div>
 

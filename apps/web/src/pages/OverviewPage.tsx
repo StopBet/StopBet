@@ -1,9 +1,71 @@
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { WIcon, DownloadIcon } from '../components/WIcon'
 import { MetricCard } from '../components/MetricCard'
 import { MoodChart } from '../components/MoodChart'
-import { PATIENTS, TODAY_ALERTS, SEDES, type Patient } from '../data/mockData'
+import { SEDES, type Patient, type TodayAlert } from '../data/mockData'
 import { generatePatientPDF } from '../utils/generatePatientPDF'
+import { api } from '../services/api'
+import type { PatientListItem, AlertHistoryItem } from '../services/api'
+
+/* ── Data helpers ────────────────────────────────────── */
+
+const EMOTION_EMOJI: Record<string, string> = {
+  tired: '😴', anxious: '😰', angry: '😡', lonely: '😔', good: '😊',
+}
+
+function relTime(isoString: string): string {
+  const diffMs = Date.now() - new Date(isoString).getTime()
+  const mins = Math.floor(diffMs / 60_000)
+  if (mins < 60) return `hace ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 48) return `hace ${hours}h`
+  const days = Math.floor(hours / 24)
+  return `hace ${days} días`
+}
+
+function shortSedeName(name: string): string {
+  if (name.includes('Santiago')) return 'Santiago'
+  if (name.includes('Viña')) return 'Viña del Mar'
+  if (name.includes('Online')) return 'Online'
+  if (name.includes('Concepción')) return 'Concepción'
+  return name
+}
+
+function toPatient(
+  p: PatientListItem,
+  alertsByPatient: Record<string, AlertHistoryItem[]>,
+  sedeMap: Record<string, string>,
+): Patient {
+  const patientAlerts = alertsByPatient[p.id] ?? []
+  const lastAlert = patientAlerts[0]
+  const hasActiveAlert = patientAlerts.some(a => a.status === 'pending')
+
+  return {
+    id: p.id,
+    initials: `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase(),
+    name: `${p.firstName} ${p.lastName}`,
+    email: p.email,
+    sede: shortSedeName(sedeMap[p.sedeId ?? ''] ?? p.sedeId ?? '—'),
+    days: p.daysStreak,
+    status: hasActiveAlert || patientAlerts.some(a => a.status === 'pending') ? 'riesgo' : 'normal',
+    mood: p.lastCheckIn ? (EMOTION_EMOJI[p.lastCheckIn.emotion] ?? '😊') : '—',
+    lastAlert: lastAlert ? relTime(lastAlert.createdAt) : 'Nunca',
+    lastAlertTone: hasActiveAlert ? 'danger' : (lastAlert ? 'muted' : 'muted'),
+    panicTotal: patientAlerts.length,
+    moodAvg: '—',
+    lastCheck: p.lastCheckIn ? relTime(p.lastCheckIn.date) : 'Sin datos',
+    evolution: [],
+    alerts: patientAlerts.map(a => ({
+      time: new Date(a.createdAt).toLocaleString('es-CL', {
+        day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+      }),
+      rel: relTime(a.createdAt),
+      resolved: a.status !== 'pending',
+    })),
+    sessions: [],
+  }
+}
 
 /* ── Helpers ─────────────────────────────────────────── */
 function StatusBadge({ status }: { status: 'normal' | 'riesgo' }) {
@@ -179,11 +241,13 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
 }
 
 /* ── Patient Table ───────────────────────────────────── */
-function PatientTable({ onOpen }: { onOpen: (p: Patient) => void }) {
+function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: Patient) => void }) {
   const [q, setQ] = useState('')
   const [sedeFilter, setSedeFilter] = useState('Todas')
 
-  const rows = PATIENTS.filter(p => {
+  const sedeOptions = ['Todas', ...Array.from(new Set(patients.map(p => p.sede).filter(Boolean)))]
+
+  const rows = patients.filter(p => {
     const matchName = p.name.toLowerCase().includes(q.toLowerCase())
     const matchSede = sedeFilter === 'Todas' || p.sede === sedeFilter
     return matchName && matchSede
@@ -201,7 +265,7 @@ function PatientTable({ onOpen }: { onOpen: (p: Patient) => void }) {
           <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
             <select value={sedeFilter} onChange={e => setSedeFilter(e.target.value)}
               style={{ appearance: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '6px 30px 6px 10px', fontSize: 12, fontWeight: 600, border: '1.5px solid var(--primary)', cursor: 'pointer', fontFamily: 'var(--font-body)', outline: 'none' }}>
-              {SEDES.map(s => <option key={s} value={s}>{s === 'Todas' ? 'Todas las sedes' : `Sede: ${s}`}</option>)}
+              {sedeOptions.map(s => <option key={s} value={s}>{s === 'Todas' ? 'Todas las sedes' : `Sede: ${s}`}</option>)}
             </select>
             <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--primary)' }}>
               <WIcon name="chevron-down" size={13} />
@@ -281,7 +345,7 @@ function PatientTable({ onOpen }: { onOpen: (p: Patient) => void }) {
       </table>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px' }}>
-        <span style={{ fontSize: 13, color: 'var(--fg2)' }}>Mostrando 1–{rows.length} de 24 pacientes</span>
+        <span style={{ fontSize: 13, color: 'var(--fg2)' }}>Mostrando 1–{rows.length} de {patients.length} pacientes</span>
         <div style={{ display: 'flex', gap: 8 }}>
           {['chevron-left', 'chevron-right'].map((icon, i) => (
             <button key={icon} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: i === 0 ? 'var(--disabled)' : 'var(--fg1)', cursor: 'pointer' }}>
@@ -295,7 +359,7 @@ function PatientTable({ onOpen }: { onOpen: (p: Patient) => void }) {
 }
 
 /* ── Panic Panel ─────────────────────────────────────── */
-function PanicPanel({ onOpenPatient }: { onOpenPatient: (name: string) => void }) {
+function PanicPanel({ todayAlerts, onOpenPatient }: { todayAlerts: TodayAlert[]; onOpenPatient: (name: string) => void }) {
   return (
     <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', borderTop: '3px solid var(--danger)', boxShadow: 'var(--shadow-soft)', padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -303,11 +367,13 @@ function PanicPanel({ onOpenPatient }: { onOpenPatient: (name: string) => void }
           <WIcon name="triangle-alert" size={19} color="var(--danger)" />
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--danger)' }}>Alertas de pánico</h2>
         </div>
-        <span style={{ background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 9999, padding: '3px 11px', fontSize: 12, fontWeight: 700 }}>3 hoy</span>
+        <span style={{ background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 9999, padding: '3px 11px', fontSize: 12, fontWeight: 700 }}>{todayAlerts.length} hoy</span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {TODAY_ALERTS.map((a, i) => (
+        {todayAlerts.length === 0 ? (
+          <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Sin alertas hoy</div>
+        ) : todayAlerts.map((a, i) => (
           <div key={i} style={{ background: 'var(--red-50)', borderRadius: 12, borderLeft: '3px solid var(--danger)', padding: '12px 14px' }}>
             <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)' }}>{a.name}</div>
             <div style={{ fontSize: 12, color: 'var(--fg2)', marginTop: 2 }}>{a.rel} · {a.time}</div>
@@ -336,7 +402,7 @@ function PanicPanel({ onOpenPatient }: { onOpenPatient: (name: string) => void }
 }
 
 /* ── Export Panel ────────────────────────────────────── */
-function ExportPanel() {
+function ExportPanel({ patients }: { patients: Patient[] }) {
   const [patientId, setPatientId] = useState('')
   const [from, setFrom] = useState('2026-05-01')
   const [to, setTo] = useState('2026-05-29')
@@ -348,13 +414,12 @@ function ExportPanel() {
   const canExport = patientId !== '' && from !== '' && to !== ''
 
   function handleExport() {
-    const patient = PATIENTS.find(p => p.id === patientId)
+    const patient = patients.find(p => p.id === patientId)
     if (!patient) return
 
     setLoading(true)
     setToast(null)
 
-    // jsPDF runs synchronously; wrap in setTimeout to let the UI update first
     setTimeout(() => {
       try {
         generatePatientPDF(patient, from, to)
@@ -381,7 +446,7 @@ function ExportPanel() {
           style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', borderColor: !patientId ? 'var(--border)' : 'var(--primary)' }}
         >
           <option value="">Seleccionar paciente…</option>
-          {PATIENTS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+          {patients.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
         <span style={{ position: 'absolute', right: 12, top: 12, pointerEvents: 'none', color: 'var(--fg2)' }}><WIcon name="chevron-down" size={16} /></span>
       </div>
@@ -437,32 +502,77 @@ interface OverviewPageProps {
 export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
   const [selected, setSelected] = useState<Patient | null>(null)
 
-  const avgDays = Math.round(PATIENTS.reduce((s, p) => s + p.days, 0) / PATIENTS.length)
+  const { data: patientList = [], isLoading: loadingPatients } = useQuery({
+    queryKey: ['patients'],
+    queryFn: api.getPatients,
+  })
+
+  const { data: alertHistory = [] } = useQuery({
+    queryKey: ['alerts', 'history'],
+    queryFn: api.getAlertHistory,
+  })
+
+  const { data: sedes = [] } = useQuery({
+    queryKey: ['sedes'],
+    queryFn: api.getSedes,
+  })
+
+  const sedeMap = Object.fromEntries(sedes.map(s => [s.id, s.name]))
+
+  const alertsByPatient: Record<string, AlertHistoryItem[]> = {}
+  for (const a of alertHistory) {
+    if (!alertsByPatient[a.patientId]) alertsByPatient[a.patientId] = []
+    alertsByPatient[a.patientId].push(a)
+  }
+
+  const patients: Patient[] = patientList.map(p => toPatient(p, alertsByPatient, sedeMap))
+
+  const today = new Date().toISOString().slice(0, 10)
+  const todayAlerts: TodayAlert[] = alertHistory
+    .filter(a => a.createdAt.startsWith(today))
+    .map(a => ({
+      name: a.patientName,
+      rel: relTime(a.createdAt),
+      time: new Date(a.createdAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
+      resolved: a.status !== 'pending',
+    }))
+
+  const avgDays = patients.length
+    ? Math.round(patients.reduce((s, p) => s + p.days, 0) / patients.length)
+    : 0
 
   const openByName = (name: string) => {
-    const p = PATIENTS.find(x => x.name === name)
+    const p = patients.find(x => x.name === name)
     if (p) setSelected(p)
+  }
+
+  if (loadingPatients) {
+    return (
+      <div style={{ padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
+        <span style={{ color: 'var(--fg2)', fontSize: 14 }}>Cargando pacientes…</span>
+      </div>
+    )
   }
 
   return (
     <div style={{ padding: 32, maxWidth: 1440, minWidth: 1180, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
-        <MetricCard icon="users" label="Pacientes activos" value="24" tone="teal" important
-          sub={<><WIcon name="trending-up" size={14} color="var(--sage-500)" /><span style={{ color: 'var(--sage-500)', fontWeight: 600 }}>+2 este mes</span> · total en mi sede</>} />
+        <MetricCard icon="users" label="Pacientes activos" value={patients.length} tone="teal" important
+          sub={<><WIcon name="trending-up" size={14} color="var(--sage-500)" /><span style={{ color: 'var(--sage-500)', fontWeight: 600 }}>activos</span> · total en mi sede</>} />
         <MetricCard icon="inbox" label="Solicitudes pendientes" value={reqCount} tone="amber" important
           onClick={() => onNav('requests')}
           sub={<><WIcon name="clock" size={14} color="var(--accent)" /><span style={{ color: 'var(--accent)', fontWeight: 600 }}>{reqCount} esperando aprobación</span></>} />
-        <MetricCard icon="triangle-alert" label="Alertas hoy" value="3" tone="red" important
+        <MetricCard icon="triangle-alert" label="Alertas hoy" value={todayAlerts.length} tone="red" important
           sub="Botones de pánico activados" />
         <MetricCard icon="trophy" label="Promedio abstinencia" value={avgDays} tone="gold" important
           sub="días promedio por paciente · acumulado 2026" />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.85fr) minmax(0,1fr)', gap: 16, alignItems: 'start' }}>
-        <PatientTable onOpen={setSelected} />
+        <PatientTable patients={patients} onOpen={setSelected} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <PanicPanel onOpenPatient={openByName} />
-          <ExportPanel />
+          <PanicPanel todayAlerts={todayAlerts} onOpenPatient={openByName} />
+          <ExportPanel patients={patients} />
         </div>
       </div>
 

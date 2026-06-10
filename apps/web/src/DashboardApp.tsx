@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
 import { OverviewPage } from './pages/OverviewPage'
@@ -6,7 +7,11 @@ import { AlertasPage } from './pages/AlertasPage'
 import { FinanzasPage } from './pages/FinanzasPage'
 import { SolicitudesPage } from './pages/SolicitudesPage'
 import { ConfiguracionPage } from './pages/ConfiguracionPage'
-import { INITIAL_REQUESTS, type RegistrationRequest } from './data/mockData'
+import { api } from './services/api'
+import type { RegistrationRequest } from './data/mockData'
+
+// TODO(auth): reemplazar con UUID real del psicólogo autenticado cuando auth esté implementado
+const TEMP_PSYCH_ID = '22222222-2222-2222-2222-222222222222'
 
 type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'reports' | 'finanzas' | 'settings'
 
@@ -33,10 +38,54 @@ function PlaceholderPage({ title }: { title: string }) {
   )
 }
 
+function relTime(isoString: string): string {
+  const diffMs = Date.now() - new Date(isoString).getTime()
+  const mins = Math.floor(diffMs / 60_000)
+  if (mins < 60) return `hace ${mins} min`
+  const hours = Math.floor(mins / 60)
+  if (hours < 48) return `hace ${hours}h`
+  const days = Math.floor(hours / 24)
+  return `hace ${days} días`
+}
+
+function shortSedeName(name: string): string {
+  if (name.includes('Santiago')) return 'Santiago'
+  if (name.includes('Viña')) return 'Viña del Mar'
+  if (name.includes('Online')) return 'Online'
+  if (name.includes('Concepción')) return 'Concepción'
+  return name
+}
+
 export function DashboardApp({ onLogout }: { onLogout: () => void }) {
   const [nav, setNav] = useState<NavId>('overview')
-  const [requests, setRequests] = useState<RegistrationRequest[]>(INITIAL_REQUESTS)
   const [toast, setToast] = useState<Toast | null>(null)
+  const qc = useQueryClient()
+
+  const { data: pendingRaw = [] } = useQuery({
+    queryKey: ['registration', 'pending'],
+    queryFn: api.getPendingRequests,
+  })
+
+  const { data: sedes = [] } = useQuery({
+    queryKey: ['sedes'],
+    queryFn: api.getSedes,
+  })
+
+  const sedeMap = Object.fromEntries(sedes.map(s => [s.id, s.name]))
+
+  const requests: RegistrationRequest[] = pendingRaw.map(r => ({
+    id: r.id,
+    initials: `${r.firstName[0] ?? ''}${r.lastName[0] ?? ''}`.toUpperCase(),
+    name: `${r.firstName} ${r.lastName}`,
+    email: r.email,
+    sede: shortSedeName(sedeMap[r.sedeId] ?? r.sedeId),
+    rel: relTime(r.createdAt),
+    date: new Date(r.createdAt).toLocaleString('es-CL', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    }),
+    amount: '$30.000',
+  }))
 
   useEffect(() => {
     if (!toast) return
@@ -44,14 +93,24 @@ export function DashboardApp({ onLogout }: { onLogout: () => void }) {
     return () => clearTimeout(t)
   }, [toast])
 
-  const handleApprove = (id: string) => {
-    setRequests(r => r.filter(x => x.id !== id))
-    setToast({ message: 'Solicitud aprobada y paciente registrado.', tone: 'success' })
+  const handleApprove = async (id: string) => {
+    try {
+      await api.approveRequest(id, TEMP_PSYCH_ID)
+      qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
+      setToast({ message: 'Solicitud aprobada y paciente registrado.', tone: 'success' })
+    } catch {
+      setToast({ message: 'Error al aprobar la solicitud.', tone: 'error' })
+    }
   }
 
-  const handleReject = (id: string) => {
-    setRequests(r => r.filter(x => x.id !== id))
-    setToast({ message: 'Solicitud rechazada. Se notificó al solicitante.', tone: 'error' })
+  const handleReject = async (id: string) => {
+    try {
+      await api.rejectRequest(id, TEMP_PSYCH_ID)
+      qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
+      setToast({ message: 'Solicitud rechazada. Se notificó al solicitante.', tone: 'error' })
+    } catch {
+      setToast({ message: 'Error al rechazar la solicitud.', tone: 'error' })
+    }
   }
 
   const handleNav = (id: string) => setNav(id as NavId)

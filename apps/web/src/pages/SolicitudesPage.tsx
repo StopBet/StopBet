@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { WIcon } from '../components/WIcon'
-import { INITIAL_REQUESTS, PSICOLOGOS, PADRINOS, REJECT_REASONS, type RegistrationRequest } from '../data/mockData'
+import { PSICOLOGOS, PADRINOS, REJECT_REASONS, type RegistrationRequest } from '../data/mockData'
 
 /* ── Approve Modal ───────────────────────────────────── */
 function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; onClose: () => void; onConfirm: () => void }) {
