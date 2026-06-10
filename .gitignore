@@ -44,20 +44,30 @@ dist/
 coverage/
 
 # React Native
-apps/mobile/android/
-apps/mobile/ios/
+# Se versiona android/ e ios/ (código nativo editable: VPNService, FCM, permisos).
+# Solo se ignora lo que Gradle/Xcode regeneran en cada build.
+
+# Build artifacts — pueden generarse en android/ o android/app/ (por eso **/)
+apps/mobile/android/**/build/
+apps/mobile/android/**/.cxx/
+apps/mobile/android/**/.externalNativeBuild/
+apps/mobile/android/**/captures/
+apps/mobile/android/.gradle/
 apps/mobile/.gradle/
-apps/mobile/local.properties
-apps/mobile/*.keystore
-apps/mobile/node_modules/
+apps/mobile/ios/**/build/
+apps/mobile/ios/Pods/
+
+# Machine-specific (ruta del SDK local)
+apps/mobile/android/local.properties
+
+# Keystores: el debug.keystore SÍ se versiona (clave de desarrollo compartida).
+# Los keystores de release son secretos y nunca se suben.
+apps/mobile/**/*.keystore
+!apps/mobile/android/app/debug.keystore
+
+# Legacy build systems
 apps/mobile/buck-out/
 apps/mobile/.buckd/
-apps/mobile/android/.gradle
-apps/mobile/android/captures/
-apps/mobile/android/.externalNativeBuild
-apps/mobile/android/.cxx
-apps/mobile/ios/Pods/
-apps/mobile/ios/build/
 apps/mobile/.bundle/
 
 # Vite
