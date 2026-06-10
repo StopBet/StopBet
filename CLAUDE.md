@@ -2,12 +2,22 @@
 
 Plataforma clínica para tratamiento de ludopatía. Datos de pacientes son **sensibles**; cualquier decisión de arquitectura que afecte privacidad o seguridad debe ser explícita.
 
+## Estado actual
+
+> _Actualizado 2026-06-10. Mantener al día tras cambios significativos (ver [Trabajando con Claude Code](#trabajando-con-claude-code))._
+
+- **Mobile** (React Native CLI 0.86): compila y corre en Android físico. Flujo y *gotchas* del monorepo en `apps/mobile/README.md`.
+- **Sin autenticación todavía**: las 5 pantallas usan un usuario demo hardcodeado (UUID `11111111-1111-1111-1111-111111111111`) que debe existir en la tabla `users`. El backend lee la identidad del header `x-user-id` **sin verificarla**. Próxima épica grande: módulo `auth` real (login + JWT + guards).
+- **Backend** (NestJS): módulos `achievements`, `ai-assistant`, `billing`, `check-ins`, `community`, `notifications`, `panic`, `registration`, `sedes`, `subscriptions`, `users`. Falta `auth`.
+- **Web dashboard**: en `main` solo el scaffold de Vite; el desarrollo real va en ramas `feature/HU-04-web-*` (sin mergear aún).
+- **Deudas técnicas**: borrar `apps/mobile/package-lock.json` (residuo de npm en repo pnpm); convertir el usuario demo en un seeder del backend; `GEMINI_API_KEY` sin valor real → chatbot IA off.
+
 ## Estructura del monorepo
 
 ```
 apps/web/        → Dashboard terapeuta: React 19 + Vite 6 + Tailwind v4 + Recharts
 apps/backend/    → API: NestJS 10 + TypeORM + LangChain.js + PostgreSQL
-apps/mobile/     → App paciente: React Native CLI (pendiente inicialización)
+apps/mobile/     → App paciente: React Native CLI 0.86 (corre en Android físico)
 packages/shared-types/ → Tipos TS compartidos entre backend y web
 ```
 
@@ -116,6 +126,11 @@ feat: added login screen      # ❌ en inglés
 feat: nueva pantalla.         # ❌ punto final
 update stuff                  # ❌ sin tipo ni descripción clara
 ```
+
+## Trabajando con Claude Code
+
+- **No agregar el trailer `Co-Authored-By: Claude`** en los commits. El trabajo se atribuye únicamente al autor humano. (Cualquier integrante puede pedírselo explícitamente en la conversación; esta regla lo hace por defecto para todos.)
+- **Mantener al día la sección "Estado actual"** de este archivo: tras un commit grande, mover muchos directorios, o cambios importantes en la estructura o el README, actualizar ese resumen. Así cualquier sesión nueva de Claude —de cualquier integrante— entiende el estado del proyecto al instante, sin reconstruirlo.
 
 ## Flujo de sprints
 

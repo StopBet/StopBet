@@ -203,6 +203,11 @@ Las variables de entorno de producción se configuran en los dashboards de cada 
 - Ramas: `feature/HU-XXX-descripcion-corta` / `fix/HU-XXX-descripcion-corta`
 - Pull Requests requieren al menos **1 reviewer** antes de mergear a `main`
 - `main` siempre debe estar en estado desplegable
+- **Estado del proyecto:** el estado actual (qué corre, qué está en curso, deudas) vive en [`CLAUDE.md`](CLAUDE.md). Tras un cambio significativo, actualízalo ahí para que cualquiera —y cualquier sesión de Claude— entienda el estado sin reconstruirlo.
+
+### Atribución de Claude Code
+
+Si usas **Claude Code**, por defecto agrega un trailer `Co-Authored-By: Claude` a cada commit, y Claude figura como co-autor en GitHub (commit y PR). Si prefieres que tu trabajo aparezca **solo a tu nombre**, pídeselo explícitamente: *"no te agregues como co-autor"*. El commit queda firmado únicamente con tu identidad de git. (En este repo, el `CLAUDE.md` ya pide omitir ese trailer por defecto.)
 
 ---
 
