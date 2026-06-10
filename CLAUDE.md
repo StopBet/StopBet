@@ -9,7 +9,7 @@ Plataforma clínica para tratamiento de ludopatía. Datos de pacientes son **sen
 - **Mobile** (React Native CLI 0.86): compila y corre en Android físico. Flujo y *gotchas* del monorepo en `apps/mobile/README.md`.
 - **Sin autenticación todavía**: las 5 pantallas usan un usuario demo hardcodeado (UUID `11111111-1111-1111-1111-111111111111`) que debe existir en la tabla `users`. El backend lee la identidad del header `x-user-id` **sin verificarla**. Próxima épica grande: módulo `auth` real (login + JWT + guards).
 - **Backend** (NestJS): módulos `achievements`, `ai-assistant`, `billing`, `check-ins`, `community`, `notifications`, `panic`, `registration`, `sedes`, `subscriptions`, `users`. Falta `auth`.
-- **Web dashboard**: en `main` solo el scaffold de Vite; el desarrollo real va en ramas `feature/HU-04-web-*` (sin mergear aún).
+- **Web dashboard**: design system configurado en `main` (tokens AJUTER + fuentes self-hosted); el desarrollo de vistas va en ramas `feature/HU-04-web-*` (sin mergear aún).
 - **Deudas técnicas**: borrar `apps/mobile/package-lock.json` (residuo de npm en repo pnpm); convertir el usuario demo en un seeder del backend; `GEMINI_API_KEY` sin valor real → chatbot IA off.
 
 ## Estructura del monorepo
@@ -41,6 +41,44 @@ packages/shared-types/ → Tipos TS compartidos entre backend y web
 - Estado servidor con TanStack Query (agregar cuando se conecte la API). Estado local con `useState`/`useReducer`.
 - Tailwind v4: usar clases utilitarias directamente. No crear CSS custom salvo para animaciones complejas.
 - Recharts para todas las visualizaciones de métricas JITAI.
+
+#### Design System (paleta AJUTER)
+El dashboard usa el tema AJUTER — naranja cálido institucional, no el teal verde base de StopBet.
+
+**Archivos:**
+```
+apps/web/src/styles/
+├── fonts/               ← Fuentes self-hosted (woff2, ya en el repo)
+│   ├── Inter-{400,600,700}.woff2
+│   └── Nunito-{400,600,700}.woff2
+├── colors_and_type.css  ← Tokens base + @font-face
+└── ajuter-theme.css     ← Override de paleta para vistas AJUTER
+```
+
+**Regla:** usar siempre tokens semánticos de Tailwind, nunca colores genéricos.
+```tsx
+// ✅ correcto
+<div className="bg-bg text-fg1">
+<button className="bg-primary text-fg-on-primary">
+
+// ❌ evitar
+<div className="bg-orange-100 text-gray-900">
+```
+
+**Tokens principales:**
+| Clase Tailwind | Hex | Uso |
+|---|---|---|
+| `bg-primary` / `text-primary` | `#E8883A` | Naranja AJUTER — acciones, headers |
+| `bg-accent` / `text-accent` | `#F0B040` | Oro — CTAs, highlights |
+| `bg-bg` | `#FAF7F4` | Fondo crema cálido |
+| `bg-surface` | `#FFFFFF` | Tarjetas, modales |
+| `text-fg1` | `#2A2624` | Texto principal |
+| `text-fg2` | `#574F4A` | Texto secundario |
+| `bg-danger` / `text-danger` | `#B83232` | Solo botón de pánico |
+
+**Tipografía:**
+- Headings: **Nunito** — `font-heading` o `style={{ fontFamily: 'var(--font-heading)' }}`
+- Body/UI: **Inter** — `font-body` (aplicado globalmente en `body`)
 
 ### Mobile (React Native CLI)
 - Navegación con React Navigation v7.
