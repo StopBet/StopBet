@@ -82,3 +82,4 @@ coverage/
 # Misc
 .cache/
 tmp/
+.vercel
