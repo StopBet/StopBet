@@ -1,5 +1,5 @@
 # scripts/android-run.ps1
-# Instala y lanza StopBet en un dispositivo Android físico conectado por USB.
+# Instala y lanza StopBet en un dispositivo Android físico o emulador.
 #
 # Uso:
 #   powershell -ExecutionPolicy Bypass -File scripts\android-run.ps1
@@ -15,7 +15,9 @@ param(
     [switch]$SkipBuild
 )
 
-$ErrorActionPreference = 'Stop'
+# 'Continue' en vez de 'Stop': los ejecutables nativos escriben a stderr normalmente
+# y no deben hacer crashear el script (adb, java, gradle, etc.)
+$ErrorActionPreference = 'Continue'
 $ScriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot   = Split-Path -Parent $ScriptDir
 $MobileDir  = Join-Path $RepoRoot "apps\mobile"
@@ -25,34 +27,66 @@ function Write-OK   ([string]$msg) { Write-Host "  [OK] $msg" -ForegroundColor G
 function Write-Warn ([string]$msg) { Write-Host "  [!]  $msg" -ForegroundColor Yellow }
 function Exit-Error ([string]$msg) { Write-Host "`n  [ERROR] $msg`n" -ForegroundColor Red; exit 1 }
 
-Write-Host "`n  StopBet - Android Device Runner" -ForegroundColor White
-Write-Host "  ================================`n" -ForegroundColor DarkGray
+Write-Host "`n  StopBet - Android Runner" -ForegroundColor White
+Write-Host "  ==========================`n" -ForegroundColor DarkGray
 
-# ── 1. Verificar ADB y dispositivo conectado ─────────────────────────────────
-Write-Step "Verificando dispositivo Android..."
+# ── 0. Configurar ANDROID_HOME y PATH ────────────────────────────────────────
+if (-not $env:ANDROID_HOME) {
+    $env:ANDROID_HOME = "$env:USERPROFILE\AppData\Local\Android\Sdk"
+}
+$platformTools = Join-Path $env:ANDROID_HOME "platform-tools"
+$emulatorDir   = Join-Path $env:ANDROID_HOME "emulator"
+if ($env:PATH -notlike "*platform-tools*") {
+    $env:PATH = "$platformTools;$emulatorDir;" + $env:PATH
+}
 
+# ── 1. Verificar ADB ─────────────────────────────────────────────────────────
+Write-Step "Verificando ADB..."
 if (-not (Get-Command "adb" -ErrorAction SilentlyContinue)) {
-    Exit-Error @"
-ADB no encontrado en PATH.
-  1) Instala Android Studio: https://developer.android.com/studio
-  2) Agrega al PATH: C:\Users\<tu-usuario>\AppData\Local\Android\Sdk\platform-tools
-"@
+    Exit-Error "ADB no encontrado. Instala Android Studio y agrega platform-tools al PATH."
 }
 
-$adbLines   = adb devices 2>&1 | Where-Object { $_ -match "`tdevice$" }
+# ── 2. Detectar dispositivo o arrancar emulador ───────────────────────────────
+Write-Step "Buscando dispositivo Android..."
+
+$adbOut   = adb devices 2>&1
+$adbLines = $adbOut | Where-Object { $_ -match "`tdevice$" }
+
 if (-not $adbLines) {
-    Exit-Error @"
-No hay ningun dispositivo Android conectado.
-  1) Conecta tu celular con cable USB
-  2) En el celular: Ajustes > Opciones de desarrollador > Depuracion USB (ON)
-  3) Acepta la ventana de autorizacion que aparece en el celular
-  4) Vuelve a ejecutar este script
-"@
+    Write-Warn "No hay dispositivo conectado. Buscando emulador AVD..."
+
+    $avdList = & (Join-Path $env:ANDROID_HOME "emulator\emulator.exe") -list-avds 2>&1 |
+               Where-Object { $_ -match '\S' }
+
+    if (-not $avdList) {
+        Exit-Error "No hay dispositivo USB ni AVD creado. Crea un emulador en Android Studio > Device Manager."
+    }
+
+    $avdName = $avdList | Select-Object -First 1
+    Write-Warn "Arrancando emulador '$avdName' (puede tardar ~30s)..."
+    Start-Process -FilePath (Join-Path $env:ANDROID_HOME "emulator\emulator.exe") `
+                  -ArgumentList "-avd", $avdName, "-no-snapshot-load" `
+                  -WindowStyle Normal
+
+    Write-Host "  Esperando que el emulador quede listo..." -ForegroundColor DarkGray
+    $timeout = 120
+    $elapsed = 0
+    do {
+        Start-Sleep -Seconds 5
+        $elapsed += 5
+        $adbOut   = adb devices 2>&1
+        $adbLines = $adbOut | Where-Object { $_ -match "`tdevice$" }
+    } while ((-not $adbLines) -and ($elapsed -lt $timeout))
+
+    if (-not $adbLines) {
+        Exit-Error "El emulador no respondio en $timeout segundos. Abrir Android Studio > Device Manager y arrancarlo manualmente."
+    }
 }
+
 $deviceId = ($adbLines | Select-Object -First 1) -replace "`tdevice", ""
 Write-OK "Dispositivo: $deviceId"
 
-# ── 2. Detectar o instalar Java 17+ ─────────────────────────────────────────
+# ── 3. Detectar o instalar Java 17+ ──────────────────────────────────────────
 Write-Step "Buscando Java 17+..."
 
 function Get-ValidJavaHome {
@@ -68,15 +102,11 @@ function Get-ValidJavaHome {
         "C:\Program Files\OpenJDK\jdk-21*"
     )
     foreach ($pattern in $patterns) {
-        $dirs = Get-ChildItem $pattern -ErrorAction SilentlyContinue |
-                Sort-Object Name -Descending
+        $dirs = Get-ChildItem $pattern -ErrorAction SilentlyContinue | Sort-Object Name -Descending
         foreach ($dir in $dirs) {
             $javaExe = Join-Path $dir.FullName "bin\java.exe"
             if (-not (Test-Path $javaExe)) { continue }
-            # java -version writes to stderr; suppress NativeCommandError in PS5.1
-            $prev = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
             $versionOut = & $javaExe -version 2>&1 | Out-String
-            $ErrorActionPreference = $prev
             if ($versionOut -match '"(\d+)') {
                 if ([int]$Matches[1] -ge 17) { return $dir.FullName }
             }
@@ -91,10 +121,7 @@ if (-not $javaHome) {
     winget install Microsoft.OpenJDK.17 --accept-source-agreements --accept-package-agreements
     $javaHome = Get-ValidJavaHome
     if (-not $javaHome) {
-        Exit-Error @"
-No se pudo instalar Java 17 automaticamente.
-Instalalo manualmente desde: https://learn.microsoft.com/java/openjdk/download
-"@
+        Exit-Error "No se pudo instalar Java 17. Instalalo desde: https://learn.microsoft.com/java/openjdk/download"
     }
 }
 
@@ -102,7 +129,7 @@ $env:JAVA_HOME = $javaHome
 $env:PATH      = "$javaHome\bin;" + $env:PATH
 Write-OK "JAVA_HOME: $javaHome"
 
-# ── 3. Verificar dependencias pnpm ───────────────────────────────────────────
+# ── 4. Verificar dependencias pnpm ────────────────────────────────────────────
 Write-Step "Verificando dependencias pnpm..."
 if (-not (Test-Path (Join-Path $MobileDir "node_modules"))) {
     Write-Warn "node_modules ausente. Ejecutando pnpm install..."
@@ -112,37 +139,41 @@ if (-not (Test-Path (Join-Path $MobileDir "node_modules"))) {
 }
 Write-OK "Dependencias OK"
 
-# ── 4. Configurar ADB reverse ────────────────────────────────────────────────
+# ── 5. Configurar ADB reverse ─────────────────────────────────────────────────
 Write-Step "Configurando puertos ADB reverse..."
-adb reverse tcp:8081 tcp:8081 | Out-Null   # Metro bundler
-adb reverse tcp:3000 tcp:3000 | Out-Null   # Backend NestJS
+adb reverse tcp:8081 tcp:8081 | Out-Null
+adb reverse tcp:3000 tcp:3000 | Out-Null
 Write-OK "Puerto 8081 (Metro) y 3000 (Backend) -> PC"
 
-# ── 5. Iniciar Metro en ventana CMD separada ─────────────────────────────────
+# ── 6. Iniciar Metro en ventana CMD separada ──────────────────────────────────
 Write-Step "Iniciando Metro bundler..."
 
 $metroFlags  = if ($ResetCache) { "--port 8081 --reset-cache" } else { "--port 8081" }
 $metroScript = "cd /d `"$MobileDir`" && npx react-native start $metroFlags"
 
 Start-Process "cmd.exe" -ArgumentList "/k title Metro - StopBet && $metroScript" -WindowStyle Normal
-Write-OK "Metro abierto en ventana separada (mantenerla abierta mientras usas la app)"
+Write-OK "Metro abierto en ventana separada (no cerrarla mientras usas la app)"
 Start-Sleep -Seconds 4
 
-# ── 6. Compilar e instalar el APK ────────────────────────────────────────────
+# ── 7. Compilar e instalar el APK ─────────────────────────────────────────────
 if (-not $SkipBuild) {
     Write-Step "Compilando e instalando APK debug (primera vez: ~5-15 min)..."
     Set-Location (Join-Path $MobileDir "android")
     .\gradlew.bat app:installDebug -PreactNativeDevServerPort=8081
+    if ($LASTEXITCODE -ne 0) {
+        Set-Location $RepoRoot
+        Exit-Error "Gradle fallo (exit $LASTEXITCODE). Revisa el output de arriba."
+    }
     Set-Location $RepoRoot
 } else {
     Write-Warn "SkipBuild activo: omitiendo compilacion del APK"
 }
 
-# ── 7. Restablecer ADB reverse (puede perderse durante el build) ─────────────
+# ── 8. Restablecer ADB reverse (puede perderse durante el build) ──────────────
 adb reverse tcp:8081 tcp:8081 | Out-Null
 adb reverse tcp:3000 tcp:3000 | Out-Null
 
-# ── 8. Lanzar la app en el dispositivo ───────────────────────────────────────
+# ── 9. Lanzar la app en el dispositivo ────────────────────────────────────────
 Write-Step "Lanzando StopBet en el dispositivo..."
 adb shell am force-stop com.stopbet
 Start-Sleep -Seconds 1
@@ -155,8 +186,8 @@ Write-Host @"
   =====================================================
 
   Metro: ventana CMD separada (no cerrarla)
-  Backend: ejecutar 'pnpm run backend' para datos reales
-  Recargar app: sacudir el celular > Reload
+  Backend: pnpm run backend (para datos reales)
+  Recargar app: sacudir el dispositivo > Reload
 
   Proximas veces (sin recompilar APK):
     powershell -ExecutionPolicy Bypass -File scripts\android-run.ps1 -SkipBuild
