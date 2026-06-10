@@ -2,9 +2,11 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AppStackParamList, AuthStackParamList } from './src/navigation/types';
+import { AuthContext } from './src/context/AuthContext';
 
 // Auth screens
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { LoginScreen } from './src/screens/LoginScreen';
 import { SelectInstitutionScreen } from './src/screens/SelectInstitutionScreen';
 import { RegisterStep1Screen } from './src/screens/RegisterStep1Screen';
 import { RegisterStep2Screen } from './src/screens/RegisterStep2Screen';
@@ -27,6 +29,7 @@ function AuthNavigator() {
   return (
     <AuthStack.Navigator screenOptions={{ headerShown: false }}>
       <AuthStack.Screen name="Welcome" component={WelcomeScreen} />
+      <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SelectInstitution" component={SelectInstitutionScreen} />
       <AuthStack.Screen name="RegisterStep1" component={RegisterStep1Screen} />
       <AuthStack.Screen name="RegisterStep2" component={RegisterStep2Screen} />
@@ -50,11 +53,14 @@ function AppNavigator() {
   );
 }
 
-// MVP: arrancar directo en la app (sin auth real aún)
 export default function App() {
+  const [isSignedIn, setIsSignedIn] = React.useState(false);
+
   return (
-    <NavigationContainer>
-      <AppNavigator />
-    </NavigationContainer>
+    <AuthContext.Provider value={{ signIn: () => setIsSignedIn(true) }}>
+      <NavigationContainer>
+        {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
+      </NavigationContainer>
+    </AuthContext.Provider>
   );
 }

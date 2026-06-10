@@ -13,6 +13,7 @@ export interface BasicRegistrationData {
 
 export type AuthStackParamList = {
   Welcome: undefined;
+  Login: undefined;
   SelectInstitution: undefined;
   RegisterStep1: { institutionId: string };
   RegisterStep2: { institutionId: string; basicData: BasicRegistrationData };
