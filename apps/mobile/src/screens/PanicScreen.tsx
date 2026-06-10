@@ -572,9 +572,10 @@ export function PanicScreen({ navigation }: Props) {
             />
             <Animated.View style={{ transform: [{ scale: btnScale }] }}>
               <Pressable
-                style={styles.panicBtn}
+                style={({ pressed }) => [styles.panicBtn, pressed && styles.panicBtnPressed]}
                 onPressIn={onPressIn}
                 onPressOut={onPressOut}
+                android_ripple={null}
                 accessibilityLabel="Botón de pánico. Mantén presionado 2 segundos para activar"
                 accessibilityRole="button"
               >
@@ -781,6 +782,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 16,
     elevation: 12,
+  },
+  panicBtnPressed: {
+    opacity: 0.9,
+    elevation: 6,
   },
   panicBtnDisabled: {
     backgroundColor: '#ccc',
