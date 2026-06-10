@@ -4,8 +4,10 @@ const path = require('path');
 const monorepoRoot = path.resolve(__dirname, '../..');
 
 const config = {
-  // Solo observar packages/ — no todo el monorepo (evita escanear backend/node_modules)
+  // Solo observar node_modules propio y packages/ — no todo el monorepo (evita escanear backend/node_modules)
+  // node_modules local es obligatorio: el dev server resuelve ahí los polyfills de metro-runtime
   watchFolders: [
+    path.resolve(__dirname, 'node_modules'),
     path.resolve(monorepoRoot, 'packages'),
   ],
 
