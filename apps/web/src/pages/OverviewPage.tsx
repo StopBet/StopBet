@@ -3,6 +3,7 @@ import { WIcon, DownloadIcon } from '../components/WIcon'
 import { MetricCard } from '../components/MetricCard'
 import { MoodChart } from '../components/MoodChart'
 import { PATIENTS, TODAY_ALERTS, SEDES, type Patient } from '../data/mockData'
+import { generatePatientPDF } from '../utils/generatePatientPDF'
 
 /* ── Helpers ─────────────────────────────────────────── */
 function StatusBadge({ status }: { status: 'normal' | 'riesgo' }) {
@@ -336,22 +337,36 @@ function PanicPanel({ onOpenPatient }: { onOpenPatient: (name: string) => void }
 
 /* ── Export Panel ────────────────────────────────────── */
 function ExportPanel() {
-  const [patient, setPatient] = useState('')
+  const [patientId, setPatientId] = useState('')
   const [from, setFrom] = useState('2026-05-01')
   const [to, setTo] = useState('2026-05-29')
-  const [checks, setChecks] = useState({ mood: true, panic: true, ach: true })
-  const [toast, setToast] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null)
 
   const inputStyle: React.CSSProperties = { height: 40, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', padding: '0 12px', fontSize: 13, color: 'var(--fg1)', width: '100%', boxSizing: 'border-box', outline: 'none' }
 
-  const Check = ({ k, label }: { k: keyof typeof checks; label: string }) => (
-    <button onClick={() => setChecks(c => ({ ...c, [k]: !c[k] }))} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'none', border: 'none', padding: '6px 0', cursor: 'pointer', textAlign: 'left', width: '100%' }}>
-      <span style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, border: `1.5px solid ${checks[k] ? 'var(--primary)' : 'var(--border)'}`, background: checks[k] ? 'var(--primary)' : 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {checks[k] && <WIcon name="circle-check" size={14} color="#fff" />}
-      </span>
-      <span style={{ fontSize: 13.5, color: 'var(--fg1)' }}>{label}</span>
-    </button>
-  )
+  const canExport = patientId !== '' && from !== '' && to !== ''
+
+  function handleExport() {
+    const patient = PATIENTS.find(p => p.id === patientId)
+    if (!patient) return
+
+    setLoading(true)
+    setToast(null)
+
+    // jsPDF runs synchronously; wrap in setTimeout to let the UI update first
+    setTimeout(() => {
+      try {
+        generatePatientPDF(patient, from, to)
+        setToast({ ok: true, msg: `Reporte de ${patient.name} descargado` })
+      } catch {
+        setToast({ ok: false, msg: 'Error al generar el PDF. Intenta nuevamente.' })
+      } finally {
+        setLoading(false)
+        setTimeout(() => setToast(null), 3500)
+      }
+    }, 50)
+  }
 
   return (
     <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', padding: 20, position: 'relative' }}>
@@ -360,7 +375,11 @@ function ExportPanel() {
 
       <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 6 }}>Paciente</label>
       <div style={{ position: 'relative', marginBottom: 14 }}>
-        <select value={patient} onChange={e => setPatient(e.target.value)} style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}>
+        <select
+          value={patientId}
+          onChange={e => setPatientId(e.target.value)}
+          style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', borderColor: !patientId ? 'var(--border)' : 'var(--primary)' }}
+        >
           <option value="">Seleccionar paciente…</option>
           {PATIENTS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
@@ -368,7 +387,7 @@ function ExportPanel() {
       </div>
 
       <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 6 }}>Rango de fechas</label>
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
         {[{ label: 'Desde', val: from, set: setFrom }, { label: 'Hasta', val: to, set: setTo }].map(({ label, val, set }) => (
           <div key={label} style={{ flex: 1 }}>
             <div style={{ fontSize: 11, color: 'var(--fg2)', marginBottom: 4 }}>{label}</div>
@@ -377,24 +396,32 @@ function ExportPanel() {
         ))}
       </div>
 
-      <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 4 }}>Incluir en el reporte</label>
-      <div style={{ marginBottom: 18 }}>
-        <Check k="mood" label="Gráfico de evolución anímica" />
-        <Check k="panic" label="Conteo de alertas de pánico" />
-        <Check k="ach" label="Logros y abstinencia" />
-      </div>
-
       <button
-        onClick={() => { setToast(true); setTimeout(() => setToast(false), 2600) }}
-        style={{ width: '100%', height: 46, borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9 }}
+        onClick={handleExport}
+        disabled={!canExport || loading}
+        style={{
+          width: '100%', height: 46, borderRadius: 9999, border: 'none',
+          background: canExport ? 'var(--primary)' : 'var(--border)',
+          color: canExport ? '#fff' : 'var(--fg2)',
+          fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15,
+          cursor: canExport && !loading ? 'pointer' : 'not-allowed',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+          transition: 'background 0.2s',
+        }}
       >
-        <DownloadIcon size={18} color="#fff" /> Exportar PDF
+        {loading
+          ? <><WIcon name="loader" size={18} color="currentColor" /> Generando…</>
+          : <><DownloadIcon size={18} color={canExport ? '#fff' : 'var(--fg2)'} /> Exportar PDF</>
+        }
       </button>
-      <p style={{ margin: '12px 0 0', fontSize: 11, color: 'var(--fg2)', textAlign: 'center' }}>El reporte se generará en menos de 10 segundos.</p>
+      <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--fg2)', textAlign: 'center' }}>
+        {canExport ? 'El reporte se generará en menos de 10 segundos.' : 'Selecciona un paciente y rango de fechas para continuar.'}
+      </p>
 
       {toast && (
-        <div style={{ position: 'absolute', left: 20, right: 20, bottom: 20, background: 'var(--ink-900)', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 9, boxShadow: 'var(--shadow-strong)' }}>
-          <WIcon name="circle-check" size={17} color="var(--teal-400)" /> Generando reporte PDF…
+        <div style={{ position: 'absolute', left: 20, right: 20, bottom: 20, background: toast.ok ? '#1e2d2c' : 'var(--danger)', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 9, boxShadow: 'var(--shadow-strong)', zIndex: 10 }}>
+          <WIcon name={toast.ok ? 'circle-check' : 'circle-alert'} size={17} color={toast.ok ? 'var(--teal-400)' : '#fff'} />
+          {toast.msg}
         </div>
       )}
     </div>
