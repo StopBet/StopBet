@@ -7,6 +7,13 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  @Get('patients')
+  @ApiOperation({ summary: 'Lista de todos los pacientes (vista psicólogo)' })
+  @ApiResponse({ status: 200, description: 'PatientListItem[]' })
+  listPatients() {
+    return this.usersService.listPatients();
+  }
+
   @Get(':id/progress')
   @ApiOperation({ summary: 'Progreso del paciente: racha, hito, último check-in' })
   @ApiParam({ name: 'id', description: 'UUID del usuario' })

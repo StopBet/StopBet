@@ -7,6 +7,7 @@ import { EarnedBadge } from './entities/earned-badge.entity';
 import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
 import { CommunityPost } from '../community/entities/community-post.entity';
+import { Sede } from '../sedes/entities/sede.entity';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { CommunityPost } from '../community/entities/community-post.entity';
       ValidatedMessage,
       User,
       CommunityPost,
+      Sede,
     ]),
   ],
   controllers: [AchievementsController],

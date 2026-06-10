@@ -36,6 +36,32 @@ export class PanicService {
     private readonly notificationRepo: Repository<Notification>,
   ) {}
 
+  // ── Dashboard (psicólogo) ──────────────────────────────────────────────
+
+  async listHistory(): Promise<{
+    id: string; patientId: string; patientName: string;
+    sedeId: string | null; status: PanicAlertStatus;
+    communityNotified: boolean; createdAt: string;
+    respondedAt: string | null; escalatedAt: string | null; cancelledAt: string | null;
+  }[]> {
+    const alerts = await this.alertRepo.find({
+      relations: ['patient'],
+      order: { createdAt: 'DESC' },
+    });
+    return alerts.map((a) => ({
+      id: a.id,
+      patientId: a.patientId,
+      patientName: `${a.patient.firstName} ${a.patient.lastName}`,
+      sedeId: a.patient.sedeId,
+      status: a.status,
+      communityNotified: a.communityNotified,
+      createdAt: a.createdAt.toISOString(),
+      respondedAt: a.respondedAt?.toISOString() ?? null,
+      escalatedAt: a.escalatedAt?.toISOString() ?? null,
+      cancelledAt: a.cancelledAt?.toISOString() ?? null,
+    }));
+  }
+
   // ── Sponsor ────────────────────────────────────────────────────────────
 
   async getSponsorInfo(patientId: string): Promise<SponsorInfo | null> {

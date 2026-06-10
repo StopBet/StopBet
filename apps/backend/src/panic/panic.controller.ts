@@ -52,6 +52,13 @@ export class PanicController {
     return this.service.createAlert(patientId);
   }
 
+  @Get('alerts/history')
+  @ApiOperation({ summary: 'Historial completo de alertas de pánico (vista psicólogo)' })
+  @ApiResponse({ status: 200, description: 'Lista de todas las alertas con nombre del paciente' })
+  listHistory() {
+    return this.service.listHistory();
+  }
+
   @Get('alerts/active')
   @ApiOperation({ summary: 'Alerta activa del usuario (polling cada 5 s)' })
   @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente o del padrino' })

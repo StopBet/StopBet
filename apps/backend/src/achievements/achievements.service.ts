@@ -13,6 +13,7 @@ import { EarnedBadge } from './entities/earned-badge.entity';
 import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
 import { CommunityPost } from '../community/entities/community-post.entity';
+import { Sede } from '../sedes/entities/sede.entity';
 
 const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
 
@@ -38,6 +39,8 @@ export class AchievementsService implements OnModuleInit {
     private readonly userRepo: Repository<User>,
     @InjectRepository(CommunityPost)
     private readonly postRepo: Repository<CommunityPost>,
+    @InjectRepository(Sede)
+    private readonly sedeRepo: Repository<Sede>,
   ) {}
 
   async onModuleInit() {
@@ -159,11 +162,14 @@ export class AchievementsService implements OnModuleInit {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user?.sedeId) return;
 
+    const sede = await this.sedeRepo.findOne({ where: { id: user.sedeId } });
+    if (!sede) return;
+
     await this.postRepo.save(
       this.postRepo.create({
         authorId: userId,
         type: 'forum_post',
-        sede: user.sedeId,
+        sede: sede.name,
         body: `🎉 ${user.firstName} alcanzó ${milestone} ${
           milestone === 1 ? 'día' : 'días'
         } sin apostar. ¡Un logro que merece celebrarse en comunidad!`,

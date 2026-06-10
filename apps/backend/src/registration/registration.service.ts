@@ -22,6 +22,32 @@ export class RegistrationService {
     private readonly notifRepo: Repository<Notification>,
   ) {}
 
+  async listPending(): Promise<{
+    id: string; userId: string; sedeId: string;
+    firstName: string; lastName: string; email: string;
+    createdAt: string;
+  }[]> {
+    const requests = await this.requestRepo.find({
+      where: { status: 'pending' },
+      order: { createdAt: 'DESC' },
+    });
+    const result = [];
+    for (const r of requests) {
+      const user = await this.userRepo.findOne({ where: { id: r.userId } });
+      if (!user) continue;
+      result.push({
+        id: r.id,
+        userId: r.userId,
+        sedeId: r.sedeId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        createdAt: r.createdAt.toISOString(),
+      });
+    }
+    return result;
+  }
+
   async submit(dto: SubmitRegistrationDto): Promise<SubmitRegistrationResponse> {
     const existing = await this.userRepo.findOne({ where: { email: dto.email } });
     if (existing) {

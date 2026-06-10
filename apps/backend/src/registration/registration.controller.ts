@@ -8,6 +8,13 @@ import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 export class RegistrationController {
   constructor(private readonly registrationService: RegistrationService) {}
 
+  @Get('pending')
+  @ApiOperation({ summary: 'Lista solicitudes de registro pendientes (vista psicólogo)' })
+  @ApiResponse({ status: 200, description: 'RegistrationRequest[] con datos de usuario' })
+  listPending() {
+    return this.registrationService.listPending();
+  }
+
   @Post('submit')
   @ApiOperation({ summary: 'Envía la solicitud de registro del paciente (pasos 1+2)' })
   @ApiResponse({ status: 201, description: 'Solicitud creada: { userId, requestId, status }' })
