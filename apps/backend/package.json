@@ -8,6 +8,7 @@
     "start:dev": "pnpm --filter @stopbet/shared-types run build && nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "seed": "pnpm --filter @stopbet/shared-types run build && node --env-file=.env --require ts-node/register src/seed.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json"

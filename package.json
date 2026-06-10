@@ -5,6 +5,7 @@
   "scripts": {
     "web": "pnpm --filter @stopbet/web dev",
     "backend": "pnpm --filter @stopbet/backend start:dev",
+    "seed": "pnpm --filter @stopbet/backend run seed",
     "build:web": "pnpm --filter @stopbet/web build",
     "build:backend": "pnpm --filter @stopbet/backend build",
     "android:device": "powershell -ExecutionPolicy Bypass -File scripts\\android-run.ps1",
