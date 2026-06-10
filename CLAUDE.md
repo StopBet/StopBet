@@ -7,10 +7,10 @@ Plataforma clínica para tratamiento de ludopatía. Datos de pacientes son **sen
 > _Actualizado 2026-06-10. Mantener al día tras cambios significativos (ver [Trabajando con Claude Code](#trabajando-con-claude-code))._
 
 - **Mobile** (React Native CLI 0.86): compila y corre en Android físico. Flujo y *gotchas* del monorepo en `apps/mobile/README.md`.
-- **Sin autenticación todavía**: las 5 pantallas usan un usuario demo hardcodeado (UUID `11111111-1111-1111-1111-111111111111`) que debe existir en la tabla `users`. El backend lee la identidad del header `x-user-id` **sin verificarla**. Próxima épica grande: módulo `auth` real (login + JWT + guards).
+- **Sin autenticación real todavía**: las pantallas mobile usan un usuario demo hardcodeado (UUID `11111111-1111-1111-1111-111111111111`, constante `TEMP_USER_ID`) que debe existir en la tabla `users`. El backend lee la identidad del header `x-user-id` **sin verificarla**. Ya hay pantallas de login **solo-UI** en mobile (`LoginScreen`) y web (`LoginPage`), pero no están conectadas al backend (mobile tiene un `TODO: POST /auth/login`). Próxima épica grande: módulo `auth` real (login + JWT + guards).
 - **Backend** (NestJS): módulos `achievements`, `ai-assistant`, `billing`, `check-ins`, `community`, `notifications`, `panic`, `registration`, `sedes`, `subscriptions`, `users`. Falta `auth`.
-- **Web dashboard**: design system configurado en `main` (tokens AJUTER + fuentes self-hosted); el desarrollo de vistas va en ramas `feature/HU-04-web-*` (sin mergear aún).
-- **Deudas técnicas**: borrar `apps/mobile/package-lock.json` (residuo de npm en repo pnpm); convertir el usuario demo en un seeder del backend; `GEMINI_API_KEY` sin valor real → chatbot IA off.
+- **Web dashboard**: vistas del terapeuta ya en `main` (login, Overview, Alertas, Finanzas, Solicitudes, Configuración) sobre el design system AJUTER (tokens + fuentes self-hosted). Corren con **datos mock** (`apps/web/src/data/mockData.ts`); falta conectarlas a la API.
+- **Deudas técnicas**: borrar `apps/mobile/package-lock.json` (residuo de npm en repo pnpm); conectar las vistas web a la API (hoy con datos mock); implementar el módulo `auth` y cablear las pantallas de login. _Resueltas:_ el usuario demo ahora se crea con `pnpm run seed`; `GEMINI_API_KEY` es opcional (sin ella el chatbot responde con mensajes de fallback).
 
 ## Estructura del monorepo
 
