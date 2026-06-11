@@ -60,6 +60,9 @@ apps/mobile/ios/Pods/
 # Machine-specific (ruta del SDK local)
 apps/mobile/android/local.properties
 
+# Firebase config (generado por CI desde secret, cada dev tiene el suyo)
+apps/mobile/android/app/google-services.json
+
 # Keystores: el debug.keystore SÍ se versiona (clave de desarrollo compartida).
 # Los keystores de release son secretos y nunca se suben.
 apps/mobile/**/*.keystore
