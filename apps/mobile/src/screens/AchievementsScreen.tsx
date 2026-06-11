@@ -20,6 +20,7 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { BottomNav, NavTab } from '../components/BottomNav';
+import { ConfettiEffect } from '../components/ConfettiEffect';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
@@ -332,6 +333,7 @@ export function AchievementsScreen({ navigation }: Props) {
         animationType="fade"
         onRequestClose={() => setShareMilestone(null)}
       >
+        <ConfettiEffect active={shareMilestone !== null} />
         <View style={styles.overlay}>
           <View style={styles.modal}>
             {shareMilestone && (
