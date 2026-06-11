@@ -1,9 +1,13 @@
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`)
-  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
-  return res.json() as Promise<T>
+async function get<T>(path: string, fallback: T): Promise<T> {
+  try {
+    const res = await fetch(`${BASE}${path}`)
+    if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
+    return res.json() as Promise<T>
+  } catch {
+    return fallback
+  }
 }
 
 async function patch<T>(path: string, headers?: Record<string, string>): Promise<T> {
@@ -64,10 +68,10 @@ export interface Sede {
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
-  getPatients: () => get<PatientListItem[]>('/users/patients'),
-  getPendingRequests: () => get<PendingRequest[]>('/registration/pending'),
-  getAlertHistory: () => get<AlertHistoryItem[]>('/panic/alerts/history'),
-  getSedes: () => get<Sede[]>('/sedes'),
+  getPatients:        () => get<PatientListItem[]>('/users/patients',        []),
+  getPendingRequests: () => get<PendingRequest[]>('/registration/pending',   []),
+  getAlertHistory:    () => get<AlertHistoryItem[]>('/panic/alerts/history', []),
+  getSedes:           () => get<Sede[]>('/sedes',                            []),
 
   approveRequest: (requestId: string, psychologistId: string) =>
     patch<void>(`/registration/${requestId}/approve`, { 'x-user-id': psychologistId }),
