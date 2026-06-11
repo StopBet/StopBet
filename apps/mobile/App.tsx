@@ -27,7 +27,11 @@ const AppStack = createNativeStackNavigator<AppStackParamList>();
 
 function AuthNavigator() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+    <AuthStack.Navigator screenOptions={{
+      headerShown: false,
+      animation: 'slide_from_right',
+      animationDuration: 280,
+    }}>
       <AuthStack.Screen name="Welcome" component={WelcomeScreen} />
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SelectInstitution" component={SelectInstitutionScreen} />
@@ -41,13 +45,17 @@ function AuthNavigator() {
 
 function AppNavigator() {
   return (
-    <AppStack.Navigator screenOptions={{ headerShown: false }}>
+    <AppStack.Navigator screenOptions={{
+      headerShown: false,
+      animation: 'fade',
+      animationDuration: 220,
+    }}>
       <AppStack.Screen name="Home" component={HomeScreen} />
       <AppStack.Screen name="Assistant" component={AssistantScreen} />
       <AppStack.Screen name="Community" component={CommunityScreen} />
       <AppStack.Screen name="Achievements" component={AchievementsScreen} />
       <AppStack.Screen name="Profile" component={ProfileScreen} />
-      <AppStack.Screen name="Panic" component={PanicScreen} />
+      <AppStack.Screen name="Panic" component={PanicScreen} options={{ animation: 'slide_from_bottom', animationDuration: 320 }} />
       <AppStack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
     </AppStack.Navigator>
   );
@@ -55,7 +63,8 @@ function AppNavigator() {
 
 export default function App() {
   // TODO(auth): reemplazar con estado real de sesión (JWT) cuando auth esté implementado
-  const [isSignedIn, setIsSignedIn] = React.useState(false);
+  // TODO(auth): reemplazar con false cuando auth esté implementado
+  const [isSignedIn, setIsSignedIn] = React.useState(true);
 
   return (
     <AuthContext.Provider value={{ signIn: () => setIsSignedIn(true) }}>
