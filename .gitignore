@@ -86,3 +86,14 @@ coverage/
 .cache/
 tmp/
 .vercel
+
+# Claude Code (local — skills, agentes y config de sesión)
+.agents/
+.claude/skills/
+skills-lock.json
+
+# Archivos de prueba locales
+package-lock.json
+p.json
+patients.json
+scripts/check_community.py
