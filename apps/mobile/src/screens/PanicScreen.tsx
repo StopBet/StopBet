@@ -218,6 +218,7 @@ export function PanicScreen({ navigation }: Props) {
     try {
       const alert = await api.createPanicAlert(TEMP_USER_ID);
       const resp = await api.getPanicActiveAlert(TEMP_USER_ID);
+      setCountdown(ESCALATION_SECONDS);
       setState({ kind: 'waiting', alert, sponsor: resp.sponsor });
       startCountdown(new Date(alert.createdAt));
       startPolling();
@@ -240,6 +241,7 @@ export function PanicScreen({ navigation }: Props) {
     stopPolling();
     stopCountdown();
     clearAutoReset();
+    setCountdown(ESCALATION_SECONDS);
     setState({ kind: 'idle', sponsor: state.sponsor });
     try {
       await api.cancelPanicAlert(TEMP_USER_ID, state.alert.id);
