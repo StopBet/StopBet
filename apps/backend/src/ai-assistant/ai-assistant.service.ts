@@ -59,7 +59,8 @@ export class AiAssistantService {
       order: { createdAt: 'DESC' },
     });
 
-    const previousContext = lastSummary
+    const hasMeaningfulSummary = lastSummary && (lastSummary.mood || lastSummary.trigger || lastSummary.techniqueUsed);
+    const previousContext = hasMeaningfulSummary
       ? `Última sesión: estado "${lastSummary.mood ?? 'no registrado'}", técnica "${lastSummary.techniqueUsed ?? 'ninguna'}", detonante "${lastSummary.trigger ?? 'no identificado'}".`
       : null;
 
