@@ -132,8 +132,40 @@ export const api = {
     request<{ token: string; url: string }>('/billing/family-link', { userId }),
 
   // ── Logros y gamificación ────────────────────────────────────────────
-  getAchievements: (userId: string) =>
-    request<AchievementsData>('/achievements', { userId }),
+  getAchievements: async (userId: string) => {
+    const data = await request<AchievementsData>('/achievements', { userId });
+    const override = devFlags.overrideDays;
+    if (override === null) return data;
+
+    const MILESTONES = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90] as const;
+    const startMs = Date.now() - override * 86_400_000;
+    const startDate = new Date(startMs).toISOString().split('T')[0];
+
+    const earnedBadges = MILESTONES
+      .filter((m) => m <= override)
+      .map((m) => ({
+        id: `dev-badge-${m}`,
+        milestone: m as (typeof MILESTONES)[number],
+        earnedAt: new Date(startMs + m * 86_400_000).toISOString(),
+        sharedToCommunity: false,
+        periodId: data.currentPeriod.id,
+      }));
+
+    const newestMilestone = earnedBadges.length > 0
+      ? earnedBadges[earnedBadges.length - 1].milestone
+      : null;
+
+    return {
+      ...data,
+      currentPeriod: {
+        ...data.currentPeriod,
+        startDate,
+        daysAchieved: override,
+        earnedBadges,
+      },
+      newestMilestone,
+    } satisfies AchievementsData;
+  },
 
   reportRelapse: (userId: string) =>
     request<RelapseResponse>('/achievements/relapse', {
