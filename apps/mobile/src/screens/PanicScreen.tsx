@@ -255,11 +255,12 @@ export function PanicScreen({ navigation }: Props) {
     try {
       await api.notifyCommunity(TEMP_USER_ID, state.alert.id);
       setState({ kind: 'waiting', alert: { ...state.alert, communityNotified: true }, sponsor: state.sponsor });
-      scheduleAutoReset(state.alert.id, state.sponsor);
     } catch {
-      // Silencioso
+      // Silencioso — navegar igual
     }
-  }, [state]);
+    const draft = 'Hola 🚨 no me encuentro muy bien, ¿alguien podría ayudarme conversando?';
+    navigation.navigate('Community', { initialTab: 'forum', draft });
+  }, [state, navigation]);
 
   const handleEscalateToAI = useCallback(async () => {
     if (state.kind !== 'waiting') return;

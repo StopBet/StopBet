@@ -5,7 +5,6 @@ import { PanicService } from './panic.service';
 import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { PanicAlert } from './entities/panic-alert.entity';
 import { User } from '../users/entities/user.entity';
-import { CommunityPost } from '../community/entities/community-post.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 
 @Module({
@@ -14,7 +13,6 @@ import { Notification } from '../notifications/entities/notification.entity';
       SponsorAssignment,
       PanicAlert,
       User,
-      CommunityPost,
       Notification,
     ]),
   ],

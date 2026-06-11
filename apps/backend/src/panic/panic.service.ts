@@ -14,7 +14,6 @@ import {
 import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { PanicAlert } from './entities/panic-alert.entity';
 import { User } from '../users/entities/user.entity';
-import { CommunityPost } from '../community/entities/community-post.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
 
@@ -30,8 +29,6 @@ export class PanicService {
     private readonly alertRepo: Repository<PanicAlert>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
-    @InjectRepository(CommunityPost)
-    private readonly postRepo: Repository<CommunityPost>,
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
   ) {}
@@ -206,18 +203,6 @@ export class PanicService {
     });
     if (!alert) throw new NotFoundException('Alerta no encontrada');
     if (alert.communityNotified) return { communityNotified: true };
-
-    const patient = await this.userRepo.findOne({ where: { id: patientId } });
-    const sede = patient?.sedeId ?? 'Santiago';
-
-    await this.postRepo.save(
-      this.postRepo.create({
-        authorId: patientId,
-        type: 'forum_post',
-        sede,
-        body: 'Alguien de nuestra comunidad está pasando un momento difícil y necesita apoyo. Si puedes, responde con una palabra de aliento. 💙',
-      }),
-    );
 
     alert.communityNotified = true;
     await this.alertRepo.save(alert);
