@@ -41,6 +41,9 @@ jobs:
           key: gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*') }}
           restore-keys: gradle-
 
+      - name: Prepare hermesc
+        run: chmod +x node_modules/react-native/sdks/hermesc/linux64-bin/hermesc || true
+
       - name: Build APK
         run: cd apps/mobile/android && ./gradlew assembleRelease --no-daemon
 
