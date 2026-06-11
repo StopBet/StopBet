@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ScrollView,
   StatusBar,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -13,10 +14,18 @@ import type { AppStackParamList } from '../navigation/types';
 import { BottomNav } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { devFlags } from '../store/devFlags';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 
 export function ProfileScreen({ navigation }: Props) {
+  const [offline, setOffline] = useState(devFlags.simulateOffline);
+
+  const toggleOffline = (v: boolean) => {
+    devFlags.setSimulateOffline(v);
+    setOffline(v);
+  };
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
@@ -63,6 +72,34 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.comingSoonText}>
             Configuración completa disponible próximamente
           </Text>
+        </View>
+
+        {/* Herramientas de prueba */}
+        <View style={styles.devCard}>
+          <View style={styles.devHeader}>
+            <Icon name="flask-conical" size={14} color={Colors.fg2} />
+            <Text style={styles.devTitle}>Herramientas de prueba</Text>
+          </View>
+          <View style={styles.devRow}>
+            <View style={styles.devText}>
+              <Text style={styles.devLabel}>Simular sin conexión</Text>
+              <Text style={styles.devSub}>
+                Fuerza error de red en todas las llamadas a la API
+              </Text>
+            </View>
+            <Switch
+              value={offline}
+              onValueChange={toggleOffline}
+              trackColor={{ false: Colors.border, true: Colors.danger }}
+              thumbColor={Colors.white}
+            />
+          </View>
+          {offline && (
+            <View style={styles.devBadge}>
+              <Icon name="triangle-alert" size={12} color={Colors.danger} />
+              <Text style={styles.devBadgeText}>Modo sin conexión activo</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -161,4 +198,29 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   comingSoonText: { fontSize: 13, color: Colors.fg2, textAlign: 'center' },
+
+  devCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: 12,
+  },
+  devHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  devTitle: { fontSize: 12, fontWeight: '700', color: Colors.fg2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  devRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  devText: { flex: 1 },
+  devLabel: { fontWeight: '600', fontSize: 15, color: Colors.ink900 },
+  devSub: { fontSize: 12, color: Colors.fg2, marginTop: 2, lineHeight: 17 },
+  devBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  devBadgeText: { fontSize: 12, fontWeight: '700', color: Colors.danger },
 });

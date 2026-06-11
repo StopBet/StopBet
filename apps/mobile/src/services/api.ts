@@ -23,6 +23,8 @@ import type {
   SubmitRegistrationResponse,
 } from '@stopbet/shared-types';
 
+import { devFlags } from '../store/devFlags';
+
 // localhost funciona en dispositivo real gracias a `adb reverse tcp:3000 tcp:3000`
 const BASE_URL = 'http://localhost:3000';
 
@@ -32,6 +34,7 @@ async function request<T>(
   path: string,
   options?: RequestInit & { userId?: string },
 ): Promise<T> {
+  if (devFlags.simulateOffline) throw new Error('Network request failed');
   const { userId, ...fetchOpts } = options ?? {};
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
