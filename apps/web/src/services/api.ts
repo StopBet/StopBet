@@ -19,7 +19,30 @@ async function patch<T>(path: string, headers?: Record<string, string>): Promise
   return res.json() as Promise<T>
 }
 
+async function post<T>(path: string, headers?: Record<string, string>, body?: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) {
+    const err = new Error(`POST ${path} → ${res.status}`) as Error & { status: number }
+    err.status = res.status
+    throw err
+  }
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
 // ── Tipos ─────────────────────────────────────────────────────────────────────
+
+export interface LoginResult {
+  id: string
+  role: string
+  firstName: string
+  lastName: string
+}
 
 export interface PatientListItem {
   id: string
@@ -68,6 +91,9 @@ export interface Sede {
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
+  login: (email: string, password: string) =>
+    post<LoginResult>('/users/login', undefined, { email, password }),
+
   getPatients:        () => get<PatientListItem[]>('/users/patients',        []),
   getPendingRequests: () => get<PendingRequest[]>('/registration/pending',   []),
   getAlertHistory:    () => get<AlertHistoryItem[]>('/panic/alerts/history', []),
@@ -78,4 +104,7 @@ export const api = {
 
   rejectRequest: (requestId: string, psychologistId: string) =>
     patch<void>(`/registration/${requestId}/reject`, { 'x-user-id': psychologistId }),
+
+  reportRelapse: (patientId: string) =>
+    post<void>('/achievements/relapse', { 'x-user-id': patientId }),
 }

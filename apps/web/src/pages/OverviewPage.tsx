@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { WIcon, DownloadIcon } from '../components/WIcon'
 import { MetricCard } from '../components/MetricCard'
 import { MoodChart } from '../components/MoodChart'
@@ -93,6 +93,18 @@ function ProgressBar({ value, max = 90, color = 'var(--primary)' }: { value: num
 /* ── Patient Drawer ──────────────────────────────────── */
 function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => void }) {
   const [tab, setTab] = useState<'evolucion' | 'alertas' | 'sesiones' | 'editar'>('evolucion')
+  const [relapseStep, setRelapseStep] = useState<'idle' | 'confirm' | 'done' | 'error'>('idle')
+  const queryClient = useQueryClient()
+
+  const relapseMutation = useMutation({
+    mutationFn: () => api.reportRelapse(patient.id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['patients'] })
+      setRelapseStep('done')
+      setTimeout(() => setRelapseStep('idle'), 4000)
+    },
+    onError: () => setRelapseStep('error'),
+  })
   const tabs = [
     { id: 'evolucion' as const, label: 'Evolución' },
     { id: 'alertas' as const,   label: 'Alertas' },
@@ -177,13 +189,48 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
               <StatRow icon="triangle-alert" label="Total alertas de pánico" value={patient.panicTotal} color={patient.panicTotal > 0 ? 'var(--danger)' : undefined} />
               <StatRow icon="activity" label="Promedio de estado" value={`${patient.moodAvg}/5`} />
               <StatRow icon="clock" label="Último check emocional" value={patient.lastCheck} />
-              <div style={{ display: 'flex', gap: 12, marginTop: 22 }}>
-                <button style={{ flex: 1, height: 44, borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'var(--font-heading)' }}>
-                  Registrar recaída
-                </button>
-                <button style={{ flex: 1, height: 44, borderRadius: 9999, border: 'none', background: 'none', color: 'var(--primary)', fontWeight: 600, fontSize: 13.5, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-                  Editar fecha de abstinencia
-                </button>
+              <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {relapseStep === 'confirm' && (
+                  <div style={{ background: 'var(--red-50)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--danger)', fontWeight: 600, lineHeight: 1.5 }}>
+                    ¿Confirmar recaída? Esta acción reiniciará el contador de abstinencia del paciente.
+                  </div>
+                )}
+                {relapseStep === 'done' && (
+                  <div style={{ background: 'var(--sage-50)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--sage-500)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <WIcon name="circle-check" size={15} /> Recaída registrada. El contador fue reiniciado.
+                  </div>
+                )}
+                {relapseStep === 'error' && (
+                  <div style={{ background: 'var(--red-50)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--danger)', fontWeight: 600 }}>
+                    Error al registrar. Intenta de nuevo.
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 12 }}>
+                  {relapseStep === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={() => setRelapseStep('idle')}
+                        style={{ flex: 1, height: 44, borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'var(--font-heading)' }}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => { setRelapseStep('idle'); relapseMutation.mutate() }}
+                        style={{ flex: 1, height: 44, borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'var(--font-heading)' }}
+                      >
+                        Confirmar recaída
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setRelapseStep('confirm')}
+                      disabled={relapseMutation.isPending || relapseStep === 'done'}
+                      style={{ flex: 1, height: 44, borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontWeight: 700, fontSize: 13.5, cursor: relapseMutation.isPending || relapseStep === 'done' ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-heading)', opacity: relapseMutation.isPending ? 0.6 : 1 }}
+                    >
+                      {relapseMutation.isPending ? 'Registrando…' : 'Registrar recaída'}
+                    </button>
+                  )}
+                </div>
               </div>
             </>
           )}
@@ -505,6 +552,8 @@ export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
   const { data: patientList = [], isLoading: loadingPatients } = useQuery({
     queryKey: ['patients'],
     queryFn: api.getPatients,
+    refetchInterval: 15_000,
+    staleTime: 0,
   })
 
   const { data: alertHistory = [] } = useQuery({

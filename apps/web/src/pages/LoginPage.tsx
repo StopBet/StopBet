@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { WIcon } from '../components/WIcon'
+import { api, type LoginResult } from '../services/api'
 
 function SupportNetwork() {
   const nodes = [
@@ -42,12 +43,12 @@ function SupportNetwork() {
   )
 }
 
-type FormState = 'idle' | 'loading' | 'error'
+type FormState = 'idle' | 'loading' | 'error' | 'forbidden'
 
 const TEAL = '#1B6F63'
 const TEAL_LIGHT = '#EFF4F1'
 
-export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpired?: boolean; onSuccess?: () => void }) {
+export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpired?: boolean; onSuccess?: (keepSession: boolean, user: LoginResult) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -58,17 +59,17 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
     e.preventDefault()
     if (!email.trim() || !password) return
     setFormState('loading')
-    // TODO: POST /auth/login cuando el módulo de auth esté implementado en el backend
-    await new Promise<void>(resolve => setTimeout(() => resolve(), 900))
-    if (email && password) {
-      onSuccess?.()
-    } else {
-      setFormState('error')
+    try {
+      const user = await api.login(email.trim(), password)
+      onSuccess?.(keepSession, user)
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status
+      setFormState(status === 403 ? 'forbidden' : 'error')
     }
   }
 
   const isLoading = formState === 'loading'
-  const isError = formState === 'error'
+  const isError = formState === 'error' || formState === 'forbidden'
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
@@ -368,7 +369,9 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#B83232' }}>
-                  Correo o contraseña incorrectos
+                  {formState === 'forbidden'
+                    ? 'Solo psicólogos certificados de AJUTER pueden acceder'
+                    : 'Correo o contraseña incorrectos'}
                 </span>
               </div>
             )}

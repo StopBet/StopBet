@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
@@ -20,10 +21,15 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { BottomNav, NavTab } from '../components/BottomNav';
-import { ConfettiEffect } from '../components/ConfettiEffect';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
-import { api } from '../services/api';
+import {
+  api,
+  hasPendingExternalRelapse,
+  acknowledgePendingRelapse,
+  suppressNextExternalRelapseDetection,
+} from '../services/api';
+import { devFlags } from '../store/devFlags';
 
 // Ajustar cuando se conecte autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -51,6 +57,9 @@ const MILESTONE_DRAFT: Record<BadgeMilestone, string> = {
   75: '75 días enfocado en lo que realmente importa. El camino sigue y yo también.',
   90: 'Tres meses. No fue fácil, pero cada día valió la pena. Gracias a todos los que me acompañaron.',
 };
+
+// Persiste mientras la app sigue viva — evita re-mostrar el modal al navegar de vuelta
+const shownMilestones = new Set<BadgeMilestone>();
 
 const BADGE_CONFIG: Record<BadgeMilestone, { label: string; icon: IconName; daysLabel: string }> = {
   1:  { label: 'Primer día',    icon: 'sprout',       daysLabel: '1 día' },
@@ -97,16 +106,23 @@ export function AchievementsScreen({ navigation }: Props) {
   const [relapseModal, setRelapseModal] = useState(false);
   const [relapseMessage, setRelapseMessage] = useState('');
   const [shareMilestone, setShareMilestone] = useState<BadgeMilestone | null>(null);
-  const shareShownRef = useRef(false);
+  const [isExternalRelapse, setIsExternalRelapse] = useState(false);
 
   const load = useCallback(async () => {
     try {
       const result = await api.getAchievements(TEMP_USER_ID);
       setData(result);
-      // Muestra modal de compartir solo la primera vez que se otorga una insignia nueva
-      if (result.newestMilestone && !shareShownRef.current) {
-        shareShownRef.current = true;
-        setShareMilestone(result.newestMilestone);
+      if (hasPendingExternalRelapse()) {
+        acknowledgePendingRelapse();
+        shownMilestones.clear();
+        setIsExternalRelapse(true);
+        setRelapseMessage(
+          'Tu contador ha sido reiniciado. Recuerda que cada ciclo es parte de tu recuperación — tu equipo AJUTER está aquí para apoyarte en este proceso.',
+        );
+        setRelapseModal(true);
+      } else if (result.newestMilestone && !shownMilestones.has(result.newestMilestone)) {
+        shownMilestones.add(result.newestMilestone);
+        setTimeout(() => setShareMilestone(result.newestMilestone), 450);
       }
     } catch (err) {
       console.error('[AchievementsScreen] load error', (err as Error).message);
@@ -115,7 +131,13 @@ export function AchievementsScreen({ navigation }: Props) {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      const interval = setInterval(load, 5_000);
+      return () => clearInterval(interval);
+    }, [load]),
+  );
 
   const handleRelapse = () => {
     Alert.alert(
@@ -128,9 +150,15 @@ export function AchievementsScreen({ navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              const { message } = await api.reportRelapse(TEMP_USER_ID);
-              shareShownRef.current = false;
+              const devStartDate = devFlags.overrideDays !== null
+                ? new Date(Date.now() - devFlags.overrideDays * 86_400_000).toISOString().split('T')[0]
+                : undefined;
+              suppressNextExternalRelapseDetection();
+              const { message } = await api.reportRelapse(TEMP_USER_ID, devStartDate);
+              shownMilestones.clear();
+              devFlags.setOverrideDays(null);
               await load();
+              setIsExternalRelapse(false);
               setRelapseMessage(message);
               setRelapseModal(true);
             } catch (err) {
@@ -296,20 +324,24 @@ export function AchievementsScreen({ navigation }: Props) {
       <Modal
         visible={relapseModal}
         transparent
-        animationType="fade"
-        onRequestClose={() => setRelapseModal(false)}
+        animationType="none"
+        statusBarTranslucent
+        onRequestClose={() => { setRelapseModal(false); setIsExternalRelapse(false); }}
       >
         <View style={styles.overlay}>
           <View style={styles.modal}>
             <View style={styles.modalIcon}>
-              <Icon name="heart" size={42} color={Colors.sage500} />
+              <Icon name={isExternalRelapse ? 'user' : 'heart'} size={42} color={Colors.sage500} />
             </View>
-            <Text style={styles.modalTitle}>No estás solo en esto</Text>
+            <Text style={styles.modalTitle}>
+              {isExternalRelapse ? 'Tu psicólogo registró una recaída' : 'No estás solo en esto'}
+            </Text>
             <Text style={styles.modalText}>{relapseMessage}</Text>
             <TouchableOpacity
               style={styles.btnPrimary}
               onPress={() => {
                 setRelapseModal(false);
+                setIsExternalRelapse(false);
                 navigation.navigate('Assistant');
               }}
               activeOpacity={0.85}
@@ -319,7 +351,10 @@ export function AchievementsScreen({ navigation }: Props) {
                 <Text style={styles.btnPrimaryText}>Hablar con el asistente ahora</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setRelapseModal(false)} style={styles.btnLink}>
+            <TouchableOpacity
+              onPress={() => { setRelapseModal(false); setIsExternalRelapse(false); }}
+              style={styles.btnLink}
+            >
               <Text style={styles.btnLinkText}>Cerrar</Text>
             </TouchableOpacity>
           </View>
@@ -330,10 +365,10 @@ export function AchievementsScreen({ navigation }: Props) {
       <Modal
         visible={shareMilestone !== null}
         transparent
-        animationType="fade"
+        animationType="none"
+        statusBarTranslucent
         onRequestClose={() => setShareMilestone(null)}
       >
-        <ConfettiEffect active={shareMilestone !== null} />
         <View style={styles.overlay}>
           <View style={styles.modal}>
             {shareMilestone && (
@@ -617,7 +652,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(30,45,44,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 100,
   },
   modal: {
     width: '100%',

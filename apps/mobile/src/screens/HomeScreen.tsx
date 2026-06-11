@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { EmotionType, Notification, PatientProgress } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
@@ -19,7 +20,7 @@ import { BottomNav, NavTab } from '../components/BottomNav';
 import { NotificationSection } from '../components/NotificationSection';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
-import { api } from '../services/api';
+import { api, hasPendingExternalRelapse, acknowledgePendingRelapse } from '../services/api';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -81,17 +82,38 @@ export function HomeScreen({ navigation }: Props) {
         return;
       }
 
-      const [prog, checkIn, notifs] = await Promise.all([
-        api.getProgress(TEMP_USER_ID),
+      const [achData, checkIn, notifs] = await Promise.all([
+        api.getAchievements(TEMP_USER_ID),
         api.getTodayCheckIn(TEMP_USER_ID),
         api.getNotifications(TEMP_USER_ID),
       ]);
-      setProgress(prog);
+
+      const days = achData.currentPeriod.daysAchieved;
+      const HOME_MILESTONES = [30, 60, 90, 180, 365];
+      setProgress({
+        userId: TEMP_USER_ID,
+        daysStreak: days,
+        nextMilestone: HOME_MILESTONES.find(m => m > days) ?? 365,
+        lastCheckIn: checkIn,
+      });
+
       if (checkIn) {
         setTodayEmotion(checkIn.emotion);
         setCheckInDone(true);
       }
       if (notifs.length > 0) setNotifications(notifs);
+
+      if (hasPendingExternalRelapse()) {
+        acknowledgePendingRelapse();
+        Alert.alert(
+          'Recaída registrada por tu psicólogo',
+          'Tu psicólogo ha registrado una recaída en tu historial. El contador ha sido reiniciado. Tu equipo AJUTER está aquí para apoyarte.',
+          [
+            { text: 'Ver mis logros', onPress: () => navigation.navigate('Achievements') },
+            { text: 'Cerrar', style: 'cancel' },
+          ],
+        );
+      }
     } catch (err) {
       // Solo loguea el error sin exponer datos del paciente
       console.error('[HomeScreen] load error', (err as Error).message);
@@ -100,7 +122,13 @@ export function HomeScreen({ navigation }: Props) {
     }
   }, [navigation]);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      const interval = setInterval(load, 5_000);
+      return () => clearInterval(interval);
+    }, [load]),
+  );
 
   const handlePickEmotion = async (emotion: EmotionType) => {
     try {

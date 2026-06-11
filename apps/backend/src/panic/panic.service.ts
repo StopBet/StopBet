@@ -209,6 +209,18 @@ export class PanicService {
     return { communityNotified: true };
   }
 
+  async cancelActiveAlert(patientId: string): Promise<{ cancelled: boolean }> {
+    const alert = await this.alertRepo.findOne({
+      where: { patientId, status: In(ACTIVE_STATUSES) },
+      order: { createdAt: 'DESC' },
+    });
+    if (!alert) return { cancelled: false };
+    alert.status = 'cancelled';
+    alert.cancelledAt = new Date();
+    await this.alertRepo.save(alert);
+    return { cancelled: true };
+  }
+
   // Padrino: polling de alertas pendientes que le llegaron
   async getPendingAlerts(sponsorId: string): Promise<PanicAlertDto[]> {
     const alerts = await this.alertRepo.find({

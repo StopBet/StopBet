@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -44,6 +44,13 @@ export class UsersService {
     private readonly periodRepo: Repository<AbstinencePeriod>,
   ) {}
 
+  async login(email: string): Promise<{ id: string; role: string; firstName: string; lastName: string }> {
+    const user = await this.userRepo.findOne({ where: { email } });
+    if (!user) throw new UnauthorizedException('Credenciales incorrectas');
+    if (user.role !== 'psychologist') throw new ForbiddenException('Acceso restringido a psicólogos');
+    return { id: user.id, role: user.role, firstName: user.firstName, lastName: user.lastName };
+  }
+
   async listPatients(): Promise<PatientListItem[]> {
     const patients = await this.userRepo.find({
       where: { role: 'patient' },
@@ -52,17 +59,20 @@ export class UsersService {
 
     const result: PatientListItem[] = [];
     for (const p of patients) {
-      const lastCheckIn = await this.checkInRepo.findOne({
-        where: { userId: p.id },
-        order: { date: 'DESC' },
-      });
+      const [lastCheckIn, currentPeriod] = await Promise.all([
+        this.checkInRepo.findOne({ where: { userId: p.id }, order: { date: 'DESC' } }),
+        this.periodRepo.findOne({ where: { userId: p.id, endDate: IsNull() } }),
+      ]);
+      const daysStreak = currentPeriod
+        ? daysBetween(currentPeriod.startDate, today())
+        : p.daysStreak;
       result.push({
         id: p.id,
         firstName: p.firstName,
         lastName: p.lastName,
         email: p.email,
         sedeId: p.sedeId,
-        daysStreak: p.daysStreak,
+        daysStreak,
         accountStatus: p.accountStatus,
         onboardingStatus: p.onboardingStatus,
         lastCheckIn: lastCheckIn

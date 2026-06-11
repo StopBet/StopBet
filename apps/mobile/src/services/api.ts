@@ -25,6 +25,21 @@ import type {
 
 import { devFlags } from '../store/devFlags';
 
+// ── Detección de recaída externa (psicólogo desde dashboard) ─────────────────
+let _lastAttemptNumber: number | null = null;
+let _pendingExternalRelapse = false;
+let _suppressExternalDetection = false;
+
+export function hasPendingExternalRelapse(): boolean {
+  return _pendingExternalRelapse;
+}
+export function acknowledgePendingRelapse(): void {
+  _pendingExternalRelapse = false;
+}
+export function suppressNextExternalRelapseDetection(): void {
+  _suppressExternalDetection = true;
+}
+
 // localhost funciona en dispositivo real gracias a `adb reverse tcp:3000 tcp:3000`
 const BASE_URL = 'http://localhost:3000';
 
@@ -80,6 +95,9 @@ export const api = {
       body: JSON.stringify({ emotion }),
     }),
 
+  resetTodayCheckIn: (userId: string) =>
+    request<{ deleted: boolean }>('/check-ins/today', { userId, method: 'DELETE' }),
+
   // ── Notificaciones ───────────────────────────────────────────────────
   getNotifications: (userId: string) =>
     request<Notification[]>('/notifications', { userId }),
@@ -134,6 +152,15 @@ export const api = {
   // ── Logros y gamificación ────────────────────────────────────────────
   getAchievements: async (userId: string) => {
     const data = await request<AchievementsData>('/achievements', { userId });
+
+    // Detectar cambio de período externo (psicólogo registró recaída desde dashboard)
+    if (_lastAttemptNumber !== null && data.currentPeriod.attemptNumber > _lastAttemptNumber) {
+      if (!_suppressExternalDetection) _pendingExternalRelapse = true;
+      devFlags.setOverrideDays(null); // override stale → limpiar siempre
+    }
+    _suppressExternalDetection = false;
+    _lastAttemptNumber = data.currentPeriod.attemptNumber;
+
     const override = devFlags.overrideDays;
     if (override === null) return data;
 
@@ -167,10 +194,18 @@ export const api = {
     } satisfies AchievementsData;
   },
 
-  reportRelapse: (userId: string) =>
+  reportRelapse: (userId: string, devStartDate?: string) =>
     request<RelapseResponse>('/achievements/relapse', {
       userId,
       method: 'POST',
+      body: JSON.stringify(devStartDate ? { devStartDate } : {}),
+    }),
+
+  devSetDays: (userId: string, days: number) =>
+    request<{ startDate: string; daysAchieved: number }>('/achievements/dev-set-days', {
+      userId,
+      method: 'POST',
+      body: JSON.stringify({ days }),
     }),
 
   shareBadge: (userId: string, milestone: BadgeMilestone) =>
@@ -220,6 +255,9 @@ export const api = {
       userId: sponsorId,
       method: 'POST',
     }),
+
+  cancelActivePanicAlert: (userId: string) =>
+    request<{ cancelled: boolean }>('/panic/alerts/active', { userId, method: 'DELETE' }),
 
   cancelPanicAlert: (userId: string, alertId: string) =>
     request<PanicAlertDto>(`/panic/alerts/${alertId}/cancel`, {

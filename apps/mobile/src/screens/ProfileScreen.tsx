@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import {
+  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -16,6 +17,7 @@ import { BottomNav } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { devFlags } from '../store/devFlags';
+import { api } from '../services/api';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 
@@ -24,20 +26,65 @@ export function ProfileScreen({ navigation }: Props) {
   const [daysInput, setDaysInput] = useState(
     devFlags.overrideDays !== null ? String(devFlags.overrideDays) : '',
   );
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'ok' | 'error'>('idle');
+  const [checkInResetStatus, setCheckInResetStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
+  const [panicResetStatus, setPanicResetStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle');
 
   const toggleOffline = (v: boolean) => {
     devFlags.setSimulateOffline(v);
     setOffline(v);
   };
 
-  const applyDays = () => {
+  const applyDays = async () => {
     const n = parseInt(daysInput, 10);
-    devFlags.setOverrideDays(Number.isFinite(n) && n >= 0 ? n : null);
+    if (!Number.isFinite(n) || n < 0) return;
+    devFlags.setOverrideDays(n);
+    setSyncStatus('syncing');
+    try {
+      await api.devSetDays('11111111-1111-1111-1111-111111111111', n);
+      setSyncStatus('ok');
+    } catch {
+      setSyncStatus('error');
+    }
   };
 
   const clearDays = () => {
     setDaysInput('');
     devFlags.setOverrideDays(null);
+  };
+
+  const resetPanicAlert = async () => {
+    setPanicResetStatus('loading');
+    try {
+      const res = await api.cancelActivePanicAlert('11111111-1111-1111-1111-111111111111');
+      if (res.cancelled) {
+        setPanicResetStatus('ok');
+        setTimeout(() => setPanicResetStatus('idle'), 2500);
+      } else {
+        setPanicResetStatus('idle');
+        Alert.alert('Sin alerta', 'No había ninguna alerta de pánico activa.');
+      }
+    } catch {
+      setPanicResetStatus('error');
+      setTimeout(() => setPanicResetStatus('idle'), 2500);
+    }
+  };
+
+  const resetCheckIn = async () => {
+    setCheckInResetStatus('loading');
+    try {
+      const res = await api.resetTodayCheckIn('11111111-1111-1111-1111-111111111111');
+      if (res.deleted) {
+        setCheckInResetStatus('ok');
+        setTimeout(() => setCheckInResetStatus('idle'), 2500);
+      } else {
+        setCheckInResetStatus('idle');
+        Alert.alert('Sin check-in', 'No había check-in registrado hoy.');
+      }
+    } catch {
+      setCheckInResetStatus('error');
+      setTimeout(() => setCheckInResetStatus('idle'), 2500);
+    }
   };
 
   return (
@@ -149,6 +196,84 @@ export function ProfileScreen({ navigation }: Props) {
               <Icon name="check" size={12} color={Colors.sage500} />
               <Text style={[styles.devBadgeText, { color: Colors.sage500 }]}>
                 Mostrando {devFlags.overrideDays} días
+                {syncStatus === 'syncing' ? ' · sincronizando…' : ''}
+                {syncStatus === 'ok' ? ' · sincronizado ✓' : ''}
+              </Text>
+            </View>
+          )}
+          {syncStatus === 'error' && (
+            <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+              <Icon name="triangle-alert" size={12} color={Colors.danger} />
+              <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+                Error al sincronizar con el servidor
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.devDivider} />
+
+          <View style={styles.devRow}>
+            <View style={styles.devText}>
+              <Text style={styles.devLabel}>Check-in emocional</Text>
+              <Text style={styles.devSub}>Reinicia el check-in de hoy para volver a registrarlo</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.devApplyBtn, checkInResetStatus === 'loading' && { opacity: 0.5 }]}
+              onPress={resetCheckIn}
+              disabled={checkInResetStatus === 'loading'}
+            >
+              <Text style={styles.devApplyText}>
+                {checkInResetStatus === 'loading' ? '…' : 'Reset'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {checkInResetStatus === 'ok' && (
+            <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+              <Icon name="check" size={12} color={Colors.sage500} />
+              <Text style={[styles.devBadgeText, { color: Colors.sage500 }]}>
+                Check-in borrado — ya puedes registrarlo de nuevo
+              </Text>
+            </View>
+          )}
+          {checkInResetStatus === 'error' && (
+            <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+              <Icon name="triangle-alert" size={12} color={Colors.danger} />
+              <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+                Error al borrar el check-in
+              </Text>
+            </View>
+          )}
+
+          <View style={styles.devDivider} />
+
+          <View style={styles.devRow}>
+            <View style={styles.devText}>
+              <Text style={styles.devLabel}>Alerta de pánico</Text>
+              <Text style={styles.devSub}>Cancela la alerta activa para volver al botón idle</Text>
+            </View>
+            <TouchableOpacity
+              style={[styles.devApplyBtn, panicResetStatus === 'loading' && { opacity: 0.5 }]}
+              onPress={resetPanicAlert}
+              disabled={panicResetStatus === 'loading'}
+            >
+              <Text style={styles.devApplyText}>
+                {panicResetStatus === 'loading' ? '…' : 'Reset'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          {panicResetStatus === 'ok' && (
+            <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+              <Icon name="check" size={12} color={Colors.sage500} />
+              <Text style={[styles.devBadgeText, { color: Colors.sage500 }]}>
+                Alerta cancelada — el botón de pánico vuelve al estado normal
+              </Text>
+            </View>
+          )}
+          {panicResetStatus === 'error' && (
+            <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+              <Icon name="triangle-alert" size={12} color={Colors.danger} />
+              <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+                Error al cancelar la alerta
               </Text>
             </View>
           )}

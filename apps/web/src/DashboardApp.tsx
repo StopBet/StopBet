@@ -10,8 +10,6 @@ import { ConfiguracionPage } from './pages/ConfiguracionPage'
 import { api } from './services/api'
 import type { RegistrationRequest } from './data/mockData'
 
-// TODO(auth): reemplazar con UUID real del psicólogo autenticado cuando auth esté implementado
-const TEMP_PSYCH_ID = '22222222-2222-2222-2222-222222222222'
 
 type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'reports' | 'finanzas' | 'settings'
 
@@ -56,7 +54,7 @@ function shortSedeName(name: string): string {
   return name
 }
 
-export function DashboardApp({ onLogout }: { onLogout: () => void }) {
+export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout: () => void }) {
   const [nav, setNav] = useState<NavId>('overview')
   const [toast, setToast] = useState<Toast | null>(null)
   const qc = useQueryClient()
@@ -95,7 +93,7 @@ export function DashboardApp({ onLogout }: { onLogout: () => void }) {
 
   const handleApprove = async (id: string) => {
     try {
-      await api.approveRequest(id, TEMP_PSYCH_ID)
+      await api.approveRequest(id, psychId)
       qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
       setToast({ message: 'Solicitud aprobada y paciente registrado.', tone: 'success' })
     } catch {
@@ -105,7 +103,7 @@ export function DashboardApp({ onLogout }: { onLogout: () => void }) {
 
   const handleReject = async (id: string) => {
     try {
-      await api.rejectRequest(id, TEMP_PSYCH_ID)
+      await api.rejectRequest(id, psychId)
       qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
       setToast({ message: 'Solicitud rechazada. Se notificó al solicitante.', tone: 'error' })
     } catch {

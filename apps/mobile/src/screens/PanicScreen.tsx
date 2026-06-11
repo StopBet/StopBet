@@ -104,13 +104,14 @@ export function PanicScreen({ navigation }: Props) {
 
   useFocusEffect(
     useCallback(() => {
+      holdProgress.setValue(0);
       load();
       return () => {
         stopPolling();
         stopCountdown();
         clearAutoReset();
       };
-    }, [load]),
+    }, [load, holdProgress]),
   );
 
   // ──────────────────────────────────────────────────────────────────────
@@ -314,6 +315,9 @@ export function PanicScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <StatusBar barStyle="light-content" backgroundColor={Colors.danger} />
+        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+          <Icon name="arrow-left" size={20} color={Colors.fg1} />
+        </Pressable>
         <View style={styles.offlineBanner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="triangle-alert" size={14} color="#fff" />
@@ -383,8 +387,11 @@ export function PanicScreen({ navigation }: Props) {
   if (state.kind === 'responded' || state.kind === 'escalated') {
     const sponsor = state.kind === 'responded' ? state.sponsor : null;
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F0FAF5' }]}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F0FAF5' }]} edges={['top']}>
         <StatusBar barStyle="dark-content" backgroundColor="#F0FAF5" />
+        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+          <Icon name="arrow-left" size={20} color={Colors.fg1} />
+        </Pressable>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, { justifyContent: 'space-between', flex: 1 }]}
@@ -553,8 +560,11 @@ export function PanicScreen({ navigation }: Props) {
   // ── Estado 1: Idle (listo) ─────────────────────────────────────────────
   const { sponsor } = state;
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
+      <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+        <Icon name="arrow-left" size={20} color={Colors.fg1} />
+      </Pressable>
       <View style={styles.content}>
         {/* Pregunta */}
         <View style={styles.topSection}>
@@ -637,6 +647,20 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: Colors.bg,
+  },
+  backBtn: {
+    alignSelf: 'flex-start',
+    marginLeft: 16,
+    marginTop: 10,
+    marginBottom: 6,
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    shadowColor: Colors.shadowSoft,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   scroll: { flex: 1 },
   scrollContent: {

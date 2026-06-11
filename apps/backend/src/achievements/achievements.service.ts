@@ -110,7 +110,7 @@ export class AchievementsService implements OnModuleInit {
     };
   }
 
-  async reportRelapse(userId: string): Promise<RelapseResponse> {
+  async reportRelapse(userId: string, devStartDate?: string): Promise<RelapseResponse> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
@@ -120,8 +120,26 @@ export class AchievementsService implements OnModuleInit {
     });
 
     if (currentPeriod) {
-      currentPeriod.endDate = today;
-      await this.periodRepo.save(currentPeriod);
+      if (devStartDate) {
+        const daysAchieved = this.daysBetween(devStartDate, today);
+        const existing = await this.badgeRepo.find({ where: { periodId: currentPeriod.id } });
+        const earnedSet = new Set(existing.map((b) => b.milestone));
+        for (const milestone of MILESTONES) {
+          if (daysAchieved >= milestone && !earnedSet.has(milestone)) {
+            await this.badgeRepo.save(
+              this.badgeRepo.create({
+                userId,
+                periodId: currentPeriod.id,
+                milestone,
+                earnedAt: today,
+                sharedToCommunity: false,
+              }),
+            );
+          }
+        }
+        await this.periodRepo.update(currentPeriod.id, { startDate: devStartDate });
+      }
+      await this.periodRepo.update(currentPeriod.id, { endDate: today });
     }
 
     await this.userRepo.update(userId, { daysStreak: 0, lastGambleDate: today });
@@ -147,6 +165,36 @@ export class AchievementsService implements OnModuleInit {
     const messages = await this.messageRepo.find();
     if (!messages.length) return SEED_VALIDATED_MESSAGES[0];
     return messages[Math.floor(Math.random() * messages.length)].body;
+  }
+
+  async devSetDays(userId: string, days: number): Promise<{ startDate: string; daysAchieved: number }> {
+    const today = this.today();
+    const startDate = new Date(Date.now() - days * 86_400_000).toISOString().split('T')[0];
+
+    let period = await this.periodRepo.findOne({ where: { userId, endDate: IsNull() } });
+    if (!period) {
+      const count = await this.periodRepo.count({ where: { userId } });
+      period = await this.periodRepo.save(
+        this.periodRepo.create({ userId, startDate, endDate: null, attemptNumber: count + 1 }),
+      );
+    } else {
+      await this.periodRepo.update(period.id, { startDate });
+    }
+
+    // Crear insignias que correspondan según los días
+    const existing = await this.badgeRepo.find({ where: { periodId: period.id } });
+    const earnedSet = new Set(existing.map((b) => b.milestone));
+    for (const milestone of MILESTONES) {
+      if (days >= milestone && !earnedSet.has(milestone)) {
+        await this.badgeRepo.save(
+          this.badgeRepo.create({ userId, periodId: period.id, milestone, earnedAt: today, sharedToCommunity: false }),
+        );
+      }
+    }
+
+    await this.userRepo.update(userId, { daysStreak: days });
+
+    return { startDate, daysAchieved: days };
   }
 
   // CA1: compartir insignia publica un anuncio de felicitación en el foro de la sede

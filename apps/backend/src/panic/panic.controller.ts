@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   HttpCode,
@@ -84,6 +85,15 @@ export class PanicController {
   @ApiResponse({ status: 404, description: 'Alerta no encontrada' })
   respond(@Param('id') id: string, @Headers('x-user-id') sponsorId: string) {
     return this.service.respond(id, sponsorId);
+  }
+
+  @Delete('alerts/active')
+  @HttpCode(200)
+  @ApiOperation({ summary: '[DEMO] Cancela cualquier alerta activa del usuario' })
+  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
+  @ApiResponse({ status: 200, description: '{ cancelled: boolean }' })
+  cancelActive(@Headers('x-user-id') patientId: string) {
+    return this.service.cancelActiveAlert(patientId);
   }
 
   @Post('alerts/:id/cancel')
