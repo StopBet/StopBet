@@ -18,7 +18,7 @@ import { CommunityPost } from '../community/entities/community-post.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
 
-const ESCALATION_MS = 3 * 60 * 1000; // 3 minutos
+const ESCALATION_MS = 30 * 1000; // 30 segundos (demo)
 const ACTIVE_STATUSES: PanicAlertStatus[] = ['pending', 'responded', 'escalated'];
 
 @Injectable()

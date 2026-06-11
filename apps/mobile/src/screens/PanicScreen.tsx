@@ -28,7 +28,7 @@ import { api } from '../services/api';
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const HOLD_DURATION_MS = 2000;
 const POLL_INTERVAL_MS = 5000;
-const ESCALATION_SECONDS = 180; // 3 minutos
+const ESCALATION_SECONDS = 30; // 30 segundos (demo)
 const CRISIS_LINE = '*4141';
 const AUTO_RESET_MS = 30_000; // 30 s tras respuesta/comunidad/escalada
 
