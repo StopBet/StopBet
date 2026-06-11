@@ -40,7 +40,7 @@ export class AiAssistantService {
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.llm = apiKey
-      ? new ChatGoogleGenerativeAI({ apiKey, model: 'gemini-2.0-flash', temperature: 0.75, maxOutputTokens: 350, maxRetries: 0 })
+      ? new ChatGoogleGenerativeAI({ apiKey, model: 'gemini-2.5-flash-lite', temperature: 0.75, maxOutputTokens: 350, maxRetries: 0 })
       : null;
   }
 
