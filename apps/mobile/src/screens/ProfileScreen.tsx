@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -20,10 +21,23 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 
 export function ProfileScreen({ navigation }: Props) {
   const [offline, setOffline] = useState(devFlags.simulateOffline);
+  const [daysInput, setDaysInput] = useState(
+    devFlags.overrideDays !== null ? String(devFlags.overrideDays) : '',
+  );
 
   const toggleOffline = (v: boolean) => {
     devFlags.setSimulateOffline(v);
     setOffline(v);
+  };
+
+  const applyDays = () => {
+    const n = parseInt(daysInput, 10);
+    devFlags.setOverrideDays(Number.isFinite(n) && n >= 0 ? n : null);
+  };
+
+  const clearDays = () => {
+    setDaysInput('');
+    devFlags.setOverrideDays(null);
   };
 
   return (
@@ -98,6 +112,44 @@ export function ProfileScreen({ navigation }: Props) {
             <View style={styles.devBadge}>
               <Icon name="triangle-alert" size={12} color={Colors.danger} />
               <Text style={styles.devBadgeText}>Modo sin conexión activo</Text>
+            </View>
+          )}
+
+          <View style={styles.devDivider} />
+
+          <View style={styles.devRow}>
+            <View style={styles.devText}>
+              <Text style={styles.devLabel}>Días sin apostar</Text>
+              <Text style={styles.devSub}>Sobreescribe el contador para la demo</Text>
+            </View>
+            <View style={styles.devDaysRow}>
+              <TextInput
+                style={styles.devDaysInput}
+                value={daysInput}
+                onChangeText={setDaysInput}
+                keyboardType="number-pad"
+                placeholder="—"
+                placeholderTextColor={Colors.fg2}
+                maxLength={4}
+                returnKeyType="done"
+                onSubmitEditing={applyDays}
+              />
+              <TouchableOpacity style={styles.devApplyBtn} onPress={applyDays}>
+                <Text style={styles.devApplyText}>OK</Text>
+              </TouchableOpacity>
+              {devFlags.overrideDays !== null && (
+                <TouchableOpacity style={styles.devClearBtn} onPress={clearDays}>
+                  <Icon name="x" size={14} color={Colors.fg2} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+          {devFlags.overrideDays !== null && (
+            <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+              <Icon name="check" size={12} color={Colors.sage500} />
+              <Text style={[styles.devBadgeText, { color: Colors.sage500 }]}>
+                Mostrando {devFlags.overrideDays} días
+              </Text>
             </View>
           )}
         </View>
@@ -223,4 +275,36 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   devBadgeText: { fontSize: 12, fontWeight: '700', color: Colors.danger },
+  devDivider: { height: 1, backgroundColor: Colors.border },
+  devDaysRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  devDaysInput: {
+    width: 64,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.ink900,
+    textAlign: 'center',
+    backgroundColor: Colors.bg,
+  },
+  devApplyBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 9999,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  devApplyText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
+  devClearBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

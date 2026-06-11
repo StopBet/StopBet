@@ -63,8 +63,11 @@ async function request<T>(
 
 export const api = {
   // ── Progreso del paciente ────────────────────────────────────────────
-  getProgress: (userId: string) =>
-    request<PatientProgress>(`/users/${userId}/progress`, { userId }),
+  getProgress: async (userId: string) => {
+    const data = await request<PatientProgress>(`/users/${userId}/progress`, { userId });
+    const override = devFlags.overrideDays;
+    return override !== null ? { ...data, daysStreak: override } : data;
+  },
 
   // ── Check-in emocional ───────────────────────────────────────────────
   getTodayCheckIn: (userId: string) =>
