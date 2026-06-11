@@ -40,7 +40,7 @@ export class AiAssistantService {
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.llm = apiKey
-      ? new ChatGoogleGenerativeAI({ apiKey, model: 'gemini-1.5-flash', temperature: 0.75, maxOutputTokens: 350 })
+      ? new ChatGoogleGenerativeAI({ apiKey, model: 'gemini-2.0-flash', temperature: 0.75, maxOutputTokens: 350, maxRetries: 0 })
       : null;
   }
 
@@ -256,7 +256,8 @@ export class AiAssistantService {
     try {
       const response = await this.llm.invoke(lcMessages);
       return (response.content as string).trim();
-    } catch {
+    } catch (err) {
+      console.error('[AI] generateResponse error:', (err as Error).message);
       return 'Entiendo cómo te sientes. ¿Puedes contarme un poco más sobre lo que está pasando?';
     }
   }

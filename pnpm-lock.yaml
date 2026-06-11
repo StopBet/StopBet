@@ -11,11 +11,11 @@ importers:
   apps/backend:
     dependencies:
       '@langchain/core':
-        specifier: ^0.3.0
+        specifier: 0.3.80
         version: 0.3.80(openai@5.12.2(zod@3.25.76))
       '@langchain/google-genai':
-        specifier: ^0.1.0
-        version: 0.1.12(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76)
+        specifier: 0.1.3
+        version: 0.1.3(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76)
       '@nestjs/common':
         specifier: ^10.0.0
         version: 10.4.22(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -51,7 +51,7 @@ importers:
         version: 0.14.4
       langchain:
         specifier: ^0.3.0
-        version: 0.3.37(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(@langchain/google-genai@0.1.12(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76))(handlebars@4.7.9)(openai@5.12.2(zod@3.25.76))(typeorm@0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3)))
+        version: 0.3.37(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(@langchain/google-genai@0.1.3(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76))(handlebars@4.7.9)(openai@5.12.2(zod@3.25.76))(typeorm@0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3)))
       passport:
         specifier: ^0.7.0
         version: 0.7.0
@@ -1059,8 +1059,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@google/generative-ai@0.24.1':
-    resolution: {integrity: sha512-MqO+MLfM6kjxcKoy0p1wRzG3b4ZZXtPI+z2IE26UogS2Cm/XHO+7gGRBh6gcJsOiIVoH93UwKvW4HdgiOZCy9Q==}
+  '@google/generative-ai@0.21.0':
+    resolution: {integrity: sha512-7XhUbtnlkSEZK15kN3t+tzIMxsbKm/dSkKBFalj+20NvPKe1kBY7mR2P7vuijEn+f06z5+A8bVGKO0v39cr6Wg==}
     engines: {node: '>=18.0.0'}
 
   '@hapi/hoek@9.3.0':
@@ -1177,8 +1177,8 @@ packages:
     resolution: {integrity: sha512-vcJDV2vk1AlCwSh3aBm/urQ1ZrlXFFBocv11bz/NBUfLWD5/UDNMzwPdaAd2dKvNmTWa9FM2lirLU3+JCf4cRA==}
     engines: {node: '>=18'}
 
-  '@langchain/google-genai@0.1.12':
-    resolution: {integrity: sha512-0Ea0E2g63ejCuormVxbuoyJQ5BYN53i2/fb6WP8bMKzyh+y43R13V8JqOtr3e/GmgNyv3ou/VeaZjx7KAvu/0g==}
+  '@langchain/google-genai@0.1.3':
+    resolution: {integrity: sha512-GHZV4qEMoi+rnqSM5I+ADXwUSBRSD0hsmlS1lTQEGW9HmvzPu3zryvYjuRAoelZSENTmZmBatdM+kgiV8H2+JA==}
     engines: {node: '>=18'}
     peerDependencies:
       '@langchain/core': '>=0.3.17 <0.4.0'
@@ -6203,7 +6203,7 @@ snapshots:
   '@esbuild/win32-x64@0.25.12':
     optional: true
 
-  '@google/generative-ai@0.24.1': {}
+  '@google/generative-ai@0.21.0': {}
 
   '@hapi/hoek@9.3.0': {}
 
@@ -6443,9 +6443,9 @@ snapshots:
       - '@opentelemetry/sdk-trace-base'
       - openai
 
-  '@langchain/google-genai@0.1.12(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76)':
+  '@langchain/google-genai@0.1.3(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76)':
     dependencies:
-      '@google/generative-ai': 0.24.1
+      '@google/generative-ai': 0.21.0
       '@langchain/core': 0.3.80(openai@5.12.2(zod@3.25.76))
       zod-to-json-schema: 3.25.2(zod@3.25.76)
     transitivePeerDependencies:
@@ -9247,7 +9247,7 @@ snapshots:
 
   kleur@3.0.3: {}
 
-  langchain@0.3.37(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(@langchain/google-genai@0.1.12(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76))(handlebars@4.7.9)(openai@5.12.2(zod@3.25.76))(typeorm@0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3))):
+  langchain@0.3.37(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(@langchain/google-genai@0.1.3(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76))(handlebars@4.7.9)(openai@5.12.2(zod@3.25.76))(typeorm@0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3))):
     dependencies:
       '@langchain/core': 0.3.80(openai@5.12.2(zod@3.25.76))
       '@langchain/openai': 0.6.17(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))
@@ -9262,7 +9262,7 @@ snapshots:
       yaml: 2.9.0
       zod: 3.25.76
     optionalDependencies:
-      '@langchain/google-genai': 0.1.12(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76)
+      '@langchain/google-genai': 0.1.3(@langchain/core@0.3.80(openai@5.12.2(zod@3.25.76)))(zod@3.25.76)
       handlebars: 4.7.9
       typeorm: 0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3))
     transitivePeerDependencies:
