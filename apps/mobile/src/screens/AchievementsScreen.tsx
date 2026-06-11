@@ -390,11 +390,13 @@ function CycleCard({ period }: { period: AbstinencePeriod }) {
       <Text style={styles.cycleProgress}>{period.daysAchieved} días de progreso</Text>
       {period.earnedBadges.length > 0 && (
         <View style={styles.miniBadges}>
-          {period.earnedBadges.map((b: EarnedBadge) => (
-            <View key={b.id} style={styles.miniBadge}>
-              <Icon name={BADGE_CONFIG[b.milestone]?.icon ?? 'medal'} size={14} color="#C9954A" />
-            </View>
-          ))}
+          {[...period.earnedBadges]
+            .sort((a, b) => a.milestone - b.milestone)
+            .map((b: EarnedBadge) => (
+              <View key={b.id} style={styles.miniBadge}>
+                <Icon name={BADGE_CONFIG[b.milestone]?.icon ?? 'medal'} size={14} color="#C9954A" />
+              </View>
+            ))}
         </View>
       )}
       <View style={styles.cycleNote}>
@@ -436,7 +438,7 @@ const styles = StyleSheet.create({
   loader: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
 
   scroll: { flex: 1, backgroundColor: Colors.bg },
-  scrollContent: { padding: 16, paddingBottom: 120, gap: 0 },
+  scrollContent: { padding: 16, paddingBottom: 24, gap: 0 },
 
   /* Counter card */
   counterCard: {

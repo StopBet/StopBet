@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
   loader: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
 
   scroll: { flex: 1, backgroundColor: Colors.bg },
-  scrollContent: { padding: 12, paddingBottom: 120, gap: 12 },
+  scrollContent: { padding: 12, paddingBottom: 24, gap: 12 },
 
   emptyCard: {
     backgroundColor: Colors.surface,

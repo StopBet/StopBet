@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   headerSub: { fontSize: 14, color: Colors.teal400, marginTop: 3 },
 
   scroll: { flex: 1, backgroundColor: Colors.bg },
-  scrollContent: { padding: 16, paddingBottom: 120, gap: 16 },
+  scrollContent: { padding: 16, paddingBottom: 24, gap: 16 },
 
   avatarCard: {
     backgroundColor: Colors.surface,

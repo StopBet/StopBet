@@ -31,7 +31,44 @@ export function HomeScreen({ navigation }: Props) {
   const [progress, setProgress] = useState<PatientProgress | null>(null);
   const [todayEmotion, setTodayEmotion] = useState<EmotionType | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([
+    {
+      id: 'mock-1',
+      userId: TEMP_USER_ID,
+      type: 'warning',
+      title: 'Reunión cancelada',
+      body: 'Tu sesión de las 16:00 con Dra. García fue reprogramada al jueves.',
+      read: false,
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'mock-2',
+      userId: TEMP_USER_ID,
+      type: 'info',
+      title: 'Nueva actividad grupal',
+      body: 'Mañana a las 10:00 hay taller de mindfulness. ¡Te esperamos!',
+      read: false,
+      createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'mock-3',
+      userId: TEMP_USER_ID,
+      type: 'success',
+      title: '¡Insignia desbloqueada!',
+      body: 'Completaste 45 días consecutivos. ¡Sigue así, lo estás haciendo genial!',
+      read: false,
+      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+    },
+    {
+      id: 'mock-4',
+      userId: TEMP_USER_ID,
+      type: 'danger',
+      title: 'Alerta de riesgo detectada',
+      body: 'Tu psicóloga revisó tu check-in de hoy. Tiene un mensaje para ti.',
+      read: false,
+      createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    },
+  ]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
@@ -54,7 +91,7 @@ export function HomeScreen({ navigation }: Props) {
         setTodayEmotion(checkIn.emotion);
         setCheckInDone(true);
       }
-      setNotifications(notifs);
+      if (notifs.length > 0) setNotifications(notifs);
     } catch (err) {
       // Solo loguea el error sin exponer datos del paciente
       console.error('[HomeScreen] load error', (err as Error).message);
@@ -236,7 +273,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingTop: 16,
-    paddingBottom: 120,
+    paddingBottom: 24,
     gap: 24,
   },
 });
