@@ -57,7 +57,10 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
         accessibilityRole="button"
         style={styles.panicButton}
       >
-        <Icon name="siren" size={28} color={Colors.white} />
+        <View style={styles.panicContent}>
+          <Icon name="siren" size={20} color={Colors.white} />
+          <Text style={styles.panicLabel}>SOS</Text>
+        </View>
       </TouchableOpacity>
 
       {RIGHT_TABS.map(renderTab)}
@@ -90,6 +93,17 @@ const styles = StyleSheet.create({
   tabLabelActive: {
     fontWeight: '700',
     color: Colors.primary,
+  },
+  panicContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  panicLabel: {
+    fontWeight: '900',
+    fontSize: 12,
+    color: Colors.white,
+    letterSpacing: 1.5,
   },
   panicButton: {
     width: 64,

@@ -1,8 +1,20 @@
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import {
+  Dimensions,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Notification } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { Icon, type IconName } from './Icon';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = SCREEN_WIDTH - 32; // 16px padding cada lado
 
 const TYPE_STYLES: Record<string, { bg: string; border: string; iconColor: string; titleColor: string; icon: IconName }> = {
   warning: {
@@ -51,6 +63,14 @@ interface Props {
 }
 
 export function NotificationSection({ notifications, onViewAll, onMarkRead }: Props) {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH);
+    setActiveIndex(index);
+  };
+
   return (
     <View style={styles.wrapper}>
       <View style={styles.header}>
@@ -63,7 +83,16 @@ export function NotificationSection({ notifications, onViewAll, onMarkRead }: Pr
         </TouchableOpacity>
       </View>
 
-      <View style={styles.list}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        snapToInterval={CARD_WIDTH}
+        decelerationRate="fast"
+        onMomentumScrollEnd={handleScroll}
+        contentContainerStyle={styles.scrollContent}
+      >
         {notifications.map((n) => {
           const s = TYPE_STYLES[n.type] ?? TYPE_STYLES.info;
           return (
@@ -71,7 +100,7 @@ export function NotificationSection({ notifications, onViewAll, onMarkRead }: Pr
               key={n.id}
               activeOpacity={0.85}
               onPress={() => onMarkRead(n.id)}
-              style={[styles.card, { backgroundColor: s.bg, borderColor: s.border }]}
+              style={[styles.card, { width: CARD_WIDTH, backgroundColor: s.bg, borderColor: s.border }]}
             >
               <View style={styles.iconWrap}>
                 <Icon name={s.icon} size={16} color={s.iconColor} />
@@ -86,7 +115,18 @@ export function NotificationSection({ notifications, onViewAll, onMarkRead }: Pr
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
+
+      {notifications.length > 1 && (
+        <View style={styles.dots}>
+          {notifications.map((_, i) => (
+            <View
+              key={i}
+              style={[styles.dot, i === activeIndex && styles.dotActive]}
+            />
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -116,8 +156,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.primary,
   },
-  list: {
-    gap: 10,
+  scrollContent: {
+    gap: 0,
   },
   card: {
     flexDirection: 'row',
@@ -159,5 +199,22 @@ const styles = StyleSheet.create({
     color: Colors.fg1,
     lineHeight: 18,
     marginTop: 3,
+  },
+  dots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.border,
+  },
+  dotActive: {
+    width: 18,
+    backgroundColor: Colors.primary,
+    borderRadius: 3,
   },
 });

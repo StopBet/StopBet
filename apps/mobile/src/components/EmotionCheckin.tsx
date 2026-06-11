@@ -2,14 +2,14 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { EmotionType } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
-import { Icon, type IconName } from './Icon';
+import { Icon } from './Icon';
 
-const EMOTIONS: { type: EmotionType; icon: IconName; label: string }[] = [
-  { type: 'tired',   icon: 'moon',    label: 'Cansado'  },
-  { type: 'anxious', icon: 'annoyed', label: 'Ansioso'  },
-  { type: 'angry',   icon: 'angry',   label: 'Enojado'  },
-  { type: 'lonely',  icon: 'frown',   label: 'Solo'      },
-  { type: 'good',    icon: 'smile',   label: 'Bien'      },
+const EMOTIONS: { type: EmotionType; emoji: string; label: string }[] = [
+  { type: 'tired',   emoji: '😴', label: 'Cansado' },
+  { type: 'anxious', emoji: '😟', label: 'Ansioso' },
+  { type: 'angry',   emoji: '😤', label: 'Enojado' },
+  { type: 'lonely',  emoji: '😞', label: 'Solo'    },
+  { type: 'good',    emoji: '😊', label: 'Bien'    },
 ];
 
 interface Props {
@@ -51,7 +51,7 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
                 dimmed && styles.emotionCardDimmed,
               ]}
             >
-              <Icon name={o.icon} size={26} color={isSelected ? Colors.sage500 : Colors.fg1} />
+              <Text style={styles.emoji}>{o.emoji}</Text>
               <Text style={[styles.label, isSelected && styles.labelSelected]}>
                 {o.label}
               </Text>
@@ -122,6 +122,9 @@ const styles = StyleSheet.create({
   },
   emotionCardDimmed: {
     opacity: 0.5,
+  },
+  emoji: {
+    fontSize: 26,
   },
   label: {
     fontSize: 11.5,
