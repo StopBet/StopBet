@@ -57,6 +57,11 @@ const FILTER_LABELS: Record<FilterChip, string> = {
 
 export function AlertasPage() {
   const [filter, setFilter] = useState<FilterChip>('todas')
+  const [histPage, setHistPage] = useState(0)
+  const [attnPage, setAttnPage] = useState(0)
+
+  const HIST_PAGE_SIZE = 8
+  const ATTN_PAGE_SIZE = 5
 
   const { data: alertHistory = [], isLoading } = useQuery({
     queryKey: ['alerts', 'history'],
@@ -86,6 +91,12 @@ export function AlertasPage() {
   const rows = filter === 'todas' ? allRows : allRows.filter(a => a.status === filter)
   const unresolved = allRows.filter(a => a.status === 'sin-resolver')
   const resolvedIA  = allRows.filter(a => a.status === 'resuelto-ia')
+
+  const histTotalPages = Math.max(1, Math.ceil(rows.length / HIST_PAGE_SIZE))
+  const pagedRows = rows.slice(histPage * HIST_PAGE_SIZE, (histPage + 1) * HIST_PAGE_SIZE)
+
+  const attnTotalPages = Math.max(1, Math.ceil(unresolved.length / ATTN_PAGE_SIZE))
+  const pagedUnresolved = unresolved.slice(attnPage * ATTN_PAGE_SIZE, (attnPage + 1) * ATTN_PAGE_SIZE)
 
   const Head = ({ label }: { label: string }) => (
     <th style={{ textAlign: 'left', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 14px 12px' }}>{label}</th>
@@ -120,7 +131,7 @@ export function AlertasPage() {
               {(Object.keys(FILTER_LABELS) as FilterChip[]).map(f => {
                 const active = filter === f
                 return (
-                  <button key={f} onClick={() => setFilter(f)} style={{
+                  <button key={f} onClick={() => { setFilter(f); setHistPage(0) }} style={{
                     background: active ? 'var(--primary)' : 'var(--bg)', color: active ? '#fff' : 'var(--fg2)',
                     border: `1.5px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
                     borderRadius: 9999, padding: '6px 14px', fontSize: 12.5, fontWeight: active ? 700 : 500,
@@ -148,7 +159,7 @@ export function AlertasPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(a => (
+                {pagedRows.map(a => (
                   <tr key={a.id}
                     style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--teal-50)')}
@@ -179,8 +190,29 @@ export function AlertasPage() {
             </table>
           )}
 
-          <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--fg2)' }}>
-            Mostrando {rows.length} de {allRows.length} alertas
+          <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 13, color: 'var(--fg2)' }}>
+              Mostrando {histPage * HIST_PAGE_SIZE + 1}–{Math.min((histPage + 1) * HIST_PAGE_SIZE, rows.length)} de {rows.length} alertas
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                onClick={() => setHistPage(p => p - 1)}
+                disabled={histPage === 0}
+                style={{ width: 32, height: 32, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: histPage === 0 ? 'var(--border)' : 'var(--fg1)', cursor: histPage === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <WIcon name="chevron-left" size={16} />
+              </button>
+              <span style={{ fontSize: 13, color: 'var(--fg2)', minWidth: 60, textAlign: 'center' }}>
+                {histPage + 1} / {histTotalPages}
+              </span>
+              <button
+                onClick={() => setHistPage(p => p + 1)}
+                disabled={histPage >= histTotalPages - 1}
+                style={{ width: 32, height: 32, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: histPage >= histTotalPages - 1 ? 'var(--border)' : 'var(--fg1)', cursor: histPage >= histTotalPages - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <WIcon name="chevron-right" size={16} />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -194,7 +226,7 @@ export function AlertasPage() {
                 <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 16, color: 'var(--danger)' }}>Requieren atención</h2>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {unresolved.map(a => (
+                {pagedUnresolved.map(a => (
                   <div key={a.id} style={{ background: 'var(--red-50)', borderRadius: 12, padding: '13px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: '#fff', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
@@ -209,6 +241,27 @@ export function AlertasPage() {
                   </div>
                 ))}
               </div>
+              {attnTotalPages > 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                  <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{attnPage + 1} / {attnTotalPages}</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      onClick={() => setAttnPage(p => p - 1)}
+                      disabled={attnPage === 0}
+                      style={{ width: 30, height: 30, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: attnPage === 0 ? 'var(--border)' : 'var(--danger)', cursor: attnPage === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <WIcon name="chevron-left" size={14} />
+                    </button>
+                    <button
+                      onClick={() => setAttnPage(p => p + 1)}
+                      disabled={attnPage >= attnTotalPages - 1}
+                      style={{ width: 30, height: 30, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: attnPage >= attnTotalPages - 1 ? 'var(--border)' : 'var(--danger)', cursor: attnPage >= attnTotalPages - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <WIcon name="chevron-right" size={14} />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

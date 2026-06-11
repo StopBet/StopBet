@@ -173,14 +173,14 @@ export class CommunityController {
   // ── Moderación (psicólogo, desde el dashboard) ───────────────────────────
 
   @Get('moderation/flagged')
-  @ApiOperation({ summary: 'Lista publicaciones con 5+ reportes para moderación (psicólogo)' })
+  @ApiOperation({ summary: 'Lista publicaciones con 1+ reporte para moderación (psicólogo)' })
   @ApiHeader({ name: 'x-user-id', description: 'UUID del psicólogo' })
   @ApiQuery({ name: 'sede', description: 'Sede (Santiago | Viña del Mar | Concepción)' })
   @ApiResponse({ status: 200, description: 'CommunityPost[] reportadas' })
   @ApiResponse({ status: 403, description: 'Solo un psicólogo puede moderar' })
   findFlagged(
     @Headers('x-user-id') userId: string,
-    @Query('sede') sede: string,
+    @Query('sede') sede?: string,
   ) {
     return this.service.findFlaggedPosts(sede, userId);
   }

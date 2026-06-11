@@ -59,9 +59,10 @@ export class AiAssistantService {
       order: { createdAt: 'DESC' },
     });
 
-    const hasMeaningfulSummary = lastSummary && (lastSummary.mood || lastSummary.trigger || lastSummary.techniqueUsed);
+    const aiVal = (v: string | null | undefined) => (!v || v.toLowerCase() === 'null' || v.trim() === '') ? null : v.trim();
+    const hasMeaningfulSummary = lastSummary && (aiVal(lastSummary.mood) || aiVal(lastSummary.trigger) || aiVal(lastSummary.techniqueUsed));
     const previousContext = hasMeaningfulSummary
-      ? `Última sesión: estado "${lastSummary.mood ?? 'no registrado'}", técnica "${lastSummary.techniqueUsed ?? 'ninguna'}", detonante "${lastSummary.trigger ?? 'no identificado'}".`
+      ? `Última sesión: estado "${aiVal(lastSummary.mood) ?? 'no registrado'}", técnica "${aiVal(lastSummary.techniqueUsed) ?? 'ninguna'}", detonante "${aiVal(lastSummary.trigger) ?? 'no identificado'}".`
       : null;
 
     const session = await this.sessionRepo.save(

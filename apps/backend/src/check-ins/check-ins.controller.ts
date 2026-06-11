@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Post } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CheckInsService } from './check-ins.service';
 import { CreateCheckInDto } from './dto/create-check-in.dto';
@@ -14,6 +14,15 @@ export class CheckInsController {
   @ApiResponse({ status: 200, description: 'CheckIn | null' })
   getToday(@Headers('x-user-id') userId: string) {
     return this.checkInsService.getToday(userId);
+  }
+
+  @Delete('today')
+  @HttpCode(200)
+  @ApiOperation({ summary: '[DEMO] Borra el check-in de hoy para volver a registrarlo' })
+  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario autenticado' })
+  @ApiResponse({ status: 200, description: '{ deleted: boolean }' })
+  deleteToday(@Headers('x-user-id') userId: string) {
+    return this.checkInsService.deleteToday(userId);
   }
 
   @Post()

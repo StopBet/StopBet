@@ -1,6 +1,9 @@
 import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
 import { PSICOLOGOS, PADRINOS, REJECT_REASONS, type RegistrationRequest } from '../data/mockData'
+import { api } from '../services/api'
+import type { FlaggedPost } from '../services/api'
 
 /* ── Approve Modal ───────────────────────────────────── */
 function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; onClose: () => void; onConfirm: () => void }) {
@@ -26,7 +29,6 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
             </button>
           </div>
 
-          {/* Patient card */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 13, background: 'var(--teal-50)', borderRadius: 12, padding: '13px 16px', marginBottom: 22 }}>
             <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>{req.initials}</div>
             <div>
@@ -135,14 +137,176 @@ function RejectModal({ req, onClose, onConfirm }: { req: RegistrationRequest; on
   )
 }
 
+/* ── Delete Post Confirm Modal ───────────────────────── */
+function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedPost; onClose: () => void; onConfirm: () => void; loading: boolean }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(30,45,44,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 460, maxWidth: '95vw', animation: 'sb-modal-in 0.28s cubic-bezier(0.34,1.56,0.64,1)', zIndex: 1, padding: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
+          <div>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger)' }}>Eliminar publicación</h2>
+            <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>Esta acción es permanente y no se puede deshacer.</p>
+          </div>
+          <button onClick={onClose} style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <WIcon name="x" size={16} />
+          </button>
+        </div>
+
+        <div style={{ background: 'var(--red-50)', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--danger)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>{post.authorInitials}</div>
+            <div>
+              <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13.5, color: 'var(--fg1)' }}>{post.authorName ?? 'Usuario'}</span>
+              <span style={{ fontSize: 12, color: 'var(--fg2)', marginLeft: 8 }}>Sede {post.sede}</span>
+            </div>
+          </div>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--fg1)', lineHeight: 1.5, fontStyle: 'italic' }}>
+            "{(post.body ?? '').length > 160 ? (post.body ?? '').slice(0, 160) + '…' : (post.body ?? '')}"
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} disabled={loading} style={{ height: 44, padding: '0 20px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
+            Cancelar
+          </button>
+          <button onClick={onConfirm} disabled={loading} style={{ height: 44, padding: '0 24px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.7 : 1 }}>
+            <WIcon name="trash-2" size={15} color="#fff" /> {loading ? 'Eliminando…' : 'Eliminar publicación'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Flagged Posts Section ───────────────────────────── */
+function FlaggedPostsSection({ psychId }: { psychId: string }) {
+  const qc = useQueryClient()
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+  const [deleteTarget, setDeleteTarget] = useState<FlaggedPost | null>(null)
+
+  const { data: flagged = [], isLoading } = useQuery({
+    queryKey: ['flagged-posts'],
+    queryFn: () => api.getFlaggedPosts(psychId),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (postId: string) => api.deletePost(postId, psychId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['flagged-posts'] })
+      setDeleteTarget(null)
+    },
+  })
+
+  const visible = flagged.filter(p => !dismissed.has(p.id))
+
+  function relTime(iso: string) {
+    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
+    if (mins < 60) return `hace ${mins} min`
+    const h = Math.floor(mins / 60)
+    if (h < 48) return `hace ${h}h`
+    return `hace ${Math.floor(h / 24)} días`
+  }
+
+  return (
+    <>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--danger)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginTop: 24 }}>
+        <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <WIcon name="flag" size={18} color="var(--danger)" />
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Posts reportados</h2>
+          </div>
+          <span style={{ background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 9999, padding: '4px 14px', fontSize: 13, fontWeight: 700 }}>
+            {visible.length} pendiente{visible.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {isLoading ? (
+          <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Cargando posts reportados…</div>
+        ) : visible.length === 0 ? (
+          <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--fg2)' }}>
+            <WIcon name="circle-check" size={38} color="var(--sage-500)" />
+            <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 16, color: 'var(--fg1)' }}>Sin posts reportados</div>
+            <div style={{ marginTop: 4, fontSize: 13 }}>La comunidad está en orden.</div>
+          </div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col /><col style={{ width: 100 }} /><col style={{ width: 80 }} />
+              <col style={{ width: 130 }} /><col style={{ width: 220 }} />
+            </colgroup>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                {['Autor / Contenido', 'Sede', 'Reportes', 'Fecha', 'Acciones'].map(l => (
+                  <th key={l} style={{ textAlign: 'left', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 14px 12px' }}>{l}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map(p => (
+                <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', verticalAlign: 'top' }}>
+                  <td style={{ padding: '14px 14px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--red-50)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{p.authorInitials}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)' }}>{p.authorName ?? 'Usuario'}</div>
+                        <div style={{ fontSize: 12.5, color: 'var(--fg2)', marginTop: 3, lineHeight: 1.5 }}>
+                          {p.body ?? '—'}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
+                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                  </td>
+                  <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 }}>
+                      <WIcon name="flag" size={12} /> {p.reportCount}
+                    </span>
+                  </td>
+                  <td style={{ padding: '14px 14px', fontSize: 12.5, color: 'var(--fg2)', verticalAlign: 'middle' }}>
+                    {relTime(p.createdAt)}
+                  </td>
+                  <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => setDeleteTarget(p)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <WIcon name="trash-2" size={13} color="#fff" /> Eliminar
+                      </button>
+                      <button onClick={() => setDismissed(prev => new Set([...prev, p.id]))}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        Ignorar
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {deleteTarget && (
+        <DeletePostModal
+          post={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
+          loading={deleteMutation.isPending}
+        />
+      )}
+    </>
+  )
+}
+
 /* ── Solicitudes Page ────────────────────────────────── */
 interface SolicitudesPageProps {
   requests: RegistrationRequest[]
+  psychId: string
   onApprove: (id: string) => void
   onReject: (id: string) => void
 }
 
-export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPageProps) {
+export function SolicitudesPage({ requests, psychId, onApprove, onReject }: SolicitudesPageProps) {
   const [approveReq, setApproveReq] = useState<RegistrationRequest | null>(null)
   const [rejectReq, setRejectReq]   = useState<RegistrationRequest | null>(null)
 
@@ -151,7 +315,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
   )
 
   return (
-    <div style={{ padding: 32, maxWidth: 1100, minWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: 32, maxWidth: 1440, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* Intro banner */}
       <div style={{ background: 'var(--amber-50)', border: '1px solid var(--accent)', borderRadius: 16, padding: '18px 22px', marginBottom: 24, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
         <WIcon name="inbox" size={22} color="var(--accent)" />
@@ -165,6 +329,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
         </div>
       </div>
 
+      {/* Solicitudes de ingreso */}
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Solicitudes de ingreso</h2>
@@ -181,7 +346,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 120 }} /><col style={{ width: 150 }} /><col style={{ width: 100 }} /><col style={{ width: 220 }} /></colgroup>
+            <colgroup><col /><col style={{ width: 110 }} /><col style={{ width: 155 }} /><col style={{ width: 85 }} /><col style={{ width: 260 }} /></colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <Head label="Solicitante" /><Head label="Sede" /><Head label="Fecha solicitud" /><Head label="Arancel" /><Head label="Acciones" />
@@ -225,6 +390,9 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
           </table>
         )}
       </div>
+
+      {/* Posts reportados */}
+      <FlaggedPostsSection psychId={psychId} />
 
       {approveReq && (
         <ApproveModal

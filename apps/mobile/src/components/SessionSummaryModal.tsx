@@ -19,6 +19,11 @@ interface SummaryChip {
   valueColor?: string;
 }
 
+function aiVal(v: string | null | undefined, fallback: string): string {
+  if (!v || v.toLowerCase() === 'null' || v.trim() === '') return fallback;
+  return v.trim();
+}
+
 function buildChips(summary: AiSessionSummary, durationMinutes: number): SummaryChip[] {
   return [
     {
@@ -26,14 +31,14 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number): Summary
       icon: 'chart-column',
       iconColor: Colors.primary,
       label: 'Estado anímico',
-      value: summary.mood ?? 'No registrado',
+      value: aiVal(summary.mood, 'No registrado'),
     },
     {
       bg: Colors.sage50,
       icon: 'leaf',
       iconColor: Colors.sage500,
       label: 'Hoy fue intenso',
-      value: summary.progressNote ?? 'Estás avanzando',
+      value: aiVal(summary.progressNote, 'Estás avanzando'),
       valueColor: Colors.sage500,
     },
     {
@@ -41,14 +46,14 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number): Summary
       icon: 'wind',
       iconColor: Colors.primary,
       label: 'Técnica usada',
-      value: summary.techniqueUsed ?? 'Ninguna',
+      value: aiVal(summary.techniqueUsed, 'Ninguna'),
     },
     {
       bg: Colors.sage50,
       icon: 'moon',
       iconColor: Colors.sage500,
       label: 'Detonante',
-      value: summary.trigger ?? 'No identificado',
+      value: aiVal(summary.trigger, 'Sin detonante'),
     },
   ];
 }

@@ -486,6 +486,87 @@ for i, s in enumerate(sessions):
 print(f"  ✓ {len(sessions)} sesiones AI con summaries")
 
 
+# ── 11. Evolución anímica ────────────────────────────────────────────────────
+
+print("\n→ Actualizando días de abstinencia y check-ins para evolución anímica...")
+
+# Días random para cada paciente (UPDATE el período abierto existente)
+target_days = {
+    PATIENT_2_ID: 27,   # Roberto
+    PATIENT_3_ID: 52,   # Lucía
+    PATIENT_4_ID: 18,   # Jorge
+    PATIENT_5_ID: 35,   # Camila
+}
+
+for patient_id, n in target_days.items():
+    cur.execute("""
+        UPDATE abstinence_periods
+        SET "startDate" = %s
+        WHERE "userId" = %s AND "endDate" IS NULL
+    """, (days_ago(n), patient_id))
+    if cur.rowcount == 0:
+        # Sin período abierto → crear uno
+        cur.execute("""
+            INSERT INTO abstinence_periods
+                (id, "userId", "startDate", "endDate", "attemptNumber", "createdAt")
+            VALUES (%s, %s, %s, NULL, 1, NOW())
+            ON CONFLICT DO NOTHING
+        """, (uid(), patient_id, days_ago(n)))
+
+# Patrones de emociones (28 días, índice 0 = más antiguo, -1 = hoy)
+# Roberto: empieza mal, mejora progresivamente
+PATTERN_ROBERTO = [
+    "anxious","angry","lonely","anxious","tired","anxious","tired",
+    "tired","good","tired","tired","good","tired","good",
+    "good","tired","good","good","tired","good","good",
+    "good","good","good","good","tired","good","good",
+]
+# Lucía: estable, consistentemente positiva
+PATTERN_LUCIA = [
+    "good","good","tired","good","good","good","good",
+    "tired","good","good","good","good","tired","good",
+    "good","good","good","good","tired","good","good",
+    "good","good","good","good","good","tired","good",
+]
+# Jorge: muchos bajos al inicio, mejora en las últimas semanas
+PATTERN_JORGE = [
+    "angry","angry","anxious","lonely","anxious","angry","anxious",
+    "lonely","anxious","anxious","tired","tired","anxious","tired",
+    "good","tired","good","tired","good","good","tired",
+    "good","good","good","good","tired","good","good",
+]
+# Camila: generalmente positiva, con algunos bajones puntuales
+PATTERN_CAMILA = [
+    "tired","good","good","good","anxious","good","good",
+    "tired","good","good","good","good","good","tired",
+    "good","good","good","anxious","good","good","good",
+    "good","tired","good","good","good","good","good",
+]
+
+patterns = {
+    PATIENT_2_ID: PATTERN_ROBERTO,
+    PATIENT_3_ID: PATTERN_LUCIA,
+    PATIENT_4_ID: PATTERN_JORGE,
+    PATIENT_5_ID: PATTERN_CAMILA,
+}
+
+mood_checkins = []
+for patient_id, pattern in patterns.items():
+    length = len(pattern)
+    for i, emotion in enumerate(pattern):
+        days_back = length - 1 - i   # i=0 → más antiguo
+        mood_checkins.append((uid(), patient_id, days_ago(days_back), emotion))
+
+for c in mood_checkins:
+    cur.execute("""
+        INSERT INTO check_ins (id, "userId", date, emotion, "createdAt")
+        VALUES (%s, %s, %s, %s, NOW())
+        ON CONFLICT ("userId", date) DO NOTHING
+    """, c)
+
+print(f"  ✓ días actualizados, {len(mood_checkins)} check-ins insertados")
+
+
 # ── Commit ────────────────────────────────────────────────────────────────────
 
 conn.commit()

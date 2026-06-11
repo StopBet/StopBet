@@ -14,6 +14,32 @@ const EMOTION_EMOJI: Record<string, string> = {
   tired: '😴', anxious: '😰', angry: '😡', lonely: '😔', good: '😊',
 }
 
+const EMOTION_MOOD: Record<string, number> = {
+  good: 5, tired: 3, anxious: 2, lonely: 2, angry: 1,
+}
+
+function buildEvolution(recentCheckIns: { emotion: string; date: string }[]) {
+  if (!recentCheckIns.length) return []
+  // recentCheckIns viene DESC (más reciente primero) → invertir
+  const sorted = [...recentCheckIns].reverse()
+  // Agrupar por semana (lunes de la semana)
+  const weekMap = new Map<string, number[]>()
+  for (const c of sorted) {
+    const d = new Date(c.date)
+    const monday = new Date(d)
+    monday.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+    const key = monday.toISOString().slice(0, 10)
+    if (!weekMap.has(key)) weekMap.set(key, [])
+    weekMap.get(key)!.push(EMOTION_MOOD[c.emotion] ?? 3)
+  }
+  return Array.from(weekMap.entries()).map(([weekStart, moods]) => {
+    const avg = moods.reduce((a, b) => a + b, 0) / moods.length
+    const d = new Date(weekStart)
+    const label = d.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })
+    return { label, mood: Math.round(avg * 10) / 10 }
+  })
+}
+
 function relTime(isoString: string): string {
   const diffMs = Date.now() - new Date(isoString).getTime()
   const mins = Math.floor(diffMs / 60_000)
@@ -55,7 +81,7 @@ function toPatient(
     panicTotal: patientAlerts.length,
     moodAvg: '—',
     lastCheck: p.lastCheckIn ? relTime(p.lastCheckIn.date) : 'Sin datos',
-    evolution: [],
+    evolution: buildEvolution(p.recentCheckIns),
     alerts: patientAlerts.map(a => ({
       time: new Date(a.createdAt).toLocaleString('es-CL', {
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
@@ -420,7 +446,7 @@ function PanicPanel({ todayAlerts, onOpenPatient }: { todayAlerts: TodayAlert[];
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {todayAlerts.length === 0 ? (
           <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Sin alertas hoy</div>
-        ) : todayAlerts.map((a, i) => (
+        ) : todayAlerts.slice(0, 3).map((a, i) => (
           <div key={i} style={{ background: 'var(--red-50)', borderRadius: 12, borderLeft: '3px solid var(--danger)', padding: '12px 14px' }}>
             <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)' }}>{a.name}</div>
             <div style={{ fontSize: 12, color: 'var(--fg2)', marginTop: 2 }}>{a.rel} · {a.time}</div>

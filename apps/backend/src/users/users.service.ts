@@ -30,6 +30,7 @@ export interface PatientListItem {
   accountStatus: string;
   onboardingStatus: string | null;
   lastCheckIn: { emotion: string; date: string } | null;
+  recentCheckIns: { emotion: string; date: string }[];
   createdAt: string;
 }
 
@@ -59,9 +60,10 @@ export class UsersService {
 
     const result: PatientListItem[] = [];
     for (const p of patients) {
-      const [lastCheckIn, currentPeriod] = await Promise.all([
+      const [lastCheckIn, currentPeriod, recentCheckIns] = await Promise.all([
         this.checkInRepo.findOne({ where: { userId: p.id }, order: { date: 'DESC' } }),
         this.periodRepo.findOne({ where: { userId: p.id, endDate: IsNull() } }),
+        this.checkInRepo.find({ where: { userId: p.id }, order: { date: 'DESC' }, take: 28 }),
       ]);
       const daysStreak = currentPeriod
         ? daysBetween(currentPeriod.startDate, today())
@@ -78,6 +80,7 @@ export class UsersService {
         lastCheckIn: lastCheckIn
           ? { emotion: lastCheckIn.emotion, date: String(lastCheckIn.date) }
           : null,
+        recentCheckIns: recentCheckIns.map(c => ({ emotion: c.emotion, date: String(c.date) })),
         createdAt: p.createdAt.toISOString(),
       });
     }

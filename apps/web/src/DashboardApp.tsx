@@ -122,7 +122,7 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
         <main style={{ flex: 1, overflowY: 'auto' }}>
           {nav === 'overview'  && <OverviewPage onNav={handleNav} reqCount={requests.length} />}
           {nav === 'alerts'    && <AlertasPage />}
-          {nav === 'requests'  && <SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} />}
+          {nav === 'requests'  && <SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} psychId={psychId} />}
           {nav === 'finanzas'  && <FinanzasPage />}
           {nav === 'settings'  && <ConfiguracionPage />}
           {(nav === 'patients' || nav === 'reports') && <PlaceholderPage title={PAGE_TITLES[nav]} />}

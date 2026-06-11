@@ -16,8 +16,8 @@ import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 
-// CA3: a partir de 5 reportes una publicación entra a la cola de moderación
-const REPORT_THRESHOLD = 5;
+// CA3: a partir de 1 reporte una publicación entra a la cola de moderación (demo)
+const REPORT_THRESHOLD = 1;
 
 @Injectable()
 export class CommunityService {
@@ -191,11 +191,13 @@ export class CommunityService {
     return { reported: true };
   }
 
-  // CA3: cola de moderación — publicaciones con 5+ reportes para revisión del psicólogo
-  async findFlaggedPosts(sede: string, requesterId: string) {
+  // CA3: cola de moderación — publicaciones con reportes para revisión del psicólogo
+  async findFlaggedPosts(sede: string | undefined, requesterId: string) {
     await this.assertPsychologist(requesterId);
+    const where: Record<string, unknown> = { reportCount: MoreThanOrEqual(REPORT_THRESHOLD) };
+    if (sede) where['sede'] = sede;
     const posts = await this.postRepo.find({
-      where: { sede, reportCount: MoreThanOrEqual(REPORT_THRESHOLD) },
+      where,
       relations: ['author'],
       order: { reportCount: 'DESC' },
     });

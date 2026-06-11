@@ -1,13 +1,26 @@
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-async function get<T>(path: string, fallback: T): Promise<T> {
+async function get<T>(path: string, fallback: T, headers?: Record<string, string>): Promise<T> {
   try {
-    const res = await fetch(`${BASE}${path}`)
+    const res = await fetch(`${BASE}${path}`, {
+      headers: headers ? { 'Content-Type': 'application/json', ...headers } : undefined,
+    })
     if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
     return res.json() as Promise<T>
   } catch {
     return fallback
   }
+}
+
+async function del<T>(path: string, headers?: Record<string, string>): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...headers },
+  })
+  if (!res.ok) throw new Error(`DELETE ${path} → ${res.status}`)
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 async function patch<T>(path: string, headers?: Record<string, string>): Promise<T> {
@@ -54,6 +67,7 @@ export interface PatientListItem {
   accountStatus: string
   onboardingStatus: string | null
   lastCheckIn: { emotion: string; date: string } | null
+  recentCheckIns: { emotion: string; date: string }[]
   createdAt: string
 }
 
@@ -88,6 +102,19 @@ export interface Sede {
   isActive: boolean
 }
 
+export interface FlaggedPost {
+  id: string
+  authorId: string
+  authorName: string | null
+  authorInitials: string
+  type: string
+  sede: string
+  body: string | null
+  reportCount: number
+  replyCount: number
+  createdAt: string
+}
+
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -107,4 +134,10 @@ export const api = {
 
   reportRelapse: (patientId: string) =>
     post<void>('/achievements/relapse', { 'x-user-id': patientId }),
+
+  getFlaggedPosts: (psychId: string) =>
+    get<FlaggedPost[]>('/community/moderation/flagged', [], { 'x-user-id': psychId }),
+
+  deletePost: (postId: string, psychId: string) =>
+    del<{ deleted: boolean }>(`/community/posts/${postId}`, { 'x-user-id': psychId }),
 }

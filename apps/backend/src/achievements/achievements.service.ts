@@ -97,15 +97,17 @@ export class AchievementsService implements OnModuleInit {
     const historicalPeriods = await this.periodRepo.find({
       where: { userId, endDate: Not(IsNull()) },
       relations: ['earnedBadges'],
-      order: { attemptNumber: 'DESC' },
+      order: { endDate: 'DESC', startDate: 'DESC' },
     });
 
     return {
       currentPeriod: this.mapPeriod(currentPeriod, daysAchieved),
-      historicalPeriods: historicalPeriods.map((p) => {
-        const days = this.daysBetween(p.startDate, p.endDate!);
-        return this.mapPeriod(p, days);
-      }),
+      historicalPeriods: historicalPeriods
+        .map((p) => {
+          const days = this.daysBetween(p.startDate, p.endDate!);
+          return this.mapPeriod(p, days);
+        })
+        .filter((p) => p.daysAchieved > 0),
       newestMilestone,
     };
   }
@@ -120,23 +122,24 @@ export class AchievementsService implements OnModuleInit {
     });
 
     if (currentPeriod) {
-      if (devStartDate) {
-        const daysAchieved = this.daysBetween(devStartDate, today);
-        const existing = await this.badgeRepo.find({ where: { periodId: currentPeriod.id } });
-        const earnedSet = new Set(existing.map((b) => b.milestone));
-        for (const milestone of MILESTONES) {
-          if (daysAchieved >= milestone && !earnedSet.has(milestone)) {
-            await this.badgeRepo.save(
-              this.badgeRepo.create({
-                userId,
-                periodId: currentPeriod.id,
-                milestone,
-                earnedAt: today,
-                sharedToCommunity: false,
-              }),
-            );
-          }
+      const effectiveStart = devStartDate ?? currentPeriod.startDate;
+      const daysAchieved = this.daysBetween(effectiveStart, today);
+      const existing = await this.badgeRepo.find({ where: { periodId: currentPeriod.id } });
+      const earnedSet = new Set(existing.map((b) => b.milestone));
+      for (const milestone of MILESTONES) {
+        if (daysAchieved >= milestone && !earnedSet.has(milestone)) {
+          await this.badgeRepo.save(
+            this.badgeRepo.create({
+              userId,
+              periodId: currentPeriod.id,
+              milestone,
+              earnedAt: today,
+              sharedToCommunity: false,
+            }),
+          );
         }
+      }
+      if (devStartDate) {
         await this.periodRepo.update(currentPeriod.id, { startDate: devStartDate });
       }
       await this.periodRepo.update(currentPeriod.id, { endDate: today });

@@ -20,6 +20,7 @@ import type {
   EarnedBadge,
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
+import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
 import { BottomNav, NavTab } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
@@ -306,8 +307,8 @@ export function AchievementsScreen({ navigation }: Props) {
           {data.historicalPeriods.length > 0 && (
             <>
               <Text style={styles.sectionTitle}>Ciclos históricos</Text>
-              {data.historicalPeriods.map((period) => (
-                <CycleCard key={period.id} period={period} />
+              {data.historicalPeriods.map((period, i, arr) => (
+                <CycleCard key={period.id} period={period} attemptLabel={arr.length - i} />
               ))}
             </>
           )}
@@ -361,61 +362,25 @@ export function AchievementsScreen({ navigation }: Props) {
         </View>
       </Modal>
 
-      {/* ── Modal: Compartir insignia ── */}
-      <Modal
-        visible={shareMilestone !== null}
-        transparent
-        animationType="none"
-        statusBarTranslucent
-        onRequestClose={() => setShareMilestone(null)}
-      >
-        <View style={styles.overlay}>
-          <View style={styles.modal}>
-            {shareMilestone && (
-              <>
-                <Text style={styles.shareHead}>¡Nueva insignia desbloqueada!</Text>
-                <Text style={styles.shareSub}>
-                  Compártela con quienes te acompañan en tu sede.
-                </Text>
-                <View style={styles.sharePreview}>
-                  <View style={styles.shareDisc}>
-                    <Icon name={BADGE_CONFIG[shareMilestone].icon} size={36} color="#C9954A" />
-                  </View>
-                  <Text style={styles.shareBig}>{shareMilestone} días</Text>
-                  <Text style={styles.shareUnit}>
-                    sin apostar · {BADGE_CONFIG[shareMilestone].label}
-                  </Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14 }}>
-                    <Icon name="heart" size={12} color="rgba(255,255,255,0.7)" />
-                    <Text style={styles.shareBy}>StopBet · AJUTER</Text>
-                  </View>
-                </View>
-                <TouchableOpacity style={styles.btnPrimary} onPress={handleShare} activeOpacity={0.85}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <Icon name="users" size={18} color={Colors.white} />
-                    <Text style={styles.btnPrimaryText}>Compartir con la comunidad</Text>
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShareMilestone(null)} style={styles.btnLink}>
-                  <Text style={styles.btnLinkText}>Ahora no</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+      {/* ── Modal: Compartir insignia (con animación) ── */}
+      <BadgeUnlockModal
+        milestone={shareMilestone}
+        badgeDef={shareMilestone ? BADGE_CONFIG[shareMilestone] : null}
+        onShare={handleShare}
+        onClose={() => setShareMilestone(null)}
+      />
     </SafeAreaView>
   );
 }
 
 /* ── CycleCard ─────────────────────────────────────────────────────────── */
 
-function CycleCard({ period }: { period: AbstinencePeriod }) {
+function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attemptLabel: number }) {
   return (
     <View style={styles.cycleCard}>
       <View style={styles.cycleTop}>
         <View style={styles.cycleChip}>
-          <Text style={styles.cycleChipText}>Intento {period.attemptNumber}</Text>
+          <Text style={styles.cycleChipText}>Intento {attemptLabel}</Text>
         </View>
         <Text style={styles.cycleDates}>
           {formatDateShort(period.startDate)}
@@ -692,49 +657,6 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     marginHorizontal: 8,
   },
-
-  /* Share modal */
-  shareHead: {
-    fontWeight: '700',
-    fontSize: 20,
-    color: Colors.ink900,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  shareSub: {
-    fontSize: 13,
-    color: Colors.fg2,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  sharePreview: {
-    width: '100%',
-    backgroundColor: Colors.accent,
-    borderRadius: 20,
-    padding: 26,
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  shareDisc: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: '#FDF8E1',
-    borderWidth: 2,
-    borderColor: '#C9954A',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-  },
-  shareBig: {
-    fontWeight: '800',
-    fontSize: 34,
-    color: Colors.white,
-    lineHeight: 40,
-  },
-  shareUnit: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 4 },
-  shareBy: { fontSize: 12, color: 'rgba(255,255,255,0.7)' },
 
   /* Buttons */
   btnPrimary: {
