@@ -94,20 +94,16 @@ export class PanicService {
     });
     if (existing) return this.serializeAlert(existing);
 
+    // Cerrar alertas responded/escalated previas antes de crear una nueva
+    await this.alertRepo.update(
+      { patientId, status: In(['responded', 'escalated'] as PanicAlertStatus[]) },
+      { status: 'cancelled', cancelledAt: new Date() },
+    );
+
     const assignment = await this.assignmentRepo.findOne({
       where: { patientId, isActive: true },
     });
     if (!assignment) throw new NotFoundException('No tienes padrino asignado');
-
-    // Verificar que no haya otra alerta activa reciente (no pending pero sí responded)
-    const recentActive = await this.alertRepo.findOne({
-      where: { patientId, status: In(ACTIVE_STATUSES) },
-      order: { createdAt: 'DESC' },
-    });
-    if (recentActive && recentActive.status !== 'pending') {
-      // Ya existe alerta activa → devolver la existente
-      return this.serializeAlert(recentActive);
-    }
 
     const alert = await this.alertRepo.save(
       this.alertRepo.create({
@@ -181,7 +177,7 @@ export class PanicService {
 
   async cancel(alertId: string, patientId: string): Promise<PanicAlertDto> {
     const alert = await this.alertRepo.findOne({
-      where: { id: alertId, patientId, status: 'pending' },
+      where: { id: alertId, patientId, status: In(ACTIVE_STATUSES) },
     });
     if (!alert) throw new NotFoundException('Alerta no encontrada o ya cerrada');
 
