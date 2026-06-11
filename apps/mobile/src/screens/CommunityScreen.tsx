@@ -23,7 +23,7 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { BottomNav } from '../components/BottomNav';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
@@ -32,6 +32,12 @@ const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_SEDE = 'Santiago';
 
 const REACTION_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];
+
+const REACTION_ICON_MAP: Record<ReactionEmoji, IconName> = {
+  '💪': 'hand-heart',
+  '❤️': 'heart',
+  '🤗': 'smile',
+};
 
 const ROLE_LABEL: Record<UserRole, string> = {
   patient: 'Paciente',
@@ -350,7 +356,7 @@ export function CommunityScreen({ navigation, route }: Props) {
 
 // ── Subcomponentes ─────────────────────────────────────────────────────────
 
-function EmptyState({ iconName, title, text }: { iconName: string; title: string; text: string }) {
+function EmptyState({ iconName, title, text }: { iconName: IconName; title: string; text: string }) {
   return (
     <View style={styles.emptyCard}>
       <Icon name={iconName} size={44} color={Colors.fg2} />
@@ -476,7 +482,7 @@ function PostCard({
               disabled={disabled}
               activeOpacity={0.7}
             >
-              <Text style={styles.reactEmoji}>{emoji}</Text>
+              <Icon name={REACTION_ICON_MAP[emoji]} size={14} color={s.userReacted ? Colors.primary : Colors.fg2} />
               {s.count > 0 && <Text style={styles.reactCount}>{s.count}</Text>}
             </TouchableOpacity>
           );
@@ -723,7 +729,6 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   reactChipOn: { backgroundColor: Colors.sage50, borderColor: Colors.primary },
-  reactEmoji: { fontSize: 14 },
   reactCount: { fontSize: 12, fontWeight: '600', color: Colors.ink900 },
   replyLink: { fontSize: 12, fontWeight: '600', color: Colors.primary, paddingVertical: 5 },
 

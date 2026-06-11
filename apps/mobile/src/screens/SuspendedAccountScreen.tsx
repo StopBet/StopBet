@@ -356,7 +356,10 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             {/* Enlace de pago */}
             {familyLink && (
               <View style={styles.linkBox}>
-                <Text style={styles.linkBoxText}>🔗 {familyLink}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon name="link" size={13} color={Colors.primary} />
+                  <Text style={styles.linkBoxText}>{familyLink}</Text>
+                </View>
               </View>
             )}
 
@@ -366,7 +369,10 @@ export function SuspendedAccountScreen({ navigation }: Props) {
                 onPress={handleShareFamilyLink}
                 activeOpacity={0.85}
               >
-                <Text style={styles.btnPrimaryText}>📤 Compartir enlace de pago</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Icon name="share" size={17} color={Colors.white} />
+                  <Text style={styles.btnPrimaryText}>Compartir enlace de pago</Text>
+                </View>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.btnOutline}
@@ -415,7 +421,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 0,
   },
-  lockEmoji: { fontSize: 44 },
   mainTitle: {
     fontWeight: '700',
     fontSize: 26,

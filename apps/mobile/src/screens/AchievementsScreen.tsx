@@ -20,7 +20,7 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { BottomNav, NavTab } from '../components/BottomNav';
-import { Icon } from '../components/Icon';
+import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 
@@ -51,17 +51,17 @@ const MILESTONE_DRAFT: Record<BadgeMilestone, string> = {
   90: 'Tres meses. No fue fácil, pero cada día valió la pena. Gracias a todos los que me acompañaron.',
 };
 
-const BADGE_CONFIG: Record<BadgeMilestone, { label: string; emoji: string; daysLabel: string }> = {
-  1:  { label: 'Primer día',    emoji: '🌱', daysLabel: '1 día' },
-  3:  { label: 'Primeros pasos',emoji: '📈', daysLabel: '3 días' },
-  7:  { label: 'Una semana',    emoji: '⭐', daysLabel: '7 días' },
-  14: { label: 'Dos semanas',   emoji: '🌅', daysLabel: '14 días' },
-  21: { label: 'Constancia',    emoji: '🔥', daysLabel: '21 días' },
-  30: { label: 'Un mes',        emoji: '🏅', daysLabel: '30 días' },
-  45: { label: 'Más fuerte',    emoji: '🛡️', daysLabel: '45 días' },
-  60: { label: 'Dos meses',     emoji: '🏆', daysLabel: '60 días' },
-  75: { label: 'Enfoque',       emoji: '🎯', daysLabel: '75 días' },
-  90: { label: 'Tres meses',    emoji: '🌄', daysLabel: '90 días' },
+const BADGE_CONFIG: Record<BadgeMilestone, { label: string; icon: IconName; daysLabel: string }> = {
+  1:  { label: 'Primer día',    icon: 'sprout',       daysLabel: '1 día' },
+  3:  { label: 'Primeros pasos',icon: 'chart-column', daysLabel: '3 días' },
+  7:  { label: 'Una semana',    icon: 'star',         daysLabel: '7 días' },
+  14: { label: 'Dos semanas',   icon: 'sunrise',      daysLabel: '14 días' },
+  21: { label: 'Constancia',    icon: 'flame',        daysLabel: '21 días' },
+  30: { label: 'Un mes',        icon: 'medal',        daysLabel: '30 días' },
+  45: { label: 'Más fuerte',    icon: 'shield',       daysLabel: '45 días' },
+  60: { label: 'Dos meses',     icon: 'trophy',       daysLabel: '60 días' },
+  75: { label: 'Enfoque',       icon: 'target',       daysLabel: '75 días' },
+  90: { label: 'Tres meses',    icon: 'crown',        daysLabel: '90 días' },
 };
 
 function formatDateLong(dateStr: string): string {
@@ -257,9 +257,7 @@ export function AchievementsScreen({ navigation }: Props) {
                     </View>
                   )}
                   <View style={[styles.badgeDisc, earned ? styles.badgeDiscEarned : styles.badgeDiscLocked]}>
-                    <Text style={[styles.badgeEmoji, !earned && styles.badgeEmojiLocked]}>
-                      {cfg.emoji}
-                    </Text>
+                    <Icon name={cfg.icon} size={26} color={earned ? '#C9954A' : Colors.fg2} />
                   </View>
                   {!earned && (
                     <View style={styles.badgeLock}>
@@ -344,7 +342,7 @@ export function AchievementsScreen({ navigation }: Props) {
                 </Text>
                 <View style={styles.sharePreview}>
                   <View style={styles.shareDisc}>
-                    <Text style={{ fontSize: 36 }}>{BADGE_CONFIG[shareMilestone].emoji}</Text>
+                    <Icon name={BADGE_CONFIG[shareMilestone].icon} size={36} color="#C9954A" />
                   </View>
                   <Text style={styles.shareBig}>{shareMilestone} días</Text>
                   <Text style={styles.shareUnit}>
@@ -392,7 +390,7 @@ function CycleCard({ period }: { period: AbstinencePeriod }) {
         <View style={styles.miniBadges}>
           {period.earnedBadges.map((b: EarnedBadge) => (
             <View key={b.id} style={styles.miniBadge}>
-              <Text style={{ fontSize: 14 }}>{BADGE_CONFIG[b.milestone]?.emoji ?? '🏅'}</Text>
+              <Icon name={BADGE_CONFIG[b.milestone]?.icon ?? 'medal'} size={14} color="#C9954A" />
             </View>
           ))}
         </View>
@@ -532,8 +530,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
     opacity: 0.6,
   },
-  badgeEmoji: { fontSize: 26 },
-  badgeEmojiLocked: { opacity: 0.5 },
   badgeLock: {
     position: 'absolute',
     top: 0,
