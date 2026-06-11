@@ -253,9 +253,9 @@ export function CommunityScreen({ navigation, route }: Props) {
         </View>
       ) : (
         <KeyboardAvoidingView
-          style={styles.flex}
-          behavior="padding"
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 120}
+          style={[styles.flex, styles.kav]}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
           {tab === 'announcements' ? (
             <ScrollView
@@ -575,6 +575,7 @@ function formatEventDate(iso: string): string {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.primary },
   flex: { flex: 1 },
+  kav: { backgroundColor: Colors.bg },
 
   header: {
     flexDirection: 'row',
