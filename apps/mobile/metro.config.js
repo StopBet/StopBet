@@ -3,22 +3,36 @@ const path = require('path');
 
 const monorepoRoot = path.resolve(__dirname, '../..');
 
+// Cuando Metro corre desde S:\ (subst) las junctions de pnpm resuelven a rutas C:\.
+// STOPBET_REAL_ROOT apunta al repo real (C:\...) para que esas rutas queden vigiladas.
+const realRoot = process.env.STOPBET_REAL_ROOT || null;
+const realMobileDir = realRoot ? path.resolve(realRoot, 'apps', 'mobile') : null;
+
+const watchFolders = [
+  path.resolve(__dirname, 'node_modules'),
+  path.resolve(monorepoRoot, 'node_modules'),
+  path.resolve(monorepoRoot, 'packages'),
+  ...(realMobileDir ? [
+    path.resolve(realMobileDir, 'node_modules'),
+    path.resolve(realRoot, 'node_modules'),
+    path.resolve(realRoot, 'packages'),
+  ] : []),
+];
+
 const config = {
   // Limitar workers en máquinas con poca RAM.
   maxWorkers: 2,
 
-  // node_modules local resuelve los polyfills de metro-runtime; node_modules raíz es
-  // obligatorio porque pnpm symlinkea los paquetes hacia el store .pnpm que vive ahí.
-  watchFolders: [
-    path.resolve(__dirname, 'node_modules'),
-    path.resolve(monorepoRoot, 'node_modules'),
-    path.resolve(monorepoRoot, 'packages'),
-  ],
+  watchFolders,
 
   resolver: {
     nodeModulesPaths: [
       path.resolve(__dirname, 'node_modules'),
       path.resolve(monorepoRoot, 'node_modules'),
+      ...(realMobileDir ? [
+        path.resolve(realMobileDir, 'node_modules'),
+        path.resolve(realRoot, 'node_modules'),
+      ] : []),
     ],
     blockList: [
       /.*\/android\/build\/.*/,

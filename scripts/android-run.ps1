@@ -40,6 +40,15 @@ if ($RepoRoot -notmatch '^S:\\') {
     }
 }
 
+# Si ya estamos en S:\ pero STOPBET_REAL_ROOT no fue heredado (llamada directa a S:\scripts\...)
+# derivamos la ruta real leyendo la tabla de subst para que metro.config.js reciba el path C:\.
+if ($RepoRoot -match '^S:\\' -and -not $env:STOPBET_REAL_ROOT) {
+    $substOut = subst 2>&1 | Out-String
+    if ($substOut -match 'S:\\:\s*=>\s*(.+)') {
+        $env:STOPBET_REAL_ROOT = $Matches[1].Trim()
+    }
+}
+
 function Write-Step ([string]$msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Write-OK   ([string]$msg) { Write-Host "  [OK] $msg" -ForegroundColor Green }
 function Write-Warn ([string]$msg) { Write-Host "  [!]  $msg" -ForegroundColor Yellow }
@@ -165,6 +174,15 @@ Write-OK "Puerto 8081 (Metro) y 3000 (Backend) -> PC"
 
 # ── 6. Iniciar Metro en ventana CMD separada ──────────────────────────────────
 Write-Step "Iniciando Metro bundler..."
+
+# Matar cualquier proceso usando el puerto 8081 antes de arrancar Metro
+$portProc = Get-NetTCPConnection -LocalPort 8081 -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty OwningProcess -First 1
+if ($portProc) {
+    Stop-Process -Id $portProc -Force -ErrorAction SilentlyContinue
+    Write-Warn "Puerto 8081 ocupado (PID $portProc detenido)"
+    Start-Sleep -Seconds 1
+}
 
 $metroFlags  = if ($ResetCache) { "--port 8081 --reset-cache" } else { "--port 8081" }
 
