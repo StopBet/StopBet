@@ -34,6 +34,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/stopbet
       JWT_SECRET: ci_test_secret
+      ENCRYPTION_KEY: 8260dd63149ae481540da77c2fbf5974f65fc61bdeaec978870b78f263896722
 
     steps:
       - uses: actions/checkout@v4
@@ -58,6 +59,9 @@ jobs:
 
       - name: Run tests with coverage
         run: pnpm run test:coverage
+
+      - name: Run e2e tests
+        run: pnpm --filter @stopbet/backend run test:e2e
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
