@@ -28,7 +28,7 @@ import { api } from '../services/api';
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const HOLD_DURATION_MS = 2000;
 const POLL_INTERVAL_MS = 5000;
-const ESCALATION_SECONDS = 30; // 30 segundos (demo)
+const ESCALATION_SECONDS = 120; // CA1.3: debe coincidir con ESCALATION_MS del backend
 const CRISIS_LINE = '*4141';
 const AUTO_RESET_MS = 30_000; // 30 s tras respuesta/comunidad/escalada
 
@@ -218,6 +218,14 @@ export function PanicScreen({ navigation }: Props) {
     isActivating.current = true;
     try {
       const alert = await api.createPanicAlert(TEMP_USER_ID);
+
+      // CA1.2: sin padrino activo el backend devuelve la alerta ya escalada.
+      // Al asistente de inmediato, sin cuenta regresiva ni espera.
+      if (alert.status === 'escalated') {
+        navigation.navigate('Assistant');
+        return;
+      }
+
       const resp = await api.getPanicActiveAlert(TEMP_USER_ID);
       setCountdown(ESCALATION_SECONDS);
       setState({ kind: 'waiting', alert, sponsor: resp.sponsor });
@@ -231,7 +239,7 @@ export function PanicScreen({ navigation }: Props) {
       isActivating.current = false;
       holdProgress.setValue(0);
     }
-  }, [holdProgress, startCountdown, startPolling]);
+  }, [holdProgress, navigation, startCountdown, startPolling]);
 
   // ──────────────────────────────────────────────────────────────────────
   // Acciones desde Estado 2

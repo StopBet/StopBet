@@ -273,7 +273,8 @@ export interface SponsorInfo {
 export interface PanicAlertDto {
   id: string;
   patientId: string;
-  sponsorId: string;
+  // null cuando el paciente no tenía padrino activo al disparar la alerta (CA1.2)
+  sponsorId: string | null;
   status: PanicAlertStatus;
   communityNotified: boolean;
   respondedAt: string | null;

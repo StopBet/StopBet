@@ -25,8 +25,8 @@ export class PanicAlert {
   patient: User;
 
   // Denormalizado en el momento del disparo para preservar la historia
-  @Column()
-  sponsorId: string;
+  @Column({ type: 'varchar', nullable: true })
+  sponsorId: string | null;
 
   @Column({ type: 'enum', enum: STATUSES, default: 'pending' })
   status: PanicAlertStatus;
