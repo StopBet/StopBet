@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { AccountStatus, OnboardingStatus, UserRole } from '@stopbet/shared-types';
+import { encryptedColumnTransformer } from '../../common/crypto/encrypted-column.transformer';
 
 const ROLES: UserRole[] = ['patient', 'psychologist', 'sponsor', 'family', 'coordinator'];
 const ONBOARDING_STATUSES: OnboardingStatus[] = [
@@ -38,8 +39,8 @@ export class User {
 
   // ── Campos del onboarding ─────────────────────────────────────────────
 
-  // RUT chileno — dato sensible; usar cifrado en reposo en producción
-  @Column({ nullable: true })
+  // RUT chileno — dato sensible, cifrado en reposo con AES-256-GCM (ver S.6 del spike)
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
   rut: string | null;
 
   @Column({ nullable: true })
