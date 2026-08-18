@@ -3,8 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { ScheduleModule } from '@nestjs/schedule';
 import { UsersModule } from './users/users.module';
 import { CheckInsModule } from './check-ins/check-ins.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -17,6 +16,7 @@ import { BillingModule } from './billing/billing.module';
 import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
 import { PanicModule } from './panic/panic.module';
 import { AuthModule } from './auth/auth.module';
+import { HealthModule } from './health/health.module';
 import { Invoice } from './billing/entities/invoice.entity';
 import { User } from './users/entities/user.entity';
 import { CheckIn } from './check-ins/entities/check-in.entity';
@@ -46,6 +46,9 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
     // Límite base por IP; el endpoint de mensajes al asistente IA puede
     // sobreescribirlo con @Throttle() si necesita un límite más estricto (S.9)
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
+
+    // Habilita @Cron() en toda la app — lo usa HealthModule para vigilar la BD (S.7)
+    ScheduleModule.forRoot(),
 
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -84,10 +87,10 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
     AiAssistantModule,
     PanicModule,
     AuthModule,
+    HealthModule,
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
   ],
 })
