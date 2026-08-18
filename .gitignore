@@ -91,6 +91,7 @@ tmp/
 .agents/
 .claude/skills/
 skills-lock.json
+CLAUDE.local.md
 
 # Archivos de prueba locales
 package-lock.json
