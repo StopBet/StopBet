@@ -131,6 +131,8 @@ pnpm run seed
 
 Crea las tablas (si no existen) y el **usuario demo** que usa la app mobile mientras no hay autenticación real. Es idempotente: si los datos ya existen, no hace nada.
 
+Los 9 usuarios de prueba (paciente, padrino, psicólogo, coordinador, etc.) quedan con la misma **clave de desarrollo: `Stopbet2026!`**, para hacer login vía `POST /auth/login` con cualquiera de los correos que imprime el seed al terminar.
+
 ---
 
 ### 6. Levantar los servicios
