@@ -13,10 +13,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { AIMessage, AiSessionSummary, TechniqueType } from '@stopbet/shared-types';
+import type {
+  AIMessage,
+  AiSessionSummary,
+  CrisisSignal,
+  SendMessageWithRiskResponse,
+  TechniqueType,
+} from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
 import { PrivacyCard } from '../components/PrivacyCard';
+import { CrisisCard } from '../components/CrisisCard';
 import { TechniqueCard } from '../components/TechniqueCard';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
@@ -43,6 +50,7 @@ export function AssistantScreen() {
   const [items, setItems] = useState<ListItem[]>([]);
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [crisis, setCrisis] = useState<CrisisSignal | null>(null);
   const [summary, setSummary] = useState<AiSessionSummary | null>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
@@ -163,9 +171,17 @@ export function AssistantScreen() {
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
 
     try {
-      const res = await api.sendAiMessage(PLACEHOLDER_USER_ID, sessionId, text);
+      // CA2.1: el backend ya devuelve `crisis`, pero el tipo de `sendAiMessage`
+      // vive en services/api.ts, que comparten otras ramas este sprint. Se acota
+      // acá para no tocarlo; al mergear conviene subir el tipo a la función.
+      const res = (await api.sendAiMessage(
+        PLACEHOLDER_USER_ID,
+        sessionId,
+        text,
+      )) as SendMessageWithRiskResponse;
       removeTypingIndicator();
       appendMessages([res.userMessage, res.assistantMessage]);
+      setCrisis(res.crisis ?? null);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } catch {
       removeTypingIndicator();
@@ -316,6 +332,14 @@ export function AssistantScreen() {
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
           showsVerticalScrollIndicator={false}
         />
+
+        {crisis && (
+          <CrisisCard
+            crisis={crisis}
+            onPanic={() => navigation.navigate('Panic')}
+            onContactSponsor={() => navigation.navigate('Panic')}
+          />
+        )}
 
         {/* Input */}
         <View style={styles.inputBar}>

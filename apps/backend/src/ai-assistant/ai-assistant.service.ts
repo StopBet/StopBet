@@ -9,8 +9,10 @@ import { AiMessage } from './entities/ai-message.entity';
 import { AiSessionSummary } from './entities/ai-session-summary.entity';
 import { SendMessageDto } from './dto/send-message.dto';
 import {
+  CrisisSignal,
+  CrisisSuggestion,
   RiskLevel,
-  SendMessageResponse,
+  SendMessageWithRiskResponse,
   StartSessionResponse,
   TechniqueType,
 } from '@stopbet/shared-types';
@@ -24,6 +26,10 @@ const MAX_HISTORY = 12;
 
 // Tiempo de inactividad en ms antes de cerrar sesión automáticamente (10 min)
 const INACTIVITY_MS = 10 * 60 * 1000;
+
+// CA2.1: cuántos mensajes del usuario se miran hacia atrás para decidir si el
+// riesgo alto es "sostenido" y no un pico aislado.
+const RISK_WINDOW = 3;
 
 @Injectable()
 export class AiAssistantService {
@@ -125,7 +131,7 @@ export class AiAssistantService {
     sessionId: string,
     userId: string,
     dto: SendMessageDto,
-  ): Promise<SendMessageResponse> {
+  ): Promise<SendMessageWithRiskResponse> {
     const session = await this.sessionRepo.findOne({
       where: { id: sessionId, userId, status: 'active' },
     });
@@ -170,6 +176,7 @@ export class AiAssistantService {
       userMessage: this.mapMessage(userMsg),
       assistantMessage: this.mapMessage(assistantMsg),
       techniqueTriggered: technique,
+      crisis: this.buildCrisisSignal(history, dto.content),
     };
   }
 
@@ -301,6 +308,59 @@ export class AiAssistantService {
   }
 
   // ── Detección de técnica ────────────────────────────────────────────────
+
+  // CA2.1: el riesgo se evaluaba solo al cerrar la sesión, así que nunca llegaba
+  // al cliente durante la conversación — justo cuando sirve. Se calcula por
+  // mensaje con reglas deterministas: sin llamada extra al LLM y testeable.
+  // Los patrones son provisionales hasta el documento de reglas (S.1).
+  // Se quitan los acentos antes de comparar: \b de JS no trata a las vocales
+  // acentuadas como carácter de palabra ("recaí\b" nunca calza), y además en el
+  // celular la gente escribe sin tilde.
+  private normalize(text: string): string {
+    return text
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private detectRiskLevel(text: string): RiskLevel {
+    const t = this.normalize(text);
+    if (
+      /\b(matarme|suicid\w*|no quiero vivir|acabar con todo|hacerme dano)\b/.test(t) ||
+      /\b(recai\w*|volvi a apostar|estoy apostando|ya apost\w*)\b/.test(t) ||
+      /\b(no aguanto|no puedo mas|voy a apostar|voy al casino)\b/.test(t)
+    ) {
+      return 'high';
+    }
+    if (
+      /\b(ganas de apostar|impulso|tentacion|ansiedad|angustia|desesper\w*)\b/.test(t) ||
+      /\b(sol[oa]|soledad|aislad\w*|abandonad\w*|deprimid\w*)\b/.test(t)
+    ) {
+      return 'medium';
+    }
+    return 'low';
+  }
+
+  private buildCrisisSignal(
+    history: AiMessage[],
+    currentContent: string,
+  ): CrisisSignal | null {
+    const riskLevel = this.detectRiskLevel(currentContent);
+    if (riskLevel !== 'high') return null;
+
+    // El mensaje actual ya está en history (se guarda antes), así que se cuenta solo
+    const previousHigh = history
+      .filter((m) => m.role === 'user')
+      .slice(-RISK_WINDOW - 1, -1)
+      .filter((m) => this.detectRiskLevel(m.content) === 'high').length;
+
+    const suggestions: CrisisSuggestion[] = [
+      'panic_button',
+      'contact_sponsor',
+      'crisis_line',
+    ];
+    return { riskLevel, sustained: previousHigh > 0, suggestions };
+  }
 
   private detectTechnique(text: string): TechniqueType | null {
     const t = text.toLowerCase();

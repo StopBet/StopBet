@@ -327,3 +327,20 @@ export interface PatientMetrics {
   panicCount: number;                          // del periodo, no histórico
   moodAvg: number | null;                      // null si no hay check-ins — nunca 0
 }
+
+// ── HdU02 CA2.1: señal de crisis por mensaje ──────────────────────────────
+// Tipos nuevos al final para no modificar SendMessageResponse, que comparten
+// otras ramas. Los umbrales se ajustan contra el documento de reglas (S.1).
+
+export type CrisisSuggestion = 'panic_button' | 'contact_sponsor' | 'crisis_line';
+
+export interface CrisisSignal {
+  riskLevel: RiskLevel;
+  // El criterio pide riesgo alto *sostenido*, no un pico aislado
+  sustained: boolean;
+  suggestions: CrisisSuggestion[];
+}
+
+export interface SendMessageWithRiskResponse extends SendMessageResponse {
+  crisis: CrisisSignal | null;
+}
