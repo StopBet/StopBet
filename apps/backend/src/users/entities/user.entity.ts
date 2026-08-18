@@ -7,7 +7,7 @@ import {
 } from 'typeorm';
 import { AccountStatus, OnboardingStatus, UserRole } from '@stopbet/shared-types';
 
-const ROLES: UserRole[] = ['patient', 'psychologist', 'sponsor', 'family'];
+const ROLES: UserRole[] = ['patient', 'psychologist', 'sponsor', 'family', 'coordinator'];
 const ONBOARDING_STATUSES: OnboardingStatus[] = [
   'approval_pending',
   'payment_pending',

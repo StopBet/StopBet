@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import * as bcrypt from 'bcrypt';
 import { DataSource, IsNull } from 'typeorm';
 import { User } from './users/entities/user.entity';
 import { CheckIn } from './check-ins/entities/check-in.entity';
@@ -20,6 +21,7 @@ import { AiMessage } from './ai-assistant/entities/ai-message.entity';
 import { AiSessionSummary } from './ai-assistant/entities/ai-session-summary.entity';
 import { SponsorAssignment } from './panic/entities/sponsor-assignment.entity';
 import { PanicAlert } from './panic/entities/panic-alert.entity';
+import { RefreshToken } from './auth/entities/refresh-token.entity';
 
 // ── IDs fijos para datos de prueba ────────────────────────────────────────────
 const DEMO_USER_ID   = '11111111-1111-1111-1111-111111111111';
@@ -30,6 +32,10 @@ const PATIENT3_ID    = '55555555-5555-5555-5555-555555555555';
 const PATIENT4_ID    = '66666666-6666-6666-6666-666666666666';
 const REPORTER1_ID   = '77777777-7777-7777-7777-777777777777';
 const REPORTER2_ID   = '88888888-8888-8888-8888-888888888888';
+const COORDINATOR_ID = '99999999-9999-9999-9999-999999999999';
+
+// Clave única de desarrollo para los 8 usuarios del seed. Solo datos locales de prueba.
+const DEV_PASSWORD = 'Stopbet2026!';
 
 const DAYS_STREAK = 45;
 const SANTIAGO_SEDE = 'Santiago';
@@ -69,6 +75,7 @@ async function seed() {
       Invoice,
       AiSession, AiMessage, AiSessionSummary,
       SponsorAssignment, PanicAlert,
+      RefreshToken,
     ],
     synchronize: true,
     logging: false,
@@ -77,6 +84,8 @@ async function seed() {
 
   await ds.initialize();
   console.log('\nConectado a la base de datos.\n');
+
+  const devPasswordHash = await bcrypt.hash(DEV_PASSWORD, 10);
 
   const userRepo      = ds.getRepository(User);
   const periodRepo    = ds.getRepository(AbstinencePeriod);
@@ -99,7 +108,7 @@ async function seed() {
   await upsertUser(userRepo, {
     id: DEMO_USER_ID,
     email: 'demo@stopbet.cl',
-    passwordHash: null,
+    passwordHash: devPasswordHash,
     role: 'patient',
     firstName: 'Carlos',
     lastName: 'Demo',
@@ -115,7 +124,7 @@ async function seed() {
   await upsertUser(userRepo, {
     id: SPONSOR_ID,
     email: 'daniela.soto@stopbet.cl',
-    passwordHash: null,
+    passwordHash: devPasswordHash,
     role: 'sponsor',
     firstName: 'Daniela',
     lastName: 'Soto',
@@ -128,7 +137,7 @@ async function seed() {
   await upsertUser(userRepo, {
     id: PSYCHOLOGIST_ID,
     email: 'miguel.lara@ajuter.cl',
-    passwordHash: null,
+    passwordHash: devPasswordHash,
     role: 'psychologist',
     firstName: 'Miguel Ángel',
     lastName: 'Lara',
@@ -138,10 +147,25 @@ async function seed() {
     onboardingStatus: 'complete',
   });
 
+  // Cuenta con rol 'coordinator' — necesaria para probar HU-24 (crear/desactivar
+  // psicólogos) y el criterio 403 del spike de seguridad.
+  await upsertUser(userRepo, {
+    id: COORDINATOR_ID,
+    email: 'sofia.reyes@ajuter.cl',
+    passwordHash: devPasswordHash,
+    role: 'coordinator',
+    firstName: 'Sofía',
+    lastName: 'Reyes',
+    phone: '+56900112233',
+    sedeId: SANTIAGO_SEDE,
+    accountStatus: 'active',
+    onboardingStatus: 'complete',
+  });
+
   await upsertUser(userRepo, {
     id: PATIENT2_ID,
     email: 'pedro.alvarez@stopbet.cl',
-    passwordHash: null,
+    passwordHash: devPasswordHash,
     role: 'patient',
     firstName: 'Pedro',
     lastName: 'Álvarez',
@@ -156,7 +180,7 @@ async function seed() {
   await upsertUser(userRepo, {
     id: PATIENT3_ID,
     email: 'ana.perez@stopbet.cl',
-    passwordHash: null,
+    passwordHash: devPasswordHash,
     role: 'patient',
     firstName: 'Ana',
     lastName: 'Pérez',
@@ -171,7 +195,7 @@ async function seed() {
   await upsertUser(userRepo, {
     id: PATIENT4_ID,
     email: 'roberto.fuentes@stopbet.cl',
-    passwordHash: null,
+    passwordHash: devPasswordHash,
     role: 'patient',
     firstName: 'Roberto',
     lastName: 'Fuentes',
@@ -186,7 +210,7 @@ async function seed() {
   await upsertUser(userRepo, {
     id: REPORTER1_ID,
     email: 'jorge.morales@stopbet.cl',
-    passwordHash: null,
+    passwordHash: devPasswordHash,
     role: 'patient',
     firstName: 'Jorge',
     lastName: 'Morales',
@@ -199,7 +223,7 @@ async function seed() {
   await upsertUser(userRepo, {
     id: REPORTER2_ID,
     email: 'lucia.vega@stopbet.cl',
-    passwordHash: null,
+    passwordHash: devPasswordHash,
     role: 'patient',
     firstName: 'Lucía',
     lastName: 'Vega',
@@ -699,7 +723,9 @@ async function seed() {
   console.log(`    Paciente demo:  Carlos Demo (ID: ${DEMO_USER_ID})`);
   console.log(`    Padrino:        Daniela Soto (ID: ${SPONSOR_ID})`);
   console.log(`    Psicólogo:      Miguel Ángel Lara (ID: ${PSYCHOLOGIST_ID})`);
+  console.log(`    Coordinador:    Sofía Reyes (ID: ${COORDINATOR_ID})`);
   console.log('    Pacientes extra: Pedro, Ana, Roberto');
+  console.log(`    Clave de todos: ${DEV_PASSWORD}`);
   console.log('');
   console.log('  HU-01 Pánico:    padrino asignado + 3 alertas históricas');
   console.log('  HU-02 IA:        3 sesiones cerradas con resúmenes');

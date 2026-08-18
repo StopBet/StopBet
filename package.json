@@ -8,6 +8,8 @@
     "seed": "pnpm --filter @stopbet/backend run seed",
     "build:web": "pnpm --filter @stopbet/web build",
     "build:backend": "pnpm --filter @stopbet/backend build",
+    "test": "pnpm --filter @stopbet/backend test",
+    "test:coverage": "pnpm --filter @stopbet/backend test:cov",
     "android:device": "powershell -ExecutionPolicy Bypass -File scripts\\android-run.ps1",
     "android:device:fresh": "powershell -ExecutionPolicy Bypass -File scripts\\android-run.ps1 -ResetCache",
     "android:reload": "powershell -ExecutionPolicy Bypass -File scripts\\android-run.ps1 -SkipBuild"
@@ -15,8 +17,5 @@
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=10.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": ["@nestjs/core", "esbuild"]
   }
 }
