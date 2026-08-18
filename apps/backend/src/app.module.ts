@@ -14,6 +14,7 @@ import { CommunityModule } from './community/community.module';
 import { BillingModule } from './billing/billing.module';
 import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
 import { PanicModule } from './panic/panic.module';
+import { AuthModule } from './auth/auth.module';
 import { Invoice } from './billing/entities/invoice.entity';
 import { User } from './users/entities/user.entity';
 import { CheckIn } from './check-ins/entities/check-in.entity';
@@ -34,6 +35,7 @@ import { AiMessage } from './ai-assistant/entities/ai-message.entity';
 import { AiSessionSummary } from './ai-assistant/entities/ai-session-summary.entity';
 import { SponsorAssignment } from './panic/entities/sponsor-assignment.entity';
 import { PanicAlert } from './panic/entities/panic-alert.entity';
+import { RefreshToken } from './auth/entities/refresh-token.entity';
 
 @Module({
   imports: [
@@ -53,6 +55,7 @@ import { PanicAlert } from './panic/entities/panic-alert.entity';
           Invoice,
           AiSession, AiMessage, AiSessionSummary,
           SponsorAssignment, PanicAlert,
+          RefreshToken,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',
@@ -74,6 +77,7 @@ import { PanicAlert } from './panic/entities/panic-alert.entity';
     BillingModule,
     AiAssistantModule,
     PanicModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
