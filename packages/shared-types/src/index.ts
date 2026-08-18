@@ -1,6 +1,6 @@
 // Tipos compartidos entre backend y web dashboard.
 
-export type UserRole = 'patient' | 'psychologist' | 'sponsor' | 'family';
+export type UserRole = 'patient' | 'psychologist' | 'sponsor' | 'family' | 'coordinator';
 
 // approval_pending → payment_pending → complete
 export type OnboardingStatus = 'approval_pending' | 'payment_pending' | 'complete';
@@ -285,4 +285,27 @@ export interface PanicAlertDto {
 export interface ActiveAlertResponse {
   alert: PanicAlertDto | null;
   sponsor: SponsorInfo | null;
+}
+
+// ── Autenticación ─────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: UserRole;
+  firstName: string;
+  lastName: string;
+  sedeId: string | null;
+}
+
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser;
+}
+
+export interface JwtPayload {
+  sub: string;
+  role: UserRole;
+  sedeId: string | null;
 }
