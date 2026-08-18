@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
@@ -41,6 +43,10 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 
+    // Límite base por IP; el endpoint de mensajes al asistente IA puede
+    // sobreescribirlo con @Throttle() si necesita un límite más estricto (S.9)
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
+
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -80,6 +86,9 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
     AuthModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}
