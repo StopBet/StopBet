@@ -33,19 +33,6 @@ export function TopBar({ title }: TopBarProps) {
           }}>3</span>
         </button>
 
-        {/* Búsqueda */}
-        <label style={{
-          display: 'flex', alignItems: 'center', gap: 8, width: 240, height: 40,
-          background: 'var(--bg)', border: '1px solid var(--border)',
-          borderRadius: 8, padding: '0 14px',
-        }}>
-          <WIcon name="search" size={17} color="var(--fg2)" />
-          <input
-            placeholder="Buscar paciente…"
-            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13.5, color: 'var(--fg1)', width: '100%' }}
-          />
-        </label>
-
         {/* Avatar */}
         <div style={{
           width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
