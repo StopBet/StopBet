@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
@@ -24,6 +25,20 @@ const PAGE_TITLES: Record<NavId, string> = {
   finanzas:  'Finanzas',
   settings:  'Configuración',
 }
+
+const NAV_PATHS: Record<NavId, string> = {
+  overview:  '/',
+  patients:  '/pacientes',
+  alerts:    '/alertas',
+  requests:  '/solicitudes',
+  reports:   '/reportes',
+  finanzas:  '/finanzas',
+  settings:  '/configuracion',
+}
+
+const PATH_TO_NAV: Record<string, NavId> = Object.fromEntries(
+  Object.entries(NAV_PATHS).map(([id, path]) => [path, id as NavId]),
+)
 
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -55,7 +70,9 @@ function shortSedeName(name: string): string {
 }
 
 export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout: () => void }) {
-  const [nav, setNav] = useState<NavId>('overview')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const nav: NavId = PATH_TO_NAV[location.pathname] ?? 'overview'
   const [toast, setToast] = useState<Toast | null>(null)
   const qc = useQueryClient()
 
@@ -111,21 +128,25 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
     }
   }
 
-  const handleNav = (id: string) => setNav(id as NavId)
+  const handleNav = (id: string) => navigate(NAV_PATHS[id as NavId] ?? NAV_PATHS.overview)
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
-      <Sidebar active={nav} onNav={id => setNav(id)} onLogout={onLogout} reqCount={requests.length} />
+      <Sidebar active={nav} onNav={handleNav} onLogout={onLogout} reqCount={requests.length} />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <TopBar title={PAGE_TITLES[nav]} />
         <main style={{ flex: 1, overflowY: 'auto' }}>
-          {nav === 'overview'  && <OverviewPage onNav={handleNav} reqCount={requests.length} />}
-          {nav === 'alerts'    && <AlertasPage />}
-          {nav === 'requests'  && <SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} psychId={psychId} />}
-          {nav === 'finanzas'  && <FinanzasPage />}
-          {nav === 'settings'  && <ConfiguracionPage />}
-          {(nav === 'patients' || nav === 'reports') && <PlaceholderPage title={PAGE_TITLES[nav]} />}
+          <Routes>
+            <Route path="/" element={<OverviewPage onNav={handleNav} reqCount={requests.length} />} />
+            <Route path="/alertas" element={<AlertasPage />} />
+            <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} psychId={psychId} />} />
+            <Route path="/finanzas" element={<FinanzasPage />} />
+            <Route path="/configuracion" element={<ConfiguracionPage />} />
+            <Route path="/pacientes" element={<PlaceholderPage title={PAGE_TITLES.patients} />} />
+            <Route path="/reportes" element={<PlaceholderPage title={PAGE_TITLES.reports} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </main>
       </div>
 
