@@ -309,3 +309,21 @@ export interface JwtPayload {
   role: UserRole;
   sedeId: string | null;
 }
+
+// ── Métricas del paciente (dashboard clínico, HdU04) ───────────────────────
+
+// Mapa único ánimo → escala 1-5. Antes duplicado en apps/web (OverviewPage).
+export const EMOTION_MOOD: Record<EmotionType, number> = {
+  good: 5,
+  tired: 3,
+  anxious: 2,
+  lonely: 2,
+  angry: 1,
+};
+
+export interface PatientMetrics {
+  evolution: { date: string; mood: number }[]; // últimos 30 días, un punto por check-in
+  totalCheckIns: number;                       // del periodo
+  panicCount: number;                          // del periodo, no histórico
+  moodAvg: number | null;                      // null si no hay check-ins — nunca 0
+}
