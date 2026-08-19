@@ -215,11 +215,13 @@ export class CommunityService {
     return posts.map((p) => this.serializePost(p, [], 0, requesterId));
   }
 
-  // CA3: el psicólogo elimina una publicación reportada desde el dashboard
+  // CA3 (psicólogo modera) + CA5.4 (autor elimina su propia publicación)
   async deletePost(postId: string, requesterId: string) {
-    await this.assertPsychologist(requesterId);
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) throw new NotFoundException('Publicación no encontrada');
+    if (post.authorId !== requesterId) {
+      await this.assertPsychologist(requesterId);
+    }
     await this.postRepo.delete(postId);
     return { deleted: true };
   }

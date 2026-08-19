@@ -44,6 +44,7 @@ const ROLE_LABEL: Record<UserRole, string> = {
   psychologist: 'Psicólogo',
   sponsor: 'Padrino',
   family: 'Familiar',
+  coordinator: 'Coordinador',
 };
 
 // Caché en memoria de lo último cargado, para mostrarlo sin conexión (CA4).
@@ -196,6 +197,34 @@ export function CommunityScreen({ navigation, route }: Props) {
     );
   };
 
+  // ── Eliminar publicación propia ──────────────────────────────────────
+  const handleDelete = (postId: string) => {
+    Alert.alert(
+      'Eliminar publicación',
+      '¿Seguro que quieres eliminarla? No podrás deshacerlo.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.deletePost(TEMP_USER_ID, postId);
+              setPosts((prev) => prev.filter((p) => p.id !== postId));
+            } catch {
+              Alert.alert('Sin conexión', 'No se pudo eliminar tu publicación.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleMenuPress = (post: CommunityPost) => {
+    if (post.authorId === TEMP_USER_ID) handleDelete(post.id);
+    else handleReport(post.id);
+  };
+
   const handleTabPress = (navTab: 'home' | 'community' | 'achievements' | 'profile') => {
     if (navTab === 'home') navigation.navigate('Home');
     else if (navTab === 'achievements') navigation.navigate('Achievements');
@@ -314,7 +343,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                         setReplyDraft((prev) => ({ ...prev, [p.id]: text }))
                       }
                       onSendReply={() => handleReply(p.id)}
-                      onReport={() => handleReport(p.id)}
+                      onMenuPress={() => handleMenuPress(p)}
                     />
                   ))
                 )}
@@ -437,7 +466,7 @@ function PostCard({
   onToggleReplies,
   onChangeReplyDraft,
   onSendReply,
-  onReport,
+  onMenuPress,
 }: {
   post: CommunityPost;
   disabled: boolean;
@@ -448,7 +477,7 @@ function PostCard({
   onToggleReplies: () => void;
   onChangeReplyDraft: (text: string) => void;
   onSendReply: () => void;
-  onReport: () => void;
+  onMenuPress: () => void;
 }) {
   const summaryFor = (emoji: ReactionEmoji): ReactionSummary =>
     post.reactions.find((r) => r.emoji === emoji) ?? { emoji, count: 0, userReacted: false };
@@ -463,7 +492,7 @@ function PostCard({
           <Text style={styles.authorName}>{post.authorName}</Text>
           <Text style={styles.authorMeta}>{timeAgo(post.createdAt)}</Text>
         </View>
-        <TouchableOpacity onPress={onReport} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity onPress={onMenuPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Icon name="ellipsis" size={20} color={Colors.fg2} />
         </TouchableOpacity>
       </View>
