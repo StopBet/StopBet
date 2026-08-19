@@ -140,9 +140,6 @@ export function generatePatientPDF(patient: Patient, from: string, to: string): 
     if (coords.length >= 2) {
       // Build path manually using lines
       doc.setFillColor(255, 235, 215)
-      // Use a simple polygon approximation
-      const allX = coords.map(c => c.x)
-      const allY = coords.map(c => c.y)
       // jsPDF doesn't have polygon fill natively — use rect approximation per segment
       for (let i = 0; i < coords.length - 1; i++) {
         const x1 = coords[i].x, y1 = coords[i].y
