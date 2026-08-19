@@ -10,16 +10,19 @@ export function MoodChart({ data }: { data: MoodPoint[] }) {
   const ih = H - padT - padB
   const yFor = (m: number) => padT + ih - ((m - 1) / 4) * ih
   const xFor = (i: number) => padL + (data.length === 1 ? 0 : (i / (data.length - 1)) * iw)
-  const linePts = data.map((d, i) => `${xFor(i).toFixed(1)},${yFor(d.mood).toFixed(1)}`).join(' ')
-  const areaPts = `${padL},${padT + ih} ${linePts} ${padL + iw},${padT + ih}`
 
-  const defaultData: MoodPoint[] = [
-    { label: '1 may', mood: 3 }, { label: '8 may', mood: 4 },
-    { label: '15 may', mood: 4 }, { label: '22 may', mood: 3 }, { label: '29 may', mood: 4 },
-  ]
-  const pts = data.length ? data : defaultData
+  if (data.length === 0) {
+    return (
+      <div style={{
+        height: H, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--fg2)', fontSize: 13,
+      }}>
+        Sin check-ins registrados
+      </div>
+    )
+  }
 
-  const linePtsFinal = pts.map((d, i) => `${xFor(i).toFixed(1)},${yFor(d.mood).toFixed(1)}`).join(' ')
+  const linePtsFinal = data.map((d, i) => `${xFor(i).toFixed(1)},${yFor(d.mood).toFixed(1)}`).join(' ')
   const areaPtsFinal = `${padL},${padT + ih} ${linePtsFinal} ${padL + iw},${padT + ih}`
 
   return (
@@ -35,7 +38,7 @@ export function MoodChart({ data }: { data: MoodPoint[] }) {
       <polygon points={areaPtsFinal} fill="rgba(232,136,58,0.10)" />
       <polyline points={linePtsFinal} fill="none"
         stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      {pts.map((d, i) => (
+      {data.map((d, i) => (
         <g key={i}>
           <circle cx={xFor(i)} cy={yFor(d.mood)} r={d.alert ? 5.5 : 3.5}
             fill={d.alert ? 'var(--danger)' : '#fff'}

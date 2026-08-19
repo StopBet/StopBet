@@ -92,6 +92,7 @@ tmp/
 .claude/skills/
 skills-lock.json
 CLAUDE.local.md
+docs/pendientes-coordinacion-eduardo.md
 
 # Archivos de prueba locales
 package-lock.json
