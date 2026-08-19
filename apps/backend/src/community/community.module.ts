@@ -22,5 +22,6 @@ import { User } from '../users/entities/user.entity';
   ],
   controllers: [CommunityController],
   providers: [CommunityService],
+  exports: [CommunityService],
 })
 export class CommunityModule {}

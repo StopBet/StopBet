@@ -334,4 +334,10 @@ export const api = {
       userId,
       method: 'POST',
     }),
+
+  deletePost: (userId: string, postId: string) =>
+    request<{ deleted: boolean }>(`/community/posts/${postId}`, {
+      userId,
+      method: 'DELETE',
+    }),
 };
