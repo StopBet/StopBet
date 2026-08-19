@@ -132,6 +132,17 @@ export class CommunityService {
     return this.serializePost(post, [], 0, authorId);
   }
 
+  // CA5.1: post automático al notificar a la comunidad desde una alerta de pánico
+  async createPanicAlertPost(patientId: string, sede: string) {
+    return this.createPost(
+      {
+        body: '🆘 Necesito el apoyo de la comunidad ahora mismo. Si puedes, respóndeme con un mensaje.',
+        sede,
+      },
+      patientId,
+    );
+  }
+
   async addReaction(postId: string, emoji: ReactionEmoji, userId: string) {
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) throw new NotFoundException('Publicación no encontrada');
