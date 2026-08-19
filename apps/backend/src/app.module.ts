@@ -17,6 +17,7 @@ import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
 import { PanicModule } from './panic/panic.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
+import { MetricsModule } from './metrics/metrics.module';
 import { Invoice } from './billing/entities/invoice.entity';
 import { User } from './users/entities/user.entity';
 import { CheckIn } from './check-ins/entities/check-in.entity';
@@ -88,6 +89,7 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
     PanicModule,
     AuthModule,
     HealthModule,
+    MetricsModule,
   ],
   controllers: [],
   providers: [

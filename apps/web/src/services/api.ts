@@ -1,15 +1,11 @@
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
-async function get<T>(path: string, fallback: T, headers?: Record<string, string>): Promise<T> {
-  try {
-    const res = await fetch(`${BASE}${path}`, {
-      headers: headers ? { 'Content-Type': 'application/json', ...headers } : undefined,
-    })
-    if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
-    return res.json() as Promise<T>
-  } catch {
-    return fallback
-  }
+async function get<T>(path: string, headers?: Record<string, string>): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    headers: headers ? { 'Content-Type': 'application/json', ...headers } : undefined,
+  })
+  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
+  return res.json() as Promise<T>
 }
 
 async function del<T>(path: string, headers?: Record<string, string>): Promise<T> {
@@ -115,16 +111,23 @@ export interface FlaggedPost {
   createdAt: string
 }
 
+export interface PatientMetrics {
+  evolution: { date: string; mood: number }[]
+  totalCheckIns: number
+  panicCount: number
+  moodAvg: number | null
+}
+
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
   login: (email: string, password: string) =>
     post<LoginResult>('/users/login', undefined, { email, password }),
 
-  getPatients:        () => get<PatientListItem[]>('/users/patients',        []),
-  getPendingRequests: () => get<PendingRequest[]>('/registration/pending',   []),
-  getAlertHistory:    () => get<AlertHistoryItem[]>('/panic/alerts/history', []),
-  getSedes:           () => get<Sede[]>('/sedes',                            []),
+  getPatients:        () => get<PatientListItem[]>('/users/patients'),
+  getPendingRequests: () => get<PendingRequest[]>('/registration/pending'),
+  getAlertHistory:    () => get<AlertHistoryItem[]>('/panic/alerts/history'),
+  getSedes:           () => get<Sede[]>('/sedes'),
 
   approveRequest: (requestId: string, psychologistId: string) =>
     patch<void>(`/registration/${requestId}/approve`, { 'x-user-id': psychologistId }),
@@ -136,8 +139,11 @@ export const api = {
     post<void>('/achievements/relapse', { 'x-user-id': patientId }),
 
   getFlaggedPosts: (psychId: string) =>
-    get<FlaggedPost[]>('/community/moderation/flagged', [], { 'x-user-id': psychId }),
+    get<FlaggedPost[]>('/community/moderation/flagged', { 'x-user-id': psychId }),
 
   deletePost: (postId: string, psychId: string) =>
     del<{ deleted: boolean }>(`/community/posts/${postId}`, { 'x-user-id': psychId }),
+
+  getPatientMetrics: (patientId: string) =>
+    get<PatientMetrics>(`/metrics/patients/${patientId}`),
 }

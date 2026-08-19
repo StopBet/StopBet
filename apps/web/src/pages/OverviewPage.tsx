@@ -3,10 +3,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { WIcon, DownloadIcon } from '../components/WIcon'
 import { MetricCard } from '../components/MetricCard'
 import { MoodChart } from '../components/MoodChart'
-import { SEDES, type Patient, type TodayAlert } from '../data/mockData'
+import { type Patient, type TodayAlert } from '../data/mockData'
 import { generatePatientPDF } from '../utils/generatePatientPDF'
 import { api } from '../services/api'
 import type { PatientListItem, AlertHistoryItem } from '../services/api'
+import { useAlertsRealtime } from '../hooks/useAlertsRealtime'
 
 /* ── Data helpers ────────────────────────────────────── */
 
@@ -122,6 +123,16 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
   const [relapseStep, setRelapseStep] = useState<'idle' | 'confirm' | 'done' | 'error'>('idle')
   const queryClient = useQueryClient()
 
+  const { data: metrics, isLoading: loadingMetrics, isError: metricsError } = useQuery({
+    queryKey: ['patient-metrics', patient.id],
+    queryFn: () => api.getPatientMetrics(patient.id),
+  })
+
+  const moodPoints = (metrics?.evolution ?? []).map(e => ({
+    label: new Date(e.date).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' }),
+    mood: e.mood,
+  }))
+
   const relapseMutation = useMutation({
     mutationFn: () => api.reportRelapse(patient.id),
     onSuccess: () => {
@@ -199,10 +210,20 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
             <>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, gap: 10 }}>
                 <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 16, color: 'var(--fg1)' }}>Estado emocional</h3>
-                <span style={{ fontSize: 12, color: 'var(--fg2)' }}>Últimas 4 semanas</span>
+                <span style={{ fontSize: 12, color: 'var(--fg2)' }}>Últimos 30 días</span>
               </div>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 12px 6px', marginBottom: 12 }}>
-                <MoodChart data={patient.evolution} />
+                {loadingMetrics ? (
+                  <div style={{ height: 230, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fg2)', fontSize: 13 }}>
+                    Cargando evolución…
+                  </div>
+                ) : metricsError ? (
+                  <div style={{ height: 230, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--danger)', fontSize: 13, textAlign: 'center', padding: '0 20px' }}>
+                    No se pudo cargar la evolución. Intenta de nuevo.
+                  </div>
+                ) : (
+                  <MoodChart data={moodPoints} />
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18, fontSize: 12, color: 'var(--fg2)' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -212,8 +233,9 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--danger)', display: 'inline-block' }} /> Alerta de pánico
                 </span>
               </div>
-              <StatRow icon="triangle-alert" label="Total alertas de pánico" value={patient.panicTotal} color={patient.panicTotal > 0 ? 'var(--danger)' : undefined} />
-              <StatRow icon="activity" label="Promedio de estado" value={`${patient.moodAvg}/5`} />
+              <StatRow icon="clipboard-list" label="Total check-ins (30 días)" value={metrics?.totalCheckIns ?? '—'} />
+              <StatRow icon="triangle-alert" label="Alertas de pánico (30 días)" value={metrics?.panicCount ?? '—'} color={metrics && metrics.panicCount > 0 ? 'var(--danger)' : undefined} />
+              <StatRow icon="activity" label="Promedio de estado" value={metrics?.moodAvg != null ? `${metrics.moodAvg}/5` : 'Sin datos'} />
               <StatRow icon="clock" label="Último check emocional" value={patient.lastCheck} />
               <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {relapseStep === 'confirm' && (
@@ -575,6 +597,8 @@ interface OverviewPageProps {
 export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
   const [selected, setSelected] = useState<Patient | null>(null)
 
+  useAlertsRealtime()
+
   const { data: patientList = [], isLoading: loadingPatients } = useQuery({
     queryKey: ['patients'],
     queryFn: api.getPatients,
@@ -585,6 +609,8 @@ export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
   const { data: alertHistory = [] } = useQuery({
     queryKey: ['alerts', 'history'],
     queryFn: api.getAlertHistory,
+    // Red de seguridad si el SSE no está disponible (4.1: alerta nueva sin recargar)
+    refetchInterval: 30_000,
   })
 
   const { data: sedes = [] } = useQuery({

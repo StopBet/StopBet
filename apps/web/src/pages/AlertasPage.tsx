@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
+import { useAlertsRealtime } from '../hooks/useAlertsRealtime'
 import { MetricCard } from '../components/MetricCard'
 import { api } from '../services/api'
 import type { AlertHistoryItem } from '../services/api'
@@ -63,9 +64,13 @@ export function AlertasPage() {
   const HIST_PAGE_SIZE = 8
   const ATTN_PAGE_SIZE = 5
 
+  useAlertsRealtime()
+
   const { data: alertHistory = [], isLoading } = useQuery({
     queryKey: ['alerts', 'history'],
     queryFn: api.getAlertHistory,
+    // Red de seguridad si el SSE no está disponible (4.1: alerta nueva sin recargar)
+    refetchInterval: 30_000,
   })
 
   const { data: sedes = [] } = useQuery({
