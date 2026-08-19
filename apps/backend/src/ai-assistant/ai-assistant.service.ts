@@ -323,16 +323,29 @@ export class AiAssistantService {
       .replace(/[\u0300-\u036f]/g, '');
   }
 
+  // Umbrales alineados con docs/reglas-asistente.md §4: lo que decide no es el tema
+  // (apuestas, ánimo bajo) sino la presencia de riesgo *inmediato*. Por eso una
+  // recaída sola no basta — hablar de haber apostado en el pasado, sin descontrol
+  // actual, no debe disparar el protocolo.
   private detectRiskLevel(text: string): RiskLevel {
     const t = this.normalize(text);
+
+    const selfHarm = /\b(matarme|suicid\w*|no quiero vivir|quiero desaparecer|acabar con todo|hacerme dano)\b/.test(t);
+
+    const lossOfControl =
+      /\b(no aguanto|no puedo mas|no puedo parar|voy a apostar|voy al casino)\b/.test(t) ||
+      /\b(estoy apostando|aposte todo|perdi todo)\b/.test(t);
+
+    // Recaída mencionada, sin decir por sí sola si sigue en curso
+    const relapse = /\b(recai\w*|volvi a apostar|ya apost\w*)\b/.test(t);
+
+    // Marcadores de que está pasando ahora, no de un episodio ya cerrado
+    const immediate = /\b(ahora|ahorita|hoy|recien|en este momento|justo)\b/.test(t);
+
+    if (selfHarm || lossOfControl || (relapse && immediate)) return 'high';
+
     if (
-      /\b(matarme|suicid\w*|no quiero vivir|acabar con todo|hacerme dano)\b/.test(t) ||
-      /\b(recai\w*|volvi a apostar|estoy apostando|ya apost\w*)\b/.test(t) ||
-      /\b(no aguanto|no puedo mas|voy a apostar|voy al casino)\b/.test(t)
-    ) {
-      return 'high';
-    }
-    if (
+      relapse ||
       /\b(ganas de apostar|impulso|tentacion|ansiedad|angustia|desesper\w*)\b/.test(t) ||
       /\b(sol[oa]|soledad|aislad\w*|abandonad\w*|deprimid\w*)\b/.test(t)
     ) {

@@ -72,7 +72,7 @@ describe('AiAssistantService', () => {
 
     it.each([
       ['no aguanto más, voy a apostar hoy'],
-      ['recaí ayer en el casino'],
+      ['ya aposté todo y no puedo parar'],
       ['ya no quiero vivir así'],
     ])('marca riesgo alto y entrega las 3 vías de escape: %s', async (content) => {
       const res = await service.sendMessage(SESSION_ID, USER_ID, { content } as any);
@@ -86,6 +86,22 @@ describe('AiAssistantService', () => {
       ]);
     });
 
+    it.each([
+      ['recaí el mes pasado pero ya estoy mejor'],
+      ['antes apostaba todos los fines de semana'],
+    ])('NO dispara si la recaída es pasada y no hay descontrol: %s', async (content) => {
+      const res = await service.sendMessage(SESSION_ID, USER_ID, { content } as any);
+      expect(res.crisis).toBeNull();
+    });
+
+    it.each([
+      ['recaí ahora, estoy en el casino'],
+      ['volví a apostar hoy'],
+    ])('SÍ dispara si la recaída está en curso: %s', async (content) => {
+      const res = await service.sendMessage(SESSION_ID, USER_ID, { content } as any);
+      expect(res.crisis?.riskLevel).toBe('high');
+    });
+
     it('marca sustained=false ante un pico aislado', async () => {
       messageRepo.find.mockResolvedValue([
         userMessage('hoy estuve tranquilo'),
@@ -97,7 +113,7 @@ describe('AiAssistantService', () => {
 
     it('marca sustained=true si ya venía en riesgo alto', async () => {
       messageRepo.find.mockResolvedValue([
-        userMessage('recaí ayer'),
+        userMessage('no puedo parar'),
         userMessage('voy a apostar'),
       ]);
       const res = await service.sendMessage(SESSION_ID, USER_ID, { content: 'voy a apostar' } as any);
@@ -133,6 +149,42 @@ describe('AiAssistantService', () => {
         SESSION_ID, USER_ID, { content: 'tengo muchas ganas de apostar' } as any,
       );
       expect(res.techniqueTriggered).toBe('breathing');
+    });
+  });
+
+  // Las tres conversaciones de prueba de docs/reglas-asistente.md §6 (S.1).
+  describe('S.1 §6 — las tres conversaciones de prueba', () => {
+    beforeEach(() => {
+      sessionRepo.findOne.mockResolvedValue({
+        id: SESSION_ID, userId: USER_ID, status: 'active', previousContext: null,
+      });
+    });
+
+    it('C1 — sin crisis: un saludo no activa el protocolo', async () => {
+      const res = await service.sendMessage(
+        SESSION_ID, USER_ID, { content: 'Hola, ¿cómo funciona esto?' } as any,
+      );
+      expect(res.crisis).toBeNull();
+    });
+
+    it('C2 — impulso activo aguantado: acompaña, no alarma', async () => {
+      const res = await service.sendMessage(
+        SESSION_ID, USER_ID, { content: 'Tengo ganas de apostar pero estoy aguantando' } as any,
+      );
+      expect(res.crisis).toBeNull();
+      expect(res.techniqueTriggered).toBe('breathing');
+    });
+
+    it('C3 — crisis severa: tarjeta con pánico, padrino y *4141', async () => {
+      const res = await service.sendMessage(
+        SESSION_ID, USER_ID, { content: 'No aguanto más, quiero desaparecer' } as any,
+      );
+      expect(res.crisis?.riskLevel).toBe('high');
+      expect(res.crisis?.suggestions).toEqual([
+        'panic_button',
+        'contact_sponsor',
+        'crisis_line',
+      ]);
     });
   });
 
@@ -230,6 +282,53 @@ describe('AiAssistantService', () => {
         SESSION_ID,
         expect.objectContaining({ status: 'closed' }),
       );
+    });
+  });
+
+  // El servicio deja `llm` en null sin API key; se inyecta un doble para cubrir
+  // los caminos que sí hablan con el modelo.
+  describe('con LLM disponible', () => {
+    const withLlm = (invoke: jest.Mock) => {
+      (service as unknown as { llm: { invoke: jest.Mock } }).llm = { invoke };
+    };
+
+    beforeEach(() => {
+      sessionRepo.findOne.mockResolvedValue({
+        id: SESSION_ID, userId: USER_ID, status: 'active', previousContext: null,
+        startedAt: new Date(Date.now() - 5 * 60 * 1000),
+      });
+    });
+
+    it('usa la respuesta del modelo cuando responde bien', async () => {
+      withLlm(jest.fn().mockResolvedValue({ content: '  Te escucho. ¿Qué pasó hoy?  ' }));
+      const res = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+      expect(res.assistantMessage.content).toBe('Te escucho. ¿Qué pasó hoy?');
+    });
+
+    it('cae al mensaje de respaldo si el modelo falla', async () => {
+      withLlm(jest.fn().mockRejectedValue(new Error('API key not valid')));
+      const res = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+      expect(res.assistantMessage.content.length).toBeGreaterThan(0);
+    });
+
+    it('extrae el resumen clínico del JSON del modelo', async () => {
+      withLlm(jest.fn().mockResolvedValue({
+        content: '{"mood":"Ansiedad","trigger":"Estrés laboral","riskLevel":"medium","techniqueUsed":"respiración","progressNote":"Buen avance"}',
+      }));
+      messageRepo.find.mockResolvedValue([userMessage('tuve ansiedad')]);
+
+      const summary = await service.closeSession(SESSION_ID, USER_ID);
+
+      expect(summary.mood).toBe('Ansiedad');
+      expect(summary.riskLevel).toBe('medium');
+    });
+
+    it('no revienta si el modelo devuelve un JSON inválido', async () => {
+      withLlm(jest.fn().mockResolvedValue({ content: 'esto no es json' }));
+      messageRepo.find.mockResolvedValue([userMessage('hola')]);
+
+      const summary = await service.closeSession(SESSION_ID, USER_ID);
+      expect(summary.sessionId).toBe(SESSION_ID);
     });
   });
 
