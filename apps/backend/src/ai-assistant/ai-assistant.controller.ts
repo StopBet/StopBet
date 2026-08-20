@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Headers, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, UseInterceptors } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AiAssistantService } from './ai-assistant.service';
 import { SendMessageDto } from './dto/send-message.dto';
+import { LatencyInterceptor } from './latency.interceptor';
 
 @ApiTags('ai-assistant')
 @Controller('ai')
@@ -25,6 +26,7 @@ export class AiAssistantController {
   }
 
   @Post('sessions/:sessionId/messages')
+  @UseInterceptors(LatencyInterceptor)
   @ApiOperation({ summary: 'Envía un mensaje al asistente y obtiene respuesta' })
   @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiParam({ name: 'sessionId', description: 'UUID de la sesión activa' })

@@ -8,6 +8,7 @@ import { AiSession } from './entities/ai-session.entity';
 import { AiMessage } from './entities/ai-message.entity';
 import { AiSessionSummary } from './entities/ai-session-summary.entity';
 import { SendMessageDto } from './dto/send-message.dto';
+import { getFallbackMessage } from './fallback';
 import {
   CrisisSignal,
   CrisisSuggestion,
@@ -158,7 +159,7 @@ export class AiAssistantService {
     });
 
     // Generar respuesta del asistente
-    const aiContent = await this.generateResponse(history, session.previousContext);
+    const aiContent = await this.generateResponse(history, session.previousContext, sessionId);
 
     const assistantMsg = await this.messageRepo.save(
       this.messageRepo.create({
@@ -244,9 +245,19 @@ export class AiAssistantService {
     }
   }
 
+  // getFallbackMessage es determinista por semilla: la misma sesión ve siempre el
+  // mismo mensaje de respaldo, en vez de uno distinto en cada fallo — eso último
+  // sugeriría que el sistema está errático justo cuando el paciente necesita calma.
+  private fallbackSeed(sessionId: string): number {
+    let seed = 0;
+    for (const char of sessionId) seed = (seed + char.charCodeAt(0)) % 1000;
+    return seed;
+  }
+
   private async generateResponse(
     history: AiMessage[],
     previousContext: string | null,
+    sessionId: string,
   ): Promise<string> {
     const systemWithContext = previousContext
       ? `${AJUTER_SYSTEM_PROMPT}\n\nContexto de sesión anterior: ${previousContext}`
@@ -261,13 +272,16 @@ export class AiAssistantService {
       ),
     ];
 
-    if (!this.llm) return 'Entiendo cómo te sientes. ¿Puedes contarme un poco más sobre lo que está pasando?';
+    const fallback = getFallbackMessage(this.fallbackSeed(sessionId));
+    if (!this.llm) return fallback;
     try {
       const response = await this.llm.invoke(lcMessages);
       return (response.content as string).trim();
     } catch (err) {
+      // S.8: nunca dejar al paciente sin respuesta. El mensaje de respaldo siempre
+      // lleva la ruta de escalada visible (botón de pánico, padrino, *4141).
       console.error('[AI] generateResponse error:', (err as Error).message);
-      return 'Entiendo cómo te sientes. ¿Puedes contarme un poco más sobre lo que está pasando?';
+      return fallback;
     }
   }
 
