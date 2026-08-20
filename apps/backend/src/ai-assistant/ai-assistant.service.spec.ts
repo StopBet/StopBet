@@ -307,6 +307,35 @@ describe('AiAssistantService', () => {
 
     // S.8: si el asistente falla, el paciente no puede quedarse sin salida. El
     // mensaje de respaldo siempre tiene que dejar visible la ruta de escalada.
+    it('quita el markdown del modelo antes de mostrarlo', async () => {
+      withLlm(jest.fn().mockResolvedValue({
+        content: 'Usa el **botón de pánico** ahora y __no esperes__.',
+      }));
+      const res = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      expect(res.assistantMessage.content).toBe('Usa el botón de pánico ahora y no esperes.');
+      expect(res.assistantMessage.content).not.toContain('**');
+    });
+
+    // La linea de ayuda chilena es literalmente *4141: si la limpieza de markdown se
+    // lleva los asteriscos sueltos, borra el numero justo en el mensaje de crisis.
+    it('NO toca los asteriscos sueltos del *4141', async () => {
+      withLlm(jest.fn().mockResolvedValue({
+        content: 'Puedes llamar al *4141 ahora mismo.',
+      }));
+      const res = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      expect(res.assistantMessage.content).toContain('*4141');
+    });
+
+    it('quita el markdown aunque abarque varias lineas', async () => {
+      withLlm(jest.fn().mockResolvedValue({
+        content: 'Respira **muy\ndespacio** conmigo.',
+      }));
+      const res = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+      expect(res.assistantMessage.content).not.toContain('**');
+    });
+
     it('cae al mensaje de respaldo y mantiene visible la ruta de escalada', async () => {
       withLlm(jest.fn().mockRejectedValue(new Error('API key not valid')));
       const res = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
