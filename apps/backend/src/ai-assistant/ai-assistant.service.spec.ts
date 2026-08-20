@@ -305,10 +305,22 @@ describe('AiAssistantService', () => {
       expect(res.assistantMessage.content).toBe('Te escucho. ¿Qué pasó hoy?');
     });
 
-    it('cae al mensaje de respaldo si el modelo falla', async () => {
+    // S.8: si el asistente falla, el paciente no puede quedarse sin salida. El
+    // mensaje de respaldo siempre tiene que dejar visible la ruta de escalada.
+    it('cae al mensaje de respaldo y mantiene visible la ruta de escalada', async () => {
       withLlm(jest.fn().mockRejectedValue(new Error('API key not valid')));
       const res = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
-      expect(res.assistantMessage.content.length).toBeGreaterThan(0);
+      const texto = res.assistantMessage.content;
+
+      expect(texto.length).toBeGreaterThan(0);
+      expect(texto).toMatch(/4141|pánico|padrino/i);
+    });
+
+    it('devuelve siempre el mismo respaldo para la misma sesión', async () => {
+      withLlm(jest.fn().mockRejectedValue(new Error('falla')));
+      const uno = await service.sendMessage(SESSION_ID, USER_ID, { content: 'a' } as any);
+      const dos = await service.sendMessage(SESSION_ID, USER_ID, { content: 'b' } as any);
+      expect(uno.assistantMessage.content).toBe(dos.assistantMessage.content);
     });
 
     it('extrae el resumen clínico del JSON del modelo', async () => {

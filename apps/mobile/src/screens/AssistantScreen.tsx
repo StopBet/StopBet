@@ -22,6 +22,10 @@ import type {
 } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
+import {
+  buildLocalUserMessage,
+  buildOfflineFallbackMessage,
+} from '../services/assistantFallback';
 import { PrivacyCard } from '../components/PrivacyCard';
 import { CrisisCard } from '../components/CrisisCard';
 import { TechniqueCard } from '../components/TechniqueCard';
@@ -184,8 +188,14 @@ export function AssistantScreen() {
       setCrisis(res.crisis ?? null);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } catch {
+      // S.8: antes esto lanzaba un Alert y dejaba la pantalla vacía e inutilizable.
+      // El respaldo entra como un mensaje más del hilo, con la ruta de escalada.
       removeTypingIndicator();
-      Alert.alert('Error', 'No se pudo enviar el mensaje. Intenta de nuevo.');
+      appendMessages([
+        buildLocalUserMessage(sessionId, text),
+        buildOfflineFallbackMessage(sessionId),
+      ]);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
     } finally {
       setIsSending(false);
     }
