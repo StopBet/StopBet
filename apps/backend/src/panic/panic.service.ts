@@ -3,8 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, LessThan, Repository } from 'typeorm';
 import {
   ActiveAlertResponse,
   PanicAlertDto,
@@ -17,7 +18,8 @@ import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
 
-const ESCALATION_MS = 30 * 1000; // 30 segundos (demo)
+// CA1.3: el padrino tiene 120 s para responder antes de escalar a la IA
+const ESCALATION_MS = 120 * 1000;
 const ACTIVE_STATUSES: PanicAlertStatus[] = ['pending', 'responded', 'escalated'];
 
 @Injectable()
@@ -100,7 +102,21 @@ export class PanicService {
     const assignment = await this.assignmentRepo.findOne({
       where: { patientId, isActive: true },
     });
-    if (!assignment) throw new NotFoundException('No tienes padrino asignado');
+    // CA1.2: sin padrino activo la alerta nace escalada, para que el paciente
+    // llegue a la IA de inmediato en vez de esperar una respuesta que no va a llegar.
+    // Igual se registra, para que el episodio quede en el historial del psicólogo.
+    if (!assignment) {
+      return this.serializeAlert(
+        await this.alertRepo.save(
+          this.alertRepo.create({
+            patientId,
+            sponsorId: null,
+            status: 'escalated',
+            escalatedAt: new Date(),
+          }),
+        ),
+      );
+    }
 
     const alert = await this.alertRepo.save(
       this.alertRepo.create({
@@ -127,6 +143,34 @@ export class PanicService {
     return this.serializeAlert(alert);
   }
 
+  private hasExpired(alert: PanicAlert): boolean {
+    return (
+      alert.status === 'pending' &&
+      Date.now() - new Date(alert.createdAt).getTime() > ESCALATION_MS
+    );
+  }
+
+  // CA1.3 exige escalar "automáticamente". No puede depender de que el cliente
+  // consulte la alerta: si el paciente cierra la app en plena crisis, nadie la
+  // escalaría nunca.
+  @Cron(CronExpression.EVERY_10_SECONDS)
+  async escalateExpiredAlerts(): Promise<void> {
+    const expired = await this.alertRepo.find({
+      where: {
+        status: 'pending',
+        createdAt: LessThan(new Date(Date.now() - ESCALATION_MS)),
+      },
+    });
+    if (expired.length === 0) return;
+
+    const escalatedAt = new Date();
+    for (const alert of expired) {
+      alert.status = 'escalated';
+      alert.escalatedAt = escalatedAt;
+    }
+    await this.alertRepo.save(expired);
+  }
+
   async getActiveAlert(userId: string): Promise<ActiveAlertResponse> {
     // Buscar como paciente primero
     let alert = await this.alertRepo.findOne({
@@ -144,17 +188,17 @@ export class PanicService {
 
     if (!alert) return { alert: null, sponsor: null };
 
-    // Red de seguridad: auto-escalar si llevan más de 3 min sin respuesta
-    if (alert.status === 'pending') {
-      const elapsed = Date.now() - new Date(alert.createdAt).getTime();
-      if (elapsed > ESCALATION_MS) {
-        alert.status = 'escalated';
-        alert.escalatedAt = new Date();
-        await this.alertRepo.save(alert);
-      }
+    // El cron corre cada 10 s, así que una alerta recién vencida puede seguir
+    // 'pending' acá: se escala en el acto para no devolver un estado atrasado.
+    if (this.hasExpired(alert)) {
+      alert.status = 'escalated';
+      alert.escalatedAt = new Date();
+      await this.alertRepo.save(alert);
     }
 
-    const sponsor = await this.userRepo.findOne({ where: { id: alert.sponsorId } });
+    const sponsor = alert.sponsorId
+      ? await this.userRepo.findOne({ where: { id: alert.sponsorId } })
+      : null;
     return {
       alert: this.serializeAlert(alert),
       sponsor: sponsor ? this.serializeSponsor(sponsor) : null,
