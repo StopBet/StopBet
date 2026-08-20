@@ -1,12 +1,27 @@
 name: Mobile Preview
 
+# DESACTIVADO EL DISPARO AUTOMATICO — 20-08-2026
+#
+# Este workflow falla en 'Build APK' desde junio y mandaba un correo de fallo en
+# cada merge a main. No esta cubierto por ningun criterio del Sprint 1 y no
+# bloquea a nadie: solo genera la preview de Firebase App Distribution.
+#
+# La causa NO es de configuracion. El paquete react-native@0.86.0 instalado esta
+# incompleto respecto a su propio package.json: declara 'sdks/hermesc' y
+# 'scripts/hermes/prepare-hermes-for-build.js' en "files", pero ninguno de los dos
+# llega en el tarball. Por eso Gradle responde:
+#   "Couldn't determine Hermesc location ... sdks/hermesc/%OS-BIN%/hermesc"
+# No hay ruta de gradle ni ajuste de pnpm que lo arregle: el binario no existe.
+# (nodeLinker esta en 'hoisted', asi que las rutas del build.gradle son correctas.)
+#
+# Salidas reales, ambas con impacto en el producto y a decidir por el equipo:
+#   1. Cambiar la version de React Native por una cuyo tarball si traiga hermesc
+#   2. hermesEnabled=false en release, que cambia el motor JS de la app
+#
+# Mientras tanto queda solo manual (workflow_dispatch) para no ensuciar el CI.
+# Al reactivar el disparo automatico, borrar este bloque.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/mobile/**'
-      - 'packages/shared-types/**'
 
 jobs:
   build-and-distribute:
