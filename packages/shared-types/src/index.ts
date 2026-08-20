@@ -202,7 +202,10 @@ export interface AiSessionSummary {
   mood: string | null;
   techniqueUsed: string | null;
   trigger: string | null;
-  riskLevel: RiskLevel;
+  // null significa "no se pudo evaluar" (falló el LLM), distinto de 'low',
+  // que significa "evaluado y sin riesgo". Confundirlos es registrar un dato
+  // clínico falso.
+  riskLevel: RiskLevel | null;
   durationMinutes: number;
   progressNote: string | null;
   createdAt: string;

@@ -35,8 +35,10 @@ export class AiSessionSummary {
   @Column({ nullable: true })
   trigger: string | null;
 
-  @Column({ type: 'enum', enum: RISK_LEVELS, default: 'low' })
-  riskLevel: RiskLevel;
+  // Sin default: omitir el campo tiene que quedar como "sin evaluar", no como
+  // "sin riesgo". El default 'low' hacía que el esquema mintiera por omisión.
+  @Column({ type: 'enum', enum: RISK_LEVELS, nullable: true })
+  riskLevel: RiskLevel | null;
 
   @Column({ type: 'int', default: 0 })
   durationMinutes: number;

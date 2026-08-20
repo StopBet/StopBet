@@ -335,6 +335,28 @@ describe('AiAssistantService', () => {
       expect(summary.riskLevel).toBe('medium');
     });
 
+    // Un 'low' guardado tras un fallo significaria "sin riesgo" cuando en realidad
+    // nadie evaluó nada. El dashboard tiene que poder distinguir los dos casos.
+    it('guarda riskLevel null si el modelo falla, no low', async () => {
+      withLlm(jest.fn().mockRejectedValue(new Error('API caída')));
+      messageRepo.find.mockResolvedValue([userMessage('tuve ansiedad')]);
+
+      const summary = await service.closeSession(SESSION_ID, USER_ID);
+
+      expect(summary.riskLevel).toBeNull();
+      expect(summary.riskLevel).not.toBe('low');
+    });
+
+    it('guarda riskLevel null si el modelo devuelve un valor que no reconocemos', async () => {
+      withLlm(jest.fn().mockResolvedValue({
+        content: '{"mood":"Ansiedad","trigger":null,"riskLevel":"altísimo","techniqueUsed":null,"progressNote":null}',
+      }));
+      messageRepo.find.mockResolvedValue([userMessage('hola')]);
+
+      const summary = await service.closeSession(SESSION_ID, USER_ID);
+      expect(summary.riskLevel).toBeNull();
+    });
+
     it('no revienta si el modelo devuelve un JSON inválido', async () => {
       withLlm(jest.fn().mockResolvedValue({ content: 'esto no es json' }));
       messageRepo.find.mockResolvedValue([userMessage('hola')]);
