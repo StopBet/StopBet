@@ -233,6 +233,18 @@ export class AiAssistantService {
 
   // ── Generación de texto con Gemini ──────────────────────────────────────
 
+  // El modelo a veces responde con markdown y la app lo muestra crudo: el paciente
+  // ve "**botón de pánico**" con asteriscos, en pleno mensaje de crisis.
+  //
+  // Se quitan SOLO los marcadores dobles. Los asteriscos sueltos no se tocan porque
+  // la línea de ayuda chilena es literalmente *4141: limpiarlos a lo bruto borraría
+  // el número justo en el mensaje donde más importa.
+  private stripMarkdown(text: string): string {
+    return text
+      .replace(/\*\*(.+?)\*\*/gs, '$1')
+      .replace(/__(.+?)__/gs, '$1');
+  }
+
   private async generateOpeningMessage(previousContext: string | null): Promise<string> {
     const systemWithContext = previousContext
       ? `${AJUTER_SYSTEM_PROMPT}\n\nContexto de sesión anterior: ${previousContext}`
@@ -244,7 +256,7 @@ export class AiAssistantService {
         new SystemMessage(systemWithContext),
         new HumanMessage('(inicio de sesión — saluda al paciente de manera cálida y breve)'),
       ]);
-      return (response.content as string).trim();
+      return this.stripMarkdown((response.content as string).trim());
     } catch {
       return 'Hola, estoy aquí contigo. ¿Cómo te sientes en este momento?';
     }
@@ -281,7 +293,7 @@ export class AiAssistantService {
     if (!this.llm) return fallback;
     try {
       const response = await this.llm.invoke(lcMessages);
-      return (response.content as string).trim();
+      return this.stripMarkdown((response.content as string).trim());
     } catch (err) {
       // S.8: nunca dejar al paciente sin respuesta. El mensaje de respaldo siempre
       // lleva la ruta de escalada visible (botón de pánico, padrino, *4141).
