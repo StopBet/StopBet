@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,12 @@ import { NotificationSection } from '../components/NotificationSection';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api, hasPendingExternalRelapse, acknowledgePendingRelapse } from '../services/api';
+import {
+  flushPending,
+  isNetworkError,
+  onReconnect,
+  savePending,
+} from '../services/checkInQueue';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -32,44 +38,7 @@ export function HomeScreen({ navigation }: Props) {
   const [progress, setProgress] = useState<PatientProgress | null>(null);
   const [todayEmotion, setTodayEmotion] = useState<EmotionType | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 'mock-1',
-      userId: TEMP_USER_ID,
-      type: 'warning',
-      title: 'Reunión cancelada',
-      body: 'Tu sesión de las 16:00 con Dra. García fue reprogramada al jueves.',
-      read: false,
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'mock-2',
-      userId: TEMP_USER_ID,
-      type: 'info',
-      title: 'Nueva actividad grupal',
-      body: 'Mañana a las 10:00 hay taller de mindfulness. ¡Te esperamos!',
-      read: false,
-      createdAt: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'mock-3',
-      userId: TEMP_USER_ID,
-      type: 'success',
-      title: '¡Insignia desbloqueada!',
-      body: 'Completaste 45 días consecutivos. ¡Sigue así, lo estás haciendo genial!',
-      read: false,
-      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-    },
-    {
-      id: 'mock-4',
-      userId: TEMP_USER_ID,
-      type: 'danger',
-      title: 'Alerta de riesgo detectada',
-      body: 'Tu psicóloga revisó tu check-in de hoy. Tiene un mensaje para ti.',
-      read: false,
-      createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
@@ -101,7 +70,10 @@ export function HomeScreen({ navigation }: Props) {
         setTodayEmotion(checkIn.emotion);
         setCheckInDone(true);
       }
-      if (notifs.length > 0) setNotifications(notifs);
+      // Antes solo se asignaba si venía algo, así que con la lista vacía quedaban
+      // 4 notificaciones de demo hardcodeadas — una de ellas afirmaba que la
+      // psicóloga había revisado el check-in del paciente. Datos clínicos falsos.
+      setNotifications(notifs);
 
       if (hasPendingExternalRelapse()) {
         acknowledgePendingRelapse();
@@ -130,13 +102,41 @@ export function HomeScreen({ navigation }: Props) {
     }, [load]),
   );
 
+  // CA7.3: al recuperar la conexión se vacía la cola sola. También se intenta al
+  // montar, por si la app se cerró y se reabrió sin red.
+  useEffect(() => {
+    const trySend = () => {
+      flushPending()
+        .then((sent) => {
+          if (!sent) return;
+          setTodayEmotion(sent);
+          setCheckInDone(true);
+        })
+        .catch(() => {});
+    };
+    trySend();
+    return onReconnect(trySend);
+  }, []);
+
   const handlePickEmotion = async (emotion: EmotionType) => {
     try {
       await api.createCheckIn(TEMP_USER_ID, emotion);
       setTodayEmotion(emotion);
       setCheckInDone(true);
-    } catch {
-      Alert.alert('Error', 'No se pudo guardar el check-in. Inténtalo de nuevo.');
+    } catch (err) {
+      if (!isNetworkError(err)) {
+        Alert.alert('Error', 'No se pudo guardar el check-in. Inténtalo de nuevo.');
+        return;
+      }
+      // CA7.3: sin conexión el ánimo no se descarta — queda en cola y se
+      // reintenta solo al volver la red.
+      await savePending(TEMP_USER_ID, emotion);
+      setTodayEmotion(emotion);
+      setCheckInDone(true);
+      Alert.alert(
+        'Sin conexión',
+        'Guardamos tu check-in en el teléfono y lo enviaremos solo cuando vuelvas a tener internet.',
+      );
     }
   };
 
