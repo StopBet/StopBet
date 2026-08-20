@@ -17,6 +17,7 @@ import { PanicAlert } from './entities/panic-alert.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
+import { CommunityService } from '../community/community.service';
 
 // CA1.3: el padrino tiene 120 s para responder antes de escalar a la IA
 const ESCALATION_MS = 120 * 1000;
@@ -33,6 +34,7 @@ export class PanicService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
+    private readonly communityService: CommunityService,
   ) {}
 
   // ── Dashboard (psicólogo) ──────────────────────────────────────────────
@@ -247,6 +249,14 @@ export class PanicService {
     });
     if (!alert) throw new NotFoundException('Alerta no encontrada');
     if (alert.communityNotified) return { communityNotified: true };
+
+    // CA5.1: hasta ahora esto solo movía un booleano y la comunidad no veía nada.
+    // El post es lo que realmente se publica, así que se crea primero: marcar el
+    // flag antes sería decirle al paciente que pidió ayuda cuando nadie la vio.
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient?.sedeId) return { communityNotified: false };
+
+    await this.communityService.createPanicAlertPost(patientId, patient.sedeId);
 
     alert.communityNotified = true;
     await this.alertRepo.save(alert);
