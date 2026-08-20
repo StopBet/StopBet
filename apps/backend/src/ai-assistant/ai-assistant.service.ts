@@ -25,6 +25,11 @@ import {
 // Número máximo de mensajes previos a incluir en el contexto de Gemini
 const MAX_HISTORY = 12;
 
+// Google descontinúa modelos para cuentas nuevas sin avisar: gemini-2.5-flash-lite
+// empezó a responder 404 y el asistente caía al mensaje de respaldo en cada mensaje,
+// sin que nada lo delatara desde afuera. Al cambiarlo, revisar también el fallback.
+const GEMINI_MODEL = 'gemini-3.5-flash-lite';
+
 // Tiempo de inactividad en ms antes de cerrar sesión automáticamente (10 min)
 const INACTIVITY_MS = 10 * 60 * 1000;
 
@@ -47,7 +52,7 @@ export class AiAssistantService {
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.llm = apiKey
-      ? new ChatGoogleGenerativeAI({ apiKey, model: 'gemini-2.5-flash-lite', temperature: 0.75, maxOutputTokens: 350, maxRetries: 0 })
+      ? new ChatGoogleGenerativeAI({ apiKey, model: GEMINI_MODEL, temperature: 0.75, maxOutputTokens: 350, maxRetries: 0 })
       : null;
   }
 
