@@ -39,6 +39,10 @@ import { AiSessionSummary } from './ai-assistant/entities/ai-session-summary.ent
 import { SponsorAssignment } from './panic/entities/sponsor-assignment.entity';
 import { PanicAlert } from './panic/entities/panic-alert.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
+import { FamilyModule } from './family/family.module';
+import { FamilyLink } from './family/entities/family-link.entity';
+import { FamilySession } from './family/entities/family-session.entity';
+import { SessionAttendance } from './family/entities/session-attendance.entity';
 
 @Module({
   imports: [
@@ -66,6 +70,7 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
           AiSession, AiMessage, AiSessionSummary,
           SponsorAssignment, PanicAlert,
           RefreshToken,
+          FamilyLink, FamilySession, SessionAttendance,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',
@@ -90,6 +95,7 @@ import { RefreshToken } from './auth/entities/refresh-token.entity';
     AuthModule,
     HealthModule,
     MetricsModule,
+    FamilyModule,
   ],
   controllers: [],
   providers: [
