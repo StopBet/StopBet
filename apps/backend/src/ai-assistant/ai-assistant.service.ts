@@ -281,7 +281,7 @@ export class AiAssistantService {
       .join(' ');
 
     if (!userContent.trim() || !this.llm) {
-      return { mood: null, trigger: null, riskLevel: 'low', techniqueUsed: null, progressNote: null };
+      return { mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: null };
     }
 
     try {
@@ -295,7 +295,10 @@ export class AiAssistantService {
         return {
           mood: parsed.mood ?? null,
           trigger: parsed.trigger ?? null,
-          riskLevel: (['low', 'medium', 'high'].includes(parsed.riskLevel) ? parsed.riskLevel : 'low') as RiskLevel,
+          // Un valor que no reconocemos es tan poco evaluable como un fallo
+          riskLevel: (['low', 'medium', 'high'].includes(parsed.riskLevel)
+            ? (parsed.riskLevel as RiskLevel)
+            : null),
           techniqueUsed: parsed.techniqueUsed ?? null,
           progressNote: parsed.progressNote ?? null,
         };
@@ -304,7 +307,7 @@ export class AiAssistantService {
       // Fallo silencioso — no loguear contenido del mensaje
     }
 
-    return { mood: null, trigger: null, riskLevel: 'low', techniqueUsed: null, progressNote: 'Sesión completada' };
+    return { mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: 'Sesión completada' };
   }
 
   // ── Detección de técnica ────────────────────────────────────────────────
