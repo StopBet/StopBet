@@ -18,6 +18,7 @@ import { PanicModule } from './panic/panic.module';
 import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { MetricsModule } from './metrics/metrics.module';
+import { PushModule } from './push/push.module';
 import { Invoice } from './billing/entities/invoice.entity';
 import { User } from './users/entities/user.entity';
 import { CheckIn } from './check-ins/entities/check-in.entity';
@@ -39,6 +40,7 @@ import { AiSessionSummary } from './ai-assistant/entities/ai-session-summary.ent
 import { SponsorAssignment } from './panic/entities/sponsor-assignment.entity';
 import { PanicAlert } from './panic/entities/panic-alert.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
+import { DeviceToken } from './push/entities/device-token.entity';
 import { FamilyModule } from './family/family.module';
 import { FamilyLink } from './family/entities/family-link.entity';
 import { FamilySession } from './family/entities/family-session.entity';
@@ -70,6 +72,7 @@ import { SessionAttendance } from './family/entities/session-attendance.entity';
           AiSession, AiMessage, AiSessionSummary,
           SponsorAssignment, PanicAlert,
           RefreshToken,
+          DeviceToken,
           FamilyLink, FamilySession, SessionAttendance,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
@@ -96,6 +99,7 @@ import { SessionAttendance } from './family/entities/session-attendance.entity';
     HealthModule,
     MetricsModule,
     FamilyModule,
+    PushModule,
   ],
   controllers: [],
   providers: [

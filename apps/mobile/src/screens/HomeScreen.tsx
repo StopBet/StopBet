@@ -27,6 +27,7 @@ import {
   onReconnect,
   savePending,
 } from '../services/checkInQueue';
+import { registrarParaNotificaciones } from '../services/pushNotifications';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -101,6 +102,16 @@ export function HomeScreen({ navigation }: Props) {
       return () => clearInterval(interval);
     }, [load]),
   );
+
+  // CA7.4: registrar el dispositivo para el recordatorio de las 20:00. Se hace acá
+  // y no al abrir la app porque en Home el paciente ya está identificado.
+  useEffect(() => {
+    let dejarDeEscuchar = () => {};
+    registrarParaNotificaciones(TEMP_USER_ID).then((f) => {
+      dejarDeEscuchar = f;
+    });
+    return () => dejarDeEscuchar();
+  }, []);
 
   // CA7.3: al recuperar la conexión se vacía la cola sola. También se intenta al
   // montar, por si la app se cerró y se reabrió sin red.

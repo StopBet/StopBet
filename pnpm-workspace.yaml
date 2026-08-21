@@ -5,10 +5,14 @@ packages:
 # plano estilo npm. 'hoisted' desactiva los symlinks del store aislado de pnpm.
 nodeLinker: hoisted
 allowBuilds:
+  # Verificado: firebase-admin y @react-native-firebase funcionan sin estos
+  # scripts de instalacion, asi que no se habilitan.
+  '@firebase/util': false
   '@nestjs/core': true
   bcrypt: true
   core-js: true
   esbuild: true
+  protobufjs: false
 minimumReleaseAgeExclude:
   - '@react-native/assets-registry@0.86.0'
   - '@react-native/babel-plugin-codegen@0.86.0'

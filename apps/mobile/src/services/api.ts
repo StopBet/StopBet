@@ -340,4 +340,11 @@ export const api = {
       userId,
       method: 'DELETE',
     }),
+
+  registrarTokenPush: (userId: string, token: string) =>
+    request<{ registrado: boolean }>('/push/tokens', {
+      userId,
+      method: 'POST',
+      body: JSON.stringify({ token, platform: 'android' }),
+    }),
 };
