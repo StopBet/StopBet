@@ -9,6 +9,8 @@ import { AiMessage } from './entities/ai-message.entity';
 import { AiSessionSummary } from './entities/ai-session-summary.entity';
 import { SendMessageDto } from './dto/send-message.dto';
 import { getFallbackMessage } from './fallback';
+import { sanitizePii } from './sanitizer';
+import { User } from '../users/entities/user.entity';
 import {
   CrisisSignal,
   CrisisSuggestion,
@@ -48,6 +50,8 @@ export class AiAssistantService {
     private readonly messageRepo: Repository<AiMessage>,
     @InjectRepository(AiSessionSummary)
     private readonly summaryRepo: Repository<AiSessionSummary>,
+    @InjectRepository(User)
+    private readonly userRepo: Repository<User>,
     private readonly configService: ConfigService,
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
@@ -164,7 +168,12 @@ export class AiAssistantService {
     });
 
     // Generar respuesta del asistente
-    const aiContent = await this.generateResponse(history, session.previousContext, sessionId);
+    const aiContent = await this.generateResponse(
+      history,
+      session.previousContext,
+      sessionId,
+      await this.datosParaOmitir(userId),
+    );
 
     const assistantMsg = await this.messageRepo.save(
       this.messageRepo.create({
@@ -204,7 +213,11 @@ export class AiAssistantService {
       : 0;
     const durationMinutes = Math.round(durationMs / 60000);
 
-    const summaryData = await this.extractSummary(messages, durationMinutes);
+    const summaryData = await this.extractSummary(
+      messages,
+      durationMinutes,
+      await this.datosParaOmitir(userId),
+    );
 
     const summary = await this.summaryRepo.save(
       this.summaryRepo.create({
@@ -265,6 +278,17 @@ export class AiAssistantService {
   // getFallbackMessage es determinista por semilla: la misma sesión ve siempre el
   // mismo mensaje de respaldo, en vez de uno distinto en cada fallo — eso último
   // sugeriría que el sistema está errático justo cuando el paciente necesita calma.
+  // S.3: el sanitizador necesita el nombre para poder omitirlo. Se traen solo esos
+  // dos campos y nunca la fila completa: el RUT va cifrado en reposo y no hay razon
+  // para descifrarlo aca.
+  private async datosParaOmitir(userId: string) {
+    const user = await this.userRepo.findOne({
+      where: { id: userId },
+      select: ['firstName', 'lastName'],
+    });
+    return user ?? undefined;
+  }
+
   private fallbackSeed(sessionId: string): number {
     let seed = 0;
     for (const char of sessionId) seed = (seed + char.charCodeAt(0)) % 1000;
@@ -275,17 +299,25 @@ export class AiAssistantService {
     history: AiMessage[],
     previousContext: string | null,
     sessionId: string,
+    paciente?: { firstName?: string; lastName?: string },
   ): Promise<string> {
+    // S.3: se sanea SOLO lo que sale hacia el LLM. Lo guardado en la base queda
+    // intacto a proposito: son las palabras del propio paciente y el psicologo las
+    // necesita tal cual para el seguimiento clinico.
+    const omitir = (texto: string) => sanitizePii(texto, paciente);
+
+    // El contexto previo es un resumen generado por el modelo, asi que tambien
+    // puede arrastrar el nombre desde una sesion anterior.
     const systemWithContext = previousContext
-      ? `${AJUTER_SYSTEM_PROMPT}\n\nContexto de sesión anterior: ${previousContext}`
+      ? `${AJUTER_SYSTEM_PROMPT}\n\nContexto de sesión anterior: ${omitir(previousContext)}`
       : AJUTER_SYSTEM_PROMPT;
 
     const lcMessages = [
       new SystemMessage(systemWithContext),
       ...history.map((m) =>
         m.role === 'user'
-          ? new HumanMessage(m.content)
-          : new LcAIMessage(m.content),
+          ? new HumanMessage(omitir(m.content))
+          : new LcAIMessage(omitir(m.content)),
       ),
     ];
 
@@ -305,11 +337,15 @@ export class AiAssistantService {
   private async extractSummary(
     messages: AiMessage[],
     durationMinutes: number,
+    paciente?: { firstName?: string; lastName?: string },
   ): Promise<Partial<AiSessionSummary>> {
-    const userContent = messages
-      .filter((m) => m.role === 'user')
-      .map((m) => m.content)
-      .join(' ');
+    const userContent = sanitizePii(
+      messages
+        .filter((m) => m.role === 'user')
+        .map((m) => m.content)
+        .join(' '),
+      paciente,
+    );
 
     if (!userContent.trim() || !this.llm) {
       return { mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: null };

@@ -25,6 +25,7 @@ describe('AiAssistantService', () => {
   let sessionRepo: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock };
   let messageRepo: { findOne: jest.Mock; find: jest.Mock; save: jest.Mock; create: jest.Mock };
   let summaryRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let userRepo: { findOne: jest.Mock };
 
   beforeEach(() => {
     sessionRepo = {
@@ -46,10 +47,13 @@ describe('AiAssistantService', () => {
       save: jest.fn((v) => Promise.resolve(v)),
     };
 
+    userRepo = { findOne: jest.fn().mockResolvedValue(null) };
+
     service = new AiAssistantService(
       sessionRepo as any,
       messageRepo as any,
       summaryRepo as any,
+      userRepo as any,
       configService as any,
     );
   });
@@ -392,6 +396,75 @@ describe('AiAssistantService', () => {
 
       const summary = await service.closeSession(SESSION_ID, USER_ID);
       expect(summary.sessionId).toBe(SESSION_ID);
+    });
+  });
+
+  // S.3: el criterio no se cumple porque el sanitizador exista, sino porque lo que
+  // efectivamente sale hacia el LLM no lleve nombre ni RUT. Estos tests inspeccionan
+  // el argumento real que recibe invoke().
+  describe('S.3 — nombre y RUT no salen hacia el LLM', () => {
+    // El historial que recibe el LLM sale de messageRepo.find. Si se deja vacio,
+    // las aserciones de "no contiene" pasan sin probar nada: el mensaje del paciente
+    // ni siquiera llegaba al modelo.
+    const capturar = (historial: string[] = []) => {
+      const invoke = jest.fn().mockResolvedValue({ content: 'ya te escucho' });
+      (service as unknown as { llm: { invoke: jest.Mock } }).llm = { invoke };
+      messageRepo.find.mockResolvedValue(historial.map(userMessage));
+      return invoke;
+    };
+
+    const textoEnviado = (invoke: jest.Mock) =>
+      invoke.mock.calls[0][0].map((m: { content: string }) => m.content).join(' ');
+
+    beforeEach(() => {
+      sessionRepo.findOne.mockResolvedValue({
+        id: SESSION_ID, userId: USER_ID, status: 'active', previousContext: null,
+      });
+      userRepo.findOne.mockResolvedValue({ firstName: 'Carlos', lastName: 'Rojas' });
+    });
+
+    it('omite el nombre del paciente aunque lo escriba el mismo', async () => {
+      const invoke = capturar(['Hola, soy Carlos Rojas y estoy mal']);
+      await service.sendMessage(
+        SESSION_ID, USER_ID, { content: 'Hola, soy Carlos Rojas y estoy mal' } as any,
+      );
+
+      const enviado = textoEnviado(invoke);
+      expect(enviado).not.toContain('Carlos');
+      expect(enviado).not.toContain('Rojas');
+      expect(enviado).toContain('[NOMBRE OMITIDO]');
+    });
+
+    it('omite el RUT en sus dos formatos', async () => {
+      const invoke = capturar(['Mi rut es 12.345.678-9 y el de mi pareja 9876543-k']);
+      await service.sendMessage(
+        SESSION_ID, USER_ID, { content: 'Mi rut es 12.345.678-9 y el de mi pareja 9876543-k' } as any,
+      );
+
+      const enviado = textoEnviado(invoke);
+      expect(enviado).not.toContain('12.345.678-9');
+      expect(enviado).not.toContain('9876543-k');
+    });
+
+    it('omite el nombre arrastrado desde el contexto de la sesion anterior', async () => {
+      sessionRepo.findOne.mockResolvedValue({
+        id: SESSION_ID, userId: USER_ID, status: 'active',
+        previousContext: 'Carlos venia trabajando la ansiedad',
+      });
+      const invoke = capturar(['hola']);
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      expect(textoEnviado(invoke)).not.toContain('Carlos');
+    });
+
+    it('lo guardado en la base conserva el texto original del paciente', async () => {
+      capturar(['Soy Carlos y no aguanto']);
+      const res = await service.sendMessage(
+        SESSION_ID, USER_ID, { content: 'Soy Carlos y no aguanto' } as any,
+      );
+
+      // El psicologo necesita las palabras tal cual para el seguimiento clinico
+      expect(res.userMessage.content).toBe('Soy Carlos y no aguanto');
     });
   });
 
