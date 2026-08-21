@@ -1,6 +1,6 @@
 # StopBet — Mitigación Digital de la Ludopatía
 
-Proyecto de la **Feria de Software UTFSM 2026** desarrollado por el Grupo 4 en colaboración con [AJUTER](https://ajuter.cl) (Asociación de Jugadores en Rehabilitación).
+Proyecto de la **Feria de Software UTFSM 2026** desarrollado por el Grupo 4 en colaboración con [AJUTER](https://ajuter.org) (Agrupación de Jugadores en Terapia).
 
 StopBet es una plataforma clínica digital que acompaña a pacientes con ludopatía durante todo su proceso de rehabilitación. A diferencia de los bloqueadores restrictivos, combina un motor de **Intervenciones Adaptativas Justo a Tiempo (JITAI)**, un **asistente virtual con IA** con límites clínicos validados por AJUTER, y un **dashboard clínico** que centraliza la gestión terapéutica, reduciendo la carga administrativa de los psicólogos y garantizando contención 24/7 al paciente.
 
