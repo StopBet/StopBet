@@ -3,11 +3,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiSession } from './entities/ai-session.entity';
 import { AiMessage } from './entities/ai-message.entity';
 import { AiSessionSummary } from './entities/ai-session-summary.entity';
+import { User } from '../users/entities/user.entity';
 import { AiAssistantController } from './ai-assistant.controller';
 import { AiAssistantService } from './ai-assistant.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([AiSession, AiMessage, AiSessionSummary])],
+  imports: [TypeOrmModule.forFeature([AiSession, AiMessage, AiSessionSummary, User])],
   controllers: [AiAssistantController],
   providers: [AiAssistantService],
   exports: [AiAssistantService],
