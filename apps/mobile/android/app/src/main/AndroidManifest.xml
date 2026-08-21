@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- CA7.4: desde Android 13 la notificacion requiere permiso explicito del
+         usuario. Sin esto el recordatorio de las 20:00 no se muestra nunca. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
       android:name=".MainApplication"

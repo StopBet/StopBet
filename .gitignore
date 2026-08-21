@@ -63,6 +63,11 @@ apps/mobile/android/local.properties
 # Firebase config (generado por CI desde secret, cada dev tiene el suyo)
 apps/mobile/android/app/google-services.json
 
+# Credenciales de servidor de Firebase (firebase-admin). Dan acceso administrativo
+# al proyecto: NUNCA al repositorio. En produccion van como variable de entorno.
+apps/backend/firebase-service-account.json
+**/*-firebase-adminsdk-*.json
+
 # Keystores: el debug.keystore SÍ se versiona (clave de desarrollo compartida).
 # Los keystores de release son secretos y nunca se suben.
 apps/mobile/**/*.keystore
