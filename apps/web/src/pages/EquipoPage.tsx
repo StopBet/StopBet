@@ -220,11 +220,150 @@ function DeactivateModal({
   )
 }
 
+/* ── Edit Sedes Modal ────────────────────────────────── */
+function EditSedesModal({
+  psychologist, allSedes, candidates, onClose, onDone,
+}: {
+  psychologist: PsychologistListItem
+  allSedes: Sede[]
+  candidates: PsychologistListItem[]
+  onClose: () => void
+  onDone: () => void
+}) {
+  const [selectedSedes, setSelectedSedes] = useState<Set<string>>(new Set(psychologist.sedes.map((s) => s.id)))
+  const [reassignments, setReassignments] = useState<Record<string, string>>({})
+  const [pendingSede, setPendingSede] = useState<{ sedeId: string; patientIds: string[] } | null>(null)
+  const [reassignTarget, setReassignTarget] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  // El backend rechaza de a una sede conflictiva por vez (409 con esa sedeId), así que el
+  // flujo es iterativo: mandamos el set completo, si choca pedimos destino para esa sede
+  // puntual, reintentamos con el mapa acumulado hasta que no queden conflictos.
+  const mutation = useMutation({
+    mutationFn: (nextReassignments: Record<string, string>) =>
+      api.updatePsychologistSedes(psychologist.id, [...selectedSedes], nextReassignments),
+    onSuccess: onDone,
+    onError: (err) => {
+      const apiErr = err as ApiError
+      if (apiErr.status === 409 && typeof apiErr.body?.sedeId === 'string') {
+        setPendingSede({
+          sedeId: apiErr.body.sedeId,
+          patientIds: Array.isArray(apiErr.body.patientIds) ? (apiErr.body.patientIds as string[]) : [],
+        })
+        setError(null)
+      } else {
+        setError(errorMessage(err, 'No se pudieron actualizar las sedes. Inténtalo de nuevo.'))
+      }
+    },
+  })
+
+  function toggleSede(id: string) {
+    setSelectedSedes((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function confirmReassign() {
+    if (!pendingSede || !reassignTarget) return
+    const next = { ...reassignments, [pendingSede.sedeId]: reassignTarget }
+    setReassignments(next)
+    setPendingSede(null)
+    setReassignTarget('')
+    mutation.mutate(next)
+  }
+
+  const eligibleTargets = candidates.filter((p) => p.id !== psychologist.id && p.accountStatus === 'active')
+
+  if (pendingSede) {
+    const pendingSedeName = allSedes.find((s) => s.id === pendingSede.sedeId)?.name ?? pendingSede.sedeId
+    return (
+      <div style={overlayStyle}>
+        <div onClick={onClose} style={scrimStyle} />
+        <div style={{ ...cardStyle, width: 440, padding: 28 }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
+            Reasignar pacientes de {pendingSedeName}
+          </h2>
+          <p style={{ margin: '8px 0 18px', fontSize: 13, color: 'var(--fg2)' }}>
+            {pendingSede.patientIds.length} paciente{pendingSede.patientIds.length !== 1 ? 's' : ''} activo{pendingSede.patientIds.length !== 1 ? 's' : ''} en esa sede.
+            Elige a quién se reasignan antes de quitarla.
+          </p>
+          <div style={{ marginBottom: 22 }}>
+            <label style={labelStyle}>Reasignar a</label>
+            <select value={reassignTarget} onChange={(e) => setReassignTarget(e.target.value)} style={{ ...fieldStyle, cursor: 'pointer' }}>
+              <option value="">Selecciona un psicólogo…</option>
+              {eligibleTargets.map((p) => (
+                <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+            <button onClick={onClose} style={secondaryBtnStyle}>Cancelar</button>
+            <button onClick={confirmReassign} disabled={!reassignTarget || mutation.isPending}
+              style={{ ...primaryBtnStyle, opacity: !reassignTarget || mutation.isPending ? 0.6 : 1, cursor: !reassignTarget || mutation.isPending ? 'not-allowed' : 'pointer' }}>
+              {mutation.isPending ? 'Guardando…' : 'Reasignar y continuar'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={overlayStyle}>
+      <div onClick={onClose} style={scrimStyle} />
+      <div style={{ ...cardStyle, width: 460, padding: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
+          <div>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)' }}>Editar sedes</h2>
+            <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>{psychologist.firstName} {psychologist.lastName}</p>
+          </div>
+          <button onClick={onClose} style={closeBtnStyle}>
+            <WIcon name="x" size={16} />
+          </button>
+        </div>
+
+        {error && (
+          <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--danger)' }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ marginBottom: 22 }}>
+          <label style={labelStyle}>Sedes</label>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {allSedes.map((s) => {
+              const on = selectedSedes.has(s.id)
+              return (
+                <button key={s.id} type="button" onClick={() => toggleSede(s.id)}
+                  style={{ height: 34, padding: '0 14px', borderRadius: 9999, border: on ? '1.5px solid var(--primary)' : '1.5px solid var(--border)', background: on ? 'var(--teal-50)' : 'var(--surface)', color: on ? 'var(--primary)' : 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  {s.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} disabled={mutation.isPending} style={secondaryBtnStyle}>Cancelar</button>
+          <button onClick={() => mutation.mutate(reassignments)} disabled={mutation.isPending || selectedSedes.size === 0}
+            style={{ ...primaryBtnStyle, opacity: mutation.isPending || selectedSedes.size === 0 ? 0.6 : 1, cursor: mutation.isPending || selectedSedes.size === 0 ? 'not-allowed' : 'pointer' }}>
+            {mutation.isPending ? 'Guardando…' : 'Guardar cambios'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ── Equipo Page ─────────────────────────────────────── */
 export function EquipoPage() {
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [deactivateTarget, setDeactivateTarget] = useState<PsychologistListItem | null>(null)
+  const [editSedesTarget, setEditSedesTarget] = useState<PsychologistListItem | null>(null)
 
   const { data: psychologists = [], isLoading } = useQuery({
     queryKey: ['psychologists'],
@@ -259,7 +398,7 @@ export function EquipoPage() {
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 110 }} /><col style={{ width: 230 }} /><col style={{ width: 110 }} /><col style={{ width: 160 }} /></colgroup>
+            <colgroup><col /><col style={{ width: 110 }} /><col style={{ width: 190 }} /><col style={{ width: 110 }} /><col style={{ width: 220 }} /></colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <Head label="Psicólogo" /><Head label="Pacientes" /><Head label="Sedes" /><Head label="Estado" /><Head label="Acciones" />
@@ -300,10 +439,16 @@ export function EquipoPage() {
                   </td>
                   <td style={{ padding: '14px 14px' }}>
                     {p.accountStatus === 'active' && (
-                      <button onClick={() => setDeactivateTarget(p)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        <WIcon name="x" size={14} /> Desactivar
-                      </button>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        <button onClick={() => setEditSedesTarget(p)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          <WIcon name="map-pin" size={14} /> Sedes
+                        </button>
+                        <button onClick={() => setDeactivateTarget(p)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          <WIcon name="x" size={14} /> Desactivar
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -326,6 +471,15 @@ export function EquipoPage() {
           candidates={psychologists}
           onClose={() => setDeactivateTarget(null)}
           onDeactivated={() => { refresh(); setDeactivateTarget(null) }}
+        />
+      )}
+      {editSedesTarget && (
+        <EditSedesModal
+          psychologist={editSedesTarget}
+          allSedes={sedes}
+          candidates={psychologists}
+          onClose={() => setEditSedesTarget(null)}
+          onDone={() => { refresh(); setEditSedesTarget(null) }}
         />
       )}
     </div>
