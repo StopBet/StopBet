@@ -40,10 +40,15 @@ describe('Psychologists guard (e2e)', () => {
     psychSedeRepo = moduleFixture.get(getRepositoryToken(PsychologistSede));
 
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
+    // Sufijo random además del timestamp: roles.e2e-spec.ts genera emails con el mismo
+    // prefijo e2e-patient-/e2e-psych-${Date.now()}, y Jest corre los dos archivos en
+    // procesos paralelos — sin esto, dos beforeAll cayendo en el mismo milisegundo
+    // chocan contra el UNIQUE de users.email.
+    const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     const patient = await userRepo.save(
       userRepo.create({
-        email: `e2e-patient-${Date.now()}@stopbet.cl`,
+        email: `e2e-patient-${unique()}@stopbet.cl`,
         passwordHash,
         role: 'patient',
         firstName: 'E2E',
@@ -55,7 +60,7 @@ describe('Psychologists guard (e2e)', () => {
 
     const psychologist = await userRepo.save(
       userRepo.create({
-        email: `e2e-psych-${Date.now()}@stopbet.cl`,
+        email: `e2e-psych-${unique()}@stopbet.cl`,
         passwordHash,
         role: 'psychologist',
         firstName: 'E2E',
@@ -67,7 +72,7 @@ describe('Psychologists guard (e2e)', () => {
 
     const coordinator = await userRepo.save(
       userRepo.create({
-        email: `e2e-coordinator-${Date.now()}@stopbet.cl`,
+        email: `e2e-coordinator-${unique()}@stopbet.cl`,
         passwordHash,
         role: 'coordinator',
         firstName: 'E2E',
