@@ -6,8 +6,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  Matches,
 } from 'class-validator';
+import { IsRut } from './is-rut.validator';
 
 export class SubmitRegistrationDto {
   @ApiProperty({ description: 'Nombre(s) del paciente' })
@@ -20,6 +20,7 @@ export class SubmitRegistrationDto {
 
   @ApiProperty({ description: 'RUT chileno (ej. 12.345.678-9)' })
   @IsString() @IsNotEmpty()
+  @IsRut()
   rut: string;
 
   @ApiProperty({ description: 'Correo electrónico' })
