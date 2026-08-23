@@ -231,6 +231,33 @@ export interface PatientMetrics {
   moodAvg: number | null
 }
 
+export interface PsychologistListItem {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  accountStatus: string
+  sedes: Sede[]
+  patientCount: number
+}
+
+export interface CreatePsychologistPayload {
+  firstName: string
+  lastName: string
+  email: string
+  rut: string
+  sedeIds: string[]
+}
+
+export interface CreatePsychologistResponse {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  sedes: Sede[]
+  temporaryPassword: string
+}
+
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -280,6 +307,20 @@ export const api = {
 
   // Vista del psicólogo: sesiones de su sede con quién confirmó (CA 11.4)
   getSedeFamilySessions: () => get<SedeFamilySession[]>('/family/sede/sessions'),
+
+  // ── Gestión de cuentas de psicólogo (HU-24) ─────────────────────────────────
+
+  getPsychologists: () =>
+    get<PsychologistListItem[]>('/psychologists', authHeaders()),
+
+  createPsychologist: (payload: CreatePsychologistPayload) =>
+    postWithAuth<CreatePsychologistResponse>('/psychologists', payload),
+
+  deactivatePsychologist: (id: string, reassignTo?: string) =>
+    patchWithAuth<void>(`/psychologists/${id}/deactivate`, reassignTo ? { reassignTo } : {}),
+
+  updatePsychologistSedes: (id: string, sedeIds: string[], reassignments?: Record<string, string>) =>
+    patchWithAuth<void>(`/psychologists/${id}/sedes`, { sedeIds, reassignments }),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────
@@ -329,4 +370,40 @@ export interface SedeFamilySession {
   confirmedCount: number
   declinedCount: number
   attendances: FamilyAttendance[]
+
+// ── Auth Bearer para /psychologists ─────────────────────────────────────────────
+// El dashboard todavía no maneja JWT (ver CLAUDE.md "Estado actual"): el login solo
+// guarda un flag en localStorage, no un token. Estas llamadas leen 'sb-dashboard-token'
+// si existe; hasta que el login lo guarde, el backend responde 401.
+function authHeaders(): Record<string, string> {
+  const token = localStorage.getItem('sb-dashboard-token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
 }
+
+export interface ApiError extends Error {
+  status: number
+  // Cuerpo JSON del error de Nest — trae `message`, y en los 409 de /psychologists
+  // también `patientIds` / `sedeId` (ver PsychologistsService)
+  body: { message?: string; [key: string]: unknown } | undefined
+}
+
+async function requestWithAuth<T>(method: 'POST' | 'PATCH', path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    const err = new Error(`${method} ${path} → ${res.status}`) as ApiError
+    err.status = res.status
+    err.body = text ? JSON.parse(text) : undefined
+    throw err
+  }
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
+const postWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('POST', path, body)
+const patchWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('PATCH', path, body)
