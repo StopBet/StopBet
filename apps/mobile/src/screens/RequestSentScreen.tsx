@@ -81,7 +81,8 @@ export function RequestSentScreen({ navigation, route }: Props) {
         </View>
 
         <Text style={styles.note}>
-          Te avisaremos por correo y notificación cuando tu cuenta esté aprobada.
+          Te avisaremos a <Text style={styles.noteEmail}>{email}</Text> y por notificación cuando
+          tu cuenta esté aprobada.
         </Text>
       </ScrollView>
 
@@ -161,6 +162,7 @@ const styles = StyleSheet.create({
   tlMeta: { fontSize: 13, color: Colors.fg2, marginTop: 3, lineHeight: 18 },
 
   note: { fontSize: 14, color: Colors.fg2, marginTop: 20, lineHeight: 21, textAlign: 'center', maxWidth: 290 },
+  noteEmail: { fontWeight: '600', color: Colors.fg1 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14, alignItems: 'center' },
   btnOutline: {
