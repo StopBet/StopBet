@@ -348,3 +348,6 @@ export interface CrisisSignal {
 export interface SendMessageWithRiskResponse extends SendMessageResponse {
   crisis: CrisisSignal | null;
 }
+
+// ── HdU06 / HdU24: validador de RUT módulo 11, compartido entre mobile y backend ──
+export * from './validators/rut';
