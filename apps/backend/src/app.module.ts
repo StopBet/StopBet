@@ -46,6 +46,9 @@ import { FamilyLink } from './family/entities/family-link.entity';
 import { FamilySession } from './family/entities/family-session.entity';
 import { SessionAttendance } from './family/entities/session-attendance.entity';
 import { CommunityMute } from './notifications/entities/community-mute.entity';
+import { PsychologistsModule } from './psychologists/psychologists.module';
+import { PsychologistSede } from './psychologists/entities/psychologist-sede.entity';
+import { PatientAssignment } from './psychologists/entities/patient-assignment.entity';
 
 @Module({
   imports: [
@@ -76,6 +79,7 @@ import { CommunityMute } from './notifications/entities/community-mute.entity';
           DeviceToken,
           FamilyLink, FamilySession, SessionAttendance,
           CommunityMute,
+          PsychologistSede, PatientAssignment,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',
@@ -102,6 +106,7 @@ import { CommunityMute } from './notifications/entities/community-mute.entity';
     MetricsModule,
     FamilyModule,
     PushModule,
+    PsychologistsModule,
   ],
   controllers: [],
   providers: [
