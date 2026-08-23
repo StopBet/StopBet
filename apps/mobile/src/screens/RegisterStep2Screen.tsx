@@ -41,6 +41,9 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
     try {
       const result = await api.submitRegistration({
         ...basicData,
+        // birthDate es @IsOptional() en el backend, pero @IsDateString() igual falla con
+        // string vacío: si no se completó, hay que omitir la clave, no mandarla en ''.
+        birthDate: basicData.birthDate || undefined,
         sedeId: selectedSedeId,
         institutionId,
       });
@@ -49,9 +52,11 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         email: basicData.email,
       });
     } catch (err) {
+      const statusMatch = (err as Error).message?.match(/^(\d{3})\s/);
+      const status = statusMatch ? Number(statusMatch[1]) : null;
       const msg =
-        (err as Error).message?.includes('409')
-          ? 'Ya existe una cuenta con ese correo electrónico.'
+        status === 409
+          ? 'Ya existe una cuenta con este correo electrónico'
           : 'No se pudo enviar la solicitud. Inténtalo de nuevo.';
       Alert.alert('Error', msg);
     } finally {
