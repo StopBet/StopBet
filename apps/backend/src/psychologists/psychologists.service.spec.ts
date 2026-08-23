@@ -203,6 +203,20 @@ describe('PsychologistsService', () => {
       expect(psychSedeRepo.delete).not.toHaveBeenCalled();
     });
 
+    it('quita una sede directo, sin pedir reasignación, si no tiene pacientes activos ahí', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'psych-1', role: 'psychologist' });
+      sedeRepo.find.mockResolvedValue([online]);
+      psychSedeRepo.find.mockResolvedValue([
+        { id: 'link-1', sedeId: 'sede-santiago' },
+        { id: 'link-2', sedeId: 'sede-online' },
+      ]);
+      assignmentRepo.find.mockResolvedValue([]); // sin pacientes activos en sede-santiago
+
+      await service.updateSedes('psych-1', { sedeIds: ['sede-online'] });
+
+      expect(psychSedeRepo.delete).toHaveBeenCalledWith({ id: expect.anything() });
+    });
+
     it('rechaza con 409 al quitar una sede con pacientes activos sin plan de reasignación', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'psych-1', role: 'psychologist' });
       sedeRepo.find.mockResolvedValue([online]);
