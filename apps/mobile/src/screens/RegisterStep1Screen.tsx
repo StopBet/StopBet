@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { isValidRut } from '@stopbet/shared-types';
 import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
@@ -27,6 +28,15 @@ const REFERRAL_OPTIONS = [
   'Hospital o clínica',
   'Otro',
 ];
+
+const CHILEAN_DATE_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+
+function chileanDateToIso(date: string): string | null {
+  const match = date.match(CHILEAN_DATE_REGEX);
+  if (!match) return null;
+  const [, day, month, year] = match;
+  return `${year}-${month}-${day}`;
+}
 
 export function RegisterStep1Screen({ navigation, route }: Props) {
   const { institutionId } = route.params;
@@ -45,9 +55,17 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
     const errs: Record<string, string> = {};
     if (!firstName.trim()) errs.firstName = 'El nombre es obligatorio';
     if (!lastName.trim()) errs.lastName = 'El apellido es obligatorio';
-    if (!rut.trim()) errs.rut = 'El RUT es obligatorio';
+    if (!rut.trim()) {
+      errs.rut = 'El RUT es obligatorio';
+    } else if (!isValidRut(rut)) {
+      errs.rut = 'El RUT ingresado no es válido';
+    }
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       errs.email = 'Ingresa un correo válido';
+    }
+    if (!address.trim()) errs.address = 'La dirección es obligatoria';
+    if (birthDate.trim() && !chileanDateToIso(birthDate)) {
+      errs.birthDate = 'Ingresa la fecha en formato DD/MM/AAAA';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -55,9 +73,10 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
 
   const handleContinue = () => {
     if (!validate()) return;
+    const isoBirthDate = birthDate.trim() ? chileanDateToIso(birthDate) ?? '' : '';
     navigation.navigate('RegisterStep2', {
       institutionId,
-      basicData: { firstName, lastName, rut, email, phone, birthDate, address, referralSource },
+      basicData: { firstName, lastName, rut, email, phone, birthDate: isoBirthDate, address, referralSource },
     });
   };
 
@@ -87,16 +106,16 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
           <FormInput label="RUT" required value={rut} onChangeText={setRut}
             leadingIcon="id-card" placeholder="12.345.678-9" error={errors.rut}
             hint="Ingresa el RUT con puntos y guión" />
-          <FormInput label="Correo electrónico" value={email} onChangeText={setEmail}
+          <FormInput label="Correo electrónico" required value={email} onChangeText={setEmail}
             leadingIcon="mail" placeholder="tu@correo.cl"
             keyboardType="email-address" error={errors.email} />
           <FormInput label="Teléfono" value={phone} onChangeText={setPhone}
             prefix="+56" placeholder="9 8765 4321"
             keyboardType="phone-pad" />
           <FormInput label="Fecha de nacimiento" value={birthDate} onChangeText={setBirthDate}
-            leadingIcon="calendar" placeholder="14/03/1992" trailingIcon="chevron-down" />
+            leadingIcon="calendar" placeholder="14/03/1992" trailingIcon="chevron-down" error={errors.birthDate} />
           <FormInput label="Dirección" required value={address} onChangeText={setAddress}
-            leadingIcon="map-pin" placeholder="Av. Providencia 1234, depto 5" />
+            leadingIcon="map-pin" placeholder="Av. Providencia 1234, depto 5" error={errors.address} />
           <FormInput
             label="¿Cómo conociste AJUTER?"
             value={referralSource}
