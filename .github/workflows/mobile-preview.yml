@@ -41,8 +41,20 @@ jobs:
           key: gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*') }}
           restore-keys: gradle-
 
+      # Si el secret esta vacio esto escribia un archivo en blanco y el build moria
+      # tres tareas mas adelante con "Malformed root json", sin decir la causa real.
       - name: Create google-services.json
-        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > apps/mobile/android/app/google-services.json
+        run: |
+          set -e
+          destino=apps/mobile/android/app/google-services.json
+          printf '%s' '${{ secrets.GOOGLE_SERVICES_JSON }}' > "$destino"
+          if ! python3 -c "import json,sys; json.load(open('$destino'))" 2>/dev/null; then
+            echo "::error::El secret GOOGLE_SERVICES_JSON esta vacio o no es JSON valido."
+            echo "Configuralo en Settings > Secrets and variables > Actions con el"
+            echo "contenido del google-services.json del proyecto Firebase."
+            exit 1
+          fi
+          echo "google-services.json escrito y validado"
 
       # react-native 0.86 saco hermesc de sdks/hermesc y lo movio al paquete
       # hermes-compiler, que declara como dependencia propia. La ruta vieja ya no
