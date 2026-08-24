@@ -1,27 +1,12 @@
 name: Mobile Preview
 
-# DESACTIVADO EL DISPARO AUTOMATICO — 20-08-2026
-#
-# Este workflow falla en 'Build APK' desde junio y mandaba un correo de fallo en
-# cada merge a main. No esta cubierto por ningun criterio del Sprint 1 y no
-# bloquea a nadie: solo genera la preview de Firebase App Distribution.
-#
-# La causa NO es de configuracion. El paquete react-native@0.86.0 instalado esta
-# incompleto respecto a su propio package.json: declara 'sdks/hermesc' y
-# 'scripts/hermes/prepare-hermes-for-build.js' en "files", pero ninguno de los dos
-# llega en el tarball. Por eso Gradle responde:
-#   "Couldn't determine Hermesc location ... sdks/hermesc/%OS-BIN%/hermesc"
-# No hay ruta de gradle ni ajuste de pnpm que lo arregle: el binario no existe.
-# (nodeLinker esta en 'hoisted', asi que las rutas del build.gradle son correctas.)
-#
-# Salidas reales, ambas con impacto en el producto y a decidir por el equipo:
-#   1. Cambiar la version de React Native por una cuyo tarball si traiga hermesc
-#   2. hermesEnabled=false en release, que cambia el motor JS de la app
-#
-# Mientras tanto queda solo manual (workflow_dispatch) para no ensuciar el CI.
-# Al reactivar el disparo automatico, borrar este bloque.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+      - 'packages/shared-types/**'
 
 jobs:
   build-and-distribute:
@@ -56,11 +41,32 @@ jobs:
           key: gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*') }}
           restore-keys: gradle-
 
+      # Si el secret esta vacio esto escribia un archivo en blanco y el build moria
+      # tres tareas mas adelante con "Malformed root json", sin decir la causa real.
       - name: Create google-services.json
-        run: echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > apps/mobile/android/app/google-services.json
+        run: |
+          set -e
+          destino=apps/mobile/android/app/google-services.json
+          printf '%s' '${{ secrets.GOOGLE_SERVICES_JSON }}' > "$destino"
+          if ! python3 -c "import json,sys; json.load(open('$destino'))" 2>/dev/null; then
+            echo "::error::El secret GOOGLE_SERVICES_JSON esta vacio o no es JSON valido."
+            echo "Configuralo en Settings > Secrets and variables > Actions con el"
+            echo "contenido del google-services.json del proyecto Firebase."
+            exit 1
+          fi
+          echo "google-services.json escrito y validado"
 
+      # react-native 0.86 saco hermesc de sdks/hermesc y lo movio al paquete
+      # hermes-compiler, que declara como dependencia propia. La ruta vieja ya no
+      # existe, y el "|| true" hacia que el chmod fallara en silencio: por eso
+      # Gradle no encontraba el binario y el error apuntaba a la ruta antigua.
       - name: Prepare hermesc
-        run: chmod +x node_modules/react-native/sdks/hermesc/linux64-bin/hermesc || true
+        run: |
+          set -e
+          ruta=$(find node_modules -path '*hermes-compiler/hermesc/linux64-bin/hermesc' | head -1)
+          test -n "$ruta"
+          chmod +x "$ruta"
+          echo "hermesc encontrado en $ruta"
 
       - name: Build APK
         run: cd apps/mobile/android && ./gradlew assembleRelease --no-daemon
