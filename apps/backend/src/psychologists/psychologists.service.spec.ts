@@ -18,7 +18,13 @@ describe('PsychologistsService', () => {
   };
   let sedeRepo: { find: jest.Mock };
   let psychSedeRepo: { find: jest.Mock; save: jest.Mock; create: jest.Mock; delete: jest.Mock };
-  let assignmentRepo: { count: jest.Mock; find: jest.Mock; update: jest.Mock };
+  let assignmentRepo: {
+    count: jest.Mock;
+    find: jest.Mock;
+    update: jest.Mock;
+    save: jest.Mock;
+    create: jest.Mock;
+  };
   let dataSource: { transaction: jest.Mock };
 
   const santiago = { id: 'sede-santiago', name: 'Santiago', isActive: true };
@@ -39,7 +45,13 @@ describe('PsychologistsService', () => {
       create: jest.fn((data) => data),
       delete: jest.fn(),
     };
-    assignmentRepo = { count: jest.fn(), find: jest.fn(), update: jest.fn() };
+    assignmentRepo = {
+      count: jest.fn(),
+      find: jest.fn(),
+      update: jest.fn(),
+      save: jest.fn(),
+      create: jest.fn((data) => data),
+    };
 
     // El manager enruta a los mismos mocks que usa el resto del spec, así las aserciones
     // sobre `assignmentRepo.update` y compañía siguen valiendo dentro de la transacción.
@@ -215,10 +227,21 @@ describe('PsychologistsService', () => {
 
       await service.deactivate('psych-1', { reassignTo: 'psych-2' });
 
+      // La asignación vieja se cierra en vez de sobrescribirse, para no perder el historial
+      // de quién atendía al paciente antes de la reasignación.
       expect(assignmentRepo.update).toHaveBeenCalledWith(
         { id: expect.anything() },
-        { psychologistId: 'psych-2' },
+        { active: false, endedAt: expect.any(Date) },
       );
+      expect(assignmentRepo.save).toHaveBeenCalledWith([
+        {
+          patientId: 'pat-1',
+          psychologistId: 'psych-2',
+          sedeId: 'sede-santiago',
+          active: true,
+          endedAt: null,
+        },
+      ]);
       expect(userRepo.update).toHaveBeenCalledWith('psych-1', { accountStatus: 'suspended' });
     });
 

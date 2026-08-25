@@ -165,12 +165,23 @@ export class PsychologistsService {
       );
     }
 
-    await manager
-      .getRepository(PatientAssignment)
-      .update(
-        { id: In(assignments.map((a) => a.id)) },
-        { psychologistId: targetPsychologistId },
-      );
+    const assignmentRepo = manager.getRepository(PatientAssignment);
+
+    await assignmentRepo.update(
+      { id: In(assignments.map((a) => a.id)) },
+      { active: false, endedAt: new Date() },
+    );
+    await assignmentRepo.save(
+      assignments.map((a) =>
+        assignmentRepo.create({
+          patientId: a.patientId,
+          psychologistId: targetPsychologistId,
+          sedeId: a.sedeId,
+          active: true,
+          endedAt: null,
+        }),
+      ),
+    );
   }
 
   // Reasignar y suspender deben ser atómicas: si la suspensión falla después de mover a los
