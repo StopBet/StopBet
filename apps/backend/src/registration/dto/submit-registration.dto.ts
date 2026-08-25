@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsDateString,
   IsEmail,
   IsNotEmpty,
   IsOptional,
@@ -8,6 +7,7 @@ import {
   IsUUID,
 } from 'class-validator';
 import { IsRut } from './is-rut.validator';
+import { IsIsoDate } from './is-iso-date.validator';
 
 export class SubmitRegistrationDto {
   @ApiProperty({ description: 'Nombre(s) del paciente' })
@@ -32,7 +32,7 @@ export class SubmitRegistrationDto {
   phone?: string;
 
   @ApiPropertyOptional({ description: 'Fecha de nacimiento (ISO 8601: YYYY-MM-DD)' })
-  @IsOptional() @IsDateString()
+  @IsOptional() @IsIsoDate()
   birthDate?: string;
 
   @ApiPropertyOptional({ description: 'Dirección' })

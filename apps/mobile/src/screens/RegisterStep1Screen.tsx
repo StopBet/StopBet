@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { isValidRut } from '@stopbet/shared-types';
+import { chileanDateToIso, isValidRut } from '@stopbet/shared-types';
 import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
@@ -28,15 +28,6 @@ const REFERRAL_OPTIONS = [
   'Hospital o clínica',
   'Otro',
 ];
-
-const CHILEAN_DATE_REGEX = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-
-function chileanDateToIso(date: string): string | null {
-  const match = date.match(CHILEAN_DATE_REGEX);
-  if (!match) return null;
-  const [, day, month, year] = match;
-  return `${year}-${month}-${day}`;
-}
 
 export function RegisterStep1Screen({ navigation, route }: Props) {
   const { institutionId } = route.params;
@@ -65,7 +56,11 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
     }
     if (!address.trim()) errs.address = 'La dirección es obligatoria';
     if (birthDate.trim() && !chileanDateToIso(birthDate)) {
-      errs.birthDate = 'Ingresa la fecha en formato DD/MM/AAAA';
+      // Distinguir formato de fecha inexistente: con 31/02/1990 el formato está bien y
+      // decir "usa DD/MM/AAAA" manda al paciente a corregir algo que ya estaba correcto.
+      errs.birthDate = /^\d{2}\/\d{2}\/\d{4}$/.test(birthDate)
+        ? 'Esa fecha no existe. Revisa el día y el mes'
+        : 'Ingresa la fecha en formato DD/MM/AAAA';
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
