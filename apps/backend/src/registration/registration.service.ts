@@ -4,12 +4,24 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { RegistrationRequest } from './entities/registration-request.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 import { SubmitRegistrationResponse } from '@stopbet/shared-types';
+
+const PG_UNIQUE_VIOLATION = '23505';
+
+// El findOne previo mejora el mensaje en el caso normal, pero no es atómico: dos registros
+// simultáneos con el mismo correo lo pasan los dos. La restricción única de la BD es lo único
+// que puede garantizarlo, y sin esto el perdedor recibe un 500 en vez del mensaje de CA6.2.
+function isDuplicateEmail(err: unknown): boolean {
+  return (
+    err instanceof QueryFailedError &&
+    (err.driverError as { code?: string })?.code === PG_UNIQUE_VIOLATION
+  );
+}
 
 @Injectable()
 export class RegistrationService {
@@ -54,22 +66,30 @@ export class RegistrationService {
       throw new ConflictException('Ya existe una cuenta con este correo electrónico');
     }
 
-    const user = await this.userRepo.save(
-      this.userRepo.create({
-        email: dto.email,
-        passwordHash: null,
-        role: 'patient',
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        rut: dto.rut,
-        phone: dto.phone ?? null,
-        birthDate: dto.birthDate ?? null,
-        address: dto.address ?? null,
-        referralSource: dto.referralSource ?? null,
-        sedeId: dto.sedeId,
-        onboardingStatus: 'approval_pending',
-      }),
-    );
+    let user: User;
+    try {
+      user = await this.userRepo.save(
+        this.userRepo.create({
+          email: dto.email,
+          passwordHash: null,
+          role: 'patient',
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          rut: dto.rut,
+          phone: dto.phone ?? null,
+          birthDate: dto.birthDate ?? null,
+          address: dto.address ?? null,
+          referralSource: dto.referralSource ?? null,
+          sedeId: dto.sedeId,
+          onboardingStatus: 'approval_pending',
+        }),
+      );
+    } catch (err) {
+      if (isDuplicateEmail(err)) {
+        throw new ConflictException('Ya existe una cuenta con este correo electrónico');
+      }
+      throw err;
+    }
 
     const request = await this.requestRepo.save(
       this.requestRepo.create({

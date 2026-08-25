@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, QueryFailedError, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { CreatePsychologistResponse, PsychologistListItem } from '@stopbet/shared-types';
@@ -19,6 +19,16 @@ import { UpdateSedesDto } from './dto/update-sedes.dto';
 
 const TEMP_PASSWORD_BYTES = 9; // -> 12 caracteres en base64url
 const BCRYPT_ROUNDS = 10;
+const PG_UNIQUE_VIOLATION = '23505';
+
+// Ver la nota equivalente en registration.service.ts: el findOne previo no es atómico y la
+// restricción única de la BD es la única garantía real bajo concurrencia.
+function isDuplicateEmail(err: unknown): boolean {
+  return (
+    err instanceof QueryFailedError &&
+    (err.driverError as { code?: string })?.code === PG_UNIQUE_VIOLATION
+  );
+}
 
 @Injectable()
 export class PsychologistsService {
@@ -69,19 +79,27 @@ export class PsychologistsService {
     const temporaryPassword = crypto.randomBytes(TEMP_PASSWORD_BYTES).toString('base64url');
     const passwordHash = await bcrypt.hash(temporaryPassword, BCRYPT_ROUNDS);
 
-    const user = await this.userRepo.save(
-      this.userRepo.create({
-        email: dto.email,
-        passwordHash,
-        role: 'psychologist',
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        rut: dto.rut,
-        sedeId: dto.sedeIds[0],
-        onboardingStatus: 'complete',
-        accountStatus: 'active',
-      }),
-    );
+    let user: User;
+    try {
+      user = await this.userRepo.save(
+        this.userRepo.create({
+          email: dto.email,
+          passwordHash,
+          role: 'psychologist',
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          rut: dto.rut,
+          sedeId: dto.sedeIds[0],
+          onboardingStatus: 'complete',
+          accountStatus: 'active',
+        }),
+      );
+    } catch (err) {
+      if (isDuplicateEmail(err)) {
+        throw new ConflictException('Ya existe una cuenta con este correo electrónico');
+      }
+      throw err;
+    }
 
     await this.psychSedeRepo.save(
       dto.sedeIds.map((sedeId) =>
