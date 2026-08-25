@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import { QueryFailedError } from 'typeorm';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { PsychologistsService } from './psychologists.service';
 
@@ -55,6 +56,28 @@ describe('PsychologistsService', () => {
     it('rechaza con 409 si el correo ya existe', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'existing' });
       await expect(service.create(dto)).rejects.toThrow(ConflictException);
+    });
+
+    // Carrera: dos creaciones simultáneas pasan las dos el findOne y la restricción única de
+    // la BD rechaza la segunda. Sin traducir ese error, el usuario recibía un 500.
+    it('rechaza con 409 si la BD detecta el correo duplicado en el insert', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      sedeRepo.find.mockResolvedValue([santiago, online]);
+      userRepo.save.mockRejectedValue(
+        new QueryFailedError('insert', [], { code: '23505' } as unknown as Error),
+      );
+
+      await expect(service.create(dto)).rejects.toThrow(ConflictException);
+    });
+
+    it('propaga cualquier otro error de la BD sin disfrazarlo de 409', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      sedeRepo.find.mockResolvedValue([santiago, online]);
+      userRepo.save.mockRejectedValue(
+        new QueryFailedError('insert', [], { code: '23503' } as unknown as Error),
+      );
+
+      await expect(service.create(dto)).rejects.toThrow(QueryFailedError);
     });
 
     it('rechaza con 400 si alguna sede no existe o está inactiva', async () => {
