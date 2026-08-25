@@ -179,6 +179,34 @@ describe('PsychologistsService', () => {
       userRepo.findOne.mockResolvedValue(null);
       await expect(service.findOne('no-existe')).rejects.toThrow(NotFoundException);
     });
+
+    // Respaldo temporal para psicólogos anteriores a psychologist_sedes. Estos dos tests se
+    // borran junto con el fallback, cuando exista la migración que rellene la tabla.
+    it('usa el User.sedeId legado si no tiene filas en psychologist_sedes', async () => {
+      userRepo.findOne.mockResolvedValue({
+        id: 'psych-viejo',
+        role: 'psychologist',
+        sedeId: 'sede-santiago',
+      });
+      psychSedeRepo.find.mockResolvedValue([]);
+      sedeRepo.find.mockResolvedValue([santiago]);
+      assignmentRepo.count.mockResolvedValue(0);
+
+      const result = await service.findOne('psych-viejo');
+
+      expect(sedeRepo.find).toHaveBeenCalledWith({ where: { id: expect.anything() } });
+      expect(result.sedes).toEqual([santiago]);
+    });
+
+    it('devuelve sin sedes si no tiene ni filas nuevas ni sede legada', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'psych-sin-sede', role: 'psychologist' });
+      psychSedeRepo.find.mockResolvedValue([]);
+      assignmentRepo.count.mockResolvedValue(0);
+
+      const result = await service.findOne('psych-sin-sede');
+
+      expect(result.sedes).toEqual([]);
+    });
   });
 
   describe('deactivate', () => {

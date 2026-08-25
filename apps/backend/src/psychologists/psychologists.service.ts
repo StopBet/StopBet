@@ -45,10 +45,21 @@ export class PsychologistsService {
     private readonly dataSource: DataSource,
   ) {}
 
+  // COMPATIBILIDAD TEMPORAL: los psicólogos creados antes de psychologist_sedes solo tienen
+  // el User.sedeId legado, y el seed tampoco puebla la tabla nueva. Sin este respaldo salen
+  // con 0 sedes y reassignAll los rechaza siempre como destino, dejando CA24.3 indemostrable.
+  // Se elimina cuando exista una migración que rellene la tabla a partir de User.sedeId.
   private async sedesOf(psychologistId: string): Promise<Sede[]> {
     const links = await this.psychSedeRepo.find({ where: { psychologistId } });
-    if (links.length === 0) return [];
-    return this.sedeRepo.find({ where: { id: In(links.map((l) => l.sedeId)) } });
+    const sedeIds = links.map((l) => l.sedeId);
+
+    if (sedeIds.length === 0) {
+      const user = await this.userRepo.findOne({ where: { id: psychologistId } });
+      if (!user?.sedeId) return [];
+      sedeIds.push(user.sedeId);
+    }
+
+    return this.sedeRepo.find({ where: { id: In(sedeIds) } });
   }
 
   private async toListItem(user: User): Promise<PsychologistListItem> {
@@ -151,12 +162,18 @@ export class PsychologistsService {
       throw new NotFoundException('El psicólogo de destino no existe o no está activo');
     }
 
+    const targetLinks = await manager
+      .getRepository(PsychologistSede)
+      .find({ where: { psychologistId: targetPsychologistId } });
+
+    // Mismo respaldo temporal que en sedesOf(): sin él, un psicólogo preexistente nunca
+    // puede recibir pacientes porque no tiene filas en psychologist_sedes.
     const targetSedeIds = new Set(
-      (
-        await manager
-          .getRepository(PsychologistSede)
-          .find({ where: { psychologistId: targetPsychologistId } })
-      ).map((l) => l.sedeId),
+      targetLinks.length > 0
+        ? targetLinks.map((l) => l.sedeId)
+        : target.sedeId
+          ? [target.sedeId]
+          : [],
     );
     const uncovered = assignments.some((a) => !targetSedeIds.has(a.sedeId));
     if (uncovered) {
