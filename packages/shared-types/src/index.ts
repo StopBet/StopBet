@@ -372,3 +372,6 @@ export interface CreatePsychologistResponse {
   // Contraseña en texto plano — se devuelve una sola vez en el 201, nunca se persiste así
   temporaryPassword: string;
 }
+
+// ── HdU06: validación de fechas de calendario, compartida entre mobile y backend ──
+export * from './validators/date';
