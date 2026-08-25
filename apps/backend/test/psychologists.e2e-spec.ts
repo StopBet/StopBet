@@ -9,6 +9,8 @@ import { User } from '../src/users/entities/user.entity';
 import { RefreshToken } from '../src/auth/entities/refresh-token.entity';
 import { Sede } from '../src/sedes/entities/sede.entity';
 import { PsychologistSede } from '../src/psychologists/entities/psychologist-sede.entity';
+import { PatientAssignment } from '../src/psychologists/entities/patient-assignment.entity';
+import { RegistrationRequest } from '../src/registration/entities/registration-request.entity';
 
 // 24.4 — la gestión de cuentas de psicólogo exige @Roles('coordinator'), verificable con
 // una app real (BD real), no solo con la UI.
@@ -18,6 +20,8 @@ describe('Psychologists guard (e2e)', () => {
   let refreshTokenRepo: Repository<RefreshToken>;
   let sedeRepo: Repository<Sede>;
   let psychSedeRepo: Repository<PsychologistSede>;
+  let assignmentRepo: Repository<PatientAssignment>;
+  let requestRepo: Repository<RegistrationRequest>;
 
   const TEST_PASSWORD = 'TestE2E2026!';
   let patientId: string;
@@ -38,6 +42,8 @@ describe('Psychologists guard (e2e)', () => {
     refreshTokenRepo = moduleFixture.get(getRepositoryToken(RefreshToken));
     sedeRepo = moduleFixture.get(getRepositoryToken(Sede));
     psychSedeRepo = moduleFixture.get(getRepositoryToken(PsychologistSede));
+    assignmentRepo = moduleFixture.get(getRepositoryToken(PatientAssignment));
+    requestRepo = moduleFixture.get(getRepositoryToken(RegistrationRequest));
 
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
     // Sufijo random además del timestamp: roles.e2e-spec.ts genera emails con el mismo
@@ -178,6 +184,115 @@ describe('Psychologists guard (e2e)', () => {
         .get('/psychologists')
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
+    });
+  });
+
+  // El recorrido que faltaba: los unitarios mockeaban assignmentRepo.find con pacientes que
+  // la aplicación nunca creaba, así que CA24.3 pasaba en verde estando muerta. Esto va contra
+  // Postgres real, de la aprobación a la baja.
+  describe('Asignación de pacientes (CA24.3)', () => {
+    let originPsychId: string;
+    let targetPsychId: string;
+    let newPatientId: string;
+    let coordinatorToken: string;
+
+    async function createPsychologist(): Promise<string> {
+      const res = await request(app.getHttpServer())
+        .post('/psychologists')
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .send({
+          firstName: 'E2E',
+          lastName: 'Asignación',
+          email: `e2e-assign-${Date.now()}-${Math.random().toString(36).slice(2)}@stopbet.cl`,
+          rut: '11.111.111-1',
+          sedeIds: [sedeId],
+        })
+        .expect(201);
+      createdPsychologistIds.push(res.body.id);
+      return res.body.id;
+    }
+
+    beforeAll(async () => {
+      coordinatorToken = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: coordinatorId } })).email,
+      );
+      originPsychId = await createPsychologist();
+      targetPsychId = await createPsychologist();
+
+      const submitted = await request(app.getHttpServer())
+        .post('/registration/submit')
+        .send({
+          firstName: 'Paciente',
+          lastName: 'E2E',
+          rut: '12.345.678-5',
+          email: `e2e-assign-patient-${Date.now()}-${Math.random().toString(36).slice(2)}@stopbet.cl`,
+          sedeId,
+          institutionId: 'AJUTER',
+        })
+        .expect(201);
+      newPatientId = submitted.body.userId;
+
+      await request(app.getHttpServer())
+        .patch(`/registration/${submitted.body.requestId}/approve`)
+        .set('x-user-id', coordinatorId)
+        .send({ assignedPsychologistId: originPsychId })
+        .expect(200);
+    });
+
+    afterAll(async () => {
+      await assignmentRepo.delete({ patientId: newPatientId });
+      await refreshTokenRepo.delete({ userId: newPatientId });
+      await requestRepo.delete({ userId: newPatientId });
+      await userRepo.delete({ id: newPatientId });
+    });
+
+    it('aprobar la solicitud crea la asignación del paciente', async () => {
+      const assignments = await assignmentRepo.find({ where: { patientId: newPatientId } });
+
+      expect(assignments).toHaveLength(1);
+      expect(assignments[0].psychologistId).toBe(originPsychId);
+      expect(assignments[0].active).toBe(true);
+      expect(assignments[0].endedAt).toBeNull();
+    });
+
+    it('desactivar sin reasignar → 409 con la lista de pacientes', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/psychologists/${originPsychId}/deactivate`)
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .send({})
+        .expect(409);
+
+      expect(res.body.patientIds).toContain(newPatientId);
+    });
+
+    it('el psicólogo sigue activo tras el 409', async () => {
+      const psych = await userRepo.findOneOrFail({ where: { id: originPsychId } });
+      expect(psych.accountStatus).toBe('active');
+    });
+
+    it('desactivar reasignando cierra la asignación vieja y abre una nueva', async () => {
+      await request(app.getHttpServer())
+        .patch(`/psychologists/${originPsychId}/deactivate`)
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .send({ reassignTo: targetPsychId })
+        .expect(200);
+
+      const assignments = await assignmentRepo.find({
+        where: { patientId: newPatientId },
+        order: { assignedAt: 'ASC' },
+      });
+
+      expect(assignments).toHaveLength(2);
+
+      const closed = assignments.find((a) => !a.active);
+      const current = assignments.find((a) => a.active);
+
+      expect(closed?.psychologistId).toBe(originPsychId);
+      expect(closed?.endedAt).not.toBeNull();
+      expect(current?.psychologistId).toBe(targetPsychId);
+
+      const psych = await userRepo.findOneOrFail({ where: { id: originPsychId } });
+      expect(psych.accountStatus).toBe('suspended');
     });
   });
 });
