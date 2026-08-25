@@ -1,14 +1,17 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, QueryFailedError, Repository } from 'typeorm';
 import { RegistrationRequest } from './entities/registration-request.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { PatientAssignment } from '../psychologists/entities/patient-assignment.entity';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
+import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { SubmitRegistrationResponse } from '@stopbet/shared-types';
 
 const PG_UNIQUE_VIOLATION = '23505';
@@ -32,6 +35,8 @@ export class RegistrationService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Notification)
     private readonly notifRepo: Repository<Notification>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   async listPending(): Promise<{
@@ -109,26 +114,63 @@ export class RegistrationService {
     return { id: req.id, status: req.status, userId: req.userId, sedeId: req.sedeId };
   }
 
-  async approve(requestId: string, psychologistId: string): Promise<void> {
-    const req = await this.requestRepo.findOne({ where: { id: requestId } });
-    if (!req) throw new NotFoundException('Solicitud no encontrada');
+  async approve(
+    requestId: string,
+    psychologistId: string,
+    dto: ApproveRegistrationDto = {},
+  ): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const req = await manager
+        .getRepository(RegistrationRequest)
+        .findOne({ where: { id: requestId } });
+      if (!req) throw new NotFoundException('Solicitud no encontrada');
 
-    await this.requestRepo.update(requestId, {
-      status: 'approved',
-      reviewedBy: psychologistId,
-      reviewedAt: new Date(),
+      const assignedTo = dto.assignedPsychologistId ?? psychologistId;
+      const assignee = await manager.getRepository(User).findOne({
+        where: { id: assignedTo, role: 'psychologist', accountStatus: 'active' },
+      });
+      if (!assignee) {
+        throw new BadRequestException(
+          'El psicólogo asignado no existe o no está activo',
+        );
+      }
+
+      // Update condicional en vez de comprobar el estado y actualizar por separado: dos
+      // aprobaciones simultáneas pasarían las dos ese `if` y crearían asignaciones duplicadas.
+      // `affected` es opcional en TypeORM, así que se comprueba con `!` y no con `=== 0`.
+      const result = await manager.getRepository(RegistrationRequest).update(
+        { id: requestId, status: 'pending' },
+        { status: 'approved', reviewedBy: psychologistId, reviewedAt: new Date() },
+      );
+      if (!result.affected) {
+        throw new ConflictException('La solicitud ya fue procesada');
+      }
+
+      const assignmentRepo = manager.getRepository(PatientAssignment);
+      await assignmentRepo.save(
+        assignmentRepo.create({
+          patientId: req.userId,
+          psychologistId: assignedTo,
+          sedeId: req.sedeId,
+          active: true,
+          endedAt: null,
+        }),
+      );
+
+      await manager
+        .getRepository(User)
+        .update(req.userId, { onboardingStatus: 'payment_pending' });
+
+      const notifRepo = manager.getRepository(Notification);
+      await notifRepo.save(
+        notifRepo.create({
+          userId: req.userId,
+          type: 'success',
+          title: '¡Solicitud aprobada!',
+          body: 'Tu registro fue aprobado. Ya puedes activar tu cuenta realizando el pago mensual.',
+        }),
+      );
     });
-
-    await this.userRepo.update(req.userId, { onboardingStatus: 'payment_pending' });
-
-    await this.notifRepo.save(
-      this.notifRepo.create({
-        userId: req.userId,
-        type: 'success',
-        title: '¡Solicitud aprobada!',
-        body: 'Tu registro fue aprobado. Ya puedes activar tu cuenta realizando el pago mensual.',
-      }),
-    );
   }
 
   async reject(requestId: string, psychologistId: string): Promise<void> {

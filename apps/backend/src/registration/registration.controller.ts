@@ -1,7 +1,8 @@
 import { Body, Controller, Get, Headers, Param, Patch, Post } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RegistrationService } from './registration.service';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
+import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 
 @ApiTags('registration')
 @Controller('registration')
@@ -33,14 +34,17 @@ export class RegistrationController {
   }
 
   @Patch(':requestId/approve')
-  @ApiOperation({ summary: 'Psicólogo aprueba la solicitud' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del psicólogo' })
+  @ApiOperation({ summary: 'Psicólogo aprueba la solicitud y asigna al paciente' })
+  @ApiHeader({ name: 'x-user-id', description: 'UUID del psicólogo que revisa' })
+  @ApiBody({ type: ApproveRegistrationDto, required: false })
   @ApiResponse({ status: 200, description: 'Aprobado — notificación enviada al paciente' })
+  @ApiResponse({ status: 409, description: 'La solicitud no existe o ya fue procesada' })
   approve(
     @Param('requestId') requestId: string,
     @Headers('x-user-id') psychologistId: string,
+    @Body() dto: ApproveRegistrationDto,
   ) {
-    return this.registrationService.approve(requestId, psychologistId);
+    return this.registrationService.approve(requestId, psychologistId, dto);
   }
 
   @Patch(':requestId/reject')
