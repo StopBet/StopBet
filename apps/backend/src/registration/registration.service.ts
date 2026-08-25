@@ -130,8 +130,12 @@ export class RegistrationService {
         where: { id: assignedTo, role: 'psychologist', accountStatus: 'active' },
       });
       if (!assignee) {
+        // Quien revisa puede ser coordinador, y un coordinador no atiende pacientes: en ese
+        // caso el error no es "no existe", es que falta decir a quién se asigna.
         throw new BadRequestException(
-          'El psicólogo asignado no existe o no está activo',
+          dto.assignedPsychologistId
+            ? 'El psicólogo asignado no existe o no está activo'
+            : 'Indica a qué psicólogo se asigna el paciente: quien aprueba no es un psicólogo activo',
         );
       }
 
