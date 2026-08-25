@@ -2,6 +2,10 @@ import * as bcrypt from 'bcrypt';
 import { QueryFailedError } from 'typeorm';
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { PsychologistsService } from './psychologists.service';
+import { User } from '../users/entities/user.entity';
+import { Sede } from '../sedes/entities/sede.entity';
+import { PsychologistSede } from './entities/psychologist-sede.entity';
+import { PatientAssignment } from './entities/patient-assignment.entity';
 
 describe('PsychologistsService', () => {
   let service: PsychologistsService;
@@ -15,6 +19,7 @@ describe('PsychologistsService', () => {
   let sedeRepo: { find: jest.Mock };
   let psychSedeRepo: { find: jest.Mock; save: jest.Mock; create: jest.Mock; delete: jest.Mock };
   let assignmentRepo: { count: jest.Mock; find: jest.Mock; update: jest.Mock };
+  let dataSource: { transaction: jest.Mock };
 
   const santiago = { id: 'sede-santiago', name: 'Santiago', isActive: true };
   const online = { id: 'sede-online', name: 'Online', isActive: true };
@@ -36,11 +41,27 @@ describe('PsychologistsService', () => {
     };
     assignmentRepo = { count: jest.fn(), find: jest.fn(), update: jest.fn() };
 
+    // El manager enruta a los mismos mocks que usa el resto del spec, así las aserciones
+    // sobre `assignmentRepo.update` y compañía siguen valiendo dentro de la transacción.
+    const manager = {
+      getRepository: jest.fn((entity: unknown) => {
+        if (entity === User) return userRepo;
+        if (entity === Sede) return sedeRepo;
+        if (entity === PsychologistSede) return psychSedeRepo;
+        if (entity === PatientAssignment) return assignmentRepo;
+        throw new Error('Entidad sin mock en el spec');
+      }),
+    };
+    dataSource = {
+      transaction: jest.fn(async (run: (m: unknown) => Promise<unknown>) => run(manager)),
+    };
+
     service = new PsychologistsService(
       userRepo as any,
       sedeRepo as any,
       psychSedeRepo as any,
       assignmentRepo as any,
+      dataSource as any,
     );
   });
 
@@ -199,6 +220,37 @@ describe('PsychologistsService', () => {
         { psychologistId: 'psych-2' },
       );
       expect(userRepo.update).toHaveBeenCalledWith('psych-1', { accountStatus: 'suspended' });
+    });
+
+    // Sin transacción, un fallo al suspender dejaba a los pacientes ya movidos y al
+    // psicólogo todavía activo. Todo el cuerpo va dentro de dataSource.transaction().
+    it('corre reasignación y suspensión dentro de una única transacción', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce({ id: 'psych-1', role: 'psychologist' })
+        .mockResolvedValueOnce({ id: 'psych-2', accountStatus: 'active' });
+      assignmentRepo.find.mockResolvedValue([
+        { id: 'a1', patientId: 'pat-1', sedeId: 'sede-santiago' },
+      ]);
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: 'sede-santiago' }]);
+
+      await service.deactivate('psych-1', { reassignTo: 'psych-2' });
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('propaga el fallo de la suspensión para que la transacción revierta', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce({ id: 'psych-1', role: 'psychologist' })
+        .mockResolvedValueOnce({ id: 'psych-2', accountStatus: 'active' });
+      assignmentRepo.find.mockResolvedValue([
+        { id: 'a1', patientId: 'pat-1', sedeId: 'sede-santiago' },
+      ]);
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: 'sede-santiago' }]);
+      userRepo.update.mockRejectedValue(new Error('conexión caída'));
+
+      await expect(
+        service.deactivate('psych-1', { reassignTo: 'psych-2' }),
+      ).rejects.toThrow('conexión caída');
     });
   });
 

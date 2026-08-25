@@ -4,8 +4,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { In, QueryFailedError, Repository } from 'typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
+import { DataSource, EntityManager, In, QueryFailedError, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { CreatePsychologistResponse, PsychologistListItem } from '@stopbet/shared-types';
@@ -41,6 +41,8 @@ export class PsychologistsService {
     private readonly psychSedeRepo: Repository<PsychologistSede>,
     @InjectRepository(PatientAssignment)
     private readonly assignmentRepo: Repository<PatientAssignment>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) {}
 
   private async sedesOf(psychologistId: string): Promise<Sede[]> {
@@ -138,10 +140,11 @@ export class PsychologistsService {
   // Mueve `assignments` a `targetPsychologistId`, exigiendo que el destino esté activo
   // y atienda TODAS las sedes involucradas — si no, no se mueve nada.
   private async reassignAll(
+    manager: EntityManager,
     assignments: PatientAssignment[],
     targetPsychologistId: string,
   ): Promise<void> {
-    const target = await this.userRepo.findOne({
+    const target = await manager.getRepository(User).findOne({
       where: { id: targetPsychologistId, role: 'psychologist', accountStatus: 'active' },
     });
     if (!target) {
@@ -149,9 +152,11 @@ export class PsychologistsService {
     }
 
     const targetSedeIds = new Set(
-      (await this.psychSedeRepo.find({ where: { psychologistId: targetPsychologistId } })).map(
-        (l) => l.sedeId,
-      ),
+      (
+        await manager
+          .getRepository(PsychologistSede)
+          .find({ where: { psychologistId: targetPsychologistId } })
+      ).map((l) => l.sedeId),
     );
     const uncovered = assignments.some((a) => !targetSedeIds.has(a.sedeId));
     if (uncovered) {
@@ -160,85 +165,102 @@ export class PsychologistsService {
       );
     }
 
-    await this.assignmentRepo.update(
-      { id: In(assignments.map((a) => a.id)) },
-      { psychologistId: targetPsychologistId },
-    );
-  }
-
-  async deactivate(id: string, dto: DeactivatePsychologistDto): Promise<void> {
-    const psychologist = await this.userRepo.findOne({ where: { id, role: 'psychologist' } });
-    if (!psychologist) throw new NotFoundException('Psicólogo no encontrado');
-
-    const activeAssignments = await this.assignmentRepo.find({
-      where: { psychologistId: id, active: true },
-    });
-
-    if (activeAssignments.length > 0) {
-      if (!dto.reassignTo) {
-        throw new ConflictException({
-          message:
-            'El psicólogo tiene pacientes activos: reasígnalos antes de desactivar la cuenta',
-          patientIds: activeAssignments.map((a) => a.patientId),
-        });
-      }
-      if (dto.reassignTo === id) {
-        throw new BadRequestException(
-          'No puedes reasignar pacientes al mismo psicólogo que se está desactivando',
-        );
-      }
-      await this.reassignAll(activeAssignments, dto.reassignTo);
-    }
-
-    await this.userRepo.update(id, { accountStatus: 'suspended' });
-  }
-
-  async updateSedes(id: string, dto: UpdateSedesDto): Promise<void> {
-    const psychologist = await this.userRepo.findOne({ where: { id, role: 'psychologist' } });
-    if (!psychologist) throw new NotFoundException('Psicólogo no encontrado');
-
-    const sedes = await this.sedeRepo.find({ where: { id: In(dto.sedeIds), isActive: true } });
-    if (sedes.length !== dto.sedeIds.length) {
-      throw new BadRequestException('Una o más sedes no existen o están inactivas');
-    }
-
-    const current = await this.psychSedeRepo.find({ where: { psychologistId: id } });
-    const currentSedeIds = new Set(current.map((l) => l.sedeId));
-    const nextSedeIds = new Set(dto.sedeIds);
-
-    const toRemove = current.filter((l) => !nextSedeIds.has(l.sedeId));
-    const toAdd = dto.sedeIds.filter((sedeId) => !currentSedeIds.has(sedeId));
-
-    for (const link of toRemove) {
-      const assignments = await this.assignmentRepo.find({
-        where: { psychologistId: id, sedeId: link.sedeId, active: true },
-      });
-      if (assignments.length === 0) continue;
-
-      const reassignTo = dto.reassignments?.[link.sedeId];
-      if (!reassignTo) {
-        throw new ConflictException({
-          message:
-            'El psicólogo tiene pacientes activos en una sede que se está quitando: reasígnalos primero',
-          sedeId: link.sedeId,
-          patientIds: assignments.map((a) => a.patientId),
-        });
-      }
-      if (reassignTo === id) {
-        throw new BadRequestException(
-          'No puedes reasignar pacientes al mismo psicólogo que está quitando esa sede',
-        );
-      }
-      await this.reassignAll(assignments, reassignTo);
-    }
-
-    if (toRemove.length > 0) {
-      await this.psychSedeRepo.delete({ id: In(toRemove.map((l) => l.id)) });
-    }
-    if (toAdd.length > 0) {
-      await this.psychSedeRepo.save(
-        toAdd.map((sedeId) => this.psychSedeRepo.create({ psychologistId: id, sedeId })),
+    await manager
+      .getRepository(PatientAssignment)
+      .update(
+        { id: In(assignments.map((a) => a.id)) },
+        { psychologistId: targetPsychologistId },
       );
-    }
+  }
+
+  // Reasignar y suspender deben ser atómicas: si la suspensión falla después de mover a los
+  // pacientes, quedarían con psicólogo nuevo y el viejo seguiría activo.
+  async deactivate(id: string, dto: DeactivatePsychologistDto): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const psychologist = await manager
+        .getRepository(User)
+        .findOne({ where: { id, role: 'psychologist' } });
+      if (!psychologist) throw new NotFoundException('Psicólogo no encontrado');
+
+      const activeAssignments = await manager
+        .getRepository(PatientAssignment)
+        .find({ where: { psychologistId: id, active: true } });
+
+      if (activeAssignments.length > 0) {
+        if (!dto.reassignTo) {
+          throw new ConflictException({
+            message:
+              'El psicólogo tiene pacientes activos: reasígnalos antes de desactivar la cuenta',
+            patientIds: activeAssignments.map((a) => a.patientId),
+          });
+        }
+        if (dto.reassignTo === id) {
+          throw new BadRequestException(
+            'No puedes reasignar pacientes al mismo psicólogo que se está desactivando',
+          );
+        }
+        await this.reassignAll(manager, activeAssignments, dto.reassignTo);
+      }
+
+      await manager.getRepository(User).update(id, { accountStatus: 'suspended' });
+    });
+  }
+
+  // Tres escrituras encadenadas (reasignar, quitar vínculos, agregar vínculos): si falla la
+  // segunda, el psicólogo se queda sin los pacientes y con las sedes viejas.
+  async updateSedes(id: string, dto: UpdateSedesDto): Promise<void> {
+    await this.dataSource.transaction(async (manager) => {
+      const psychologist = await manager
+        .getRepository(User)
+        .findOne({ where: { id, role: 'psychologist' } });
+      if (!psychologist) throw new NotFoundException('Psicólogo no encontrado');
+
+      const sedes = await manager
+        .getRepository(Sede)
+        .find({ where: { id: In(dto.sedeIds), isActive: true } });
+      if (sedes.length !== dto.sedeIds.length) {
+        throw new BadRequestException('Una o más sedes no existen o están inactivas');
+      }
+
+      const psychSedeRepo = manager.getRepository(PsychologistSede);
+      const current = await psychSedeRepo.find({ where: { psychologistId: id } });
+      const currentSedeIds = new Set(current.map((l) => l.sedeId));
+      const nextSedeIds = new Set(dto.sedeIds);
+
+      const toRemove = current.filter((l) => !nextSedeIds.has(l.sedeId));
+      const toAdd = dto.sedeIds.filter((sedeId) => !currentSedeIds.has(sedeId));
+
+      for (const link of toRemove) {
+        const assignments = await manager
+          .getRepository(PatientAssignment)
+          .find({ where: { psychologistId: id, sedeId: link.sedeId, active: true } });
+        if (assignments.length === 0) continue;
+
+        const reassignTo = dto.reassignments?.[link.sedeId];
+        if (!reassignTo) {
+          throw new ConflictException({
+            message:
+              'El psicólogo tiene pacientes activos en una sede que se está quitando: reasígnalos primero',
+            sedeId: link.sedeId,
+            patientIds: assignments.map((a) => a.patientId),
+          });
+        }
+        if (reassignTo === id) {
+          throw new BadRequestException(
+            'No puedes reasignar pacientes al mismo psicólogo que está quitando esa sede',
+          );
+        }
+        await this.reassignAll(manager, assignments, reassignTo);
+      }
+
+      if (toRemove.length > 0) {
+        await psychSedeRepo.delete({ id: In(toRemove.map((l) => l.id)) });
+      }
+      if (toAdd.length > 0) {
+        await psychSedeRepo.save(
+          toAdd.map((sedeId) => psychSedeRepo.create({ psychologistId: id, sedeId })),
+        );
+      }
+    });
   }
 }
