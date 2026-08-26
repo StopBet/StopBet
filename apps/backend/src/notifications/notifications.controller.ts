@@ -1,4 +1,4 @@
-import { Controller, Get, Headers, Param, Patch } from '@nestjs/common';
+import { Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post } from '@nestjs/common';
 import { ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 
@@ -31,5 +31,33 @@ export class NotificationsController {
   @ApiResponse({ status: 200, description: 'OK' })
   markAllRead(@Headers('x-user-id') userId: string) {
     return this.notificationsService.markAllRead(userId);
+  }
+
+  @Get('community-mute')
+  @ApiOperation({ summary: 'Consulta si el usuario silenció las notificaciones de comunidad' })
+  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario autenticado' })
+  @ApiResponse({ status: 200, description: '{ muted: boolean }' })
+  async getCommunityMute(@Headers('x-user-id') userId: string) {
+    return { muted: await this.notificationsService.isCommunityMuted(userId) };
+  }
+
+  @Post('community-mute')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Silencia las notificaciones de comunidad' })
+  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario autenticado' })
+  @ApiResponse({ status: 200, description: '{ muted: true }' })
+  async muteCommunity(@Headers('x-user-id') userId: string) {
+    await this.notificationsService.muteCommunity(userId);
+    return { muted: true };
+  }
+
+  @Delete('community-mute')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Reactiva las notificaciones de comunidad' })
+  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario autenticado' })
+  @ApiResponse({ status: 200, description: '{ muted: false }' })
+  async unmuteCommunity(@Headers('x-user-id') userId: string) {
+    await this.notificationsService.unmuteCommunity(userId);
+    return { muted: false };
   }
 }

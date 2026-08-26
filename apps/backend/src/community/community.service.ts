@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { ReactionEmoji, ReactionSummary } from '@stopbet/shared-types';
 import { CommunityPost } from './entities/community-post.entity';
 import { PostReply } from './entities/post-reply.entity';
@@ -12,6 +12,8 @@ import { PostReaction } from './entities/post-reaction.entity';
 import { PostReport } from './entities/post-report.entity';
 import { AttendanceConfirmation } from './entities/attendance-confirmation.entity';
 import { User } from '../users/entities/user.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { CommunityMute } from '../notifications/entities/community-mute.entity';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
@@ -34,6 +36,10 @@ export class CommunityService {
     private readonly attendanceRepo: Repository<AttendanceConfirmation>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Notification)
+    private readonly notificationRepo: Repository<Notification>,
+    @InjectRepository(CommunityMute)
+    private readonly communityMuteRepo: Repository<CommunityMute>,
   ) {}
 
   async findAnnouncements(sede: string, userId: string) {
@@ -82,8 +88,19 @@ export class CommunityService {
 
   async findPosts(sede: string, page: number, limit: number, userId: string) {
     const skip = (page - 1) * limit;
+
+    // CA5.3: un post reportado por este usuario deja de aparecerle a él (no a los demás)
+    const reportedByUser = await this.reportRepo.find({
+      where: { reporterId: userId },
+      select: ['postId'],
+    });
+    const where: Record<string, unknown> = { type: 'forum_post', sede };
+    if (reportedByUser.length) {
+      where['id'] = Not(In(reportedByUser.map((r) => r.postId)));
+    }
+
     const [posts, total] = await this.postRepo.findAndCount({
-      where: { type: 'forum_post', sede },
+      where,
       relations: ['author'],
       order: { createdAt: 'DESC' },
       skip,
@@ -143,6 +160,17 @@ export class CommunityService {
     );
   }
 
+  // CA5.2: post automático al compartir una insignia con la comunidad
+  async createBadgeAnnouncementPost(patientId: string, milestone: number, sede: string) {
+    return this.createPost(
+      {
+        body: `🏅 ¡Alcancé ${milestone} días sin apostar! Gracias a todos por el apoyo de la comunidad.`,
+        sede,
+      },
+      patientId,
+    );
+  }
+
   async addReaction(postId: string, emoji: ReactionEmoji, userId: string) {
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) throw new NotFoundException('Publicación no encontrada');
@@ -154,6 +182,7 @@ export class CommunityService {
       await this.reactionRepo.save(
         this.reactionRepo.create({ postId, authorId: userId, emoji }),
       );
+      await this.notifyInteraction(post, userId, 'reaccionó a');
     }
     return this.reactionSummary(postId, userId);
   }
@@ -187,6 +216,7 @@ export class CommunityService {
     );
     const author = await this.userRepo.findOneOrFail({ where: { id: authorId } });
     reply.author = author;
+    await this.notifyInteraction(post, authorId, 'respondió a');
     return this.serializeReply(reply);
   }
 
@@ -224,6 +254,24 @@ export class CommunityService {
     }
     await this.postRepo.delete(postId);
     return { deleted: true };
+  }
+
+  // CA5.5: notificar al autor cuando alguien reacciona o responde a su post
+  // CA5.6: no notificar si el autor silenció las notificaciones de comunidad
+  private async notifyInteraction(post: CommunityPost, actorId: string, verb: string) {
+    if (post.authorId === actorId) return;
+    const muted = await this.communityMuteRepo.findOne({ where: { userId: post.authorId } });
+    if (muted) return;
+    const actor = await this.userRepo.findOne({ where: { id: actorId } });
+    const actorName = actor ? `${actor.firstName} ${actor.lastName}` : 'Alguien';
+    await this.notificationRepo.save(
+      this.notificationRepo.create({
+        userId: post.authorId,
+        type: 'info',
+        title: 'Nueva interacción',
+        body: `${actorName} ${verb} tu publicación en Comunidad`,
+      }),
+    );
   }
 
   private async assertPsychologist(userId: string) {
