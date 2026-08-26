@@ -1,16 +1,26 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Headers, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { RegistrationService } from './registration.service';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('registration')
 @Controller('registration')
 export class RegistrationController {
   constructor(private readonly registrationService: RegistrationService) {}
 
+  // Devuelve nombre, apellido y correo de quienes solicitan tratamiento: sin
+  // guard quedaba abierto a cualquiera que supiera la URL.
   @Get('pending')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('psychologist', 'coordinator')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Lista solicitudes de registro pendientes (vista psicólogo)' })
   @ApiResponse({ status: 200, description: 'RegistrationRequest[] con datos de usuario' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Rol sin permiso' })
   listPending() {
     return this.registrationService.listPending();
   }
