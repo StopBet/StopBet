@@ -80,7 +80,13 @@ async function request(
   const send = () => fetch(`${BASE}${path}`, { ...init, headers: buildHeaders(headers) })
 
   let res = await send()
-  if (res.status === 401 && refreshToken) {
+
+  // Las rutas de /auth quedan fuera del reintento: un 401 ahí significa
+  // "credenciales incorrectas", no "token vencido". Sin esta guarda, fallar el
+  // login con un refresh token viejo guardado mostraría "sesión expirada".
+  const isAuthRoute = path.startsWith('/auth/')
+
+  if (res.status === 401 && refreshToken && !isAuthRoute) {
     if (await tryRefresh()) {
       res = await send()
     } else {
