@@ -12,6 +12,7 @@ import { PostReaction } from './entities/post-reaction.entity';
 import { PostReport } from './entities/post-report.entity';
 import { AttendanceConfirmation } from './entities/attendance-confirmation.entity';
 import { User } from '../users/entities/user.entity';
+import { Notification } from '../notifications/entities/notification.entity';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
@@ -34,6 +35,8 @@ export class CommunityService {
     private readonly attendanceRepo: Repository<AttendanceConfirmation>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Notification)
+    private readonly notificationRepo: Repository<Notification>,
   ) {}
 
   async findAnnouncements(sede: string, userId: string) {
@@ -165,6 +168,7 @@ export class CommunityService {
       await this.reactionRepo.save(
         this.reactionRepo.create({ postId, authorId: userId, emoji }),
       );
+      await this.notifyInteraction(post, userId, 'reaccionó a');
     }
     return this.reactionSummary(postId, userId);
   }
@@ -198,6 +202,7 @@ export class CommunityService {
     );
     const author = await this.userRepo.findOneOrFail({ where: { id: authorId } });
     reply.author = author;
+    await this.notifyInteraction(post, authorId, 'respondió a');
     return this.serializeReply(reply);
   }
 
@@ -235,6 +240,21 @@ export class CommunityService {
     }
     await this.postRepo.delete(postId);
     return { deleted: true };
+  }
+
+  // CA5.5: notificar al autor cuando alguien reacciona o responde a su post
+  private async notifyInteraction(post: CommunityPost, actorId: string, verb: string) {
+    if (post.authorId === actorId) return;
+    const actor = await this.userRepo.findOne({ where: { id: actorId } });
+    const actorName = actor ? `${actor.firstName} ${actor.lastName}` : 'Alguien';
+    await this.notificationRepo.save(
+      this.notificationRepo.create({
+        userId: post.authorId,
+        type: 'info',
+        title: 'Nueva interacción',
+        body: `${actorName} ${verb} tu publicación en Comunidad`,
+      }),
+    );
   }
 
   private async assertPsychologist(userId: string) {
