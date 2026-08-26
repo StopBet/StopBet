@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThanOrEqual, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { ReactionEmoji, ReactionSummary } from '@stopbet/shared-types';
 import { CommunityPost } from './entities/community-post.entity';
 import { PostReply } from './entities/post-reply.entity';
@@ -82,8 +82,19 @@ export class CommunityService {
 
   async findPosts(sede: string, page: number, limit: number, userId: string) {
     const skip = (page - 1) * limit;
+
+    // CA5.3: un post reportado por este usuario deja de aparecerle a él (no a los demás)
+    const reportedByUser = await this.reportRepo.find({
+      where: { reporterId: userId },
+      select: ['postId'],
+    });
+    const where: Record<string, unknown> = { type: 'forum_post', sede };
+    if (reportedByUser.length) {
+      where['id'] = Not(In(reportedByUser.map((r) => r.postId)));
+    }
+
     const [posts, total] = await this.postRepo.findAndCount({
-      where: { type: 'forum_post', sede },
+      where,
       relations: ['author'],
       order: { createdAt: 'DESC' },
       skip,
