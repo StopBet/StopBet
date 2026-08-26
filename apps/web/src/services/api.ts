@@ -263,4 +263,40 @@ export const api = {
 
   getPatientMetrics: (patientId: string) =>
     get<PatientMetrics>(`/metrics/patients/${patientId}`),
+
+  // ── Portal del familiar (HU-11) ─────────────────────────────────────────────
+
+  getFamilySessions: () => get<FamilySessionsResponse>('/family/sessions'),
+
+  confirmAttendance: (sessionId: string, confirmed: boolean) =>
+    post<SessionAttendance>(`/family/sessions/${sessionId}/attendance`, undefined, { confirmed }),
+}
+
+// ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────
+
+export interface FamilySession {
+  id: string
+  title: string
+  sessionDate: string
+  location: string
+  isOnline: boolean
+  sedeId: string
+  createdAt: string
+  // null = el familiar todavía no respondió
+  userAttends: boolean | null
+}
+
+export interface FamilySessionsResponse {
+  linkStatus: FamilyLinkState
+  sessions: FamilySession[]
+  // false cuando no hay ninguna sesión dentro de las próximas 4 semanas (CA 11.5)
+  hasUpcoming: boolean
+}
+
+export interface SessionAttendance {
+  id: string
+  sessionId: string
+  familyUserId: string
+  confirmed: boolean
+  confirmedAt: string
 }
