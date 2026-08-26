@@ -16,6 +16,7 @@ import { PatientAssignment } from './entities/patient-assignment.entity';
 import { CreatePsychologistDto } from './dto/create-psychologist.dto';
 import { DeactivatePsychologistDto } from './dto/deactivate-psychologist.dto';
 import { UpdateSedesDto } from './dto/update-sedes.dto';
+import { resolveSedeId } from './sedes-of-user';
 
 const TEMP_PASSWORD_BYTES = 9; // -> 12 caracteres en base64url
 const BCRYPT_ROUNDS = 10;
@@ -55,8 +56,9 @@ export class PsychologistsService {
 
     if (sedeIds.length === 0) {
       const user = await this.userRepo.findOne({ where: { id: psychologistId } });
-      if (!user?.sedeId) return [];
-      sedeIds.push(user.sedeId);
+      const legacySedeId = await resolveSedeId(this.sedeRepo, user?.sedeId);
+      if (!legacySedeId) return [];
+      sedeIds.push(legacySedeId);
     }
 
     return this.sedeRepo.find({ where: { id: In(sedeIds) } });
@@ -168,11 +170,15 @@ export class PsychologistsService {
 
     // Mismo respaldo temporal que en sedesOf(): sin él, un psicólogo preexistente nunca
     // puede recibir pacientes porque no tiene filas en psychologist_sedes.
+    const targetLegacySedeId = await resolveSedeId(
+      manager.getRepository(Sede),
+      target.sedeId,
+    );
     const targetSedeIds = new Set(
       targetLinks.length > 0
         ? targetLinks.map((l) => l.sedeId)
-        : target.sedeId
-          ? [target.sedeId]
+        : targetLegacySedeId
+          ? [targetLegacySedeId]
           : [],
     );
     const uncovered = assignments.some((a) => !targetSedeIds.has(a.sedeId));

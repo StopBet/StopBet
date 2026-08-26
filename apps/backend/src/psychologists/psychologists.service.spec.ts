@@ -16,7 +16,7 @@ describe('PsychologistsService', () => {
     create: jest.Mock;
     update: jest.Mock;
   };
-  let sedeRepo: { find: jest.Mock };
+  let sedeRepo: { find: jest.Mock; findOne: jest.Mock };
   let psychSedeRepo: { find: jest.Mock; save: jest.Mock; create: jest.Mock; delete: jest.Mock };
   let assignmentRepo: {
     count: jest.Mock;
@@ -38,7 +38,7 @@ describe('PsychologistsService', () => {
       create: jest.fn((data) => data),
       update: jest.fn(),
     };
-    sedeRepo = { find: jest.fn() };
+    sedeRepo = { find: jest.fn(), findOne: jest.fn() };
     psychSedeRepo = {
       find: jest.fn(),
       save: jest.fn(),
@@ -189,6 +189,7 @@ describe('PsychologistsService', () => {
         sedeId: 'sede-santiago',
       });
       psychSedeRepo.find.mockResolvedValue([]);
+      sedeRepo.findOne.mockResolvedValue(santiago);
       sedeRepo.find.mockResolvedValue([santiago]);
       assignmentRepo.count.mockResolvedValue(0);
 
@@ -196,6 +197,41 @@ describe('PsychologistsService', () => {
 
       expect(sedeRepo.find).toHaveBeenCalledWith({ where: { id: expect.anything() } });
       expect(result.sedes).toEqual([santiago]);
+    });
+
+    // El seed compartido guarda el NOMBRE de la sede en User.sedeId, no su UUID. Consultar
+    // `sedes.id` con 'Santiago' aborta la query entera y la lista responde 500.
+    it('traduce la sede legada guardada por nombre en vez de romper la consulta', async () => {
+      userRepo.findOne.mockResolvedValue({
+        id: 'psych-seed',
+        role: 'psychologist',
+        sedeId: 'Santiago',
+      });
+      psychSedeRepo.find.mockResolvedValue([]);
+      sedeRepo.findOne.mockResolvedValue(santiago);
+      sedeRepo.find.mockResolvedValue([santiago]);
+      assignmentRepo.count.mockResolvedValue(0);
+
+      const result = await service.findOne('psych-seed');
+
+      expect(sedeRepo.findOne).toHaveBeenCalledWith({ where: { name: 'Santiago' } });
+      expect(result.sedes).toEqual([santiago]);
+    });
+
+    it('si la sede legada no corresponde a ninguna sede, devuelve 0 sedes sin reventar', async () => {
+      userRepo.findOne.mockResolvedValue({
+        id: 'psych-huerfano',
+        role: 'psychologist',
+        sedeId: 'Sede Que No Existe',
+      });
+      psychSedeRepo.find.mockResolvedValue([]);
+      sedeRepo.findOne.mockResolvedValue(null);
+      assignmentRepo.count.mockResolvedValue(0);
+
+      const result = await service.findOne('psych-huerfano');
+
+      expect(result.sedes).toEqual([]);
+      expect(sedeRepo.find).not.toHaveBeenCalled();
     });
 
     it('devuelve sin sedes si no tiene ni filas nuevas ni sede legada', async () => {
