@@ -347,4 +347,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ token, platform: 'android' }),
     }),
+
+  getCommunityMute: (userId: string) =>
+    request<{ muted: boolean }>('/notifications/community-mute', { userId }),
+
+  muteCommunity: (userId: string) =>
+    request<{ muted: boolean }>('/notifications/community-mute', { userId, method: 'POST' }),
+
+  unmuteCommunity: (userId: string) =>
+    request<{ muted: boolean }>('/notifications/community-mute', { userId, method: 'DELETE' }),
 };

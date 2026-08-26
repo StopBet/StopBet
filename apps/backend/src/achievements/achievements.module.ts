@@ -6,6 +6,7 @@ import { AbstinencePeriod } from './entities/abstinence-period.entity';
 import { EarnedBadge } from './entities/earned-badge.entity';
 import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
+import { CommunityModule } from '../community/community.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { User } from '../users/entities/user.entity';
       ValidatedMessage,
       User,
     ]),
+    CommunityModule,
   ],
   controllers: [AchievementsController],
   providers: [AchievementsService],

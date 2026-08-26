@@ -12,6 +12,7 @@ import { AbstinencePeriod } from './entities/abstinence-period.entity';
 import { EarnedBadge } from './entities/earned-badge.entity';
 import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
+import { CommunityService } from '../community/community.service';
 
 const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
 
@@ -35,6 +36,7 @@ export class AchievementsService implements OnModuleInit {
     private readonly messageRepo: Repository<ValidatedMessage>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    private readonly communityService: CommunityService,
   ) {}
 
   async onModuleInit() {
@@ -203,6 +205,10 @@ export class AchievementsService implements OnModuleInit {
   // CA1: compartir insignia publica un anuncio de felicitación en el foro de la sede
   async shareBadge(userId: string, milestone: number): Promise<void> {
     await this.badgeRepo.update({ userId, milestone }, { sharedToCommunity: true });
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (user?.sedeId) {
+      await this.communityService.createBadgeAnnouncementPost(userId, milestone, user.sedeId);
+    }
   }
 
   private today(): string {

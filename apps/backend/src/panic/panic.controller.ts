@@ -7,8 +7,10 @@ import {
   HttpCode,
   Param,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiHeader,
   ApiOperation,
   ApiParam,
@@ -17,6 +19,9 @@ import {
 } from '@nestjs/swagger';
 import { PanicService } from './panic.service';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('panic')
 @Controller('panic')
@@ -53,9 +58,17 @@ export class PanicController {
     return this.service.createAlert(patientId);
   }
 
+  // Expone el nombre del paciente y su historial de crisis: sin guard quedaba
+  // abierto a cualquiera que supiera la URL. Solo lo consume el dashboard web,
+  // que ya manda Authorization: Bearer.
   @Get('alerts/history')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('psychologist', 'coordinator')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Historial completo de alertas de pánico (vista psicólogo)' })
   @ApiResponse({ status: 200, description: 'Lista de todas las alertas con nombre del paciente' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Rol sin permiso' })
   listHistory() {
     return this.service.listHistory();
   }

@@ -1,3 +1,5 @@
+import { singleFlight } from './singleFlight'
+
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
 // ── Sesión ────────────────────────────────────────────────────────────────────
@@ -72,6 +74,11 @@ async function tryRefresh(): Promise<boolean> {
   }
 }
 
+// Varias queries pueden recibir 401 a la vez (Overview, Alertas y Solicitudes
+// cargan en paralelo). Como el backend revoca el refresh token al primer uso,
+// sin esto la primera rota y las demás reciben 401 y cierran la sesión.
+const refreshOnce = singleFlight(tryRefresh)
+
 async function request(
   path: string,
   init: RequestInit,
@@ -87,7 +94,7 @@ async function request(
   const isAuthRoute = path.startsWith('/auth/')
 
   if (res.status === 401 && refreshToken && !isAuthRoute) {
-    if (await tryRefresh()) {
+    if (await refreshOnce()) {
       res = await send()
     } else {
       session.clear()

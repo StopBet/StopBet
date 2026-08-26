@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -19,10 +19,15 @@ import { Colors } from '../constants/colors';
 import { devFlags } from '../store/devFlags';
 import { api } from '../services/api';
 
+// Ajustar cuando se conecte la autenticación real
+const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
+
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 
 export function ProfileScreen({ navigation }: Props) {
   const [offline, setOffline] = useState(devFlags.simulateOffline);
+  const [communityMuted, setCommunityMuted] = useState(false);
+  const [muteLoading, setMuteLoading] = useState(false);
   const [daysInput, setDaysInput] = useState(
     devFlags.overrideDays !== null ? String(devFlags.overrideDays) : '',
   );
@@ -33,6 +38,26 @@ export function ProfileScreen({ navigation }: Props) {
   const toggleOffline = (v: boolean) => {
     devFlags.setSimulateOffline(v);
     setOffline(v);
+  };
+
+  useEffect(() => {
+    api.getCommunityMute(TEMP_USER_ID)
+      .then(({ muted }) => setCommunityMuted(muted))
+      .catch(() => {});
+  }, []);
+
+  const toggleCommunityMute = async (v: boolean) => {
+    setMuteLoading(true);
+    try {
+      const { muted } = v
+        ? await api.muteCommunity(TEMP_USER_ID)
+        : await api.unmuteCommunity(TEMP_USER_ID);
+      setCommunityMuted(muted);
+    } catch {
+      Alert.alert('Sin conexión', 'No se pudo actualizar tu preferencia de notificaciones.');
+    } finally {
+      setMuteLoading(false);
+    }
   };
 
   const applyDays = async () => {
@@ -126,6 +151,27 @@ export function ProfileScreen({ navigation }: Props) {
               <Icon name="chevron-right" size={20} color={Colors.fg2} />
             </TouchableOpacity>
           ))}
+        </View>
+
+        <View style={styles.menuCard}>
+          <View style={[styles.menuRow, { paddingVertical: 14 }]}>
+            <View style={styles.menuIcon}>
+              <Icon name="bell" size={22} color={Colors.primary} />
+            </View>
+            <View style={styles.menuText}>
+              <Text style={styles.menuLabel}>Silenciar notificaciones de comunidad</Text>
+              <Text style={styles.menuSub}>
+                No te avisaremos cuando alguien reaccione o responda tus publicaciones
+              </Text>
+            </View>
+            <Switch
+              value={communityMuted}
+              onValueChange={toggleCommunityMute}
+              disabled={muteLoading}
+              trackColor={{ false: Colors.border, true: Colors.primary }}
+              thumbColor={Colors.white}
+            />
+          </View>
         </View>
 
         <View style={styles.comingSoonCard}>
