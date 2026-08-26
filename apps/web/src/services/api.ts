@@ -370,6 +370,7 @@ export interface SedeFamilySession {
   confirmedCount: number
   declinedCount: number
   attendances: FamilyAttendance[]
+}
 
 // ── Auth Bearer para /psychologists ─────────────────────────────────────────────
 // El dashboard todavía no maneja JWT (ver CLAUDE.md "Estado actual"): el login solo
