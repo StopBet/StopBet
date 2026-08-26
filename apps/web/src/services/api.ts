@@ -1,44 +1,135 @@
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
 
+// ── Sesión ────────────────────────────────────────────────────────────────────
+// El backend exige Authorization: Bearer en los endpoints con JwtAuthGuard
+// (/users/patients, /metrics/*, /family/*). Los que aún leen x-user-id siguen
+// recibiéndolo explícitamente desde cada llamada, más abajo.
+
+const ACCESS_KEY = 'sb-access-token'
+const REFRESH_KEY = 'sb-refresh-token'
+
+function readStored(key: string): string | null {
+  return localStorage.getItem(key) || sessionStorage.getItem(key)
+}
+
+let accessToken: string | null = readStored(ACCESS_KEY)
+let refreshToken: string | null = readStored(REFRESH_KEY)
+let onSessionExpired: (() => void) | null = null
+
+export const session = {
+  setTokens(tokens: { accessToken: string; refreshToken: string }, keepSession: boolean) {
+    accessToken = tokens.accessToken
+    refreshToken = tokens.refreshToken
+    const storage = keepSession ? localStorage : sessionStorage
+    storage.setItem(ACCESS_KEY, tokens.accessToken)
+    storage.setItem(REFRESH_KEY, tokens.refreshToken)
+  },
+
+  clear() {
+    accessToken = null
+    refreshToken = null
+    for (const storage of [localStorage, sessionStorage]) {
+      storage.removeItem(ACCESS_KEY)
+      storage.removeItem(REFRESH_KEY)
+    }
+  },
+
+  getAccessToken: () => accessToken,
+  getRefreshToken: () => refreshToken,
+
+  // App.tsx se registra acá para mandar al login cuando el refresh ya no sirve
+  setOnSessionExpired(cb: (() => void) | null) {
+    onSessionExpired = cb
+  },
+}
+
+function buildHeaders(headers?: Record<string, string>): Record<string, string> {
+  return {
+    'Content-Type': 'application/json',
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    ...headers,
+  }
+}
+
+// El access token dura 15 min. Ante un 401 se intenta rotar una vez con el
+// refresh token; si eso falla, se limpia la sesión y se avisa a la UI.
+async function tryRefresh(): Promise<boolean> {
+  if (!refreshToken) return false
+  try {
+    const res = await fetch(`${BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    })
+    if (!res.ok) return false
+    const data = (await res.json()) as LoginResponse
+    // Se conserva el mismo storage que eligió el usuario al entrar
+    const keepSession = localStorage.getItem(ACCESS_KEY) !== null
+    session.setTokens(data, keepSession)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function request(
+  path: string,
+  init: RequestInit,
+  headers?: Record<string, string>,
+): Promise<Response> {
+  const send = () => fetch(`${BASE}${path}`, { ...init, headers: buildHeaders(headers) })
+
+  let res = await send()
+
+  // Las rutas de /auth quedan fuera del reintento: un 401 ahí significa
+  // "credenciales incorrectas", no "token vencido". Sin esta guarda, fallar el
+  // login con un refresh token viejo guardado mostraría "sesión expirada".
+  const isAuthRoute = path.startsWith('/auth/')
+
+  if (res.status === 401 && refreshToken && !isAuthRoute) {
+    if (await tryRefresh()) {
+      res = await send()
+    } else {
+      session.clear()
+      onSessionExpired?.()
+    }
+  }
+  return res
+}
+
+function failed(method: string, path: string, res: Response): Error & { status: number } {
+  const err = new Error(`${method} ${path} → ${res.status}`) as Error & { status: number }
+  err.status = res.status
+  return err
+}
+
 async function get<T>(path: string, headers?: Record<string, string>): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: headers ? { 'Content-Type': 'application/json', ...headers } : undefined,
-  })
-  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
+  const res = await request(path, {}, headers)
+  if (!res.ok) throw failed('GET', path, res)
   return res.json() as Promise<T>
 }
 
 async function del<T>(path: string, headers?: Record<string, string>): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'DELETE',
-    headers: { 'Content-Type': 'application/json', ...headers },
-  })
-  if (!res.ok) throw new Error(`DELETE ${path} → ${res.status}`)
+  const res = await request(path, { method: 'DELETE' }, headers)
+  if (!res.ok) throw failed('DELETE', path, res)
   if (res.status === 204) return undefined as unknown as T
   const text = await res.text()
   return (text ? JSON.parse(text) : undefined) as T
 }
 
 async function patch<T>(path: string, headers?: Record<string, string>): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...headers },
-  })
-  if (!res.ok) throw new Error(`PATCH ${path} → ${res.status}`)
+  const res = await request(path, { method: 'PATCH' }, headers)
+  if (!res.ok) throw failed('PATCH', path, res)
   return res.json() as Promise<T>
 }
 
 async function post<T>(path: string, headers?: Record<string, string>, body?: unknown): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) {
-    const err = new Error(`POST ${path} → ${res.status}`) as Error & { status: number }
-    err.status = res.status
-    throw err
-  }
+  const res = await request(
+    path,
+    { method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined },
+    headers,
+  )
+  if (!res.ok) throw failed('POST', path, res)
   if (res.status === 204) return undefined as unknown as T
   const text = await res.text()
   return (text ? JSON.parse(text) : undefined) as T
@@ -46,12 +137,27 @@ async function post<T>(path: string, headers?: Record<string, string>, body?: un
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
-export interface LoginResult {
+// Espeja AuthUser/LoginResponse del backend. Se definen locales porque apps/web
+// no depende de @stopbet/shared-types; unificarlos queda como deuda.
+export type UserRole = 'patient' | 'psychologist' | 'sponsor' | 'family' | 'coordinator'
+
+export interface AuthUser {
   id: string
-  role: string
+  email: string
+  role: UserRole
   firstName: string
   lastName: string
+  sedeId: string | null
 }
+
+export interface LoginResponse {
+  accessToken: string
+  refreshToken: string
+  user: AuthUser
+}
+
+// Shape real de GET /family/link-status (family.service.ts:79)
+export type FamilyLinkState = 'active' | 'pending' | 'unlinked'
 
 export interface PatientListItem {
   id: string
@@ -121,8 +227,19 @@ export interface PatientMetrics {
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
+  // /auth/login no filtra por rol: sirve para psicólogo, coordinador y familiar
   login: (email: string, password: string) =>
-    post<LoginResult>('/users/login', undefined, { email, password }),
+    post<LoginResponse>('/auth/login', undefined, { email, password }),
+
+  logout: () => {
+    const token = session.getRefreshToken()
+    if (!token) return Promise.resolve()
+    return post<void>('/auth/logout', undefined, { refreshToken: token }).catch(() => {
+      // Si el backend no responde igual se limpia la sesión local (App.tsx)
+    })
+  },
+
+  getFamilyLinkStatus: () => get<{ status: FamilyLinkState }>('/family/link-status'),
 
   getPatients:        () => get<PatientListItem[]>('/users/patients'),
   getPendingRequests: () => get<PendingRequest[]>('/registration/pending'),

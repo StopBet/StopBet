@@ -95,8 +95,20 @@ PORT=3000
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/stopbet
 CORS_ORIGIN=http://localhost:5173
 JWT_SECRET=cualquier_string_largo_para_desarrollo
+ENCRYPTION_KEY=genérala_con_el_comando_de_abajo
 GEMINI_API_KEY=tu_api_key_de_google_ai_studio
 ```
+
+> ⚠️ **`ENCRYPTION_KEY` es obligatoria.** Cifra el RUT del paciente en reposo (AES-256-GCM).
+> Si falta, **`pnpm run seed` falla** y el backend no puede guardar ningún RUT. Tiene que ser
+> una cadena **hexadecimal de 64 caracteres** (32 bytes) — otro largo se rechaza al arrancar.
+> Genera la tuya con:
+>
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
+>
+> Es personal y local: cada quien genera la suya y no se comparte ni se sube al repo.
 
 > Obtén tu `GEMINI_API_KEY` gratis en [Google AI Studio](https://aistudio.google.com). Es **opcional**: si la dejas vacía el backend levanta igual y el chatbot responde con mensajes de fallback.
 
