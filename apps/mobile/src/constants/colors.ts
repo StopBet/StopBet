@@ -1,33 +1,44 @@
-// Paleta AJUTER — naranja cálido institucional (sincronizada con ajuter-theme.css)
+// Paleta oficial StopBet — sincronizada con el manual de marca
 export const Colors = {
-  primary:     '#E8883A',   // naranja AJUTER — header, acciones principales
-  primaryDark: '#D06A30',   // naranja oscuro — pressed states
-  teal400:     '#C8513B',   // coral — subtítulos del header
+  // Azul principal
+  primary:      '#396fb6',   // azul StopBet — headers, acciones principales
+  primaryDark:  '#2d5a9e',   // azul oscuro — pressed states
+  primaryLight: '#93bce5',   // azul claro — estados secundarios
 
-  sage50:  '#EDF3ED',
-  sage500: '#6A9E6A',       // verde — progreso, logros, estados positivos
+  // Secundarios
+  green:   '#c2d66e',        // verde — progreso, logros, estados positivos
+  purple:  '#b7a9d3',        // lavanda — variante secundaria
 
-  accent:   '#F0B040',      // oro AJUTER — CTAs, highlights
-  amber50:  '#FEF5E0',
+  // Fondo y superficie
+  bg:      '#f4f4e9',        // crema suave — fondo principal
+  surface: '#FFFFFF',        // blanco — tarjetas, modales
+  border:  '#DDDDD0',
 
-  gold:   '#F0B040',
-  gold50: '#FEF5E0',
+  // Tipografía
+  fg1:    '#504f4f',         // texto principal
+  fg2:    '#737070',         // texto secundario
+  ink900: '#504f4f',
 
-  danger: '#B83232',        // rojo — solo botón de pánico + alertas críticas
+  // Acento (azul claro secundario)
+  accent:  '#93bce5',
+  amber50: '#F2F7FC',
 
-  bg:      '#FAF7F4',       // crema cálida — fondo principal
-  surface: '#FFFFFF',       // blanco — tarjetas, modales
-  border:  '#E8E2DC',
+  // Verde (compatibilidad con referencias existentes a sage/gold)
+  gold:    '#c2d66e',
+  gold50:  '#F3F8E6',
+  sage50:  '#F3F8E6',
+  sage500: '#c2d66e',
+  teal400: '#93bce5',
 
-  ink900: '#2A2624',
-  fg1:    '#2A2624',        // texto principal — carbón cálido
-  fg2:    '#574F4A',        // texto secundario — gris cálido
+  // Peligro — exclusivo para botón de pánico y alertas críticas
+  danger: '#B83232',
 
-  white:           '#FFFFFF',
-  overlayWhite16:  'rgba(255,255,255,0.16)',
-  overlayWhite35:  'rgba(255,255,255,0.35)',
-  overlayWhite72:  'rgba(255,255,255,0.72)',
+  // Utilidades
+  white:          '#FFFFFF',
+  overlayWhite16: 'rgba(255,255,255,0.16)',
+  overlayWhite35: 'rgba(255,255,255,0.35)',
+  overlayWhite72: 'rgba(255,255,255,0.72)',
 
-  shadowMedium: 'rgba(42,38,36,0.10)',
-  shadowSoft:   'rgba(42,38,36,0.06)',
+  shadowMedium: 'rgba(80,79,79,0.10)',
+  shadowSoft:   'rgba(80,79,79,0.06)',
 };

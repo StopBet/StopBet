@@ -287,7 +287,7 @@ export function AchievementsScreen({ navigation }: Props) {
                     </View>
                   )}
                   <View style={[styles.badgeDisc, earned ? styles.badgeDiscEarned : styles.badgeDiscLocked]}>
-                    <Icon name={cfg.icon} size={26} color={earned ? '#C9954A' : Colors.fg2} />
+                    <Icon name={cfg.icon} size={26} color={earned ? Colors.green : Colors.fg2} />
                   </View>
                   {!earned && (
                     <View style={styles.badgeLock}>
@@ -394,7 +394,7 @@ function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attempt
             .sort((a, b) => a.milestone - b.milestone)
             .map((b: EarnedBadge) => (
               <View key={b.id} style={styles.miniBadge}>
-                <Icon name={BADGE_CONFIG[b.milestone]?.icon ?? 'medal'} size={14} color="#C9954A" />
+                <Icon name={BADGE_CONFIG[b.milestone]?.icon ?? 'medal'} size={14} color={Colors.green} />
               </View>
             ))}
         </View>
@@ -521,10 +521,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeDiscEarned: {
-    backgroundColor: '#FDF8E1',
+    backgroundColor: Colors.gold50,
     borderWidth: 2,
-    borderColor: '#C9954A',
-    shadowColor: '#C9954A',
+    borderColor: Colors.green,
+    shadowColor: Colors.green,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -7,
     right: '8%',
-    backgroundColor: '#C9954A',
+    backgroundColor: Colors.primary,
     borderRadius: 9999,
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -602,9 +602,9 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#FDF8E1',
+    backgroundColor: Colors.gold50,
     borderWidth: 1.5,
-    borderColor: '#C9954A',
+    borderColor: Colors.green,
     alignItems: 'center',
     justifyContent: 'center',
   },
