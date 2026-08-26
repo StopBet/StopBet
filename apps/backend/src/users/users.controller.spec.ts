@@ -8,35 +8,16 @@ import { UsersService } from './users.service';
 describe('UsersController', () => {
   let controller: UsersController;
   let usersService: {
-    login: jest.Mock;
     listPatients: jest.Mock;
     getProgress: jest.Mock;
   };
 
   beforeEach(() => {
     usersService = {
-      login: jest.fn(),
       listPatients: jest.fn(),
       getProgress: jest.fn(),
     };
     controller = new UsersController(usersService as unknown as UsersService);
-  });
-
-  it('login delega en usersService.login con el email del body', async () => {
-    usersService.login.mockResolvedValue({
-      id: 'u1',
-      role: 'psychologist',
-      firstName: 'Miguel',
-      lastName: 'Lara',
-    });
-
-    const result = await controller.login({
-      email: 'miguel.lara@ajuter.cl',
-      password: 'cualquiera',
-    });
-
-    expect(usersService.login).toHaveBeenCalledWith('miguel.lara@ajuter.cl');
-    expect(result.firstName).toBe('Miguel');
   });
 
   it('listPatients delega en usersService.listPatients', async () => {

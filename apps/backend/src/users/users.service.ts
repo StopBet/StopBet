@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { User } from './entities/user.entity';
@@ -44,13 +44,6 @@ export class UsersService {
     @InjectRepository(AbstinencePeriod)
     private readonly periodRepo: Repository<AbstinencePeriod>,
   ) {}
-
-  async login(email: string): Promise<{ id: string; role: string; firstName: string; lastName: string }> {
-    const user = await this.userRepo.findOne({ where: { email } });
-    if (!user) throw new UnauthorizedException('Credenciales incorrectas');
-    if (user.role !== 'psychologist') throw new ForbiddenException('Acceso restringido a psicólogos');
-    return { id: user.id, role: user.role, firstName: user.firstName, lastName: user.lastName };
-  }
 
   async listPatients(): Promise<PatientListItem[]> {
     const patients = await this.userRepo.find({
