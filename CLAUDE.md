@@ -247,8 +247,19 @@ PORT=3000
 DATABASE_URL=postgresql://...
 CORS_ORIGIN=http://localhost:5173
 JWT_SECRET=...
+ENCRYPTION_KEY=...
 GEMINI_API_KEY=...
 ```
+
+> **`ENCRYPTION_KEY` es obligatoria** — cifra el RUT en reposo (AES-256-GCM). Sin ella
+> `pnpm run seed` **se cae** y el backend no puede escribir ningún RUT. Debe ser una
+> cadena **hexadecimal de 64 caracteres** (32 bytes); cualquier otro largo se rechaza
+> al arrancar. Genera la tuya con:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
+> Es local y personal: no la compartas ni la subas. En producción va configurada en
+> Railway. `GEMINI_API_KEY` sí es opcional (sin ella el asistente usa mensajes de respaldo).
 
 ### Web (`apps/web/.env`)
 ```
