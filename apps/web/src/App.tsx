@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardApp } from './DashboardApp'
-import { FamiliarPortalPlaceholder } from './pages/familiar/FamiliarPortalPlaceholder'
+import { FamiliarPortal } from './pages/familiar/FamiliarPortal'
 import { api, session, type AuthUser, type LoginResponse } from './services/api'
 
 const AUTH_KEY = 'sb-dashboard-auth'
@@ -71,7 +71,7 @@ export default function App() {
   if (user.role === 'family') {
     return (
       <Routes>
-        <Route path="/familiar" element={<FamiliarPortalPlaceholder user={user} onLogout={handleLogout} />} />
+        <Route path="/familiar/*" element={<FamiliarPortal user={user} onLogout={handleLogout} />} />
         <Route path="*" element={<Navigate to="/familiar" replace />} />
       </Routes>
     )

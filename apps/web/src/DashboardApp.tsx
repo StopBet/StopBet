@@ -8,11 +8,12 @@ import { AlertasPage } from './pages/AlertasPage'
 import { FinanzasPage } from './pages/FinanzasPage'
 import { SolicitudesPage } from './pages/SolicitudesPage'
 import { ConfiguracionPage } from './pages/ConfiguracionPage'
+import { SesionesFamiliaresPage } from './pages/SesionesFamiliaresPage'
 import { api } from './services/api'
 import type { RegistrationRequest } from './data/mockData'
 
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'reports' | 'finanzas' | 'settings'
 
 interface Toast { message: string; tone?: 'success' | 'error' }
 
@@ -21,6 +22,7 @@ const PAGE_TITLES: Record<NavId, string> = {
   patients:  'Mis pacientes',
   alerts:    'Alertas de pánico',
   requests:  'Solicitudes de ingreso',
+  familySessions: 'Sesiones de familiares',
   reports:   'Reportes',
   finanzas:  'Finanzas',
   settings:  'Configuración',
@@ -31,6 +33,7 @@ const NAV_PATHS: Record<NavId, string> = {
   patients:  '/pacientes',
   alerts:    '/alertas',
   requests:  '/solicitudes',
+  familySessions: '/sesiones-familiares',
   reports:   '/reportes',
   finanzas:  '/finanzas',
   settings:  '/configuracion',
@@ -141,6 +144,7 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
             <Route path="/" element={<OverviewPage onNav={handleNav} reqCount={requests.length} />} />
             <Route path="/alertas" element={<AlertasPage />} />
             <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} psychId={psychId} />} />
+            <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
             <Route path="/finanzas" element={<FinanzasPage />} />
             <Route path="/configuracion" element={<ConfiguracionPage />} />
             <Route path="/pacientes" element={<PlaceholderPage title={PAGE_TITLES.patients} />} />

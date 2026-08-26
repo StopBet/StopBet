@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { MoreThanOrEqual, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { FamilyLink } from './entities/family-link.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
@@ -33,6 +33,18 @@ export interface SessionAttendanceView {
   familyUserName: string;
   confirmed: boolean;
   confirmedAt: Date;
+}
+
+// CA 11.4 — lo que ve el psicólogo: la sesión más quién respondió y qué.
+export interface SedeSessionView {
+  id: string;
+  title: string;
+  sessionDate: Date;
+  location: string;
+  isOnline: boolean;
+  confirmedCount: number;
+  declinedCount: number;
+  attendances: SessionAttendanceView[];
 }
 
 const EMPTY_VIEW = (linkStatus: FamilyLinkState): FamilySessionsView => ({
@@ -169,5 +181,52 @@ export class FamilyService {
       confirmed: a.confirmed,
       confirmedAt: a.confirmedAt,
     }));
+  }
+
+  // CA 11.4 — el psicólogo necesita partir de la lista de sesiones de su sede.
+  // `getSessionsForFamily` no le sirve: deriva del vínculo del familiar.
+  async getSedeSessions(sedeId: string): Promise<SedeSessionView[]> {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 1);
+
+    const sessions = await this.sessionRepo.find({
+      where: { sedeId, sessionDate: MoreThanOrEqual(cutoff) },
+      order: { sessionDate: 'ASC' },
+    });
+    if (sessions.length === 0) return [];
+
+    const attendances = await this.attendanceRepo.find({
+      where: { sessionId: In(sessions.map((s) => s.id)) },
+      relations: ['familyUser'],
+      order: { confirmedAt: 'DESC' },
+    });
+
+    const bySession = new Map<string, SessionAttendanceView[]>();
+    for (const a of attendances) {
+      const list = bySession.get(a.sessionId) ?? [];
+      list.push({
+        id: a.id,
+        sessionId: a.sessionId,
+        familyUserId: a.familyUserId,
+        familyUserName: `${a.familyUser.firstName} ${a.familyUser.lastName}`.trim(),
+        confirmed: a.confirmed,
+        confirmedAt: a.confirmedAt,
+      });
+      bySession.set(a.sessionId, list);
+    }
+
+    return sessions.map((s) => {
+      const list = bySession.get(s.id) ?? [];
+      return {
+        id: s.id,
+        title: s.title,
+        sessionDate: s.sessionDate,
+        location: s.location,
+        isOnline: s.isOnline,
+        confirmedCount: list.filter((a) => a.confirmed).length,
+        declinedCount: list.filter((a) => !a.confirmed).length,
+        attendances: list,
+      };
+    });
   }
 }
