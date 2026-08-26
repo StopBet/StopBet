@@ -270,6 +270,9 @@ export const api = {
 
   confirmAttendance: (sessionId: string, confirmed: boolean) =>
     post<SessionAttendance>(`/family/sessions/${sessionId}/attendance`, undefined, { confirmed }),
+
+  // Vista del psicólogo: sesiones de su sede con quién confirmó (CA 11.4)
+  getSedeFamilySessions: () => get<SedeFamilySession[]>('/family/sede/sessions'),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────
@@ -299,4 +302,24 @@ export interface SessionAttendance {
   familyUserId: string
   confirmed: boolean
   confirmedAt: string
+}
+
+export interface FamilyAttendance {
+  id: string
+  sessionId: string
+  familyUserId: string
+  familyUserName: string
+  confirmed: boolean
+  confirmedAt: string
+}
+
+export interface SedeFamilySession {
+  id: string
+  title: string
+  sessionDate: string
+  location: string
+  isOnline: boolean
+  confirmedCount: number
+  declinedCount: number
+  attendances: FamilyAttendance[]
 }

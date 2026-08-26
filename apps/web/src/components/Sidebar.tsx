@@ -1,6 +1,6 @@
 import { WIcon } from './WIcon'
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'reports' | 'finanzas' | 'settings'
 
 interface SidebarProps {
   active: NavId
@@ -14,6 +14,7 @@ const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string }> = [
   { id: 'patients',  icon: 'users',          label: 'Mis pacientes' },
   { id: 'alerts',    icon: 'triangle-alert', label: 'Alertas de pánico' },
   { id: 'requests',  icon: 'inbox',          label: 'Solicitudes' },
+  { id: 'familySessions', icon: 'heart-handshake', label: 'Sesiones de familiares' },
   { id: 'reports',   icon: 'chart-column',   label: 'Reportes' },
   { id: 'finanzas',  icon: 'wallet',         label: 'Finanzas' },
   { id: 'settings',  icon: 'settings',       label: 'Configuración' },

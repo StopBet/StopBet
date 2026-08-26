@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
@@ -66,6 +67,24 @@ export class FamilyController {
     @Body() dto: ConfirmAttendanceDto,
   ) {
     return this.familyService.confirmAttendance(user.id, sessionId, dto);
+  }
+
+  // CA 11.4 — sesiones de la sede del psicólogo con quién confirmó cada una.
+  // Va antes de 'sessions/:id/attendance' para no depender de conocer un id.
+  @Get('sede/sessions')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'CA 11.4 — Sesiones de mi sede con las confirmaciones de familiares' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sesiones ordenadas por fecha, con confirmedCount, declinedCount y el detalle',
+  })
+  getSedeSessions(@CurrentUser() user: AuthUser) {
+    // Una cuenta clínica sin sede es un error de configuración, no un estado
+    // normal: devolver lista vacía lo haría pasar por "no hay sesiones".
+    if (!user.sedeId) {
+      throw new UnprocessableEntityException('Tu cuenta no tiene una sede asignada');
+    }
+    return this.familyService.getSedeSessions(user.sedeId);
   }
 
   // Psicólogo ve asistencias de una sesión (CA 11.4 segunda mitad)
