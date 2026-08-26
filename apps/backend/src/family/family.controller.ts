@@ -45,8 +45,13 @@ export class FamilyController {
 
   @Get('sessions')
   @Roles('family')
-  @ApiOperation({ summary: 'CA 11.1 + 11.5 — Sesiones de la sede del paciente vinculado' })
-  @ApiResponse({ status: 200, description: 'Lista ordenada por fecha más próxima' })
+  @ApiOperation({ summary: 'CA 11.1 + 11.5 + 11.6 — Sesiones de la sede del paciente vinculado' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'linkStatus (active | pending | unlinked), sesiones ordenadas por fecha más próxima ' +
+      'y hasUpcoming (false si no hay ninguna en 4 semanas)',
+  })
   getSessions(@CurrentUser() user: AuthUser) {
     return this.familyService.getSessionsForFamily(user.id);
   }

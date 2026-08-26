@@ -2,7 +2,6 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { MoreThanOrEqual, Repository } from 'typeorm';
@@ -15,6 +14,32 @@ import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
 
 const UPCOMING_WEEKS = 4;
+
+export type FamilyLinkState = 'active' | 'pending' | 'unlinked';
+
+export type FamilySessionView = FamilySession & { userAttends: boolean | null };
+
+export interface FamilySessionsView {
+  linkStatus: FamilyLinkState;
+  sessions: FamilySessionView[];
+  hasUpcoming: boolean;
+}
+
+// Sólo lo que el psicólogo necesita para pasar lista: nada del resto del User.
+export interface SessionAttendanceView {
+  id: string;
+  sessionId: string;
+  familyUserId: string;
+  familyUserName: string;
+  confirmed: boolean;
+  confirmedAt: Date;
+}
+
+const EMPTY_VIEW = (linkStatus: FamilyLinkState): FamilySessionsView => ({
+  linkStatus,
+  sessions: [],
+  hasUpcoming: false,
+});
 
 @Injectable()
 export class FamilyService {
@@ -51,7 +76,7 @@ export class FamilyService {
   }
 
   // CA 11.6 — estado del vínculo del familiar
-  async getLinkStatus(familyUserId: string): Promise<{ status: 'active' | 'pending' | 'unlinked' }> {
+  async getLinkStatus(familyUserId: string): Promise<{ status: FamilyLinkState }> {
     const link = await this.linkRepo.findOne({ where: { familyUserId } });
     if (!link) return { status: 'unlinked' };
     return { status: link.status };
@@ -68,19 +93,19 @@ export class FamilyService {
     return this.sessionRepo.save(session);
   }
 
-  // CA 11.1 + 11.5 — sesiones de la sede del paciente vinculado, ordenadas por proximidad
-  async getSessionsForFamily(familyUserId: string): Promise<{
-    sessions: (FamilySession & { userAttends: boolean | null })[];
-    hasUpcoming: boolean;
-  }> {
+  // CA 11.1 + 11.5 + 11.6 — sesiones de la sede del paciente vinculado, ordenadas por proximidad.
+  // Sin vínculo no es un error: es el estado que la vista de familiar tiene que pintar (11.6).
+  async getSessionsForFamily(familyUserId: string): Promise<FamilySessionsView> {
     const link = await this.linkRepo.findOne({
-      where: { familyUserId, status: 'active' },
+      where: { familyUserId },
       relations: ['patientUser'],
     });
-    if (!link) throw new UnprocessableEntityException('No tienes un vínculo activo con ningún paciente');
+
+    if (!link) return EMPTY_VIEW('unlinked');
+    if (link.status !== 'active') return EMPTY_VIEW(link.status);
 
     const { sedeId } = link.patientUser;
-    if (!sedeId) throw new UnprocessableEntityException('El paciente no tiene sede asignada');
+    if (!sedeId) return EMPTY_VIEW('active');
 
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 1);
@@ -104,7 +129,7 @@ export class FamilyService {
       userAttends: attendanceMap.has(s.id) ? attendanceMap.get(s.id)! : null,
     }));
 
-    return { sessions: enriched, hasUpcoming };
+    return { linkStatus: 'active', sessions: enriched, hasUpcoming };
   }
 
   // CA 11.4 — confirmar o rechazar asistencia
@@ -126,12 +151,23 @@ export class FamilyService {
     return this.attendanceRepo.save(attendance);
   }
 
-  // Para que el psicólogo vea asistencias en su dashboard (CA 11.4 segunda mitad)
-  async getAttendancesForSession(sessionId: string): Promise<SessionAttendance[]> {
-    return this.attendanceRepo.find({
+  // Para que el psicólogo vea asistencias en su dashboard (CA 11.4 segunda mitad).
+  // Se arma la respuesta a mano: devolver la relación `familyUser` completa expone
+  // passwordHash y el RUT ya descifrado por el transformer.
+  async getAttendancesForSession(sessionId: string): Promise<SessionAttendanceView[]> {
+    const attendances = await this.attendanceRepo.find({
       where: { sessionId },
       relations: ['familyUser'],
       order: { confirmedAt: 'DESC' },
     });
+
+    return attendances.map((a) => ({
+      id: a.id,
+      sessionId: a.sessionId,
+      familyUserId: a.familyUserId,
+      familyUserName: `${a.familyUser.firstName} ${a.familyUser.lastName}`.trim(),
+      confirmed: a.confirmed,
+      confirmedAt: a.confirmedAt,
+    }));
   }
 }
