@@ -1,43 +1,81 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardApp } from './DashboardApp'
-import type { LoginResult } from './services/api'
+import { FamiliarPortalPlaceholder } from './pages/familiar/FamiliarPortalPlaceholder'
+import { api, session, type AuthUser, type LoginResponse } from './services/api'
 
 const AUTH_KEY = 'sb-dashboard-auth'
-const PSYCH_KEY = 'sb-dashboard-psych'
+const USER_KEY = 'sb-dashboard-user'
 
-function readAuth() {
-  return !!(localStorage.getItem(AUTH_KEY) || sessionStorage.getItem(AUTH_KEY))
+function readStored(key: string): string | null {
+  return localStorage.getItem(key) || sessionStorage.getItem(key)
 }
 
-function readPsychId(): string | null {
-  return localStorage.getItem(PSYCH_KEY) || sessionStorage.getItem(PSYCH_KEY)
+function readUser(): AuthUser | null {
+  const raw = readStored(USER_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as AuthUser
+  } catch {
+    return null
+  }
 }
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(readAuth)
-  const [psychId, setPsychId] = useState<string | null>(readPsychId)
+  const [user, setUser] = useState<AuthUser | null>(readUser)
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!readStored(AUTH_KEY) && !!readUser())
+  const [sessionExpired, setSessionExpired] = useState(false)
 
-  const handleSuccess = (keepSession: boolean, user: LoginResult) => {
-    const storage = keepSession ? localStorage : sessionStorage
-    storage.setItem(AUTH_KEY, '1')
-    storage.setItem(PSYCH_KEY, user.id)
-    setPsychId(user.id)
-    setIsLoggedIn(true)
-  }
-
-  const handleLogout = () => {
-    localStorage.removeItem(AUTH_KEY)
-    localStorage.removeItem(PSYCH_KEY)
-    sessionStorage.removeItem(AUTH_KEY)
-    sessionStorage.removeItem(PSYCH_KEY)
-    setPsychId(null)
+  const clearSession = () => {
+    for (const storage of [localStorage, sessionStorage]) {
+      storage.removeItem(AUTH_KEY)
+      storage.removeItem(USER_KEY)
+    }
+    session.clear()
+    setUser(null)
     setIsLoggedIn(false)
   }
 
-  if (!isLoggedIn) {
-    return <LoginPage onSuccess={handleSuccess} />
+  // api.ts avisa cuando el refresh token dejó de servir: se vuelve al login
+  // con el banner que LoginPage ya tenía implementado.
+  useEffect(() => {
+    session.setOnSessionExpired(() => {
+      clearSession()
+      setSessionExpired(true)
+    })
+    return () => session.setOnSessionExpired(null)
+  }, [])
+
+  const handleSuccess = (keepSession: boolean, result: LoginResponse) => {
+    const storage = keepSession ? localStorage : sessionStorage
+    session.setTokens(result, keepSession)
+    storage.setItem(AUTH_KEY, '1')
+    storage.setItem(USER_KEY, JSON.stringify(result.user))
+    setUser(result.user)
+    setSessionExpired(false)
+    setIsLoggedIn(true)
   }
 
-  return <DashboardApp psychId={psychId!} onLogout={handleLogout} />
+  const handleLogout = async () => {
+    await api.logout()
+    clearSession()
+  }
+
+  if (!isLoggedIn || !user) {
+    return <LoginPage sessionExpired={sessionExpired} onSuccess={handleSuccess} />
+  }
+
+  // El portal familiar se enruta acá y no dentro de DashboardApp: el catch-all
+  // de DashboardApp redirige cualquier ruta desconocida a "/".
+  if (user.role === 'family') {
+    return (
+      <Routes>
+        <Route path="/familiar" element={<FamiliarPortalPlaceholder user={user} onLogout={handleLogout} />} />
+        <Route path="*" element={<Navigate to="/familiar" replace />} />
+      </Routes>
+    )
+  }
+
+  return <DashboardApp psychId={user.id} onLogout={handleLogout} />
 }

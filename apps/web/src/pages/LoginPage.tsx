@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { WIcon } from '../components/WIcon'
-import { api, type LoginResult } from '../services/api'
+import { api, type LoginResponse } from '../services/api'
 
 function SupportNetwork() {
   const nodes = [
@@ -48,7 +48,7 @@ type FormState = 'idle' | 'loading' | 'error' | 'forbidden'
 const TEAL = '#1B6F63'
 const TEAL_LIGHT = '#EFF4F1'
 
-export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpired?: boolean; onSuccess?: (keepSession: boolean, user: LoginResult) => void }) {
+export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpired?: boolean; onSuccess?: (keepSession: boolean, result: LoginResponse) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -193,7 +193,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             Bienvenido
           </h2>
           <p style={{ fontSize: 14, color: 'var(--fg2)', margin: '0 0 20px' }}>
-            Accede al panel clínico de AJUTER
+            Accede a tu cuenta de AJUTER
           </p>
 
           {/* Badge acceso restringido */}
@@ -208,7 +208,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
             <span style={{ fontSize: 12, fontWeight: 600, color: TEAL }}>
-              Solo psicólogos certificados de AJUTER
+              Acceso para equipo clínico y familiares
             </span>
           </div>
 
@@ -229,7 +229,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="nombre@ajuter.cl"
+                  placeholder="tu@correo.cl"
                   autoComplete="email"
                   style={{
                     flex: 1, border: 'none', outline: 'none',
@@ -370,7 +370,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                 </svg>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#B83232' }}>
                   {formState === 'forbidden'
-                    ? 'Solo psicólogos certificados de AJUTER pueden acceder'
+                    ? 'Tu cuenta no tiene permisos para acceder'
                     : 'Correo o contraseña incorrectos'}
                 </span>
               </div>
