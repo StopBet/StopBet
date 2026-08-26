@@ -48,6 +48,12 @@ type FormState = 'idle' | 'loading' | 'error' | 'forbidden'
 const TEAL = '#1B6F63'
 const TEAL_LIGHT = '#EFF4F1'
 
+// /auth/login autentica a cualquier rol, así que el filtro de quién entra a la
+// web vive acá. Sin esto un paciente o padrino aterrizaría en el shell clínico
+// y alcanzaría endpoints todavía sin guard (ej. /panic/alerts/history, que
+// expone nombres e historial de crisis de otros pacientes).
+const WEB_ROLES: ReadonlySet<string> = new Set(['psychologist', 'coordinator', 'family'])
+
 export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpired?: boolean; onSuccess?: (keepSession: boolean, result: LoginResponse) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -60,8 +66,13 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
     if (!email.trim() || !password) return
     setFormState('loading')
     try {
-      const user = await api.login(email.trim(), password)
-      onSuccess?.(keepSession, user)
+      const result = await api.login(email.trim(), password)
+      if (!WEB_ROLES.has(result.user.role)) {
+        // Se rechaza antes de guardar el token: la sesión nunca llega a existir
+        setFormState('forbidden')
+        return
+      }
+      onSuccess?.(keepSession, result)
     } catch (err: unknown) {
       const status = (err as { status?: number })?.status
       setFormState(status === 403 ? 'forbidden' : 'error')

@@ -77,5 +77,12 @@ export default function App() {
     )
   }
 
+  if (user.role !== 'psychologist' && user.role !== 'coordinator') {
+    // LoginPage ya filtra por rol; esto cubre una sesión vieja en storage y
+    // evita que un paciente aterrice en el shell clínico.
+    clearSession()
+    return <LoginPage onSuccess={handleSuccess} />
+  }
+
   return <DashboardApp psychId={user.id} onLogout={handleLogout} />
 }
