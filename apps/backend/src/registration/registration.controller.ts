@@ -1,11 +1,13 @@
-import { Body, Controller, Get, Headers, Param, Patch, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiHeader, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { AuthUser } from '@stopbet/shared-types';
 import { RegistrationService } from './registration.service';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('registration')
 @Controller('registration')
@@ -22,8 +24,8 @@ export class RegistrationController {
   @ApiResponse({ status: 200, description: 'RegistrationRequest[] con datos de usuario' })
   @ApiResponse({ status: 401, description: 'Sin token' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso' })
-  listPending() {
-    return this.registrationService.listPending();
+  listPending(@CurrentUser() user: AuthUser) {
+    return this.registrationService.listPending(user);
   }
 
   @Post('submit')
@@ -43,28 +45,39 @@ export class RegistrationController {
     return this.registrationService.getStatus(requestId);
   }
 
+  // Decide quién entra a la clínica: sin guard cualquiera que supiera la URL podía aprobar
+  // una solicitud inventando el `x-user-id` del revisor.
   @Patch(':requestId/approve')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('psychologist', 'coordinator')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Psicólogo aprueba la solicitud y asigna al paciente' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del psicólogo que revisa' })
   @ApiBody({ type: ApproveRegistrationDto, required: false })
   @ApiResponse({ status: 200, description: 'Aprobado — notificación enviada al paciente' })
+  @ApiResponse({ status: 400, description: 'Falta indicar el psicólogo asignado' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Rol sin permiso, o solicitud de otra sede' })
   @ApiResponse({ status: 409, description: 'La solicitud no existe o ya fue procesada' })
   approve(
     @Param('requestId') requestId: string,
-    @Headers('x-user-id') psychologistId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: ApproveRegistrationDto,
   ) {
-    return this.registrationService.approve(requestId, psychologistId, dto);
+    return this.registrationService.approve(requestId, user, dto);
   }
 
   @Patch(':requestId/reject')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('psychologist', 'coordinator')
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Psicólogo rechaza la solicitud' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del psicólogo' })
   @ApiResponse({ status: 200, description: 'Rechazado — notificación enviada al paciente' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Rol sin permiso, o solicitud de otra sede' })
   reject(
     @Param('requestId') requestId: string,
-    @Headers('x-user-id') psychologistId: string,
+    @CurrentUser() user: AuthUser,
   ) {
-    return this.registrationService.reject(requestId, psychologistId);
+    return this.registrationService.reject(requestId, user);
   }
 }

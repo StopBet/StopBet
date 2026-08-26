@@ -1,18 +1,22 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, In, QueryFailedError, Repository } from 'typeorm';
 import { RegistrationRequest } from './entities/registration-request.entity';
 import { User } from '../users/entities/user.entity';
+import { Sede } from '../sedes/entities/sede.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { PatientAssignment } from '../psychologists/entities/patient-assignment.entity';
+import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
+import { sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
-import { SubmitRegistrationResponse } from '@stopbet/shared-types';
+import { AuthUser, SubmitRegistrationResponse } from '@stopbet/shared-types';
 
 const PG_UNIQUE_VIOLATION = '23505';
 
@@ -35,17 +39,51 @@ export class RegistrationService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Notification)
     private readonly notifRepo: Repository<Notification>,
+    @InjectRepository(Sede)
+    private readonly sedeRepo: Repository<Sede>,
+    @InjectRepository(PsychologistSede)
+    private readonly psychSedeRepo: Repository<PsychologistSede>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
 
-  async listPending(): Promise<{
+  // El coordinador es un rol administrativo y revisa cualquier sede: si solo viera las suyas,
+  // una sede que se queda sin psicólogos no tendría a nadie que pueda aprobar sus solicitudes.
+  private async reviewableSedeIds(reviewer: AuthUser): Promise<string[] | null> {
+    if (reviewer.role === 'coordinator') return null;
+    return sedeIdsOfPsychologist(
+      this.psychSedeRepo,
+      this.sedeRepo,
+      reviewer.id,
+      reviewer.sedeId,
+    );
+  }
+
+  private async assertCoversSede(reviewer: AuthUser, sedeId: string): Promise<void> {
+    const sedeIds = await this.reviewableSedeIds(reviewer);
+    if (sedeIds === null) return;
+    if (!sedeIds.includes(sedeId)) {
+      throw new ForbiddenException(
+        'No puedes revisar solicitudes de una sede que no atiendes',
+      );
+    }
+  }
+
+  async listPending(reviewer: AuthUser): Promise<{
     id: string; userId: string; sedeId: string;
     firstName: string; lastName: string; email: string;
     createdAt: string;
   }[]> {
+    const where: FindOptionsWhere<RegistrationRequest> = { status: 'pending' };
+
+    const sedeIds = await this.reviewableSedeIds(reviewer);
+    if (sedeIds !== null) {
+      if (sedeIds.length === 0) return [];
+      where.sedeId = In(sedeIds);
+    }
+
     const requests = await this.requestRepo.find({
-      where: { status: 'pending' },
+      where,
       order: { createdAt: 'DESC' },
     });
     const result = [];
@@ -116,7 +154,7 @@ export class RegistrationService {
 
   async approve(
     requestId: string,
-    psychologistId: string,
+    reviewer: AuthUser,
     dto: ApproveRegistrationDto = {},
   ): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
@@ -125,7 +163,9 @@ export class RegistrationService {
         .findOne({ where: { id: requestId } });
       if (!req) throw new NotFoundException('Solicitud no encontrada');
 
-      const assignedTo = dto.assignedPsychologistId ?? psychologistId;
+      await this.assertCoversSede(reviewer, req.sedeId);
+
+      const assignedTo = dto.assignedPsychologistId ?? reviewer.id;
       const assignee = await manager.getRepository(User).findOne({
         where: { id: assignedTo, role: 'psychologist', accountStatus: 'active' },
       });
@@ -144,7 +184,7 @@ export class RegistrationService {
       // `affected` es opcional en TypeORM, así que se comprueba con `!` y no con `=== 0`.
       const result = await manager.getRepository(RegistrationRequest).update(
         { id: requestId, status: 'pending' },
-        { status: 'approved', reviewedBy: psychologistId, reviewedAt: new Date() },
+        { status: 'approved', reviewedBy: reviewer.id, reviewedAt: new Date() },
       );
       if (!result.affected) {
         throw new ConflictException('La solicitud ya fue procesada');
@@ -177,13 +217,15 @@ export class RegistrationService {
     });
   }
 
-  async reject(requestId: string, psychologistId: string): Promise<void> {
+  async reject(requestId: string, reviewer: AuthUser): Promise<void> {
     const req = await this.requestRepo.findOne({ where: { id: requestId } });
     if (!req) throw new NotFoundException('Solicitud no encontrada');
 
+    await this.assertCoversSede(reviewer, req.sedeId);
+
     await this.requestRepo.update(requestId, {
       status: 'rejected',
-      reviewedBy: psychologistId,
+      reviewedBy: reviewer.id,
       reviewedAt: new Date(),
     });
 

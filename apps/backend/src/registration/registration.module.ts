@@ -4,12 +4,16 @@ import { RegistrationRequest } from './entities/registration-request.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { PatientAssignment } from '../psychologists/entities/patient-assignment.entity';
+import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
+import { Sede } from '../sedes/entities/sede.entity';
 import { RegistrationController } from './registration.controller';
 import { RegistrationService } from './registration.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([RegistrationRequest, User, Notification, PatientAssignment]),
+    TypeOrmModule.forFeature([
+      RegistrationRequest, User, Notification, PatientAssignment, PsychologistSede, Sede,
+    ]),
   ],
   controllers: [RegistrationController],
   providers: [RegistrationService],
