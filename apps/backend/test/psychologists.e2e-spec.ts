@@ -103,10 +103,10 @@ describe('Psychologists guard (e2e)', () => {
     await app.close();
   });
 
-  async function loginAs(email: string): Promise<string> {
+  async function loginAs(email: string, password = TEST_PASSWORD): Promise<string> {
     const res = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email, password: TEST_PASSWORD })
+      .send({ email, password })
       .expect(200);
     return res.body.accessToken;
   }
@@ -193,10 +193,11 @@ describe('Psychologists guard (e2e)', () => {
   describe('Asignación de pacientes (CA24.3)', () => {
     let originPsychId: string;
     let targetPsychId: string;
+    let targetPsychToken: string;
     let newPatientId: string;
     let coordinatorToken: string;
 
-    async function createPsychologist(): Promise<string> {
+    async function createPsychologist(): Promise<{ id: string; token: string }> {
       const res = await request(app.getHttpServer())
         .post('/psychologists')
         .set('Authorization', `Bearer ${coordinatorToken}`)
@@ -209,15 +210,18 @@ describe('Psychologists guard (e2e)', () => {
         })
         .expect(201);
       createdPsychologistIds.push(res.body.id);
-      return res.body.id;
+      const token = await loginAs(res.body.email, res.body.temporaryPassword);
+      return { id: res.body.id, token };
     }
 
     beforeAll(async () => {
       coordinatorToken = await loginAs(
         (await userRepo.findOneOrFail({ where: { id: coordinatorId } })).email,
       );
-      originPsychId = await createPsychologist();
-      targetPsychId = await createPsychologist();
+      originPsychId = (await createPsychologist()).id;
+      const target = await createPsychologist();
+      targetPsychId = target.id;
+      targetPsychToken = target.token;
 
       const submitted = await request(app.getHttpServer())
         .post('/registration/submit')
@@ -234,7 +238,7 @@ describe('Psychologists guard (e2e)', () => {
 
       await request(app.getHttpServer())
         .patch(`/registration/${submitted.body.requestId}/approve`)
-        .set('x-user-id', coordinatorId)
+        .set('Authorization', `Bearer ${coordinatorToken}`)
         .send({ assignedPsychologistId: originPsychId })
         .expect(200);
     });
@@ -273,7 +277,7 @@ describe('Psychologists guard (e2e)', () => {
 
       await request(app.getHttpServer())
         .patch(`/registration/${submitted.body.requestId}/approve`)
-        .set('x-user-id', targetPsychId)
+        .set('Authorization', `Bearer ${targetPsychToken}`)
         .expect(200);
 
       const assignments = await assignmentRepo.find({
@@ -304,7 +308,7 @@ describe('Psychologists guard (e2e)', () => {
 
       const res = await request(app.getHttpServer())
         .patch(`/registration/${submitted.body.requestId}/approve`)
-        .set('x-user-id', coordinatorId)
+        .set('Authorization', `Bearer ${coordinatorToken}`)
         .expect(400);
 
       expect(res.body.message).toContain('Indica a qué psicólogo');
