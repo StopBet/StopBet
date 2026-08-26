@@ -1,5 +1,12 @@
 import React from 'react';
+import { Text, TextInput } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+
+// Fuente body por defecto en toda la app — manual de marca StopBet
+if (!Text.defaultProps) (Text as any).defaultProps = {};
+(Text as any).defaultProps.style = { fontFamily: 'Lato-Regular' };
+if (!TextInput.defaultProps) (TextInput as any).defaultProps = {};
+(TextInput as any).defaultProps.style = { fontFamily: 'Lato-Regular' };
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AppStackParamList, AuthStackParamList } from './src/navigation/types';
 import { AuthContext } from './src/context/AuthContext';
