@@ -45,6 +45,7 @@ import { FamilyModule } from './family/family.module';
 import { FamilyLink } from './family/entities/family-link.entity';
 import { FamilySession } from './family/entities/family-session.entity';
 import { SessionAttendance } from './family/entities/session-attendance.entity';
+import { CommunityMute } from './notifications/entities/community-mute.entity';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { SessionAttendance } from './family/entities/session-attendance.entity';
           RefreshToken,
           DeviceToken,
           FamilyLink, FamilySession, SessionAttendance,
+          CommunityMute,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',

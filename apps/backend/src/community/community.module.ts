@@ -9,6 +9,7 @@ import { PostReport } from './entities/post-report.entity';
 import { AttendanceConfirmation } from './entities/attendance-confirmation.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { CommunityMute } from '../notifications/entities/community-mute.entity';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { Notification } from '../notifications/entities/notification.entity';
       AttendanceConfirmation,
       User,
       Notification,
+      CommunityMute,
     ]),
   ],
   controllers: [CommunityController],

@@ -13,6 +13,7 @@ import { PostReport } from './entities/post-report.entity';
 import { AttendanceConfirmation } from './entities/attendance-confirmation.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { CommunityMute } from '../notifications/entities/community-mute.entity';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
@@ -37,6 +38,8 @@ export class CommunityService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
+    @InjectRepository(CommunityMute)
+    private readonly communityMuteRepo: Repository<CommunityMute>,
   ) {}
 
   async findAnnouncements(sede: string, userId: string) {
@@ -254,8 +257,11 @@ export class CommunityService {
   }
 
   // CA5.5: notificar al autor cuando alguien reacciona o responde a su post
+  // CA5.6: no notificar si el autor silenció las notificaciones de comunidad
   private async notifyInteraction(post: CommunityPost, actorId: string, verb: string) {
     if (post.authorId === actorId) return;
+    const muted = await this.communityMuteRepo.findOne({ where: { userId: post.authorId } });
+    if (muted) return;
     const actor = await this.userRepo.findOne({ where: { id: actorId } });
     const actorName = actor ? `${actor.firstName} ${actor.lastName}` : 'Alguien';
     await this.notificationRepo.save(
