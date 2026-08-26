@@ -157,6 +157,17 @@ export class CommunityService {
     );
   }
 
+  // CA5.2: post automático al compartir una insignia con la comunidad
+  async createBadgeAnnouncementPost(patientId: string, milestone: number, sede: string) {
+    return this.createPost(
+      {
+        body: `🏅 ¡Alcancé ${milestone} días sin apostar! Gracias a todos por el apoyo de la comunidad.`,
+        sede,
+      },
+      patientId,
+    );
+  }
+
   async addReaction(postId: string, emoji: ReactionEmoji, userId: string) {
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) throw new NotFoundException('Publicación no encontrada');
