@@ -1,6 +1,5 @@
-import { ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
 import { CheckIn } from '../check-ins/entities/check-in.entity';
 import { AbstinencePeriod } from '../achievements/entities/abstinence-period.entity';
 
@@ -9,14 +8,6 @@ describe('UsersService', () => {
   let userRepo: { findOne: jest.Mock; find: jest.Mock };
   let checkInRepo: { findOne: jest.Mock; find: jest.Mock };
   let periodRepo: { findOne: jest.Mock };
-
-  const psychologist: Partial<User> = {
-    id: 'psych-1',
-    email: 'miguel.lara@ajuter.cl',
-    role: 'psychologist',
-    firstName: 'Miguel',
-    lastName: 'Lara',
-  };
 
   beforeAll(() => {
     jest.useFakeTimers();
@@ -37,29 +28,6 @@ describe('UsersService', () => {
       checkInRepo as any,
       periodRepo as any,
     );
-  });
-
-  describe('login (legacy — /users/login)', () => {
-    it('rechaza con 401 si el correo no existe', async () => {
-      userRepo.findOne.mockResolvedValue(null);
-      await expect(service.login('no-existe@ajuter.cl')).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('rechaza con 403 si el usuario no es psicólogo', async () => {
-      userRepo.findOne.mockResolvedValue({ ...psychologist, role: 'patient' });
-      await expect(service.login('paciente@stopbet.cl')).rejects.toThrow(ForbiddenException);
-    });
-
-    it('devuelve id/role/nombre cuando es psicólogo', async () => {
-      userRepo.findOne.mockResolvedValue(psychologist);
-      const result = await service.login(psychologist.email!);
-      expect(result).toEqual({
-        id: 'psych-1',
-        role: 'psychologist',
-        firstName: 'Miguel',
-        lastName: 'Lara',
-      });
-    });
   });
 
   describe('listPatients', () => {
