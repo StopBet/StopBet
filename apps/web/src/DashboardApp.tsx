@@ -99,6 +99,7 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
     name: `${r.firstName} ${r.lastName}`,
     email: r.email,
     sede: shortSedeName(sedeMap[r.sedeId] ?? r.sedeId),
+    sedeId: r.sedeId,
     rel: relTime(r.createdAt),
     date: new Date(r.createdAt).toLocaleString('es-CL', {
       day: '2-digit', month: '2-digit', year: 'numeric',
@@ -113,9 +114,9 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
     return () => clearTimeout(t)
   }, [toast])
 
-  const handleApprove = async (id: string) => {
+  const handleApprove = async (id: string, assignedPsychologistId?: string) => {
     try {
-      await api.approveRequest(id, psychId)
+      await api.approveRequest(id, assignedPsychologistId)
       qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
       setToast({ message: 'Solicitud aprobada y paciente registrado.', tone: 'success' })
     } catch {
@@ -125,7 +126,7 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
 
   const handleReject = async (id: string) => {
     try {
-      await api.rejectRequest(id, psychId)
+      await api.rejectRequest(id)
       qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
       setToast({ message: 'Solicitud rechazada. Se notificó al solicitante.', tone: 'error' })
     } catch {

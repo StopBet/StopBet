@@ -124,8 +124,12 @@ async function del<T>(path: string, headers?: Record<string, string>): Promise<T
   return (text ? JSON.parse(text) : undefined) as T
 }
 
-async function patch<T>(path: string, headers?: Record<string, string>): Promise<T> {
-  const res = await request(path, { method: 'PATCH' }, headers)
+async function patch<T>(path: string, headers?: Record<string, string>, body?: unknown): Promise<T> {
+  const res = await request(
+    path,
+    { method: 'PATCH', body: body !== undefined ? JSON.stringify(body) : undefined },
+    headers,
+  )
   if (!res.ok) throw failed('PATCH', path, res)
   return res.json() as Promise<T>
 }
@@ -280,11 +284,17 @@ export const api = {
   getAlertHistory:    () => get<AlertHistoryItem[]>('/panic/alerts/history'),
   getSedes:           () => get<Sede[]>('/sedes'),
 
-  approveRequest: (requestId: string, psychologistId: string) =>
-    patch<void>(`/registration/${requestId}/approve`, { 'x-user-id': psychologistId }),
+  // Ya no mandan `x-user-id`: ambos endpoints tienen guard y el backend saca al revisor del
+  // token. `assignedPsychologistId` es opcional — sin él queda asignado quien aprueba.
+  approveRequest: (requestId: string, assignedPsychologistId?: string) =>
+    patch<void>(
+      `/registration/${requestId}/approve`,
+      undefined,
+      assignedPsychologistId ? { assignedPsychologistId } : undefined,
+    ),
 
-  rejectRequest: (requestId: string, psychologistId: string) =>
-    patch<void>(`/registration/${requestId}/reject`, { 'x-user-id': psychologistId }),
+  rejectRequest: (requestId: string) =>
+    patch<void>(`/registration/${requestId}/reject`),
 
   reportRelapse: (patientId: string) =>
     post<void>('/achievements/relapse', { 'x-user-id': patientId }),
