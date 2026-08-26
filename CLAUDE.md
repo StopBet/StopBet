@@ -21,8 +21,12 @@ Plataforma clínica para tratamiento de ludopatía. Datos de pacientes son **sen
 - **CI mobile**: `.github/workflows/mobile-preview.yml` **volvió a dispararse solo** en push a `main`. El diagnóstico anterior ("`react-native@0.86` ya no publica `hermesc`, no tiene arreglo") era falso: el binario se movió a un paquete propio, `hermes-compiler`, que ya estaba en el lockfile. El workflow apuntaba con `chmod` a la ruta vieja y se tragaba el fallo con `|| true`. Corregido en `bbbec9d`.
 - **Portal del familiar (HdU11)**: módulo `family` con vínculo familiar↔paciente, sesiones grupales por sede y confirmación de asistencia. Es el **único módulo del backend con guard en todos sus endpoints**. Dos avisos:
   - ⚠️ **Nadie aprueba los vínculos.** `requestLink` los crea en `pending` y no existe endpoint ni pantalla que los pase a `active`: solo lo hace `src/family/family.seed.ts`. En producción un familiar quedaría en "pendiente de vinculación" para siempre.
-  - Datos de prueba: `node --env-file=.env --require ts-node/register src/family/family.seed.ts` desde `apps/backend`, después de `pnpm run seed`. Crea los tres estados (vínculo activo con sesiones, pendiente, y activo sin sesiones próximas).
-- **Deudas técnicas**: **no hay ninguna migración en el repo** — `synchronize` corre solo fuera de producción, así que **las tablas nuevas de este sprint no se crean en Railway**; borrar `apps/mobile/package-lock.json` (residuo de npm en repo pnpm); conectar `FinanzasPage` y `ConfiguracionPage` a la API; migrar `apps/mobile` de `x-user-id` a `Authorization: Bearer`; registrar `JwtAuthGuard` como guard global; **arreglar el `BASE_URL` de mobile** (ver arriba — bloquea mostrar la app contra la nube). _Resueltas:_ seed del usuario demo; `GEMINI_API_KEY` opcional; dashboard web conectado a la API real y migrado a Bearer; módulo `auth`; **FCM implementado** (módulo `push` con `firebase-admin`, tabla de tokens de dispositivo; requiere `FIREBASE_SERVICE_ACCOUNT_PATH` o `..._JSON`, y sin eso el backend arranca igual con los push desactivados).
+  - Datos de prueba: `node --env-file=.env --require ts-node/register src/family/family.seed.ts` desde `apps/backend`, después de `pnpm run seed`. **No está en los scripts de `package.json`**: hay que correrlo a mano o la demo no tiene cuentas de familiar. Crea los tres estados (vínculo activo con sesiones, pendiente, y activo sin sesiones próximas).
+- **Deudas técnicas**:
+  - ⚠️ **No hay ninguna migración en el repo, y por eso el backend de Railway corre con `NODE_ENV=development`** — se dejó así a propósito para que TypeORM cree el esquema con `synchronize`. Es decir: las tablas nuevas **sí** se crean en producción, pero al precio de violar la regla del propio proyecto ("nunca `synchronize: true` en producción"). Hay que resolverlo con migraciones reales **antes de manejar datos de pacientes de verdad**.
+  - El servicio **`@stopbet/web` de Railway falla el deploy desde el 19/08**: healthcheck a `/health`, que no existe en un frontend estático. La web ya vive en Vercel, así que ese servicio probablemente sobra.
+  - Borrar `apps/mobile/package-lock.json` (residuo de npm en repo pnpm); conectar `FinanzasPage` y `ConfiguracionPage` a la API; migrar `apps/mobile` de `x-user-id` a `Authorization: Bearer`; registrar `JwtAuthGuard` como guard global; **arreglar el `BASE_URL` de mobile** (ver arriba — bloquea mostrar la app contra la nube).
+  - _Resueltas:_ seed del usuario demo; `GEMINI_API_KEY` opcional; dashboard web conectado a la API real y migrado a Bearer; módulo `auth`; los dos endpoints que respondían sin login (`/panic/alerts/history`, `/registration/pending`); **FCM implementado** (módulo `push` con `firebase-admin`, tabla `device_tokens`; requiere `FIREBASE_SERVICE_ACCOUNT_PATH` o `..._JSON`, y sin eso el backend arranca igual con los push desactivados).
 
 ## Estructura del monorepo
 
@@ -255,12 +259,18 @@ DATABASE_URL=postgresql://...
 CORS_ORIGIN=http://localhost:5173
 JWT_SECRET=...
 GEMINI_API_KEY=...
-
-# Obligatoria: sin ella `pnpm run seed` se cae y el backend no puede escribir
-# ningún RUT. 32 bytes en hex:
-#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ENCRYPTION_KEY=...
 ```
+
+> **`ENCRYPTION_KEY` es obligatoria** — cifra el RUT en reposo (AES-256-GCM). Sin ella
+> `pnpm run seed` **se cae** y el backend no puede escribir ningún RUT. Debe ser una
+> cadena **hexadecimal de 64 caracteres** (32 bytes); cualquier otro largo se rechaza
+> al arrancar. Genera la tuya con:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
+> Es local y personal: no la compartas ni la subas. En producción va configurada en
+> Railway. `GEMINI_API_KEY` sí es opcional (sin ella el asistente usa mensajes de respaldo).
 
 ### Web (`apps/web/.env`)
 ```
