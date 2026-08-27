@@ -32,6 +32,7 @@ import {
 } from '../services/api';
 import { devFlags } from '../store/devFlags';
 import { isNetworkError } from '../services/checkInQueue';
+import { readAchievements, saveAchievements } from '../services/progressCache';
 
 // Ajustar cuando se conecte autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -120,6 +121,7 @@ export function AchievementsScreen({ navigation }: Props) {
   // Arranca en true: hasta que llegue la primera respuesta, EMPTY_DATA diría
   // "0 días" y se leería como un contador reiniciado, no como una carga.
   const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('achievements');
   const [relapseModal, setRelapseModal] = useState(false);
   const [relapseMessage, setRelapseMessage] = useState('');
@@ -133,6 +135,8 @@ export function AchievementsScreen({ navigation }: Props) {
       // cada vuelta reemplaza el estado por un objeto nuevo y vuelve a pintar
       // todos los períodos con sus insignias, lo que se nota en el dispositivo.
       setData((prev) => (sameAchievements(prev, result) ? prev : result));
+      setOffline(false);
+      void saveAchievements(result);
       if (hasPendingExternalRelapse()) {
         acknowledgePendingRelapse();
         shownMilestones.clear();
@@ -150,6 +154,11 @@ export function AchievementsScreen({ navigation }: Props) {
       // Native levanta el LogBox encima de la pantalla.
       if (isNetworkError(err)) {
         console.log('[AchievementsScreen] sin conexión al cargar');
+        // Sin esto la pantalla queda en EMPTY_DATA: cero días y todas las
+        // insignias con candado, como si el paciente no hubiera avanzado nada.
+        setOffline(true);
+        const cached = await readAchievements();
+        if (cached) setData((prev) => (prev.currentPeriod.id ? prev : cached));
       } else {
         console.error('[AchievementsScreen] load error', (err as Error).message);
       }
@@ -232,6 +241,9 @@ export function AchievementsScreen({ navigation }: Props) {
     .filter((b) => !b.sharedToCommunity)
     .sort((a, b) => b.milestone - a.milestone)[0]?.milestone as BadgeMilestone | undefined;
 
+  // EMPTY_DATA deja el id vacío: sirve para distinguir "todavía no hay datos"
+  // de "el paciente lleva 0 días", que en pantalla se ven igual.
+  const hasData = Boolean(currentPeriod?.id);
   const nextM = nextMilestoneFor(days);
   const progressFraction = nextM ? Math.min(days / nextM, 1) : 1;
   const daysLeft = nextM ? nextM - days : 0;
@@ -244,7 +256,9 @@ export function AchievementsScreen({ navigation }: Props) {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Mis Logros</Text>
-          <Text style={styles.headerSub}>Periodo actual: {days} días</Text>
+          <Text style={styles.headerSub}>
+            {hasData ? `Periodo actual: ${days} días` : 'Periodo actual: —'}
+          </Text>
         </View>
         <View style={styles.trophyCircle}>
           <Icon name="trophy" size={22} color={Colors.white} />
@@ -261,7 +275,27 @@ export function AchievementsScreen({ navigation }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {offline && (
+            <View style={styles.offlineBanner}>
+              <Icon name="triangle-alert" size={16} color={Colors.fg2} />
+              <Text style={styles.offlineText}>
+                {hasData
+                  ? 'Sin conexión — te mostramos tus últimos datos guardados.'
+                  : 'Sin conexión — no pudimos cargar tus logros.'}
+              </Text>
+            </View>
+          )}
+
           {/* ── Contador principal ── */}
+          {!hasData ? (
+            // Con EMPTY_DATA saldría "0 días" y toda la colección con candado,
+            // que se lee como haber perdido la racha y las insignias.
+            <View style={styles.counterCard}>
+              <Text style={styles.counterPlaceholderText}>
+                Tus logros aparecerán al recuperar la conexión
+              </Text>
+            </View>
+          ) : (
           <View style={styles.counterCard}>
             <Text style={styles.counterNum}>{days}</Text>
             <Text style={styles.counterUnit}>días sin apostar</Text>
@@ -292,8 +326,10 @@ export function AchievementsScreen({ navigation }: Props) {
               </View>
             </TouchableOpacity>
           </View>
+          )}
 
           {/* ── Colección de insignias ── */}
+          {hasData && <>
           <Text style={styles.sectionTitle}>Tu colección</Text>
           <View style={styles.badgeGrid}>
             {MILESTONES.map((milestone) => {
@@ -338,6 +374,7 @@ export function AchievementsScreen({ navigation }: Props) {
               ))}
             </>
           )}
+          </>}
         </ScrollView>
       )}
 
@@ -467,6 +504,29 @@ const styles = StyleSheet.create({
   scrollContent: { padding: 16, paddingBottom: 24, gap: 0 },
 
   /* Counter card */
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 16,
+  },
+  offlineText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.fg2,
+  },
+  counterPlaceholderText: {
+    fontSize: 14,
+    color: Colors.fg2,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
   counterCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
