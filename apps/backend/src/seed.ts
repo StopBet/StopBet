@@ -243,37 +243,39 @@ async function seed() {
   let histPeriod2: AbstinencePeriod | null = null;
   let currentPeriod: AbstinencePeriod | null = null;
 
-  // Período histórico 1 (90 días, recaída hace 200 días)
-  const hp1Start = daysAgo(290); // empezó hace 290 días
-  const hp1End   = daysAgo(200); // terminó hace 200 días (duró 90 días)
-  if (!carlosPeriods.find(p => p.startDate === hp1Start)) {
-    histPeriod1 = await periodRepo.save(periodRepo.create({
+  // Los períodos históricos se identifican por attemptNumber y no por startDate:
+  // las fechas se calculan con daysAgo(), así que al correr el seed otro día
+  // daban distinto, no encontraban coincidencia y creaban un período duplicado
+  // con todas sus insignias en cada corrida.
+  const upsertHistorical = async (
+    attemptNumber: number,
+    startDate: string,
+    endDate: string,
+    label: string,
+  ): Promise<AbstinencePeriod> => {
+    const existing = carlosPeriods.find(p => p.attemptNumber === attemptNumber && p.endDate);
+    if (existing) {
+      existing.startDate = startDate;
+      existing.endDate = endDate;
+      await periodRepo.save(existing);
+      console.log(`  → ${label} ya existe (fechas actualizadas)`);
+      return existing;
+    }
+    const created = await periodRepo.save(periodRepo.create({
       userId: DEMO_USER_ID,
-      startDate: hp1Start,
-      endDate: hp1End,
-      attemptNumber: 1,
+      startDate,
+      endDate,
+      attemptNumber,
     }));
-    console.log(`  ✓ Período histórico 1: ${hp1Start} → ${hp1End} (90 días)`);
-  } else {
-    histPeriod1 = carlosPeriods.find(p => p.startDate === hp1Start)!;
-    console.log('  → Período histórico 1 ya existe');
-  }
+    console.log(`  ✓ ${label}: ${startDate} → ${endDate}`);
+    return created;
+  };
+
+  // Período histórico 1 (90 días, recaída hace 200 días)
+  histPeriod1 = await upsertHistorical(1, daysAgo(290), daysAgo(200), 'Período histórico 1 (90 días)');
 
   // Período histórico 2 (30 días, recaída hace 90 días)
-  const hp2Start = daysAgo(130);
-  const hp2End   = daysAgo(100);
-  if (!carlosPeriods.find(p => p.startDate === hp2Start)) {
-    histPeriod2 = await periodRepo.save(periodRepo.create({
-      userId: DEMO_USER_ID,
-      startDate: hp2Start,
-      endDate: hp2End,
-      attemptNumber: 2,
-    }));
-    console.log(`  ✓ Período histórico 2: ${hp2Start} → ${hp2End} (30 días)`);
-  } else {
-    histPeriod2 = carlosPeriods.find(p => p.startDate === hp2Start)!;
-    console.log('  → Período histórico 2 ya existe');
-  }
+  histPeriod2 = await upsertHistorical(2, daysAgo(130), daysAgo(100), 'Período histórico 2 (30 días)');
 
   // Período actual (45 días, en curso)
   const currentStart = daysAgo(DAYS_STREAK);

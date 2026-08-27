@@ -98,11 +98,27 @@ const EMPTY_DATA: AchievementsData = {
   newestMilestone: null,
 };
 
+// Compara solo lo que la pantalla dibuja. Alcanza para saber si vale la pena
+// volver a renderizar: el resto de los campos no cambia sin que cambie alguno
+// de estos.
+function sameAchievements(a: AchievementsData, b: AchievementsData): boolean {
+  return (
+    a.currentPeriod.id === b.currentPeriod.id &&
+    a.currentPeriod.daysAchieved === b.currentPeriod.daysAchieved &&
+    a.currentPeriod.startDate === b.currentPeriod.startDate &&
+    a.currentPeriod.earnedBadges.length === b.currentPeriod.earnedBadges.length &&
+    a.historicalPeriods.length === b.historicalPeriods.length &&
+    a.newestMilestone === b.newestMilestone
+  );
+}
+
 type Props = NativeStackScreenProps<AppStackParamList, 'Achievements'>;
 
 export function AchievementsScreen({ navigation }: Props) {
   const [data, setData] = useState<AchievementsData>(EMPTY_DATA);
-  const [loading, setLoading] = useState(false);
+  // Arranca en true: hasta que llegue la primera respuesta, EMPTY_DATA diría
+  // "0 días" y se leería como un contador reiniciado, no como una carga.
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<NavTab>('achievements');
   const [relapseModal, setRelapseModal] = useState(false);
   const [relapseMessage, setRelapseMessage] = useState('');
@@ -112,7 +128,10 @@ export function AchievementsScreen({ navigation }: Props) {
   const load = useCallback(async () => {
     try {
       const result = await api.getAchievements(TEMP_USER_ID);
-      setData(result);
+      // El poll corre cada 5 s y casi siempre trae lo mismo. Sin esta guarda,
+      // cada vuelta reemplaza el estado por un objeto nuevo y vuelve a pintar
+      // todos los períodos con sus insignias, lo que se nota en el dispositivo.
+      setData((prev) => (sameAchievements(prev, result) ? prev : result));
       if (hasPendingExternalRelapse()) {
         acknowledgePendingRelapse();
         shownMilestones.clear();
