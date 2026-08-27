@@ -66,6 +66,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
 
   const sedeIcon = (type: Sede['type']): IconName => (type === 'online' ? 'smartphone' : 'map-pin');
 
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
@@ -77,9 +78,9 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>¿A qué sede perteneces?</Text>
+        <Text style={styles.title}>¿En qué sede quieres atenderte?</Text>
         <Text style={styles.subtitle}>
-          Te conectaremos con la comunidad y el equipo clínico de tu sede.
+          Te conectaremos con la comunidad y el equipo clínico de esa sede.
         </Text>
 
         {loading ? (
@@ -102,7 +103,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
                   <Text style={styles.cardAddr}>{sede.address}</Text>
                   <View style={styles.metaPill}>
                     <Icon name="users" size={13} color={Colors.sage500} />
-                    <Text style={styles.metaText}>{sede.activeGroups} grupos activos</Text>
+                    <Text style={styles.metaText}>{sede.activeGroups} compañeros activos</Text>
                   </View>
                 </View>
                 {sel ? (
