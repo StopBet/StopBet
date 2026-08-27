@@ -9,6 +9,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "seed": "pnpm --filter @stopbet/shared-types run build && node --env-file=.env --require ts-node/register src/seed.ts",
+    "seed:family": "node --env-file=.env --require ts-node/register src/family/family.seed.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:cov": "jest --coverage",
