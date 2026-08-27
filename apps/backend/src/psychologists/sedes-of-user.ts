@@ -1,8 +1,7 @@
 import { Repository } from 'typeorm';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from './entities/psychologist-sede.entity';
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { DB_UUID_RE } from '../registration/dto/is-db-uuid.validator';
 
 // `User.sedeId` guarda el NOMBRE de la sede en las cuentas anteriores a `psychologist_sedes`
 // y en las del seed compartido ('Santiago'), no su UUID. Consultar `sedes.id` con ese valor
@@ -13,7 +12,7 @@ export async function resolveSedeId(
   raw: string | null | undefined,
 ): Promise<string | null> {
   if (!raw) return null;
-  if (UUID_RE.test(raw)) return raw;
+  if (DB_UUID_RE.test(raw)) return raw;
   const byName = await sedeRepo.findOne({ where: { name: raw } });
   return byName?.id ?? null;
 }

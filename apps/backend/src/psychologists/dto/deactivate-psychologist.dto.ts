@@ -1,5 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsUUID } from 'class-validator';
+import { IsOptional } from 'class-validator';
+import { IsDbUuid } from '../../registration/dto/is-db-uuid.validator';
 
 export class DeactivatePsychologistDto {
   @ApiPropertyOptional({
@@ -7,6 +8,6 @@ export class DeactivatePsychologistDto {
       'UUID de otro psicólogo activo al que se reasignan los pacientes activos, si los hay',
   })
   @IsOptional()
-  @IsUUID()
+  @IsDbUuid()
   reassignTo?: string;
 }
