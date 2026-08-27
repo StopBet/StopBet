@@ -7,9 +7,12 @@ const DATE_FMT = new Intl.DateTimeFormat('es-CL', {
   month: 'long',
 })
 
+// hour12 explícito: sin esto el navegador del teléfono renderiza "07:00 p. m."
+// y el sufijo "h" quedaba pegado detrás. En Chile la hora va en formato 24.
 const TIME_FMT = new Intl.DateTimeFormat('es-CL', {
   hour: '2-digit',
   minute: '2-digit',
+  hour12: false,
 })
 
 function capitalize(text: string): string {
