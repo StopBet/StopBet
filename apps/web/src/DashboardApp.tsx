@@ -11,11 +11,13 @@ import { FinanzasPage } from './pages/FinanzasPage'
 import { SolicitudesPage } from './pages/SolicitudesPage'
 import { ConfiguracionPage } from './pages/ConfiguracionPage'
 import { SesionesFamiliaresPage } from './pages/SesionesFamiliaresPage'
+import { EquipoPage } from './pages/EquipoPage'
 import { api } from './services/api'
+import type { AuthUser } from './services/api'
 import type { RegistrationRequest } from './data/mockData'
 
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface Toast { message: string; tone?: 'success' | 'error' }
 
@@ -25,6 +27,7 @@ const PAGE_TITLES: Record<NavId, string> = {
   alerts:    'Alertas de pánico',
   requests:  'Solicitudes de ingreso',
   familySessions: 'Sesiones de familiares',
+  equipo:    'Equipo',
   reports:   'Reportes',
   finanzas:  'Finanzas',
   settings:  'Configuración',
@@ -36,6 +39,7 @@ const NAV_PATHS: Record<NavId, string> = {
   alerts:    '/alertas',
   requests:  '/solicitudes',
   familySessions: '/sesiones-familiares',
+  equipo:    '/equipo',
   reports:   '/reportes',
   finanzas:  '/finanzas',
   settings:  '/configuracion',
@@ -74,7 +78,7 @@ function shortSedeName(name: string): string {
   return name
 }
 
-export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout: () => void }) {
+export function DashboardApp({ psychId, user, onLogout }: { psychId: string; user: AuthUser; onLogout: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const nav: NavId = PATH_TO_NAV[location.pathname] ?? 'overview'
@@ -157,6 +161,7 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
               onNav={(id) => { handleNav(id); setMenuOpen(false) }}
               onLogout={onLogout}
               reqCount={requests.length}
+              user={user}
             />
           </div>
         </>
@@ -186,6 +191,7 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
             <Route path="/alertas" element={<AlertasPage />} />
             <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} psychId={psychId} />} />
             <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
+            <Route path="/equipo" element={<EquipoPage />} />
             <Route path="/finanzas" element={<FinanzasPage />} />
             <Route path="/configuracion" element={<ConfiguracionPage />} />
             <Route path="/pacientes" element={<PlaceholderPage title={PAGE_TITLES.patients} />} />

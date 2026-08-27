@@ -84,5 +84,5 @@ export default function App() {
     return <LoginPage onSuccess={handleSuccess} />
   }
 
-  return <DashboardApp psychId={user.id} onLogout={handleLogout} />
+  return <DashboardApp psychId={user.id} user={user} onLogout={handleLogout} />
 }

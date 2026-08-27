@@ -1,12 +1,14 @@
 import { WIcon } from './WIcon'
+import type { AuthUser } from '../services/api'
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface SidebarProps {
   active: NavId
   onNav: (id: NavId) => void
   onLogout: () => void
   reqCount: number
+  user: AuthUser
 }
 
 const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string }> = [
@@ -15,12 +17,17 @@ const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string }> = [
   { id: 'alerts',    icon: 'triangle-alert', label: 'Alertas de pánico' },
   { id: 'requests',  icon: 'inbox',          label: 'Solicitudes' },
   { id: 'familySessions', icon: 'heart-handshake', label: 'Sesiones de familiares' },
+  { id: 'equipo',    icon: 'user-plus',       label: 'Equipo' },
   { id: 'reports',   icon: 'chart-column',   label: 'Reportes' },
   { id: 'finanzas',  icon: 'wallet',         label: 'Finanzas' },
   { id: 'settings',  icon: 'settings',       label: 'Configuración' },
 ]
 
-export function Sidebar({ active, onNav, onLogout, reqCount }: SidebarProps) {
+export function Sidebar({ active, onNav, onLogout, reqCount, user }: SidebarProps) {
+  const displayName = `${user.firstName} ${user.lastName}`.trim()
+  const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
+  const roleLabel = user.role === 'coordinator' ? 'Coordinación' : 'Psicólogo/a'
+
   return (
     <aside style={{
       width: 240, flexShrink: 0, background: 'var(--primary)', color: '#fff',
@@ -90,10 +97,10 @@ export function Sidebar({ active, onNav, onLogout, reqCount }: SidebarProps) {
             background: 'rgba(255,255,255,0.16)', color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15,
-          }}>MG</div>
+          }}>{initials}</div>
           <div style={{ lineHeight: 1.35, minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)', whiteSpace: 'nowrap' }}>Dra. González</div>
-            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)' }}>Sede Santiago</div>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)', whiteSpace: 'nowrap' }}>{displayName}</div>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)' }}>{roleLabel}</div>
           </div>
         </div>
         <button
