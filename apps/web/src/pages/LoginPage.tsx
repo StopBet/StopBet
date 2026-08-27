@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { WIcon } from '../components/WIcon'
 import { api, type LoginResponse } from '../services/api'
 
@@ -54,6 +54,26 @@ const TEAL_LIGHT = '#EFF4F1'
 // expone nombres e historial de crisis de otros pacientes).
 const WEB_ROLES: ReadonlySet<string> = new Set(['psychologist', 'coordinator', 'family'])
 
+// El panel de marca ocupa la mitad del ancho. En un teléfono eso deja ~180 px
+// por columna y el formulario queda cortado: los familiares entran desde el
+// celular, así que bajo este ancho se muestra solo el formulario.
+const NARROW = '(max-width: 860px)'
+
+function useIsNarrow(): boolean {
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(NARROW).matches,
+  )
+
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW)
+    const onChange = (e: MediaQueryListEvent) => setIsNarrow(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+
+  return isNarrow
+}
+
 export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpired?: boolean; onSuccess?: (keepSession: boolean, result: LoginResponse) => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -81,12 +101,18 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
 
   const isLoading = formState === 'loading'
   const isError = formState === 'error' || formState === 'forbidden'
+  const isNarrow = useIsNarrow()
 
   return (
-    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', fontFamily: 'var(--font-body)' }}>
+    <div style={{
+      display: 'flex',
+      minHeight: '100vh',
+      overflow: isNarrow ? 'auto' : 'hidden',
+      fontFamily: 'var(--font-body)',
+    }}>
 
-      {/* Panel izquierdo — marca AJUTER */}
-      <div style={{
+      {/* Panel izquierdo — marca AJUTER. Se oculta en pantallas angostas. */}
+      {!isNarrow && <div style={{
         width: '50%', flexShrink: 0,
         background: 'linear-gradient(160deg, var(--color-ajuter-orange) 0%, var(--color-ajuter-red-orange) 100%)',
         display: 'flex', flexDirection: 'column',
@@ -160,14 +186,14 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
         <p style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.30)', position: 'relative', zIndex: 2, margin: 0 }}>
           GPI-2026 · Grupo 04
         </p>
-      </div>
+      </div>}
 
       {/* Panel derecho — formulario */}
       <div style={{
         flex: 1, background: 'var(--bg)',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        padding: '40px', position: 'relative',
+        padding: isNarrow ? '24px 16px' : '40px', position: 'relative',
       }}>
         {/* Banner sesión expirada */}
         {sessionExpired && (

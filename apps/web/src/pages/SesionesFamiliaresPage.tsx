@@ -4,7 +4,9 @@ import { WIcon } from '../components/WIcon'
 import { api, type SedeFamilySession } from '../services/api'
 
 const DATE_FMT = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })
-const TIME_FMT = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit' })
+// hour12 explícito: sin esto algunos navegadores renderizan "07:00 p. m." y el
+// sufijo "h" queda pegado detrás. En Chile la hora va en formato 24.
+const TIME_FMT = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false })
 
 function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)

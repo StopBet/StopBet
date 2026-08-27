@@ -95,18 +95,27 @@ async function seedFamily(): Promise<void> {
     throw new Error('El paciente demo no tiene sede asignada. Vuelve a correr `pnpm run seed`.');
   }
 
+  // `users.sedeId` no es consistente en el proyecto: src/seed.ts guarda el nombre
+  // ("Santiago") y scripts/populate_db.py guardaba el UUID de la tabla sedes. Se
+  // aceptan ambos para no depender de con cuál se haya sembrado la base.
   const sedes = await ds.getRepository(Sede).find();
-  const localSede = sedes.find((s) => s.id === localSedeId);
+  const localSede = sedes.find((s) => s.id === localSedeId || s.name === localSedeId);
+  if (!localSede) {
+    throw new Error(
+      `El paciente demo apunta a la sede "${localSedeId}", que no existe en la tabla sedes. ` +
+        'Revisa src/seed.ts: sin una sede real las sesiones quedan sin lugar.',
+    );
+  }
+
   const remoteSede =
-    sedes.find((s) => s.id !== localSedeId && /vi(ñ|n)a/i.test(s.name)) ??
-    sedes.find((s) => s.id !== localSedeId);
+    sedes.find((s) => s.id !== localSede.id && /vi(ñ|n)a/i.test(s.name)) ??
+    sedes.find((s) => s.id !== localSede.id);
   if (!remoteSede) {
     throw new Error('Se necesitan al menos 2 sedes para poder demostrar la CA 11.5.');
   }
   const remoteSedeId = remoteSede.id;
 
-  const describe = (sede?: Sede): string =>
-    sede ? `${sede.name} — ${sede.address}` : 'Sede por confirmar';
+  const describe = (sede: Sede): string => `${sede.name} — ${sede.address}`;
   const localPlace  = describe(localSede);
   const remotePlace = describe(remoteSede);
 
