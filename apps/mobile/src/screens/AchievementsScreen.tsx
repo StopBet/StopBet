@@ -32,7 +32,7 @@ import {
 } from '../services/api';
 import { devFlags } from '../store/devFlags';
 import { isNetworkError } from '../services/checkInQueue';
-import { readAchievements, saveAchievements } from '../services/progressCache';
+import { readAchievements, saveAchievements } from '../services/offlineStore';
 
 // Ajustar cuando se conecte autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';

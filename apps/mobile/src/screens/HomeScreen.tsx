@@ -28,7 +28,7 @@ import {
   savePending,
 } from '../services/checkInQueue';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
-import { readProgress, saveProgress } from '../services/progressCache';
+import { readProgress, saveProgress } from '../services/offlineStore';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
