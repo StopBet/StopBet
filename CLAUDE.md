@@ -250,6 +250,37 @@ Celular:    app StopBet              # conectado por USB
 ```
 Para ver datos reales, el backend debe estar corriendo antes de abrir la app.
 
+### ⚠️ Los túneles `adb reverse` se caen solos — revísalos primero
+
+El teléfono no tiene red propia hacia tu computador: **todo pasa por `adb reverse`**. Y
+esos túneles **se borran** cuando se reinicia el daemon de adb, cuando se desconecta y
+reconecta el cable, o al forzar el cierre de la app. No avisan.
+
+Cuando eso pasa, **los síntomas mienten**: la app muestra datos vacíos como si no
+hubiera nada, y el login del portal web decía "correo o contraseña incorrectos" cuando
+en realidad la petición nunca salía del teléfono. Se pierde mucho rato buscando el
+problema donde no está.
+
+**Antes de dar por roto cualquier cosa en el celular:**
+
+```bash
+adb reverse --list        # si sale vacío, ese es el problema
+```
+
+Restaurarlos:
+
+```bash
+adb reverse tcp:8081 tcp:8081   # Metro
+adb reverse tcp:3000 tcp:3000   # Backend
+adb reverse tcp:5173 tcp:5173   # Web, solo si vas a abrir el dashboard o el
+                                # portal del familiar en el navegador del teléfono
+```
+
+El script `npm run android:device` configura 8081 y 3000, pero **no 5173**: ese hay que
+agregarlo a mano. Y ojo con Vite: por omisión escucha solo en IPv6 (`::1`) y `adb
+reverse` conecta por IPv4, así que para el teléfono hay que levantarlo con
+`pnpm --filter @stopbet/web dev -- --host 0.0.0.0` o dará `ERR_EMPTY_RESPONSE`.
+
 ## Variables de entorno requeridas
 
 ### Backend (`apps/backend/.env`)
