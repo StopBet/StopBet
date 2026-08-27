@@ -28,6 +28,7 @@ import {
   savePending,
 } from '../services/checkInQueue';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
+import { readProgress, saveProgress } from '../services/offlineStore';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -41,6 +42,7 @@ export function HomeScreen({ navigation }: Props) {
   const [checkInDone, setCheckInDone] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [offline, setOffline] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
   const load = useCallback(async () => {
@@ -60,12 +62,15 @@ export function HomeScreen({ navigation }: Props) {
 
       const days = achData.currentPeriod.daysAchieved;
       const HOME_MILESTONES = [30, 60, 90, 180, 365];
+      const nextMilestone = HOME_MILESTONES.find(m => m > days) ?? 365;
       setProgress({
         userId: TEMP_USER_ID,
         daysStreak: days,
-        nextMilestone: HOME_MILESTONES.find(m => m > days) ?? 365,
+        nextMilestone,
         lastCheckIn: checkIn,
       });
+      setOffline(false);
+      void saveProgress(days, nextMilestone);
 
       if (checkIn) {
         setTodayEmotion(checkIn.emotion);
@@ -88,8 +93,27 @@ export function HomeScreen({ navigation }: Props) {
         );
       }
     } catch (err) {
-      // Solo loguea el error sin exponer datos del paciente
-      console.error('[HomeScreen] load error', (err as Error).message);
+      // Quedarse sin red es un estado esperado —hay un simulador en Perfil— y no
+      // un fallo. Con console.error React Native levanta el LogBox encima de la
+      // pantalla; los errores de verdad sí lo siguen levantando.
+      // Solo loguea el error sin exponer datos del paciente.
+      if (isNetworkError(err)) {
+        console.log('[HomeScreen] sin conexión al cargar');
+        // Se recupera el último progreso conocido: mostrar 0 días le diría al
+        // paciente que perdió su racha cuando solo se cayó la red.
+        setOffline(true);
+        const cached = await readProgress();
+        if (cached) {
+          setProgress(prev => prev ?? {
+            userId: TEMP_USER_ID,
+            daysStreak: cached.daysStreak,
+            nextMilestone: cached.nextMilestone,
+            lastCheckIn: null,
+          });
+        }
+      } else {
+        console.error('[HomeScreen] load error', (err as Error).message);
+      }
     } finally {
       setLoading(false);
     }
@@ -222,10 +246,27 @@ export function HomeScreen({ navigation }: Props) {
             />
           )}
 
-          <DayCounter
-            days={progress?.daysStreak ?? 0}
-            milestone={progress?.nextMilestone ?? 60}
-          />
+          {offline && (
+            <View style={styles.offlineBanner}>
+              <Icon name="triangle-alert" size={16} color={Colors.fg2} />
+              <Text style={styles.offlineText}>
+                {progress
+                  ? 'Sin conexión — te mostramos tus últimos datos guardados.'
+                  : 'Sin conexión — no pudimos cargar tu progreso.'}
+              </Text>
+            </View>
+          )}
+
+          {/* Sin dato no se dibuja el contador: un 0 se leería como racha perdida */}
+          {progress ? (
+            <DayCounter days={progress.daysStreak} milestone={progress.nextMilestone} />
+          ) : (
+            <View style={styles.counterPlaceholder}>
+              <Text style={styles.counterPlaceholderText}>
+                {offline ? 'Tu progreso aparecerá al recuperar la conexión' : 'Cargando tu progreso…'}
+              </Text>
+            </View>
+          )}
 
           <EmotionCheckin
             done={checkInDone}
@@ -314,5 +355,37 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 24,
     gap: 24,
+  },
+  offlineBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  offlineText: {
+    flex: 1,
+    fontSize: 13,
+    color: Colors.fg2,
+  },
+  counterPlaceholder: {
+    marginHorizontal: 20,
+    paddingVertical: 32,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  counterPlaceholderText: {
+    fontSize: 14,
+    color: Colors.fg2,
+    textAlign: 'center',
   },
 });

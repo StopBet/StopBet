@@ -26,6 +26,8 @@ import { BottomNav } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
+import { isNetworkError } from '../services/checkInQueue';
+import { readCommunity, saveCommunity } from '../services/offlineStore';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -48,7 +50,8 @@ const ROLE_LABEL: Record<UserRole, string> = {
 };
 
 // Caché en memoria de lo último cargado, para mostrarlo sin conexión (CA4).
-// Persiste mientras la app sigue viva; sobrevive a navegar entre pantallas.
+// Sobrevive a navegar entre pantallas, pero no al reinicio de la app: para eso
+// se respalda en disco con saveCommunity/readCommunity.
 const offlineCache: { announcements: CommunityPost[]; posts: CommunityPost[] } = {
   announcements: [],
   posts: [],
@@ -86,13 +89,29 @@ export function CommunityScreen({ navigation, route }: Props) {
       // Guarda lo cargado para poder mostrarlo sin conexión (CA4)
       offlineCache.announcements = anns;
       offlineCache.posts = forum.data;
+      void saveCommunity({ announcements: anns, posts: forum.data });
     } catch (err) {
       // Sin conexión: caemos al último contenido cacheado (CA4)
       setOffline(true);
+      // El caché en memoria se vacía al reiniciar la app, y ahí el feed salía
+      // vacío como si nadie hubiera publicado. Se completa desde disco.
+      if (offlineCache.posts.length === 0 && offlineCache.announcements.length === 0) {
+        const stored = await readCommunity();
+        if (stored) {
+          offlineCache.announcements = stored.announcements;
+          offlineCache.posts = stored.posts;
+        }
+      }
       setAnnouncements(offlineCache.announcements);
       setPosts(offlineCache.posts);
       // No exponemos datos del paciente en logs
-      console.error('[CommunityScreen] load error', (err as Error).message);
+      // Sin red es un estado esperado, no un fallo: con console.error React
+      // Native levanta el LogBox encima de la pantalla.
+      if (isNetworkError(err)) {
+        console.log('[CommunityScreen] sin conexión al cargar');
+      } else {
+        console.error('[CommunityScreen] load error', (err as Error).message);
+      }
     } finally {
       setLoading(false);
     }
