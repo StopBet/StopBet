@@ -24,10 +24,23 @@ const DEV_PASSWORD = 'Stopbet2026!';
 // Paciente creado por src/seed.ts (Carlos Demo, sede Santiago).
 const DEMO_PATIENT_ID = '11111111-1111-1111-1111-111111111111';
 const PATIENT2_ID     = '44444444-4444-4444-4444-444444444444';
+const PATIENT3_ID     = '55555555-5555-5555-5555-555555555555';
+const PATIENT4_ID     = '66666666-6666-6666-6666-666666666666';
 
 const FAMILY_ACTIVE_ID  = 'f1000000-0000-0000-0000-000000000001';
 const FAMILY_PENDING_ID = 'f1000000-0000-0000-0000-000000000002';
 const FAMILY_EMPTY_ID   = 'f1000000-0000-0000-0000-000000000003';
+
+// Familiares de relleno: con uno solo, la vista del psicólogo mostraba "1
+// confirman · 0 no asisten" en todas las sesiones y no se entendía para qué
+// sirve la pantalla. Estos dan un reparto realista de respuestas.
+const FAMILY_EXTRA_IDS = [
+  'f1000000-0000-0000-0000-000000000011',
+  'f1000000-0000-0000-0000-000000000012',
+  'f1000000-0000-0000-0000-000000000013',
+  'f1000000-0000-0000-0000-000000000014',
+  'f1000000-0000-0000-0000-000000000015',
+] as const;
 
 // Paciente propio de este seed, en otra sede, para poder demostrar CA 11.5
 // sin alterar los pacientes que crea src/seed.ts.
@@ -176,12 +189,41 @@ async function seedFamily(): Promise<void> {
     onboardingStatus: 'complete',
   }, `Ignacio Vidal — paciente en ${remoteSede.name}`);
 
+  // Familiares de relleno para que la vista del psicólogo tenga varias respuestas
+  const extras: Array<{
+    id: string; firstName: string; lastName: string; email: string; patientId: string;
+  }> = [
+    { id: FAMILY_EXTRA_IDS[0], firstName: 'Marcela', lastName: 'Fuentes', email: 'marcela.fuentes@stopbet.cl', patientId: DEMO_PATIENT_ID },
+    { id: FAMILY_EXTRA_IDS[1], firstName: 'Jorge',   lastName: 'Gómez',   email: 'jorge.gomez@stopbet.cl',     patientId: DEMO_PATIENT_ID },
+    { id: FAMILY_EXTRA_IDS[2], firstName: 'Carmen',  lastName: 'Álvarez', email: 'carmen.alvarez@stopbet.cl',  patientId: PATIENT2_ID },
+    { id: FAMILY_EXTRA_IDS[3], firstName: 'Tomás',   lastName: 'Pérez',   email: 'tomas.perez@stopbet.cl',     patientId: PATIENT3_ID },
+    { id: FAMILY_EXTRA_IDS[4], firstName: 'Ruth',    lastName: 'Fuentes', email: 'ruth.fuentes@stopbet.cl',    patientId: PATIENT4_ID },
+  ];
+
+  for (const e of extras) {
+    await upsert(userRepo, {
+      id: e.id,
+      email: e.email,
+      passwordHash,
+      role: 'family',
+      firstName: e.firstName,
+      lastName: e.lastName,
+      sedeId: localSedeId,
+      accountStatus: 'active',
+      onboardingStatus: 'complete',
+    }, `${e.firstName} ${e.lastName} — familiar`);
+  }
+
   console.log('\n── Vínculos ──────────────────────────────');
 
   const links: Array<[string, string, 'active' | 'pending', string]> = [
     [FAMILY_ACTIVE_ID, DEMO_PATIENT_ID, 'active', 'Patricia → Carlos Demo (activo)'],
     [FAMILY_PENDING_ID, PATIENT2_ID, 'pending', 'Rodrigo → Pedro Álvarez (pendiente)'],
     [FAMILY_EMPTY_ID, REMOTE_PATIENT_ID, 'active', 'Elena → Ignacio Vidal (activo, otra sede)'],
+    ...extras.map(
+      (e) => [e.id, e.patientId, 'active', `${e.firstName} ${e.lastName} (activo)`] as
+        [string, string, 'active' | 'pending', string],
+    ),
   ];
 
   for (const [familyUserId, patientUserId, status, label] of links) {
@@ -262,6 +304,32 @@ async function seedFamily(): Promise<void> {
   } else {
     console.log('  → Patricia ya tenía respuesta registrada');
   }
+
+  // Reparto por sesión: cada una queda con una mezcla distinta de confirmados y
+  // rechazos, para que los contadores del psicólogo no se vean todos iguales.
+  const respuestas: Array<[string, string, boolean]> = [
+    [SESSION_SOON_ID,   FAMILY_EXTRA_IDS[0], true],
+    [SESSION_SOON_ID,   FAMILY_EXTRA_IDS[1], true],
+    [SESSION_SOON_ID,   FAMILY_EXTRA_IDS[2], false],
+    [SESSION_SOON_ID,   FAMILY_EXTRA_IDS[3], true],
+
+    [SESSION_ONLINE_ID, FAMILY_EXTRA_IDS[0], true],
+    [SESSION_ONLINE_ID, FAMILY_EXTRA_IDS[2], true],
+    [SESSION_ONLINE_ID, FAMILY_EXTRA_IDS[4], false],
+
+    [SESSION_LATER_ID,  FAMILY_EXTRA_IDS[1], false],
+    [SESSION_LATER_ID,  FAMILY_EXTRA_IDS[3], true],
+    [SESSION_LATER_ID,  FAMILY_EXTRA_IDS[4], true],
+  ];
+
+  let creadas = 0;
+  for (const [sessionId, familyUserId, confirmed] of respuestas) {
+    const yaExiste = await attendanceRepo.findOne({ where: { sessionId, familyUserId } });
+    if (yaExiste) continue;
+    await attendanceRepo.save(attendanceRepo.create({ sessionId, familyUserId, confirmed }));
+    creadas++;
+  }
+  console.log(`  ✓ ${creadas} respuestas más repartidas entre las 3 sesiones`);
 
   await ds.destroy();
 

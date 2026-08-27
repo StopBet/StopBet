@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { WIcon } from '../components/WIcon'
 import { api, type LoginResponse } from '../services/api'
+import { useIsNarrow } from '../hooks/useIsNarrow'
 
 function SupportNetwork() {
   const nodes = [
@@ -43,7 +44,7 @@ function SupportNetwork() {
   )
 }
 
-type FormState = 'idle' | 'loading' | 'error' | 'forbidden'
+type FormState = 'idle' | 'loading' | 'error' | 'forbidden' | 'offline'
 
 const TEAL = '#1B6F63'
 const TEAL_LIGHT = '#EFF4F1'
@@ -56,23 +57,7 @@ const WEB_ROLES: ReadonlySet<string> = new Set(['psychologist', 'coordinator', '
 
 // El panel de marca ocupa la mitad del ancho. En un teléfono eso deja ~180 px
 // por columna y el formulario queda cortado: los familiares entran desde el
-// celular, así que bajo este ancho se muestra solo el formulario.
-const NARROW = '(max-width: 860px)'
-
-function useIsNarrow(): boolean {
-  const [isNarrow, setIsNarrow] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia(NARROW).matches,
-  )
-
-  useEffect(() => {
-    const mq = window.matchMedia(NARROW)
-    const onChange = (e: MediaQueryListEvent) => setIsNarrow(e.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [])
-
-  return isNarrow
-}
+// celular, así que bajo ese ancho se muestra solo el formulario.
 
 export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpired?: boolean; onSuccess?: (keepSession: boolean, result: LoginResponse) => void }) {
   const [email, setEmail] = useState('')
@@ -94,13 +79,20 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
       }
       onSuccess?.(keepSession, result)
     } catch (err: unknown) {
+      // Si la petición nunca llegó al servidor no trae status. Antes ese caso
+      // también decía "correo o contraseña incorrectos", así que un problema de
+      // red se leía como credenciales malas y la persona reintentaba a ciegas.
       const status = (err as { status?: number })?.status
-      setFormState(status === 403 ? 'forbidden' : 'error')
+      if (status === undefined) setFormState('offline')
+      else setFormState(status === 403 ? 'forbidden' : 'error')
     }
   }
 
   const isLoading = formState === 'loading'
+  // Sin conexión no se marcan los campos en rojo: lo que escribió está bien,
+  // el problema no es suyo. Solo se muestra el aviso.
   const isError = formState === 'error' || formState === 'forbidden'
+  const showBanner = isError || formState === 'offline'
   const isNarrow = useIsNarrow()
 
   return (
@@ -392,7 +384,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             </button>
 
             {/* Banner de error */}
-            {isError && (
+            {showBanner && (
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 9,
                 background: 'var(--red-50)',
@@ -406,7 +398,9 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#B83232' }}>
-                  {formState === 'forbidden'
+                  {formState === 'offline'
+                    ? 'No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.'
+                    : formState === 'forbidden'
                     ? 'Tu cuenta no tiene permisos para acceder'
                     : 'Correo o contraseña incorrectos'}
                 </span>

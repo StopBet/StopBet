@@ -3,6 +3,8 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
+import { WIcon } from './components/WIcon'
+import { useIsNarrow } from './hooks/useIsNarrow'
 import { OverviewPage } from './pages/OverviewPage'
 import { AlertasPage } from './pages/AlertasPage'
 import { FinanzasPage } from './pages/FinanzasPage'
@@ -133,12 +135,50 @@ export function DashboardApp({ psychId, onLogout }: { psychId: string; onLogout:
 
   const handleNav = (id: string) => navigate(NAV_PATHS[id as NavId] ?? NAV_PATHS.overview)
 
+  const isNarrow = useIsNarrow()
+  const [menuOpen, setMenuOpen] = useState(false)
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
-      <Sidebar active={nav} onNav={handleNav} onLogout={onLogout} reqCount={requests.length} />
+      {/* La barra mide 240 px fijos: en un teléfono se come dos tercios del ancho
+          y el contenido queda cortado. Bajo 860 px pasa a ser un cajón. */}
+      {(!isNarrow || menuOpen) && (
+        <>
+          {isNarrow && (
+            <div
+              onClick={() => setMenuOpen(false)}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(30,45,44,0.42)', zIndex: 40 }}
+            />
+          )}
+          <div style={isNarrow ? { position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50 } : undefined}>
+            <Sidebar
+              active={nav}
+              onNav={(id) => { handleNav(id); setMenuOpen(false) }}
+              onLogout={onLogout}
+              reqCount={requests.length}
+            />
+          </div>
+        </>
+      )}
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <TopBar title={PAGE_TITLES[nav]} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        {isNarrow && (
+          <button
+            onClick={() => setMenuOpen(true)}
+            aria-label="Abrir menú"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              background: 'var(--primary)', color: '#fff', border: 'none',
+              padding: '12px 16px', fontSize: 15, fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'var(--font-heading)',
+            }}
+          >
+            <WIcon name="menu" size={20} />
+            {PAGE_TITLES[nav]}
+          </button>
+        )}
+        {/* La TopBar ya no cabe en angosto: el botón de arriba lleva el título */}
+        {!isNarrow && <TopBar title={PAGE_TITLES[nav]} />}
         <main style={{ flex: 1, overflowY: 'auto' }}>
           <Routes>
             <Route path="/" element={<OverviewPage onNav={handleNav} reqCount={requests.length} />} />

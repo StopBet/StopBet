@@ -46,7 +46,8 @@ function SessionRow({ session }: { session: SedeFamilySession }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+        {/* Envuelve en pantallas angostas: si no, el botón se sale por la derecha */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <Count icon="circle-check" value={session.confirmedCount} label="confirman" color="var(--secondary)" />
           <Count icon="x" value={session.declinedCount} label="no asisten" color="var(--fg2)" />
           <button
