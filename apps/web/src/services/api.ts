@@ -131,7 +131,11 @@ async function patch<T>(path: string, headers?: Record<string, string>, body?: u
     headers,
   )
   if (!res.ok) throw failed('PATCH', path, res)
-  return res.json() as Promise<T>
+  // Mismo trato que post() y del(): /approve y /reject responden 200 sin cuerpo, y res.json()
+  // sobre un cuerpo vacío lanza, así que la aprobación se guardaba y la UI igual daba error.
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 async function post<T>(path: string, headers?: Record<string, string>, body?: unknown): Promise<T> {
