@@ -31,6 +31,7 @@ import {
   suppressNextExternalRelapseDetection,
 } from '../services/api';
 import { devFlags } from '../store/devFlags';
+import { isNetworkError } from '../services/checkInQueue';
 
 // Ajustar cuando se conecte autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -145,7 +146,13 @@ export function AchievementsScreen({ navigation }: Props) {
         setTimeout(() => setShareMilestone(result.newestMilestone), 450);
       }
     } catch (err) {
-      console.error('[AchievementsScreen] load error', (err as Error).message);
+      // Sin red es un estado esperado, no un fallo: con console.error React
+      // Native levanta el LogBox encima de la pantalla.
+      if (isNetworkError(err)) {
+        console.log('[AchievementsScreen] sin conexión al cargar');
+      } else {
+        console.error('[AchievementsScreen] load error', (err as Error).message);
+      }
     } finally {
       setLoading(false);
     }

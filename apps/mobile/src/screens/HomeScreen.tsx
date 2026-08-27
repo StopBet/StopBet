@@ -88,8 +88,15 @@ export function HomeScreen({ navigation }: Props) {
         );
       }
     } catch (err) {
-      // Solo loguea el error sin exponer datos del paciente
-      console.error('[HomeScreen] load error', (err as Error).message);
+      // Quedarse sin red es un estado esperado —hay un simulador en Perfil— y no
+      // un fallo. Con console.error React Native levanta el LogBox encima de la
+      // pantalla; los errores de verdad sí lo siguen levantando.
+      // Solo loguea el error sin exponer datos del paciente.
+      if (isNetworkError(err)) {
+        console.log('[HomeScreen] sin conexión al cargar');
+      } else {
+        console.error('[HomeScreen] load error', (err as Error).message);
+      }
     } finally {
       setLoading(false);
     }

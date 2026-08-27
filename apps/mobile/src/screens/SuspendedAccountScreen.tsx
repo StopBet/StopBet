@@ -18,6 +18,7 @@ import type { AppStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
+import { isNetworkError } from '../services/checkInQueue';
 
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
@@ -63,7 +64,13 @@ export function SuspendedAccountScreen({ navigation }: Props) {
       const status = await api.getBillingStatus(TEMP_USER_ID);
       setBillingStatus(status);
     } catch (err) {
-      console.error('[SuspendedAccountScreen] load error', (err as Error).message);
+      // Sin red es un estado esperado, no un fallo: con console.error React
+      // Native levanta el LogBox encima de la pantalla.
+      if (isNetworkError(err)) {
+        console.log('[SuspendedAccountScreen] sin conexión al cargar');
+      } else {
+        console.error('[SuspendedAccountScreen] load error', (err as Error).message);
+      }
     }
   }, []);
 

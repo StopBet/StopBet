@@ -26,6 +26,7 @@ import { BottomNav } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { api } from '../services/api';
+import { isNetworkError } from '../services/checkInQueue';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -92,7 +93,13 @@ export function CommunityScreen({ navigation, route }: Props) {
       setAnnouncements(offlineCache.announcements);
       setPosts(offlineCache.posts);
       // No exponemos datos del paciente en logs
-      console.error('[CommunityScreen] load error', (err as Error).message);
+      // Sin red es un estado esperado, no un fallo: con console.error React
+      // Native levanta el LogBox encima de la pantalla.
+      if (isNetworkError(err)) {
+        console.log('[CommunityScreen] sin conexión al cargar');
+      } else {
+        console.error('[CommunityScreen] load error', (err as Error).message);
+      }
     } finally {
       setLoading(false);
     }
