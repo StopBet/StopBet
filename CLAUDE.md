@@ -185,6 +185,7 @@ update stuff                  # ❌ sin tipo ni descripción clara
 
 - **No agregar el trailer `Co-Authored-By: Claude`** en los commits. El trabajo se atribuye únicamente al autor humano. (Cualquier integrante puede pedírselo explícitamente en la conversación; esta regla lo hace por defecto para todos.)
 - **Mantener al día la sección "Estado actual"** de este archivo: tras un commit grande, mover muchos directorios, o cambios importantes en la estructura o el README, actualizar ese resumen. Así cualquier sesión nueva de Claude —de cualquier integrante— entiende el estado del proyecto al instante, sin reconstruirlo.
+- **Anotar en `docs/avisos-al-equipo.md`** todo cambio que obligue a un compañero a hacer algo distinto después de pullear —un comando nuevo, una variable de entorno, un paso de build, un flujo que se movió de lugar— o que cambie un comportamiento visible lo bastante como para que alguien lo confunda con un bug. Va una entrada nueva **arriba del todo**, con fecha y PR, diciendo a quién le pega y qué tiene que correr. Si el cambio no le pide nada a nadie, **no va**: ese archivo sirve mientras se pueda leer entero en un minuto. Trabajamos 6 personas en ramas paralelas y nadie lee los diffs ajenos; esto es lo único que evita que alguien pierda una tarde buscando el problema donde no está.
 
 ## Flujo de sprints
 
