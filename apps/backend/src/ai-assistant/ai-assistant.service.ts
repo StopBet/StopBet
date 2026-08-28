@@ -35,6 +35,10 @@ const GEMINI_MODEL = 'gemini-3.5-flash-lite';
 // Tiempo de inactividad en ms antes de cerrar sesión automáticamente (10 min)
 const INACTIVITY_MS = 10 * 60 * 1000;
 
+// S.2: presupuesto de latencia del asistente. Pasado el tope se responde con el
+// mensaje de respaldo (S.8) en vez de dejar al paciente esperando.
+const LLM_TIMEOUT_MS = 5_000;
+
 // CA2.1: cuántos mensajes del usuario se miran hacia atrás para decidir si el
 // riesgo alto es "sostenido" y no un pico aislado.
 const RISK_WINDOW = 3;
@@ -258,6 +262,31 @@ export class AiAssistantService {
       .replace(/__(.+?)__/gs, '$1');
   }
 
+  // @langchain/google-genai 0.1.3 ignora tanto `signal` como `timeout` en invoke: con un
+  // abort a los 200 ms la llamada respondió igual a los 1674 ms. Correrla contra un
+  // temporizador es lo único que acota lo que espera el paciente. La petición HTTP sigue
+  // viva en segundo plano y su respuesta se descarta; al revisar la librería, comprobar
+  // si ya propaga la cancelación y volver a AbortSignal.
+  private async invokeConTope(
+    mensajes: (SystemMessage | HumanMessage | LcAIMessage)[],
+  ): Promise<string> {
+    let temporizador: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const respuesta = await Promise.race([
+        this.llm!.invoke(mensajes),
+        new Promise<never>((_, rechazar) => {
+          temporizador = setTimeout(
+            () => rechazar(new Error(`El asistente superó los ${LLM_TIMEOUT_MS} ms`)),
+            LLM_TIMEOUT_MS,
+          );
+        }),
+      ]);
+      return this.stripMarkdown((respuesta.content as string).trim());
+    } finally {
+      clearTimeout(temporizador);
+    }
+  }
+
   private async generateOpeningMessage(previousContext: string | null): Promise<string> {
     const systemWithContext = previousContext
       ? `${AJUTER_SYSTEM_PROMPT}\n\nContexto de sesión anterior: ${previousContext}`
@@ -265,11 +294,13 @@ export class AiAssistantService {
 
     if (!this.llm) return 'Hola, estoy aquí contigo. ¿Cómo te sientes en este momento?';
     try {
-      const response = await this.llm.invoke([
+      // El saludo también pasa por el LLM, así que también necesita el tope: es la
+      // llamada que se demoraba 13-19 s y dejaba en blanco la pantalla a la que
+      // aterriza el paciente cuando el pánico escala (CA1.3).
+      return await this.invokeConTope([
         new SystemMessage(systemWithContext),
         new HumanMessage('(inicio de sesión — saluda al paciente de manera cálida y breve)'),
       ]);
-      return this.stripMarkdown((response.content as string).trim());
     } catch {
       return 'Hola, estoy aquí contigo. ¿Cómo te sientes en este momento?';
     }
@@ -324,11 +355,11 @@ export class AiAssistantService {
     const fallback = getFallbackMessage(this.fallbackSeed(sessionId));
     if (!this.llm) return fallback;
     try {
-      const response = await this.llm.invoke(lcMessages);
-      return this.stripMarkdown((response.content as string).trim());
+      return await this.invokeConTope(lcMessages);
     } catch (err) {
       // S.8: nunca dejar al paciente sin respuesta. El mensaje de respaldo siempre
-      // lleva la ruta de escalada visible (botón de pánico, padrino, *4141).
+      // lleva la ruta de escalada visible (botón de pánico, padrino, *4141). Vale
+      // igual si el modelo falló o si se pasó del presupuesto de S.2.
       console.error('[AI] generateResponse error:', (err as Error).message);
       return fallback;
     }
