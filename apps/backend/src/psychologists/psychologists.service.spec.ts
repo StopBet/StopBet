@@ -30,6 +30,13 @@ describe('PsychologistsService', () => {
   const santiago = { id: 'sede-santiago', name: 'Santiago', isActive: true };
   const online = { id: 'sede-online', name: 'Online', isActive: true };
 
+  // `resolveSedeId` solo devuelve el valor tal cual si tiene forma de UUID; con ids de
+  // fantasía cae siempre en la traducción por nombre y se prueba la rama equivocada.
+  const SANTIAGO_UUID = '11111111-1111-4111-8111-111111111111';
+  const ONLINE_UUID = '22222222-2222-4222-8222-222222222222';
+  const santiagoReal = { id: SANTIAGO_UUID, name: 'Santiago', isActive: true };
+  const onlineReal = { id: ONLINE_UUID, name: 'Online', isActive: true };
+
   beforeEach(() => {
     userRepo = {
       findOne: jest.fn(),
@@ -393,6 +400,70 @@ describe('PsychologistsService', () => {
       await expect(
         service.updateSedes('psych-1', { sedeIds: ['sede-online'] }),
       ).rejects.toThrow(ConflictException);
+    });
+
+    // El sedeId legado va dentro del JWT: si queda apuntando a una sede que ya no atiende,
+    // el psicólogo sigue autenticándose como parte de ella.
+    it('realinea el sedeId legado cuando se quita justo esa sede', async () => {
+      userRepo.findOne.mockResolvedValue({
+        id: 'psych-1',
+        role: 'psychologist',
+        sedeId: SANTIAGO_UUID,
+      });
+      sedeRepo.find.mockResolvedValue([onlineReal]);
+      psychSedeRepo.find.mockResolvedValue([
+        { id: 'link-1', sedeId: SANTIAGO_UUID },
+        { id: 'link-2', sedeId: ONLINE_UUID },
+      ]);
+      assignmentRepo.find.mockResolvedValue([]);
+
+      await service.updateSedes('psych-1', { sedeIds: [ONLINE_UUID] });
+
+      expect(userRepo.update).toHaveBeenCalledWith('psych-1', { sedeId: ONLINE_UUID });
+    });
+
+    it('no toca el sedeId legado si esa sede sigue estando', async () => {
+      userRepo.findOne.mockResolvedValue({
+        id: 'psych-1',
+        role: 'psychologist',
+        sedeId: SANTIAGO_UUID,
+      });
+      sedeRepo.find.mockResolvedValue([santiagoReal, onlineReal]);
+      psychSedeRepo.find.mockResolvedValue([{ id: 'link-1', sedeId: SANTIAGO_UUID }]);
+      assignmentRepo.find.mockResolvedValue([]);
+
+      await service.updateSedes('psych-1', { sedeIds: [SANTIAGO_UUID, ONLINE_UUID] });
+
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+
+    // Las cuentas viejas y las del seed guardan el NOMBRE de la sede, no su UUID: sin
+    // traducirlo primero, 'Santiago' nunca coincide con la lista y se reescribiría de más.
+    it('reconoce la sede legada guardada por nombre y no la reescribe', async () => {
+      userRepo.findOne.mockResolvedValue({
+        id: 'psych-1',
+        role: 'psychologist',
+        sedeId: 'Santiago',
+      });
+      sedeRepo.find.mockResolvedValue([santiago, online]);
+      sedeRepo.findOne.mockResolvedValue(santiago);
+      psychSedeRepo.find.mockResolvedValue([{ id: 'link-1', sedeId: 'sede-santiago' }]);
+      assignmentRepo.find.mockResolvedValue([]);
+
+      await service.updateSedes('psych-1', { sedeIds: ['sede-santiago', 'sede-online'] });
+
+      expect(userRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('asigna una sede legada al psicologo que no tenia ninguna', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'psych-1', role: 'psychologist', sedeId: null });
+      sedeRepo.find.mockResolvedValue([online]);
+      psychSedeRepo.find.mockResolvedValue([]);
+      assignmentRepo.find.mockResolvedValue([]);
+
+      await service.updateSedes('psych-1', { sedeIds: ['sede-online'] });
+
+      expect(userRepo.update).toHaveBeenCalledWith('psych-1', { sedeId: 'sede-online' });
     });
   });
 });

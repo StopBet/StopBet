@@ -295,6 +295,19 @@ export class PsychologistsService {
           toAdd.map((sedeId) => psychSedeRepo.create({ psychologistId: id, sedeId })),
         );
       }
+
+      // `User.sedeId` viaja dentro del JWT (`AuthService.issueTokens`), así que si se quita
+      // justo la sede legada y no se realinea, el psicólogo sigue emitiendo tokens que lo
+      // declaran en una sede que ya no atiende. Y como `sedesOf()` la usa de respaldo cuando
+      // no hay filas en psychologist_sedes, una sede legada obsoleta reaparecería como propia.
+      // Se mantiene la invariante de `create()`: la sede legada siempre es una de las suyas.
+      const legacySedeId = await resolveSedeId(
+        manager.getRepository(Sede),
+        psychologist.sedeId,
+      );
+      if (!legacySedeId || !nextSedeIds.has(legacySedeId)) {
+        await manager.getRepository(User).update(id, { sedeId: dto.sedeIds[0] ?? null });
+      }
     });
   }
 }
