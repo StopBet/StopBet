@@ -7,11 +7,17 @@ import type { ApiError, CreatePsychologistResponse, PsychologistListItem, Sede }
 const fieldStyle: CSSProperties = { height: 42, width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', padding: '0 12px', fontSize: 13.5, color: 'var(--fg1)', outline: 'none' }
 const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 5 }
 const overlayStyle: CSSProperties = { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }
-const scrimStyle: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(30,45,44,0.32)', animation: 'sb-scrim-in 0.18s ease' }
+const scrimStyle: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(30,45,44,0.32)', animation: 'sb-scrim-in 0.18s ease', border: 'none', padding: 0, cursor: 'pointer' }
 const cardStyle: CSSProperties = { position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', animation: 'sb-modal-in 0.28s cubic-bezier(0.34,1.56,0.64,1)', zIndex: 1 }
 const closeBtnStyle: CSSProperties = { width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const primaryBtnStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 8, height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer' }
 const secondaryBtnStyle: CSSProperties = { height: 46, padding: '0 22px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, cursor: 'pointer' }
+
+// El scrim cierra el modal al hacer clic. Como <div> no lo alcanza el teclado ni lo anuncia
+// un lector de pantalla, y era la unica via de cierre para quien no usa mouse.
+function Scrim({ onClose }: { onClose: () => void }) {
+  return <button type="button" aria-label="Cerrar" onClick={onClose} style={scrimStyle} />
+}
 
 function Head({ label }: { label: string }) {
   return <th style={{ textAlign: 'left', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 14px 12px' }}>{label}</th>
@@ -58,7 +64,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
   if (created) {
     return (
       <div style={overlayStyle}>
-        <div onClick={onDone} style={scrimStyle} />
+        <Scrim onClose={onDone} />
         <div style={{ ...cardStyle, width: 460, padding: 28 }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)' }}>Psicólogo creado</h2>
           <p style={{ margin: '5px 0 18px', fontSize: 13, color: 'var(--fg2)' }}>
@@ -86,7 +92,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
 
   return (
     <div style={overlayStyle}>
-      <div onClick={onClose} style={scrimStyle} />
+      <Scrim onClose={onClose} />
       <div style={{ ...cardStyle, width: 520, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 22 }}>
           <div>
@@ -176,7 +182,7 @@ function DeactivateModal({
 
   return (
     <div style={overlayStyle}>
-      <div onClick={onClose} style={scrimStyle} />
+      <Scrim onClose={onClose} />
       <div style={{ ...cardStyle, width: 460, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
@@ -281,7 +287,7 @@ function EditSedesModal({
     const pendingSedeName = allSedes.find((s) => s.id === pendingSede.sedeId)?.name ?? pendingSede.sedeId
     return (
       <div style={overlayStyle}>
-        <div onClick={onClose} style={scrimStyle} />
+        <Scrim onClose={onClose} />
         <div style={{ ...cardStyle, width: 440, padding: 28 }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
             Reasignar pacientes de {pendingSedeName}
@@ -313,7 +319,7 @@ function EditSedesModal({
 
   return (
     <div style={overlayStyle}>
-      <div onClick={onClose} style={scrimStyle} />
+      <Scrim onClose={onClose} />
       <div style={{ ...cardStyle, width: 460, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
@@ -365,7 +371,7 @@ export function EquipoPage() {
   const [deactivateTarget, setDeactivateTarget] = useState<PsychologistListItem | null>(null)
   const [editSedesTarget, setEditSedesTarget] = useState<PsychologistListItem | null>(null)
 
-  const { data: psychologists = [], isLoading } = useQuery({
+  const { data: psychologists = [], isLoading, isError, error, refetch } = useQuery({
     queryKey: ['psychologists'],
     queryFn: api.getPsychologists,
   })
@@ -390,6 +396,15 @@ export function EquipoPage() {
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
         {isLoading ? (
           <div style={{ padding: 32, textAlign: 'center', color: 'var(--fg2)', fontSize: 14 }}>Cargando equipo…</div>
+        ) : isError ? (
+          /* Sin esta rama un 401 se veia igual que "no hay psicologos": el coordinador creia
+             que la clinica estaba vacia en vez de que su sesion habia caducado. */
+          <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--fg2)' }}>
+            <WIcon name="triangle-alert" size={40} color="var(--danger)" />
+            <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 16, color: 'var(--fg1)' }}>No se pudo cargar el equipo</div>
+            <div style={{ marginTop: 4, fontSize: 13 }}>{errorMessage(error, 'Revisa tu conexión o vuelve a iniciar sesión.')}</div>
+            <button onClick={() => refetch()} style={{ ...secondaryBtnStyle, marginTop: 18 }}>Reintentar</button>
+          </div>
         ) : psychologists.length === 0 ? (
           <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--fg2)' }}>
             <WIcon name="users" size={40} color="var(--fg2)" />
