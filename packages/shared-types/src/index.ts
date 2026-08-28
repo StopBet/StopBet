@@ -348,3 +348,30 @@ export interface CrisisSignal {
 export interface SendMessageWithRiskResponse extends SendMessageResponse {
   crisis: CrisisSignal | null;
 }
+
+// ── HdU06 / HdU24: validador de RUT módulo 11, compartido entre mobile y backend ──
+export * from './validators/rut';
+
+// ── HdU24: gestión de cuentas de psicólogo ────────────────────────────────
+export interface PsychologistListItem {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  accountStatus: AccountStatus;
+  sedes: Sede[];
+  patientCount: number;
+}
+
+export interface CreatePsychologistResponse {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  sedes: Sede[];
+  // Contraseña en texto plano — se devuelve una sola vez en el 201, nunca se persiste así
+  temporaryPassword: string;
+}
+
+// ── HdU06: validación de fechas de calendario, compartida entre mobile y backend ──
+export * from './validators/date';

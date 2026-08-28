@@ -124,10 +124,18 @@ async function del<T>(path: string, headers?: Record<string, string>): Promise<T
   return (text ? JSON.parse(text) : undefined) as T
 }
 
-async function patch<T>(path: string, headers?: Record<string, string>): Promise<T> {
-  const res = await request(path, { method: 'PATCH' }, headers)
+async function patch<T>(path: string, headers?: Record<string, string>, body?: unknown): Promise<T> {
+  const res = await request(
+    path,
+    { method: 'PATCH', body: body !== undefined ? JSON.stringify(body) : undefined },
+    headers,
+  )
   if (!res.ok) throw failed('PATCH', path, res)
-  return res.json() as Promise<T>
+  // Mismo trato que post() y del(): /approve y /reject responden 200 sin cuerpo, y res.json()
+  // sobre un cuerpo vacío lanza, así que la aprobación se guardaba y la UI igual daba error.
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
 }
 
 async function post<T>(path: string, headers?: Record<string, string>, body?: unknown): Promise<T> {
@@ -231,6 +239,33 @@ export interface PatientMetrics {
   moodAvg: number | null
 }
 
+export interface PsychologistListItem {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  accountStatus: string
+  sedes: Sede[]
+  patientCount: number
+}
+
+export interface CreatePsychologistPayload {
+  firstName: string
+  lastName: string
+  email: string
+  rut: string
+  sedeIds: string[]
+}
+
+export interface CreatePsychologistResponse {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  sedes: Sede[]
+  temporaryPassword: string
+}
+
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -253,11 +288,17 @@ export const api = {
   getAlertHistory:    () => get<AlertHistoryItem[]>('/panic/alerts/history'),
   getSedes:           () => get<Sede[]>('/sedes'),
 
-  approveRequest: (requestId: string, psychologistId: string) =>
-    patch<void>(`/registration/${requestId}/approve`, { 'x-user-id': psychologistId }),
+  // Ya no mandan `x-user-id`: ambos endpoints tienen guard y el backend saca al revisor del
+  // token. `assignedPsychologistId` es opcional — sin él queda asignado quien aprueba.
+  approveRequest: (requestId: string, assignedPsychologistId?: string) =>
+    patch<void>(
+      `/registration/${requestId}/approve`,
+      undefined,
+      assignedPsychologistId ? { assignedPsychologistId } : undefined,
+    ),
 
-  rejectRequest: (requestId: string, psychologistId: string) =>
-    patch<void>(`/registration/${requestId}/reject`, { 'x-user-id': psychologistId }),
+  rejectRequest: (requestId: string) =>
+    patch<void>(`/registration/${requestId}/reject`),
 
   reportRelapse: (patientId: string) =>
     post<void>('/achievements/relapse', { 'x-user-id': patientId }),
@@ -280,6 +321,20 @@ export const api = {
 
   // Vista del psicólogo: sesiones de su sede con quién confirmó (CA 11.4)
   getSedeFamilySessions: () => get<SedeFamilySession[]>('/family/sede/sessions'),
+
+  // ── Gestión de cuentas de psicólogo (HU-24) ─────────────────────────────────
+
+  getPsychologists: () =>
+    get<PsychologistListItem[]>('/psychologists'),
+
+  createPsychologist: (payload: CreatePsychologistPayload) =>
+    postWithAuth<CreatePsychologistResponse>('/psychologists', payload),
+
+  deactivatePsychologist: (id: string, reassignTo?: string) =>
+    patchWithAuth<void>(`/psychologists/${id}/deactivate`, reassignTo ? { reassignTo } : {}),
+
+  updatePsychologistSedes: (id: string, sedeIds: string[], reassignments?: Record<string, string>) =>
+    patchWithAuth<void>(`/psychologists/${id}/sedes`, { sedeIds, reassignments }),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────
@@ -330,3 +385,41 @@ export interface SedeFamilySession {
   declinedCount: number
   attendances: FamilyAttendance[]
 }
+
+// ── Auth Bearer para /psychologists ─────────────────────────────────────────────
+// Estas llamadas arman su propio fetch —necesitan el cuerpo del error de Nest, que
+// failed() descarta— y por eso no pasan por buildHeaders(): tienen que poner el Bearer
+// a mano. Sale de `session`, la misma fuente que usa el resto del cliente; leerlo de
+// otra clave dejaba las mutaciones sin Authorization y el backend respondía 401 siempre.
+function authHeaders(): Record<string, string> {
+  const token = session.getAccessToken()
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+export interface ApiError extends Error {
+  status: number
+  // Cuerpo JSON del error de Nest — trae `message`, y en los 409 de /psychologists
+  // también `patientIds` / `sedeId` (ver PsychologistsService)
+  body: { message?: string; [key: string]: unknown } | undefined
+}
+
+async function requestWithAuth<T>(method: 'POST' | 'PATCH', path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    const err = new Error(`${method} ${path} → ${res.status}`) as ApiError
+    err.status = res.status
+    err.body = text ? JSON.parse(text) : undefined
+    throw err
+  }
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
+const postWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('POST', path, body)
+const patchWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('PATCH', path, body)

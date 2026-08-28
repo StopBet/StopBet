@@ -76,9 +76,12 @@ function AppNavigator() {
 }
 
 export default function App() {
-  // TODO(auth): reemplazar con estado real de sesión (JWT) cuando auth esté implementado
-  // TODO(auth): reemplazar con false cuando auth esté implementado
-  const [isSignedIn, setIsSignedIn] = React.useState(true);
+  // Arranca sin sesión para que Welcome, Login y el registro (HdU06) sean alcanzables:
+  // con `true` el AuthNavigator entero quedaba muerto y no había forma de llegar al
+  // formulario desde la app corriendo.
+  // TODO(auth): `signIn` todavía no valida contra POST /auth/login — mobile sigue
+  // identificándose con `x-user-id` y TEMP_USER_ID en 7 pantallas.
+  const [isSignedIn, setIsSignedIn] = React.useState(false);
 
   return (
     <AuthContext.Provider value={{ signIn: () => setIsSignedIn(true) }}>

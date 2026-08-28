@@ -32,6 +32,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # shared-types publica main/types a dist/, y dist/ esta en .gitignore: en CI llega
+      # vacio. Metro resuelve @stopbet/shared-types a ese dist, asi que sin este paso el
+      # bundle no encuentra isValidRut ni chileanDateToIso y el APK falla. Localmente no se
+      # nota porque el dist ya existe de builds previas. backend-ci.yml ya hace lo mismo.
+      - name: Build shared-types
+        run: pnpm --filter @stopbet/shared-types run build
+
       - name: Cache Gradle
         uses: actions/cache@v4
         with:

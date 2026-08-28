@@ -1,18 +1,36 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
-import { PSICOLOGOS, PADRINOS, REJECT_REASONS, type RegistrationRequest } from '../data/mockData'
+import { PADRINOS, REJECT_REASONS, type RegistrationRequest } from '../data/mockData'
 import { api } from '../services/api'
 import type { FlaggedPost } from '../services/api'
 
 /* ── Approve Modal ───────────────────────────────────── */
-function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; onClose: () => void; onConfirm: () => void }) {
-  const [psico, setPsico]     = useState(PSICOLOGOS[0])
+function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; onClose: () => void; onConfirm: (assignedPsychologistId: string) => void }) {
+  const [psico, setPsico]     = useState('')
   const [padrino, setPadrino] = useState('')
   const [startDate, setStartDate] = useState('2026-06-10')
   const [notes, setNotes]     = useState('')
 
   const padrinos = PADRINOS[req.sede] ?? PADRINOS['Santiago']
+
+  const { data: psicologos = [], isLoading: cargandoPsicologos } = useQuery({
+    queryKey: ['psychologists'],
+    queryFn: api.getPsychologists,
+  })
+
+  // Solo psicólogos activos que atienden la sede del solicitante: el backend rechaza con 403
+  // una asignación fuera de sede, y ofrecerla aquí sería prometer algo que va a fallar.
+  const disponibles = psicologos.filter(
+    p => p.accountStatus === 'active' && p.sedes.some(sede => sede.id === req.sedeId),
+  )
+  // El `select` no puede quedar sin valor mientras carga: si el estado sigue vacío, vale el
+  // primero de la lista, que es lo que el usuario está viendo seleccionado.
+  const psicoElegido = psico || disponibles[0]?.id || ''
+
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 6 } as const
+  const selectStyle = { appearance: 'none', height: 42, width: '100%', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', padding: '0 36px 0 12px', fontSize: 13.5, color: 'var(--fg1)', outline: 'none', cursor: 'pointer', boxSizing: 'border-box' } as const
+  const chevronStyle = { position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--fg2)' } as const
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -41,8 +59,28 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={labelStyle}>Psicólogo asignado</label>
+              {cargandoPsicologos ? (
+                <div style={{ fontSize: 13, color: 'var(--fg2)', padding: '11px 0' }}>Cargando psicólogos…</div>
+              ) : disponibles.length === 0 ? (
+                <div style={{ fontSize: 12.5, color: 'var(--danger)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', lineHeight: 1.45 }}>
+                  No hay psicólogos activos en la sede {req.sede}. Asigna uno desde <strong>Equipo</strong> antes de aprobar esta solicitud.
+                </div>
+              ) : (
+                <div style={{ position: 'relative' }}>
+                  <select value={psicoElegido} onChange={e => setPsico(e.target.value)} style={selectStyle}>
+                    {disponibles.map(p => (
+                      <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+                    ))}
+                  </select>
+                  <span style={chevronStyle}>
+                    <WIcon name="chevron-down" size={15} />
+                  </span>
+                </div>
+              )}
+            </div>
             {[
-              { label: 'Psicólogo asignado', value: psico, set: setPsico, opts: PSICOLOGOS },
               { label: 'Padrino de seguimiento', value: padrino, set: setPadrino, opts: padrinos },
             ].map(({ label, value, set, opts }) => (
               <div key={label}>
@@ -75,7 +113,8 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
           <button onClick={onClose} style={{ height: 46, padding: '0 22px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, cursor: 'pointer' }}>
             Cancelar
           </button>
-          <button onClick={onConfirm} style={{ height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={() => onConfirm(psicoElegido)} disabled={!psicoElegido}
+            style={{ height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: psicoElegido ? 'var(--primary)' : 'var(--border)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: psicoElegido ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}>
             <WIcon name="circle-check" size={17} color="#fff" /> Confirmar aprobación
           </button>
         </div>
@@ -302,7 +341,7 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
 interface SolicitudesPageProps {
   requests: RegistrationRequest[]
   psychId: string
-  onApprove: (id: string) => void
+  onApprove: (id: string, assignedPsychologistId?: string) => void
   onReject: (id: string) => void
 }
 
@@ -398,7 +437,7 @@ export function SolicitudesPage({ requests, psychId, onApprove, onReject }: Soli
         <ApproveModal
           req={approveReq}
           onClose={() => setApproveReq(null)}
-          onConfirm={() => { onApprove(approveReq.id); setApproveReq(null) }}
+          onConfirm={assignedPsychologistId => { onApprove(approveReq.id, assignedPsychologistId); setApproveReq(null) }}
         />
       )}
       {rejectReq && (

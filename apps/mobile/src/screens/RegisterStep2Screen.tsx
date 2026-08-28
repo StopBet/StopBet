@@ -41,6 +41,9 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
     try {
       const result = await api.submitRegistration({
         ...basicData,
+        // birthDate es @IsOptional() en el backend, pero @IsDateString() igual falla con
+        // string vacío: si no se completó, hay que omitir la clave, no mandarla en ''.
+        birthDate: basicData.birthDate || undefined,
         sedeId: selectedSedeId,
         institutionId,
       });
@@ -49,9 +52,11 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         email: basicData.email,
       });
     } catch (err) {
+      const statusMatch = (err as Error).message?.match(/^(\d{3})\s/);
+      const status = statusMatch ? Number(statusMatch[1]) : null;
       const msg =
-        (err as Error).message?.includes('409')
-          ? 'Ya existe una cuenta con ese correo electrónico.'
+        status === 409
+          ? 'Ya existe una cuenta con este correo electrónico'
           : 'No se pudo enviar la solicitud. Inténtalo de nuevo.';
       Alert.alert('Error', msg);
     } finally {
@@ -60,6 +65,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
   };
 
   const sedeIcon = (type: Sede['type']): IconName => (type === 'online' ? 'smartphone' : 'map-pin');
+
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -72,9 +78,9 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>¿A qué sede perteneces?</Text>
+        <Text style={styles.title}>¿En qué sede quieres atenderte?</Text>
         <Text style={styles.subtitle}>
-          Te conectaremos con la comunidad y el equipo clínico de tu sede.
+          Te conectaremos con la comunidad y el equipo clínico de esa sede.
         </Text>
 
         {loading ? (
@@ -97,7 +103,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
                   <Text style={styles.cardAddr}>{sede.address}</Text>
                   <View style={styles.metaPill}>
                     <Icon name="users" size={13} color={Colors.sage500} />
-                    <Text style={styles.metaText}>{sede.activeGroups} grupos activos</Text>
+                    <Text style={styles.metaText}>{sede.activeGroups} compañeros activos</Text>
                   </View>
                 </View>
                 {sel ? (
