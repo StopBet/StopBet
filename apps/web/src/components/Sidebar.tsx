@@ -17,7 +17,7 @@ const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string }> = [
   { id: 'alerts',    icon: 'triangle-alert', label: 'Alertas de pánico' },
   { id: 'requests',  icon: 'inbox',          label: 'Solicitudes' },
   { id: 'familySessions', icon: 'heart-handshake', label: 'Sesiones de familiares' },
-  { id: 'equipo',    icon: 'user-plus',       label: 'Equipo' },
+  { id: 'equipo',    icon: 'user-plus',      label: 'Equipo' },
   { id: 'reports',   icon: 'chart-column',   label: 'Reportes' },
   { id: 'finanzas',  icon: 'wallet',         label: 'Finanzas' },
   { id: 'settings',  icon: 'settings',       label: 'Configuración' },

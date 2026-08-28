@@ -5,7 +5,7 @@ import {
   CircleCheck, ClipboardList, Clock, Download, Hand, HeartHandshake,
   Home, Inbox, LifeBuoy, MapPin, Menu, MessageCircle, MoreHorizontal,
   NotebookPen, Search, Send, Settings, Shield, Sparkles, Target,
-  TrendingUp, Trophy, Users, UserRound, Wallet, X,
+  TrendingUp, Trophy, Users, UserRound, UserPlus, Wallet, X,
   type LucideProps,
 } from 'lucide-react'
 import type { FC } from 'react'
@@ -47,6 +47,7 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'trophy':         Trophy,
   'users':          Users,
   'user-round':     UserRound,
+  'user-plus':      UserPlus,
   'wallet':         Wallet,
   'x':              X,
 }
