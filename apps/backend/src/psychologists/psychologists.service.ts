@@ -137,11 +137,12 @@ export class PsychologistsService {
       where: { role: 'psychologist' },
       order: { createdAt: 'DESC' },
     });
-    const result: PsychologistListItem[] = [];
-    for (const p of psychologists) {
-      result.push(await this.toListItem(p));
-    }
-    return result;
+    // En serie el endpoint tardaba la suma de todos los psicólogos; Promise.all mantiene el
+    // orden del arreglo (lo fija la posición, no cuál consulta termina antes).
+    // Sigue habiendo un N+1: cada item consulta sus sedes y su conteo por separado. Batchearlo
+    // exige un GROUP BY por query builder y romper el respaldo por sede legada, que es por
+    // psicólogo; con el volumen de una clínica no compensa todavía.
+    return Promise.all(psychologists.map((p) => this.toListItem(p)));
   }
 
   async findOne(id: string): Promise<PsychologistListItem> {

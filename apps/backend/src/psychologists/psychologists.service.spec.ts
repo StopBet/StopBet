@@ -157,6 +157,25 @@ describe('PsychologistsService', () => {
       expect(await service.findAll()).toEqual([]);
     });
 
+    // Al paralelizar con Promise.all el orden lo fija la posicion en el arreglo, no cual
+    // consulta responde antes: se hace responder primero a la segunda para que un fallo salte.
+    it('conserva el orden aunque una consulta termine antes que otra', async () => {
+      userRepo.find.mockResolvedValue([
+        { id: 'psych-1', firstName: 'Ana', lastName: 'Alvarez', email: 'a@ajuter.cl', accountStatus: 'active' },
+        { id: 'psych-2', firstName: 'Bruno', lastName: 'Bravo', email: 'b@ajuter.cl', accountStatus: 'active' },
+      ]);
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: 'sede-santiago' }]);
+      sedeRepo.find.mockResolvedValue([santiago]);
+      assignmentRepo.count
+        .mockImplementationOnce(() => new Promise((resolve) => setTimeout(() => resolve(1), 20)))
+        .mockImplementationOnce(() => Promise.resolve(2));
+
+      const result = await service.findAll();
+
+      expect(result.map((p) => p.id)).toEqual(['psych-1', 'psych-2']);
+      expect(result.map((p) => p.patientCount)).toEqual([1, 2]);
+    });
+
     it('arma cada item con sus sedes y el conteo de pacientes activos', async () => {
       userRepo.find.mockResolvedValue([
         { id: 'psych-1', firstName: 'Fernanda', lastName: 'Fuentes', email: 'f@ajuter.cl', accountStatus: 'active' },
