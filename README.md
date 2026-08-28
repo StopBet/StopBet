@@ -145,6 +145,15 @@ Crea las tablas (si no existen) y el **usuario demo** que usa la app mobile mien
 
 Los 9 usuarios de prueba (paciente, padrino, psicólogo, coordinador, etc.) quedan con la misma **clave de desarrollo: `Stopbet2026!`**, para hacer login vía `POST /auth/login` con cualquiera de los correos que imprime el seed al terminar.
 
+Para probar el **portal del familiar** hace falta además:
+
+```bash
+pnpm run seed:family
+```
+
+Crea los tres estados de vínculo (activo con sesiones, pendiente, y activo sin sesiones
+próximas). Sin esto no hay ninguna cuenta de familiar con la que entrar.
+
 ---
 
 ### 6. Levantar los servicios
@@ -205,9 +214,11 @@ pnpm run android:reload      # recargas posteriores (solo JS)
 **Linux / macOS** (el script de arriba es PowerShell; acá es manual):
 
 ```bash
-# Terminal 1 (raíz): backend
+# Terminal 1 (raíz): backend — de paso compila shared-types
 pnpm run backend
 # Terminal 2 (apps/mobile): Metro
+#   Si NO levantas el backend, antes corre desde la raíz:
+#   pnpm --filter @stopbet/shared-types build
 npx react-native start
 # Terminal 3: puentes para que el dispositivo alcance el localhost del PC
 adb reverse tcp:8081 tcp:8081 && adb reverse tcp:3000 tcp:3000
@@ -250,5 +261,6 @@ Si usas **Claude Code**, por defecto agrega un trailer `Co-Authored-By: Claude` 
 |-----|-----------|
 | `patient` | Paciente en tratamiento |
 | `psychologist` | Terapeuta / psicólogo tratante |
+| `coordinator` | Rol administrativo: crea cuentas de psicólogo y revisa solicitudes de cualquier sede |
 | `sponsor` | Padrino de apoyo |
 | `family` | Familiar del paciente |
