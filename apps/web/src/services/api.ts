@@ -325,7 +325,7 @@ export const api = {
   // ── Gestión de cuentas de psicólogo (HU-24) ─────────────────────────────────
 
   getPsychologists: () =>
-    get<PsychologistListItem[]>('/psychologists', authHeaders()),
+    get<PsychologistListItem[]>('/psychologists'),
 
   createPsychologist: (payload: CreatePsychologistPayload) =>
     postWithAuth<CreatePsychologistResponse>('/psychologists', payload),
@@ -387,11 +387,12 @@ export interface SedeFamilySession {
 }
 
 // ── Auth Bearer para /psychologists ─────────────────────────────────────────────
-// El dashboard todavía no maneja JWT (ver CLAUDE.md "Estado actual"): el login solo
-// guarda un flag en localStorage, no un token. Estas llamadas leen 'sb-dashboard-token'
-// si existe; hasta que el login lo guarde, el backend responde 401.
+// Estas llamadas arman su propio fetch —necesitan el cuerpo del error de Nest, que
+// failed() descarta— y por eso no pasan por buildHeaders(): tienen que poner el Bearer
+// a mano. Sale de `session`, la misma fuente que usa el resto del cliente; leerlo de
+// otra clave dejaba las mutaciones sin Authorization y el backend respondía 401 siempre.
 function authHeaders(): Record<string, string> {
-  const token = localStorage.getItem('sb-dashboard-token')
+  const token = session.getAccessToken()
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
