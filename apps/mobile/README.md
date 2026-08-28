@@ -16,6 +16,20 @@ App del paciente — **React Native CLI 0.86** (sin Expo). Prioridad **Android**
 
 La app le pega al backend en `http://localhost:3000`. En un dispositivo/emulador eso funciona gracias a `adb reverse`, así que **el backend debe estar corriendo** antes de abrir la app.
 
+> ⚠️ **`shared-types` hay que compilarlo.** La app importa funciones de
+> `@stopbet/shared-types` (validador de RUT y de fechas), y esas viven en `dist/`, que está
+> en `.gitignore` y **no viene en el pull**. `pnpm run backend` lo compila solo, así que si
+> partes por ahí no tienes que hacer nada. Si levantas **solo Metro**, antes corre desde la
+> raíz:
+>
+> ```bash
+> pnpm --filter @stopbet/shared-types build
+> ```
+>
+> Sin esto: con un `dist/` viejo la app arranca y revienta con `formatRut is not a function`
+> al escribir el RUT en el registro; sin `dist/` Metro no resuelve el módulo y falla el
+> bundle entero.
+
 ### Windows (script automático)
 
 El script `scripts/android-run.ps1` hace todo: detecta el celular, configura `adb reverse`, abre Metro y compila.
@@ -58,7 +72,13 @@ Esto ya está resuelto en el repo, pero conviene entenderlo porque es la causa d
 
 ## Usuario demo (sin autenticación todavía)
 
-No hay login aún. Las 5 pantallas que consultan el backend (`HomeScreen`, `AchievementsScreen`, `PanicScreen`, `CommunityScreen`, `SuspendedAccountScreen`) tienen hardcodeado:
+No hay login real aún. La app **arranca en la pantalla de Welcome** (antes entraba directo
+al Home; se cambió para que el flujo de registro fuera alcanzable), y `LoginScreen` deja
+pasar cualquier correo y clave no vacíos sin llamar a `POST /auth/login`.
+
+Las 7 pantallas que hablan con el backend (`HomeScreen`, `AchievementsScreen`, `PanicScreen`,
+`CommunityScreen`, `SuspendedAccountScreen`, `ProfileScreen`, `LoginScreen`) tienen
+hardcodeado:
 
 ```ts
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';

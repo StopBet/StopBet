@@ -73,29 +73,37 @@ Esto permite cambiar el tema completo modificando solo `ajuter-theme.css`.
 
 ## Íconos
 
-Íconos Lucide baked como data-URI en `src/styles/icons.css`. No requieren instalación npm — son CSS puro.
+Los íconos se usan con el componente **`WIcon`** (`src/components/WIcon.tsx`), que envuelve
+**`lucide-react`**. No son clases CSS.
 
 ```tsx
-// Clase base: .ico  |  Ícono: .ico-<nombre>
-// Color via currentColor (hereda el text-color de Tailwind)
-// Tamaño default: 24×24px — sobreescribir con style o clases de width/height
+import { WIcon } from '../components/WIcon'
 
-<i className="ico ico-heart text-primary" />
-<i className="ico ico-bell text-fg2" style={{ width: 20, height: 20 }} />
-<i className="ico ico-triangle-alert text-danger" />
+<WIcon name="triangle-alert" size={18} color="var(--danger)" />
+<WIcon name="users" size={16} />          // hereda currentColor si no pasas `color`
 ```
 
-### Referencia rápida
+### Agregar un ícono
 
-| Grupo | Íconos |
-|---|---|
-| Navegación / UI | `house`, `arrow-left`, `arrow-right`, `chevron-down/left/right`, `more-horizontal`, `plus`, `x`, `search`, `filter`, `settings` |
-| Usuarios | `user`, `users`, `user-plus`, `user-round` |
-| Clínico / Salud | `heart`, `heart-handshake`, `life-buoy`, `shield`, `hand`, `leaf`, `activity` |
-| Logros / Gamif. | `trophy`, `award`, `medal`, `crown`, `star`, `sparkles`, `flame`, `gift`, `thumbs-up` |
-| Comunicación | `message-circle`, `messages-square`, `bell`, `send`, `phone`, `phone-call`, `mail`, `inbox` |
-| Tiempo / Datos | `calendar`, `clock`, `chart-column`, `chart-line`, `trending-up`, `trending-down`, `target` |
-| Documentos | `book-open`, `clipboard-list`, `notebook-pen` |
-| Estados | `circle-check`, `circle-alert`, `triangle-alert`, `check` |
-| Auth | `lock`, `eye`, `eye-off`, `fingerprint` |
-| Pagos | `wallet`, `credit-card`, `landmark`, `receipt`, `smartphone` |
+`WIcon` solo conoce los nombres que están en su `ICON_MAP`. Son dos líneas:
+
+1. Agregar el componente al `import { ... } from 'lucide-react'` del archivo.
+2. Agregar la entrada `'nombre-kebab': ComponentePascal,` al `ICON_MAP`.
+
+> ⚠️ **Un nombre que no está en el mapa no da error.** `WIcon` devuelve un `<span>` vacío
+> del mismo tamaño, así que la interfaz queda con un hueco en blanco y nada en consola. Si
+> un ícono "no aparece", lo primero es revisar que su nombre esté en el mapa.
+
+### Nombres disponibles hoy
+
+`activity`  `arrow-right`  `bell`  `calendar`  `camera`  `chart-column`  `check`
+`chevron-down`  `chevron-left`  `chevron-right`  `circle-alert`  `circle-check`
+`clipboard-list`  `clock`  `download`  `hand`  `heart-handshake`  `house`  `inbox`
+`life-buoy`  `map-pin`  `message-circle`  `menu`  `more-horizontal`  `notebook-pen`
+`search`  `send`  `settings`  `shield`  `sparkles`  `target`  `trending-up`
+`triangle-alert`  `trophy`  `users`  `user-round`  `user-plus`  `wallet`  `x`
+
+> `src/styles/icons.css` es un sistema anterior de íconos Lucide como data-URI
+> (`<i className="ico ico-heart" />`). **Ningún archivo de `src/` lo usa**, pero sigue
+> importado desde `index.css` y pesa en el bundle. Su lista de nombres **no** coincide con la
+> de `WIcon`: no la uses como referencia. Queda pendiente decidir si se borra.

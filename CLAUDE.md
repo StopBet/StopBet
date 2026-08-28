@@ -21,7 +21,7 @@ Plataforma clínica para tratamiento de ludopatía. Datos de pacientes son **sen
 - **CI mobile**: `.github/workflows/mobile-preview.yml` **volvió a dispararse solo** en push a `main`. El diagnóstico anterior ("`react-native@0.86` ya no publica `hermesc`, no tiene arreglo") era falso: el binario se movió a un paquete propio, `hermes-compiler`, que ya estaba en el lockfile. El workflow apuntaba con `chmod` a la ruta vieja y se tragaba el fallo con `|| true`. Corregido en `bbbec9d`.
 - **Portal del familiar (HdU11)**: módulo `family` con vínculo familiar↔paciente, sesiones grupales por sede y confirmación de asistencia. Es el **único módulo del backend con guard en todos sus endpoints**. Dos avisos:
   - ⚠️ **Nadie aprueba los vínculos.** `requestLink` los crea en `pending` y no existe endpoint ni pantalla que los pase a `active`: solo lo hace `src/family/family.seed.ts`. En producción un familiar quedaría en "pendiente de vinculación" para siempre.
-  - Datos de prueba: `node --env-file=.env --require ts-node/register src/family/family.seed.ts` desde `apps/backend`, después de `pnpm run seed`. **No está en los scripts de `package.json`**: hay que correrlo a mano o la demo no tiene cuentas de familiar. Crea los tres estados (vínculo activo con sesiones, pendiente, y activo sin sesiones próximas).
+  - Datos de prueba, después de `pnpm run seed`: `pnpm run seed:family` desde la raíz. Sin correrlo, la demo no tiene cuentas de familiar. Crea los tres estados (vínculo activo con sesiones, pendiente, y activo sin sesiones próximas).
 - **Deudas técnicas**:
   - ⚠️ **No hay ninguna migración en el repo, y por eso el backend de Railway corre con `NODE_ENV=development`** — se dejó así a propósito para que TypeORM cree el esquema con `synchronize`. Es decir: las tablas nuevas **sí** se crean en producción, pero al precio de violar la regla del propio proyecto ("nunca `synchronize: true` en producción"). Hay que resolverlo con migraciones reales **antes de manejar datos de pacientes de verdad**.
   - El servicio **`@stopbet/web` de Railway falla el deploy desde el 19/08**: healthcheck a `/health`, que no existe en un frontend estático. La web ya vive en Vercel, así que ese servicio probablemente sobra.
@@ -185,6 +185,7 @@ update stuff                  # ❌ sin tipo ni descripción clara
 
 - **No agregar el trailer `Co-Authored-By: Claude`** en los commits. El trabajo se atribuye únicamente al autor humano. (Cualquier integrante puede pedírselo explícitamente en la conversación; esta regla lo hace por defecto para todos.)
 - **Mantener al día la sección "Estado actual"** de este archivo: tras un commit grande, mover muchos directorios, o cambios importantes en la estructura o el README, actualizar ese resumen. Así cualquier sesión nueva de Claude —de cualquier integrante— entiende el estado del proyecto al instante, sin reconstruirlo.
+- **Anotar en `docs/avisos-al-equipo.md`** todo cambio que obligue a un compañero a hacer algo distinto después de pullear —un comando nuevo, una variable de entorno, un paso de build, un flujo que se movió de lugar— o que cambie un comportamiento visible lo bastante como para que alguien lo confunda con un bug. Va una entrada nueva **arriba del todo**, con fecha y PR, diciendo a quién le pega y qué tiene que correr. Si el cambio no le pide nada a nadie, **no va**: ese archivo sirve mientras se pueda leer entero en un minuto. Trabajamos 6 personas en ramas paralelas y nadie lee los diffs ajenos; esto es lo único que evita que alguien pierda una tarde buscando el problema donde no está.
 
 ## Flujo de sprints
 
@@ -196,59 +197,40 @@ update stuff                  # ❌ sin tipo ni descripción clara
 
 ## Comandos frecuentes
 
+> **Siempre `pnpm`.** `npm install` genera un `package-lock.json` que rompe el monorepo.
+
 ```bash
 # Instalar todo
-npm install
+pnpm install
 
 # Levantar web local
-npm run web                    # http://localhost:5173
+pnpm run web                   # http://localhost:5173
 
 # Levantar backend local
-npm run backend                # http://localhost:3000
+pnpm run backend               # http://localhost:3000
                                # Swagger: http://localhost:3000/api/docs
+                               # compila shared-types antes de arrancar
+
+# Datos de prueba
+pnpm run seed                  # 9 usuarios, clave Stopbet2026!
+pnpm run seed:family           # cuentas del portal del familiar (correr después del seed)
+
+# Compilar shared-types a mano (solo hace falta si levantas Metro sin el backend)
+pnpm --filter @stopbet/shared-types build
 
 # Build web para producción
-npm run build:web
+pnpm run build:web
 ```
+
+Setup completo, requisitos y variables de entorno: [`README.md`](README.md).
 
 ## App Mobile en dispositivo Android físico
 
-### Prerrequisitos (una vez por máquina)
-1. **Android Studio** instalado → [developer.android.com/studio](https://developer.android.com/studio)
-2. **`adb` en el PATH**: agregar `C:\Users\<usuario>\AppData\Local\Android\Sdk\platform-tools`
-3. **Node.js 20+** en el PATH
-4. **En el celular**: Ajustes → Opciones de desarrollador → Depuración USB (ON)
+Requisitos, script de Windows, ruta manual para Linux/macOS y *gotchas* del monorepo pnpm:
+**[`apps/mobile/README.md`](apps/mobile/README.md)**. No dupliques esos pasos acá.
 
-> Java 17+ se instala automáticamente si no está presente.
-
-### Comandos
-
-```bash
-# Primera vez o después de cambios nativos (demora ~5–15 min, Gradle compila)
-npm run android:device
-
-# Veces posteriores (solo recarga JS, segundos)
-npm run android:reload
-
-# Si hay errores raros de Metro
-npm run android:device:fresh
-```
-
-### Qué hace el script automáticamente
-1. Verifica que el celular esté conectado por USB
-2. Detecta Java 17+ o lo instala con `winget`
-3. Configura `adb reverse` para puertos 8081 (Metro) y 3000 (Backend)
-4. Abre Metro bundler en una ventana CMD separada
-5. Compila el APK con Gradle e instala en el dispositivo
-6. Lanza la app automáticamente
-
-### Flujo de trabajo diario
-```
-Terminal A: npm run backend          # API en localhost:3000
-Terminal B: (abre automáticamente)   # Metro bundler (ventana CMD)
-Celular:    app StopBet              # conectado por USB
-```
-Para ver datos reales, el backend debe estar corriendo antes de abrir la app.
+Lo único que se repite en este archivo es el aviso de abajo, porque es la causa número uno
+de horas perdidas y conviene que toda sesión lo tenga cargado de entrada.
 
 ### ⚠️ Los túneles `adb reverse` se caen solos — revísalos primero
 
@@ -276,7 +258,7 @@ adb reverse tcp:5173 tcp:5173   # Web, solo si vas a abrir el dashboard o el
                                 # portal del familiar en el navegador del teléfono
 ```
 
-El script `npm run android:device` configura 8081 y 3000, pero **no 5173**: ese hay que
+El script `pnpm run android:device` configura 8081 y 3000, pero **no 5173**: ese hay que
 agregarlo a mano. Y ojo con Vite: por omisión escucha solo en IPv6 (`::1`) y `adb
 reverse` conecta por IPv4, así que para el teléfono hay que levantarlo con
 `pnpm --filter @stopbet/web dev -- --host 0.0.0.0` o dará `ERR_EMPTY_RESPONSE`.
