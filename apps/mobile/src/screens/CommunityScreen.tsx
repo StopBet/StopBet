@@ -206,6 +206,11 @@ export function CommunityScreen({ navigation, route }: Props) {
           onPress: async () => {
             try {
               await api.reportPost(TEMP_USER_ID, postId);
+              // CA5.3: el backend ya deja de devolvérselo a quien reportó, pero
+              // la pantalla carga una sola vez y el post seguía a la vista hasta
+              // salir y volver. Se quita del feed apenas se confirma.
+              setPosts((prev) => prev.filter((p) => p.id !== postId));
+              setAnnouncements((prev) => prev.filter((p) => p.id !== postId));
               Alert.alert('Gracias', 'El equipo clínico revisará esta publicación.');
             } catch {
               Alert.alert('Sin conexión', 'No se pudo enviar el reporte.');
