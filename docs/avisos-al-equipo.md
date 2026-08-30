@@ -20,6 +20,62 @@ está.
 
 ---
 
+## 2026-08-30 — PR #58 · Cierre de criterios del SPIKE (S.4, S.5, S.6, S.11)
+
+### Hay que correr `pnpm install` después de pullear
+
+**A quién le pega:** a todos los que levanten el backend.
+
+**Qué hacer**, una vez después de pullear, desde la raíz:
+
+```bash
+pnpm install
+```
+
+**Por qué:** el backend suma la dependencia `helmet`, que agrega cabeceras de seguridad
+(HSTS, `X-Content-Type-Options`, `Cross-Origin-Resource-Policy`) en `main.ts`. Sin
+instalarla el backend **no arranca**: revienta en el `import helmet from 'helmet'`.
+
+**No rompe a los clientes.** Se verificó contra el dashboard web en un navegador real,
+contra la app mobile en un Android físico y contra Swagger: todo responde igual. La CSP que
+helmet trae por defecto viene desactivada a propósito, porque rompía la UI de `/api/docs`.
+
+### El CI ahora **exige** 70% de cobertura en `users`, `panic` y `ai-assistant`
+
+**A quién le pega:** a quien agregue código en esos tres módulos.
+
+Antes la cobertura se medía y se ignoraba. Ahora hay un `coverageThreshold` en
+`apps/backend/package.json`: si `statements` o `lines` bajan del 70% en cualquiera de los
+tres, **el build falla y el PR no se puede mergear**.
+
+Hoy los tres pasan con margen (`users` 87%, `panic` 92%, `ai-assistant` 86%), así que no
+deberías notar nada **salvo que agregues código sin tests**.
+
+**Si te falla**, mira dónde quedaste:
+
+```bash
+pnpm run test:coverage
+```
+
+El umbral aplica solo a `statements` y `lines`, **no a `branches`**: `ai-assistant` está en
+65% de ramas y exigirlo ahí habría roto builds ajenos sin que el criterio lo pida.
+
+### El e2e de roles ahora prueba endpoints que no son de José
+
+**A quién le pega:** a Eduardo (`metrics`), a Matías Lara (`registration`) y a Matías
+Barraza (`panic`).
+
+`test/roles.e2e-spec.ts` ahora verifica 401 / 403 / 200 sobre `GET /metrics/patients/:id`,
+`GET /registration/pending` y `GET /panic/alerts/history`, asumiendo
+`@Roles('psychologist', 'coordinator')` en los tres.
+
+**Si cambias los `@Roles()` de tu endpoint, ese test falla y te bloquea tu propio PR**, en un
+archivo que no es tuyo y con un error que parece tuyo. No es un descuido: es deliberado,
+porque esos tres devuelven datos identificables de pacientes y reabrirlos por accidente no
+puede pasar en silencio. Avísale a José y lo actualiza, es una línea.
+
+---
+
 ## 2026-08-28 — PR #56 · Registro de pacientes (HU-06) y cuentas de psicólogo (HU-24)
 
 ### Hay que compilar `shared-types` antes de levantar mobile
