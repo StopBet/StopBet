@@ -11,7 +11,7 @@ export const ASSISTANT_FALLBACK_MESSAGES: string[] = [
     'si sientes que necesitas apoyo ahora, el botón de pánico y tu padrino están siempre ' +
     'disponibles, igual que el *4141*.',
   'No logré generar una respuesta en este momento. Eso no significa que estés desatendido — ' +
-    'el botón de pánico y tu padrino siguen ahí para vos, y también podés llamar al *4141*.',
+    'el botón de pánico y tu padrino siguen ahí para ti, y también puedes llamar al *4141*.',
 ];
 
 // Determinista: la misma sesión ve el mismo mensaje si falla varias veces seguidas,
