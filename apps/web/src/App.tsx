@@ -22,9 +22,20 @@ function readUser(): AuthUser | null {
   }
 }
 
+// La bandera y el usuario guardados son una pista de quién entró, no una credencial: sin
+// token no hay sesión que valga. Creerles alcanzaba para renderizar el panel clínico entero
+// con el nombre de un psicólogo y sus datos en blanco, sin volver nunca al login.
+function hasStoredSession(): boolean {
+  return (
+    !!readStored(AUTH_KEY) &&
+    !!readUser() &&
+    (!!session.getAccessToken() || !!session.getRefreshToken())
+  )
+}
+
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(readUser)
-  const [isLoggedIn, setIsLoggedIn] = useState(() => !!readStored(AUTH_KEY) && !!readUser())
+  const [isLoggedIn, setIsLoggedIn] = useState(hasStoredSession)
   const [sessionExpired, setSessionExpired] = useState(false)
 
   const clearSession = () => {

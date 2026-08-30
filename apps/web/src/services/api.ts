@@ -93,8 +93,11 @@ async function request(
   // login con un refresh token viejo guardado mostraría "sesión expirada".
   const isAuthRoute = path.startsWith('/auth/')
 
-  if (res.status === 401 && refreshToken && !isAuthRoute) {
-    if (await refreshOnce()) {
+  // Sin refresh token el 401 se ignoraba y la sesión nunca se daba por caída: el dashboard
+  // se quedaba abierto mostrando ceros —"0 pacientes", "0 alertas hoy"— que en una
+  // plataforma clínica se leen como "nadie está en crisis", no como "no tienes sesión".
+  if (res.status === 401 && !isAuthRoute) {
+    if (refreshToken && (await refreshOnce())) {
       res = await send()
     } else {
       session.clear()
