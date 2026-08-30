@@ -166,9 +166,19 @@ describe('PsychologistsService', () => {
       ]);
       psychSedeRepo.find.mockResolvedValue([{ sedeId: 'sede-santiago' }]);
       sedeRepo.find.mockResolvedValue([santiago]);
-      assignmentRepo.count
-        .mockImplementationOnce(() => new Promise((resolve) => setTimeout(() => resolve(1), 20)))
-        .mockImplementationOnce(() => Promise.resolve(2));
+      assignmentRepo.find
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve([{ patientId: 'p-1', sedeId: 'sede-santiago' }]), 20),
+            ),
+        )
+        .mockImplementationOnce(() =>
+          Promise.resolve([
+            { patientId: 'p-2', sedeId: 'sede-santiago' },
+            { patientId: 'p-3', sedeId: 'sede-santiago' },
+          ]),
+        );
 
       const result = await service.findAll();
 
@@ -182,7 +192,11 @@ describe('PsychologistsService', () => {
       ]);
       psychSedeRepo.find.mockResolvedValue([{ sedeId: 'sede-santiago' }]);
       sedeRepo.find.mockResolvedValue([santiago]);
-      assignmentRepo.count.mockResolvedValue(3);
+      assignmentRepo.find.mockResolvedValue([
+        { patientId: 'p-1', sedeId: 'sede-santiago' },
+        { patientId: 'p-2', sedeId: 'sede-santiago' },
+        { patientId: 'p-3', sedeId: 'sede-santiago' },
+      ]);
 
       const result = await service.findAll();
 
@@ -195,7 +209,44 @@ describe('PsychologistsService', () => {
           accountStatus: 'active',
           sedes: [santiago],
           patientCount: 3,
+          patientsBySede: [{ sedeId: 'sede-santiago', sedeName: 'Santiago', count: 3 }],
         },
+      ]);
+    });
+
+    it('reparte el conteo por sede y omite las sedes sin pacientes activos', async () => {
+      userRepo.find.mockResolvedValue([
+        { id: 'psych-1', firstName: 'Fernanda', lastName: 'Fuentes', email: 'f@ajuter.cl', accountStatus: 'active' },
+      ]);
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: 'sede-santiago' }, { sedeId: 'sede-online' }]);
+      sedeRepo.find.mockResolvedValue([santiago, online]);
+      assignmentRepo.find.mockResolvedValue([
+        { patientId: 'p-1', sedeId: 'sede-santiago' },
+        { patientId: 'p-2', sedeId: 'sede-santiago' },
+      ]);
+
+      const [item] = await service.findAll();
+
+      expect(item.patientCount).toBe(2);
+      expect(item.patientsBySede).toEqual([
+        { sedeId: 'sede-santiago', sedeName: 'Santiago', count: 2 },
+      ]);
+    });
+
+    // Puede pasar si se le quitó la sede al psicólogo dejando pacientes atrás: esconderlos
+    // del desglose los dejaría fuera de cualquier reasignación.
+    it('muestra a los pacientes de una sede que el psicólogo ya no atiende', async () => {
+      userRepo.find.mockResolvedValue([
+        { id: 'psych-1', firstName: 'Fernanda', lastName: 'Fuentes', email: 'f@ajuter.cl', accountStatus: 'active' },
+      ]);
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: 'sede-santiago' }]);
+      sedeRepo.find.mockResolvedValue([santiago]);
+      assignmentRepo.find.mockResolvedValue([{ patientId: 'p-1', sedeId: 'sede-huerfana' }]);
+
+      const [item] = await service.findAll();
+
+      expect(item.patientsBySede).toEqual([
+        { sedeId: 'sede-huerfana', sedeName: 'sede-huerfana', count: 1 },
       ]);
     });
   });
@@ -217,7 +268,7 @@ describe('PsychologistsService', () => {
       psychSedeRepo.find.mockResolvedValue([]);
       sedeRepo.findOne.mockResolvedValue(santiago);
       sedeRepo.find.mockResolvedValue([santiago]);
-      assignmentRepo.count.mockResolvedValue(0);
+      assignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.findOne('psych-viejo');
 
@@ -236,7 +287,7 @@ describe('PsychologistsService', () => {
       psychSedeRepo.find.mockResolvedValue([]);
       sedeRepo.findOne.mockResolvedValue(santiago);
       sedeRepo.find.mockResolvedValue([santiago]);
-      assignmentRepo.count.mockResolvedValue(0);
+      assignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.findOne('psych-seed');
 
@@ -252,7 +303,7 @@ describe('PsychologistsService', () => {
       });
       psychSedeRepo.find.mockResolvedValue([]);
       sedeRepo.findOne.mockResolvedValue(null);
-      assignmentRepo.count.mockResolvedValue(0);
+      assignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.findOne('psych-huerfano');
 
@@ -263,7 +314,7 @@ describe('PsychologistsService', () => {
     it('devuelve sin sedes si no tiene ni filas nuevas ni sede legada', async () => {
       userRepo.findOne.mockResolvedValue({ id: 'psych-sin-sede', role: 'psychologist' });
       psychSedeRepo.find.mockResolvedValue([]);
-      assignmentRepo.count.mockResolvedValue(0);
+      assignmentRepo.find.mockResolvedValue([]);
 
       const result = await service.findOne('psych-sin-sede');
 
@@ -333,6 +384,54 @@ describe('PsychologistsService', () => {
         },
       ]);
       expect(userRepo.update).toHaveBeenCalledWith('psych-1', { accountStatus: 'suspended' });
+    });
+
+    // El caso que bloqueaba la baja: exigir un único destino que cubriera todas las sedes
+    // dejaba imposible desactivar a quien atiende varias sin un reemplazo exacto.
+    it('reparte a los pacientes de cada sede al destino que le corresponde', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce({ id: 'psych-1', role: 'psychologist' }) // el que se desactiva
+        .mockResolvedValueOnce({ id: 'psych-santiago', accountStatus: 'active' })
+        .mockResolvedValueOnce({ id: 'psych-online', accountStatus: 'active' });
+      assignmentRepo.find.mockResolvedValue([
+        { id: 'a1', patientId: 'pat-1', sedeId: 'sede-santiago' },
+        { id: 'a2', patientId: 'pat-2', sedeId: 'sede-online' },
+      ]);
+      psychSedeRepo.find
+        .mockResolvedValueOnce([{ sedeId: 'sede-santiago' }])
+        .mockResolvedValueOnce([{ sedeId: 'sede-online' }]);
+
+      await service.deactivate('psych-1', {
+        reassignments: {
+          'sede-santiago': 'psych-santiago',
+          'sede-online': 'psych-online',
+        },
+      });
+
+      expect(assignmentRepo.save).toHaveBeenCalledWith([
+        { patientId: 'pat-1', psychologistId: 'psych-santiago', sedeId: 'sede-santiago', active: true, endedAt: null },
+      ]);
+      expect(assignmentRepo.save).toHaveBeenCalledWith([
+        { patientId: 'pat-2', psychologistId: 'psych-online', sedeId: 'sede-online', active: true, endedAt: null },
+      ]);
+      expect(userRepo.update).toHaveBeenCalledWith('psych-1', { accountStatus: 'suspended' });
+    });
+
+    it('el 409 dice qué sedes quedaron sin destino, no solo que faltan pacientes', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'psych-1', role: 'psychologist' });
+      assignmentRepo.find.mockResolvedValue([
+        { id: 'a1', patientId: 'pat-1', sedeId: 'sede-santiago' },
+        { id: 'a2', patientId: 'pat-2', sedeId: 'sede-online' },
+      ]);
+
+      await expect(
+        service.deactivate('psych-1', { reassignments: { 'sede-santiago': 'psych-2' } }),
+      ).rejects.toMatchObject({
+        response: {
+          patientIds: ['pat-1', 'pat-2'],
+          bySede: [{ sedeId: 'sede-online', patientIds: ['pat-2'] }],
+        },
+      });
     });
 
     // Sin transacción, un fallo al suspender dejaba a los pacientes ya movidos y al

@@ -28,6 +28,7 @@ describe('Psychologists guard (e2e)', () => {
   let psychologistId: string;
   let coordinatorId: string;
   let sedeId: string;
+  let secondSedeId: string;
   const createdPsychologistIds: string[] = [];
 
   beforeAll(async () => {
@@ -90,6 +91,7 @@ describe('Psychologists guard (e2e)', () => {
 
     const sedes = await sedeRepo.find({ where: { isActive: true } });
     sedeId = sedes[0].id;
+    secondSedeId = sedes[1].id;
   });
 
   afterAll(async () => {
@@ -352,6 +354,146 @@ describe('Psychologists guard (e2e)', () => {
       expect(closed?.psychologistId).toBe(originPsychId);
       expect(closed?.endedAt).not.toBeNull();
       expect(current?.psychologistId).toBe(targetPsychId);
+
+      const psych = await userRepo.findOneOrFail({ where: { id: originPsychId } });
+      expect(psych.accountStatus).toBe('suspended');
+    });
+  });
+
+  // Antes de esto la baja exigía un único destino que cubriera TODAS las sedes del que se va:
+  // sin un reemplazo exacto, la cuenta no se podía desactivar por ninguna vía.
+  describe('Baja repartiendo pacientes por sede (CA24.3)', () => {
+    let coordinatorToken: string;
+    let originPsychId: string;
+    let targetA: string;
+    let targetB: string;
+    const patientIds: string[] = [];
+
+    async function createPsychologistIn(sedeIds: string[]): Promise<string> {
+      const res = await request(app.getHttpServer())
+        .post('/psychologists')
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .send({
+          firstName: 'E2E',
+          lastName: 'MultiSede',
+          email: `e2e-multi-${Date.now()}-${Math.random().toString(36).slice(2)}@stopbet.cl`,
+          rut: '11.111.111-1',
+          sedeIds,
+        })
+        .expect(201);
+      createdPsychologistIds.push(res.body.id);
+      return res.body.id;
+    }
+
+    async function admitPatientIn(sede: string, psychId: string): Promise<string> {
+      const submitted = await request(app.getHttpServer())
+        .post('/registration/submit')
+        .send({
+          firstName: 'Paciente',
+          lastName: 'MultiSede',
+          rut: '12.345.678-5',
+          email: `e2e-multi-pat-${Date.now()}-${Math.random().toString(36).slice(2)}@stopbet.cl`,
+          sedeId: sede,
+          institutionId: 'AJUTER',
+        })
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/registration/${submitted.body.requestId}/approve`)
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .send({ assignedPsychologistId: psychId })
+        .expect(200);
+
+      patientIds.push(submitted.body.userId);
+      return submitted.body.userId;
+    }
+
+    let patientInA: string;
+    let patientInB: string;
+
+    beforeAll(async () => {
+      coordinatorToken = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: coordinatorId } })).email,
+      );
+      originPsychId = await createPsychologistIn([sedeId, secondSedeId]);
+      targetA = await createPsychologistIn([sedeId]);
+      targetB = await createPsychologistIn([secondSedeId]);
+
+      patientInA = await admitPatientIn(sedeId, originPsychId);
+      patientInB = await admitPatientIn(secondSedeId, originPsychId);
+    });
+
+    afterAll(async () => {
+      for (const id of patientIds) {
+        await assignmentRepo.delete({ patientId: id });
+        await refreshTokenRepo.delete({ userId: id });
+        await requestRepo.delete({ userId: id });
+        await userRepo.delete({ id });
+      }
+    });
+
+    it('el listado desglosa los pacientes por sede, no solo el total', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/psychologists')
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .expect(200);
+
+      const origin = res.body.find((p: { id: string }) => p.id === originPsychId);
+      expect(origin.patientCount).toBe(2);
+      expect(origin.patientsBySede).toHaveLength(2);
+      expect(
+        origin.patientsBySede.find((g: { sedeId: string }) => g.sedeId === sedeId).count,
+      ).toBe(1);
+      expect(
+        origin.patientsBySede.find((g: { sedeId: string }) => g.sedeId === secondSedeId).count,
+      ).toBe(1);
+    });
+
+    it('un destino que solo cubre una sede no basta para toda la baja', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/psychologists/${originPsychId}/deactivate`)
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .send({ reassignTo: targetA })
+        .expect(400);
+
+      expect(res.body.message).toContain('no atiende todas las sedes');
+    });
+
+    it('reasignar solo una sede → 409 diciendo cuál quedó sin destino', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/psychologists/${originPsychId}/deactivate`)
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .send({ reassignments: { [sedeId]: targetA } })
+        .expect(409);
+
+      expect(res.body.bySede).toEqual([
+        { sedeId: secondSedeId, patientIds: [patientInB] },
+      ]);
+    });
+
+    it('repartiendo cada sede a su destino, la baja se completa', async () => {
+      await request(app.getHttpServer())
+        .patch(`/psychologists/${originPsychId}/deactivate`)
+        .set('Authorization', `Bearer ${coordinatorToken}`)
+        .send({ reassignments: { [sedeId]: targetA, [secondSedeId]: targetB } })
+        .expect(200);
+
+      const activeA = await assignmentRepo.findOneOrFail({
+        where: { patientId: patientInA, active: true },
+      });
+      const activeB = await assignmentRepo.findOneOrFail({
+        where: { patientId: patientInB, active: true },
+      });
+
+      expect(activeA.psychologistId).toBe(targetA);
+      expect(activeB.psychologistId).toBe(targetB);
+
+      // El historial de quién atendía antes no se pierde: la fila vieja se cierra.
+      const closed = await assignmentRepo.find({
+        where: { psychologistId: originPsychId, active: false },
+      });
+      expect(closed).toHaveLength(2);
+      expect(closed.every((a) => a.endedAt !== null)).toBe(true);
 
       const psych = await userRepo.findOneOrFail({ where: { id: originPsychId } });
       expect(psych.accountStatus).toBe('suspended');

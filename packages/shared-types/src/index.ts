@@ -353,6 +353,15 @@ export interface SendMessageWithRiskResponse extends SendMessageResponse {
 export * from './validators/rut';
 
 // ── HdU24: gestión de cuentas de psicólogo ────────────────────────────────
+// Un psicólogo puede atender varias sedes y sus pacientes están repartidos entre ellas, así
+// que reasignar exige saber cuántos hay en cada una: un total suelto no alcanza para decidir
+// a quién se le pasa qué. Solo trae las sedes con al menos un paciente activo.
+export interface PatientsBySede {
+  sedeId: string;
+  sedeName: string;
+  count: number;
+}
+
 export interface PsychologistListItem {
   id: string;
   firstName: string;
@@ -361,6 +370,7 @@ export interface PsychologistListItem {
   accountStatus: AccountStatus;
   sedes: Sede[];
   patientCount: number;
+  patientsBySede: PatientsBySede[];
 }
 
 export interface CreatePsychologistResponse {

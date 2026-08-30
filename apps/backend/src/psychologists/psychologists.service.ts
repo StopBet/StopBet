@@ -66,9 +66,18 @@ export class PsychologistsService {
 
   private async toListItem(user: User): Promise<PsychologistListItem> {
     const sedes = await this.sedesOf(user.id);
-    const patientCount = await this.assignmentRepo.count({
+    // Se traen las asignaciones en vez de contarlas porque reasignar necesita el reparto por
+    // sede, no el total. Es la misma cantidad de consultas que el count que había antes.
+    const assignments = await this.assignmentRepo.find({
       where: { psychologistId: user.id, active: true },
     });
+
+    const sedeNames = new Map(sedes.map((s) => [s.id, s.name]));
+    const counts = new Map<string, number>();
+    for (const a of assignments) {
+      counts.set(a.sedeId, (counts.get(a.sedeId) ?? 0) + 1);
+    }
+
     return {
       id: user.id,
       firstName: user.firstName,
@@ -76,7 +85,14 @@ export class PsychologistsService {
       email: user.email,
       accountStatus: user.accountStatus,
       sedes,
-      patientCount,
+      patientCount: assignments.length,
+      patientsBySede: [...counts].map(([sedeId, count]) => ({
+        sedeId,
+        // Un paciente puede haber quedado en una sede que el psicólogo ya no atiende; se
+        // muestra igual, con el id como nombre, en vez de esconderlo del reparto.
+        sedeName: sedeNames.get(sedeId) ?? sedeId,
+        count,
+      })),
     };
   }
 
@@ -222,19 +238,44 @@ export class PsychologistsService {
         .find({ where: { psychologistId: id, active: true } });
 
       if (activeAssignments.length > 0) {
-        if (!dto.reassignTo) {
+        // Los pacientes se reparten por sede: un mismo destino no tiene por qué atender todas
+        // las sedes del que se va, y exigirlo dejaba bajas imposibles de completar.
+        const bySede = new Map<string, PatientAssignment[]>();
+        for (const a of activeAssignments) {
+          const group = bySede.get(a.sedeId);
+          if (group) group.push(a);
+          else bySede.set(a.sedeId, [a]);
+        }
+
+        const targets = new Map<string, string>();
+        for (const sedeId of bySede.keys()) {
+          const target = dto.reassignments?.[sedeId] ?? dto.reassignTo;
+          if (target) targets.set(sedeId, target);
+        }
+
+        if (targets.size < bySede.size) {
           throw new ConflictException({
             message:
               'El psicólogo tiene pacientes activos: reasígnalos antes de desactivar la cuenta',
             patientIds: activeAssignments.map((a) => a.patientId),
+            bySede: [...bySede]
+              .filter(([sedeId]) => !targets.has(sedeId))
+              .map(([sedeId, group]) => ({
+                sedeId,
+                patientIds: group.map((a) => a.patientId),
+              })),
           });
         }
-        if (dto.reassignTo === id) {
-          throw new BadRequestException(
-            'No puedes reasignar pacientes al mismo psicólogo que se está desactivando',
-          );
+
+        for (const [sedeId, group] of bySede) {
+          const target = targets.get(sedeId) as string;
+          if (target === id) {
+            throw new BadRequestException(
+              'No puedes reasignar pacientes al mismo psicólogo que se está desactivando',
+            );
+          }
+          await this.reassignAll(manager, group, target);
         }
-        await this.reassignAll(manager, activeAssignments, dto.reassignTo);
       }
 
       await manager.getRepository(User).update(id, { accountStatus: 'suspended' });

@@ -51,14 +51,14 @@ export class PsychologistsController {
 
   @Patch(':id/deactivate')
   @Roles('coordinator')
-  @ApiOperation({ summary: 'Desactivar un psicólogo, exigiendo reasignar a sus pacientes activos primero' })
+  @ApiOperation({ summary: 'Desactivar un psicólogo, exigiendo reasignar a sus pacientes activos primero, repartidos por sede' })
   @ApiParam({ name: 'id', description: 'UUID del psicólogo' })
   @ApiResponse({ status: 200, description: 'Desactivado' })
-  @ApiResponse({ status: 400, description: 'reassignTo apunta al mismo psicólogo que se desactiva' })
+  @ApiResponse({ status: 400, description: 'El destino apunta al mismo psicólogo que se desactiva, o no atiende la sede de esos pacientes' })
   @ApiResponse({ status: 401, description: 'Token ausente o inválido' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso — requiere coordinator' })
   @ApiResponse({ status: 404, description: 'Psicólogo (o el de destino) no encontrado' })
-  @ApiResponse({ status: 409, description: 'Tiene pacientes activos: falta reassignTo' })
+  @ApiResponse({ status: 409, description: 'Tiene pacientes activos sin destino; el cuerpo trae bySede con las sedes que faltan' })
   deactivate(@Param('id') id: string, @Body() dto: DeactivatePsychologistDto) {
     return this.psychologistsService.deactivate(id, dto);
   }
