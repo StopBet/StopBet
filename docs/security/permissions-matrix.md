@@ -17,10 +17,12 @@ de protección hoy.
 | ❌ Abierto | Sin identidad de ningún tipo. Cualquiera en internet puede llamarlo |
 | 🔓 Público (correcto) | Diseñado para ser público (login, catálogo de sedes, registro de pacientes) |
 
-**Resumen:** de 56 endpoints, **3 verifican rol** (todos ⚠️, ninguno vía guard real) y
-**15 no reciben ninguna identidad**. Este PR deja **2 protegidos de verdad** con `RolesGuard`
-(`GET /users/patients`, `GET /users/:id/progress`) — los únicos que son de José en este sprint.
-El resto queda documentado como deuda cruzada (ver [Huecos críticos](#huecos-críticos)).
+**Resumen (actualizado):** de los 56 endpoints originales, **19 ya están protegidos de
+verdad** con `JwtAuthGuard` + `RolesGuard` — `family` (7, Alex), `psychologists` (5, Matías
+Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, José), `metrics`
+(1, Eduardo), `panic` (1, José). El resto sigue documentado como deuda cruzada (ver
+[Huecos críticos](#huecos-críticos)), que ya se achicó: `registration/pending`, `approve` y
+`reject` se cerraron después de la primera versión de esta matriz.
 
 ---
 
@@ -36,9 +38,11 @@ El resto queda documentado como deuda cruzada (ver [Huecos críticos](#huecos-cr
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `POST /users/login` | `psychologist` (legacy — el dashboard web migra a `/auth/login`) | ⚠️ Verificado sin guard — y además **nunca compara la contraseña** |
-| `GET /users/patients` | `psychologist`, `coordinator` | ✅ **Protegido en este PR** |
-| `GET /users/:id/progress` | `psychologist`, `coordinator` | ✅ **Protegido en este PR** |
+| `GET /users/patients` | `psychologist`, `coordinator` | ✅ Protegido |
+| `GET /users/:id/progress` | `psychologist`, `coordinator` | ✅ Protegido |
+
+> `POST /users/login` existía acá — se **eliminó** en el PR #44 (nunca comparaba la
+> contraseña; el dashboard web ya usa `/auth/login`, que sí es role-agnostic y verifica bcrypt).
 
 ## `health` — raíz
 
@@ -58,9 +62,9 @@ El resto queda documentado como deuda cruzada (ver [Huecos críticos](#huecos-cr
 |---|---|---|
 | `POST /registration/submit` | Público (onboarding del paciente) | 🔓 Público (correcto) |
 | `GET /registration/:requestId` | Público (el UUID de la solicitud actúa como secreto) | 🔓 Público (aceptable) |
-| `GET /registration/pending` | `psychologist`, `coordinator` | ❌ **Abierto — PII completa de solicitantes, sin ninguna identidad** |
-| `PATCH /registration/:requestId/approve` | `psychologist`, `coordinator` | ⚠️ Verificado sin guard — y el rol **nunca se comprueba**, solo se graba el UUID como revisor |
-| `PATCH /registration/:requestId/reject` | `psychologist`, `coordinator` | ⚠️ Igual que approve |
+| `GET /registration/pending` | `psychologist`, `coordinator` | ✅ Protegido |
+| `PATCH /registration/:requestId/approve` | `psychologist`, `coordinator` | ✅ Protegido |
+| `PATCH /registration/:requestId/reject` | `psychologist`, `coordinator` | ✅ Protegido |
 
 ## `panic` — `/panic`
 
@@ -69,7 +73,7 @@ El resto queda documentado como deuda cruzada (ver [Huecos críticos](#huecos-cr
 | `GET /panic/sponsor` | `patient` (dueño) | ⚠️ Scoped por dueño |
 | `POST /panic/assign` | `psychologist`, `coordinator` | ❌ **Abierto — cualquiera reasigna el padrino de cualquier paciente** |
 | `POST /panic/alerts` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `GET /panic/alerts/history` | `psychologist`, `coordinator` | ❌ **Abierto — historial completo de crisis + nombres, sin identidad** |
+| `GET /panic/alerts/history` | `psychologist`, `coordinator` | ✅ Protegido |
 | `GET /panic/alerts/active` | `patient` o `sponsor` (dueño) | ⚠️ Scoped por dueño |
 | `GET /panic/pending` | `sponsor` (dueño) | ⚠️ Scoped por dueño |
 | `POST /panic/alerts/:id/respond` | `sponsor` (dueño) | ⚠️ Scoped por dueño |
@@ -161,17 +165,15 @@ priorice:
 
 | Endpoint | Qué expone/permite | Módulo / dueño en este sprint |
 |---|---|---|
-| `GET /panic/alerts/history` | Historial completo de crisis + nombres de pacientes | `panic` — Matías Barraza |
 | `POST /panic/assign` | Reasignar el padrino de cualquier paciente | `panic` — Matías Barraza |
-| `GET /registration/pending` | PII completa de solicitantes en espera | `registration` — Matías Lara |
-| `PATCH /registration/:id/approve` y `/reject` | Aprobar/rechazar cuentas sin verificar que quien lo hace sea psicólogo | `registration` — Matías Lara |
 | `POST /community/announcements` | Crear anuncios oficiales de sede sin verificar rol | `community` — Catalina Yáñez |
 | `GET /community/posts/:id/replies` | Contenido del foro clínico, sin identidad | `community` — Catalina Yáñez |
 | `POST /subscriptions` | Activar la cuenta de cualquier paciente (`userId` en el body) | `subscriptions` — sin dueño asignado este sprint |
 | `POST /achievements/dev-set-days` | Puerta trasera de desarrollo, sin flag de entorno | `achievements` — sin dueño asignado este sprint |
 
-**De los propios de José:** `GET /users/patients` y `GET /users/:id/progress` estaban en esta
-misma lista — se cierran en este PR (ver S.5).
+**De los propios de José:** `GET /users/patients`, `GET /users/:id/progress` y
+`GET /panic/alerts/history` estaban en esta lista — los tres protegidos, y probados con 403
+real en `test/roles.e2e-spec.ts` (S.5).
 
 ---
 
@@ -185,10 +187,12 @@ público de Railway).
 
 ## Cifrado en reposo (parte de S.6)
 
-El RUT (`User.rut`) es el único dato clínico-identificable persistido sin transformar antes de
-este PR. Se cifra con AES-256-GCM vía column transformer de TypeORM — ver
-`apps/backend/src/common/crypto/encrypted-column.transformer.ts`. El `RUT` que vive en
-`RegistrationRequest` (módulo `registration`) queda fuera de este PR — no es archivo de José.
+El RUT (`User.rut`) es el **único campo `rut` de todo el backend** — verificado: no hay una
+segunda columna en `RegistrationRequest` ni en ninguna otra entidad. `registration.service.ts`
+escribe directo en `User.rut`, así que el RUT del registro de un paciente queda cifrado desde
+el primer guardado, sin ninguna ruta alternativa en texto plano. Cifrado con AES-256-GCM vía
+column transformer de TypeORM — ver
+`apps/backend/src/common/crypto/encrypted-column.transformer.ts`.
 
 ---
 

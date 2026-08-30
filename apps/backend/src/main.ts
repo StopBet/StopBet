@@ -1,10 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.use(
+    helmet({
+      // La CSP por defecto bloquea los scripts/estilos inline que usa Swagger UI
+      // en /api/docs. HSTS (S.6) queda activo con los defaults de helmet.
+      contentSecurityPolicy: false,
+    }),
+  );
 
   app.useGlobalPipes(
     new ValidationPipe({

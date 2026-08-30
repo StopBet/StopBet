@@ -124,6 +124,84 @@ describe('Roles guard (e2e)', () => {
     });
   });
 
+  describe('GET /metrics/patients/:id', () => {
+    it('sin token → 401', async () => {
+      await request(app.getHttpServer()).get(`/metrics/patients/${patientId}`).expect(401);
+    });
+
+    it('con rol patient → 403', async () => {
+      const token = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: patientId } })).email,
+      );
+      await request(app.getHttpServer())
+        .get(`/metrics/patients/${patientId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+    });
+
+    it('con rol psychologist → 200', async () => {
+      const token = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: psychologistId } })).email,
+      );
+      await request(app.getHttpServer())
+        .get(`/metrics/patients/${patientId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+    });
+  });
+
+  describe('GET /registration/pending', () => {
+    it('sin token → 401', async () => {
+      await request(app.getHttpServer()).get('/registration/pending').expect(401);
+    });
+
+    it('con rol patient → 403', async () => {
+      const token = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: patientId } })).email,
+      );
+      await request(app.getHttpServer())
+        .get('/registration/pending')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+    });
+
+    it('con rol psychologist → 200', async () => {
+      const token = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: psychologistId } })).email,
+      );
+      await request(app.getHttpServer())
+        .get('/registration/pending')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+    });
+  });
+
+  describe('GET /panic/alerts/history', () => {
+    it('sin token → 401', async () => {
+      await request(app.getHttpServer()).get('/panic/alerts/history').expect(401);
+    });
+
+    it('con rol patient → 403', async () => {
+      const token = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: patientId } })).email,
+      );
+      await request(app.getHttpServer())
+        .get('/panic/alerts/history')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+    });
+
+    it('con rol psychologist → 200', async () => {
+      const token = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: psychologistId } })).email,
+      );
+      await request(app.getHttpServer())
+        .get('/panic/alerts/history')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+    });
+  });
+
   describe('endpoints públicos de /auth (@Public, sin guard global todavía)', () => {
     it('POST /auth/login sigue accesible sin token', async () => {
       const patient = await userRepo.findOneOrFail({ where: { id: patientId } });
