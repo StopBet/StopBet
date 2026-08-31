@@ -32,6 +32,17 @@ function errorMessage(err: unknown, fallback: string): string {
   return apiErr.body?.message ?? fallback
 }
 
+// El backend rechaza cualquier destino que no atienda la sede de esos pacientes, así que
+// ofrecerlo igual solo produce un error sin salida: se filtra antes de mostrarlo.
+function targetsForSede(candidates: PsychologistListItem[], excludeId: string, sedeId: string) {
+  return candidates.filter(
+    (p) =>
+      p.id !== excludeId &&
+      p.accountStatus === 'active' &&
+      p.sedes.some((s) => s.id === sedeId),
+  )
+}
+
 /* ── Create Modal ────────────────────────────────────── */
 function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; onClose: () => void; onDone: () => void }) {
   const [firstName, setFirstName] = useState('')
@@ -164,26 +175,24 @@ function DeactivateModal({
   onClose: () => void
   onDeactivated: () => void
 }) {
-  const [reassignTo, setReassignTo] = useState('')
-  const [needsReassign, setNeedsReassign] = useState(psychologist.patientCount > 0)
+  // Un destino por sede: los pacientes de cada sede solo pueden pasar a alguien que la atienda.
+  const [reassignments, setReassignments] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: () => api.deactivatePsychologist(psychologist.id, reassignTo || undefined),
+    mutationFn: () => api.deactivatePsychologistBySede(psychologist.id, reassignments),
     onSuccess: onDeactivated,
-    onError: (err) => {
-      const apiErr = err as ApiError
-      if (apiErr.status === 409) setNeedsReassign(true)
-      setError(errorMessage(err, 'No se pudo desactivar la cuenta. Inténtalo de nuevo.'))
-    },
+    onError: (err) => setError(errorMessage(err, 'No se pudo desactivar la cuenta. Inténtalo de nuevo.')),
   })
 
-  const eligibleTargets = candidates.filter((p) => p.id !== psychologist.id && p.accountStatus === 'active')
+  const groups = psychologist.patientsBySede
+  const blocked = groups.filter((g) => targetsForSede(candidates, psychologist.id, g.sedeId).length === 0)
+  const allChosen = groups.every((g) => reassignments[g.sedeId])
 
   return (
     <div style={overlayStyle}>
       <Scrim onClose={onClose} />
-      <div style={{ ...cardStyle, width: 460, padding: 28 }}>
+      <div style={{ ...cardStyle, width: 480, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger)' }}>Desactivar psicólogo</h2>
@@ -202,22 +211,42 @@ function DeactivateModal({
           </div>
         )}
 
-        {needsReassign && (
+        {groups.length > 0 && (
           <div style={{ marginBottom: 20 }}>
-            <label style={labelStyle}>Reasignar sus pacientes a</label>
-            <select value={reassignTo} onChange={(e) => setReassignTo(e.target.value)} style={{ ...fieldStyle, cursor: 'pointer' }}>
-              <option value="">Selecciona un psicólogo…</option>
-              {eligibleTargets.map((p) => (
-                <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
-              ))}
-            </select>
+            {groups.map((g) => {
+              const targets = targetsForSede(candidates, psychologist.id, g.sedeId)
+              return (
+                <div key={g.sedeId} style={{ marginBottom: 14 }}>
+                  <label style={labelStyle}>
+                    {g.sedeName} — {g.count} paciente{g.count !== 1 ? 's' : ''}
+                  </label>
+                  {targets.length === 0 ? (
+                    <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--danger)' }}>
+                      Ningún psicólogo activo atiende {g.sedeName}. Asígnale esa sede a alguien
+                      antes de dar de baja a {psychologist.firstName}.
+                    </div>
+                  ) : (
+                    <select
+                      value={reassignments[g.sedeId] ?? ''}
+                      onChange={(e) => setReassignments((prev) => ({ ...prev, [g.sedeId]: e.target.value }))}
+                      style={{ ...fieldStyle, cursor: 'pointer' }}
+                    >
+                      <option value="">Selecciona un psicólogo…</option>
+                      {targets.map((p) => (
+                        <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )
+            })}
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
           <button onClick={onClose} disabled={mutation.isPending} style={secondaryBtnStyle}>Cancelar</button>
-          <button onClick={() => mutation.mutate()} disabled={mutation.isPending || (needsReassign && !reassignTo)}
-            style={{ height: 46, padding: '0 24px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: mutation.isPending ? 'not-allowed' : 'pointer', opacity: mutation.isPending ? 0.7 : 1 }}>
+          <button onClick={() => mutation.mutate()} disabled={mutation.isPending || blocked.length > 0 || !allChosen}
+            style={{ height: 46, padding: '0 24px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: mutation.isPending || blocked.length > 0 || !allChosen ? 'not-allowed' : 'pointer', opacity: mutation.isPending || blocked.length > 0 || !allChosen ? 0.6 : 1 }}>
             {mutation.isPending ? 'Desactivando…' : 'Desactivar'}
           </button>
         </div>
@@ -240,6 +269,7 @@ function EditSedesModal({
   const [reassignments, setReassignments] = useState<Record<string, string>>({})
   const [pendingSede, setPendingSede] = useState<{ sedeId: string; patientIds: string[] } | null>(null)
   const [reassignTarget, setReassignTarget] = useState('')
+  const [lastAdded, setLastAdded] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // El backend rechaza de a una sede conflictiva por vez (409 con esa sedeId), así que el
@@ -258,6 +288,17 @@ function EditSedesModal({
         })
         setError(null)
       } else {
+        // El destino recién elegido se guardaba antes de saber si el backend lo aceptaba: al
+        // rechazarlo quedaba pegado en el mapa y cada reintento fallaba igual sin volver a
+        // preguntar. Se descarta para que la sede vuelva a pedir destino.
+        if (lastAdded) {
+          setReassignments((prev) => {
+            const next = { ...prev }
+            delete next[lastAdded]
+            return next
+          })
+          setLastAdded(null)
+        }
         setError(errorMessage(err, 'No se pudieron actualizar las sedes. Inténtalo de nuevo.'))
       }
     },
@@ -276,15 +317,15 @@ function EditSedesModal({
     if (!pendingSede || !reassignTarget) return
     const next = { ...reassignments, [pendingSede.sedeId]: reassignTarget }
     setReassignments(next)
+    setLastAdded(pendingSede.sedeId)
     setPendingSede(null)
     setReassignTarget('')
     mutation.mutate(next)
   }
 
-  const eligibleTargets = candidates.filter((p) => p.id !== psychologist.id && p.accountStatus === 'active')
-
   if (pendingSede) {
     const pendingSedeName = allSedes.find((s) => s.id === pendingSede.sedeId)?.name ?? pendingSede.sedeId
+    const eligibleTargets = targetsForSede(candidates, psychologist.id, pendingSede.sedeId)
     return (
       <div style={overlayStyle}>
         <Scrim onClose={onClose} />
@@ -298,12 +339,19 @@ function EditSedesModal({
           </p>
           <div style={{ marginBottom: 22 }}>
             <label style={labelStyle}>Reasignar a</label>
-            <select value={reassignTarget} onChange={(e) => setReassignTarget(e.target.value)} style={{ ...fieldStyle, cursor: 'pointer' }}>
-              <option value="">Selecciona un psicólogo…</option>
-              {eligibleTargets.map((p) => (
-                <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
-              ))}
-            </select>
+            {eligibleTargets.length === 0 ? (
+              <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--danger)' }}>
+                Ningún otro psicólogo activo atiende {pendingSedeName}. Asígnale esa sede a
+                alguien antes de quitársela a {psychologist.firstName}.
+              </div>
+            ) : (
+              <select value={reassignTarget} onChange={(e) => setReassignTarget(e.target.value)} style={{ ...fieldStyle, cursor: 'pointer' }}>
+                <option value="">Selecciona un psicólogo…</option>
+                {eligibleTargets.map((p) => (
+                  <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
+                ))}
+              </select>
+            )}
           </div>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
             <button onClick={onClose} style={secondaryBtnStyle}>Cancelar</button>
@@ -433,8 +481,16 @@ export function EquipoPage() {
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: '14px 14px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)' }}>
-                    {p.patientCount}
+                  <td style={{ padding: '14px 14px' }}>
+                    <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)' }}>{p.patientCount}</div>
+                    {/* Reasignar exige saber cuantos hay en cada sede, no solo el total. */}
+                    {p.patientsBySede.length > 0 && (
+                      <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--fg2)', lineHeight: 1.5 }}>
+                        {p.patientsBySede.map((g) => (
+                          <div key={g.sedeId}>{g.sedeName}: {g.count}</div>
+                        ))}
+                      </div>
+                    )}
                   </td>
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>

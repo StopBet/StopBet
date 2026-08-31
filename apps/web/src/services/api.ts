@@ -239,6 +239,12 @@ export interface PatientMetrics {
   moodAvg: number | null
 }
 
+export interface PatientsBySede {
+  sedeId: string
+  sedeName: string
+  count: number
+}
+
 export interface PsychologistListItem {
   id: string
   firstName: string
@@ -247,6 +253,7 @@ export interface PsychologistListItem {
   accountStatus: string
   sedes: Sede[]
   patientCount: number
+  patientsBySede: PatientsBySede[]
 }
 
 export interface CreatePsychologistPayload {
@@ -335,6 +342,11 @@ export const api = {
 
   updatePsychologistSedes: (id: string, sedeIds: string[], reassignments?: Record<string, string>) =>
     patchWithAuth<void>(`/psychologists/${id}/sedes`, { sedeIds, reassignments }),
+
+  // Reemplaza a deactivatePsychologist cuando hay que repartir por sede: un destino no tiene
+  // por qué atender todas las sedes del psicólogo que se da de baja.
+  deactivatePsychologistBySede: (id: string, reassignments: Record<string, string>) =>
+    patchWithAuth<void>(`/psychologists/${id}/deactivate`, { reassignments }),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────

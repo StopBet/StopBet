@@ -20,6 +20,51 @@ está.
 
 ---
 
+## 2026-08-30 — HU-24 · Reasignación de pacientes por sede (rama `feature/HU-24-reasignacion-por-sede-matias-lara`)
+
+### Hay que recompilar `shared-types` después de pullear
+
+**A quién le pega:** a quien levante el backend o el dashboard web.
+
+**Qué hacer**, una vez después de pullear, desde la raíz:
+
+```bash
+pnpm --filter @stopbet/shared-types build
+```
+
+**Por qué:** `PsychologistListItem` suma un campo obligatorio, `patientsBySede`. Si tu `dist/`
+quedó viejo, el type-check falla al usar el tipo. `pnpm run backend` ya lo compila solo; hace
+falta a mano si levantas solo la web o solo Metro.
+
+### Desactivar un psicólogo ahora pide un destino **por cada sede**
+
+**A quién le pega:** a quien pruebe la página Equipo o consuma
+`PATCH /psychologists/:id/deactivate`.
+
+Antes se mandaba un único `reassignTo` para todos los pacientes, y el backend exigía que ese
+destino atendiera **todas** las sedes del psicólogo que se iba. Con pacientes repartidos en
+dos sedes eso dejaba la baja **imposible de completar**: la UI ofrecía un destino que el
+backend siempre rechazaba con "no atiende todas las sedes", y no había otra opción.
+
+Ahora el cuerpo acepta un mapa `reassignments` de `sedeId → psychologistId`, igual que
+`PATCH /psychologists/:id/sedes`:
+
+```json
+{ "reassignments": { "<sedeId-santiago>": "<psychId-A>", "<sedeId-vina>": "<psychId-B>" } }
+```
+
+**`reassignTo` sigue funcionando** como atajo cuando hay una sola sede: no rompe a nadie que
+ya lo esté usando.
+
+**Dos cambios visibles que podrías confundir con un bug:**
+
+- El 409 de "tiene pacientes activos" ahora trae además un `bySede` con las sedes que quedaron
+  sin destino. `patientIds` sigue estando donde estaba.
+- En la página Equipo, el desplegable de reasignación **ya no lista a todos los psicólogos
+  activos**: solo a los que atienden esa sede. Si no hay ninguno, en vez de un desplegable sale
+  un mensaje diciendo a qué sede hay que asignarle a alguien primero, y el botón queda
+  deshabilitado. **Eso es a propósito**, no es que la lista esté rota.
+
 ## 2026-08-30 — PR #58 · Cierre de criterios del SPIKE (S.4, S.5, S.6, S.11)
 
 ### Hay que correr `pnpm install` después de pullear
