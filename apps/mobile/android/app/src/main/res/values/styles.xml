@@ -1,9 +1,15 @@
 <resources>
 
     <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <style name="AppTheme.Base" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <!-- La barra de navegación tapaba el final de la app con un gris que no es
+             de la paleta. Transparente deja que el crema de la BottomNav llegue
+             hasta el borde; el padding lo pone `useSafeAreaInsets`. -->
+        <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+
+    <style name="AppTheme" parent="AppTheme.Base" />
 
     <!-- Splash screen: se muestra hasta que React Native termine de cargar el bundle. -->
     <style name="SplashTheme" parent="Theme.AppCompat.NoActionBar">
