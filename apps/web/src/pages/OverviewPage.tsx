@@ -8,6 +8,7 @@ import { generatePatientPDF } from '../utils/generatePatientPDF'
 import { api } from '../services/api'
 import type { PatientListItem, AlertHistoryItem } from '../services/api'
 import { useAlertsRealtime } from '../hooks/useAlertsRealtime'
+import { useIsNarrow } from '../hooks/useIsNarrow'
 
 /* ── Data helpers ────────────────────────────────────── */
 
@@ -73,14 +74,14 @@ function toPatient(
     initials: `${p.firstName[0] ?? ''}${p.lastName[0] ?? ''}`.toUpperCase(),
     name: `${p.firstName} ${p.lastName}`,
     email: p.email,
-    sede: shortSedeName(sedeMap[p.sedeId ?? ''] ?? p.sedeId ?? '—'),
+    sede: shortSedeName(sedeMap[p.sedeId ?? ''] ?? p.sedeId ?? '-'),
     days: p.daysStreak,
     status: hasActiveAlert || patientAlerts.some(a => a.status === 'pending') ? 'riesgo' : 'normal',
-    mood: p.lastCheckIn ? (EMOTION_EMOJI[p.lastCheckIn.emotion] ?? '😊') : '—',
+    mood: p.lastCheckIn ? (EMOTION_EMOJI[p.lastCheckIn.emotion] ?? '😊') : '-',
     lastAlert: lastAlert ? relTime(lastAlert.createdAt) : 'Nunca',
     lastAlertTone: hasActiveAlert ? 'danger' : (lastAlert ? 'muted' : 'muted'),
     panicTotal: patientAlerts.length,
-    moodAvg: '—',
+    moodAvg: '-',
     lastCheck: p.lastCheckIn ? relTime(p.lastCheckIn.date) : 'Sin datos',
     evolution: buildEvolution(p.recentCheckIns),
     alerts: patientAlerts.map(a => ({
@@ -233,8 +234,8 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--danger)', display: 'inline-block' }} /> Alerta de pánico
                 </span>
               </div>
-              <StatRow icon="clipboard-list" label="Total check-ins (30 días)" value={metrics?.totalCheckIns ?? '—'} />
-              <StatRow icon="triangle-alert" label="Alertas de pánico (30 días)" value={metrics?.panicCount ?? '—'} color={metrics && metrics.panicCount > 0 ? 'var(--danger)' : undefined} />
+              <StatRow icon="clipboard-list" label="Total check-ins (30 días)" value={metrics?.totalCheckIns ?? '-'} />
+              <StatRow icon="triangle-alert" label="Alertas de pánico (30 días)" value={metrics?.panicCount ?? '-'} color={metrics && metrics.panicCount > 0 ? 'var(--danger)' : undefined} />
               <StatRow icon="activity" label="Promedio de estado" value={metrics?.moodAvg != null ? `${metrics.moodAvg}/5` : 'Sin datos'} />
               <StatRow icon="clock" label="Último check emocional" value={patient.lastCheck} />
               <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -337,6 +338,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
 
 /* ── Patient Table ───────────────────────────────────── */
 function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: Patient) => void }) {
+  const isNarrow = useIsNarrow()
   const [q, setQ] = useState('')
   const [sedeFilter, setSedeFilter] = useState('Todas')
 
@@ -380,6 +382,51 @@ function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: P
         </label>
       </div>
 
+      {/* Seis columnas no entran en un teléfono, y forzarlas con scroll horizontal
+          esconde justo lo que importa (días y última alerta). Cada paciente pasa a
+          ser una tarjeta con los mismos datos apilados. */}
+      {isNarrow ? (
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {rows.map(p => {
+            const danger = p.lastAlertTone === 'danger'
+            return (
+              <button
+                key={p.id}
+                onClick={() => onOpen(p)}
+                style={{
+                  display: 'flex', flexDirection: 'column', gap: 10, width: '100%',
+                  textAlign: 'left', border: 'none', borderTop: '1px solid var(--border)',
+                  background: danger ? 'var(--red-50)' : 'transparent',
+                  padding: '14px 20px', cursor: 'pointer', font: 'inherit',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{p.initials}</div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                    <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.email}</div>
+                  </div>
+                  <StatusBadge status={p.status} />
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, color: 'var(--primary)', minWidth: 34 }}>{p.days}</span>
+                  <ProgressBar value={p.days} max={120} color={danger ? 'var(--accent)' : 'var(--primary)'} />
+                  <span style={{ fontSize: 11.5, color: 'var(--fg2)', whiteSpace: 'nowrap' }}>días</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ display: 'inline-block', background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 11.5, fontWeight: 600 }}>{p.sede}</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: danger ? 600 : 400, color: danger ? 'var(--danger)' : 'var(--fg2)' }}>
+                    {danger && <WIcon name="circle-alert" size={13} color="var(--danger)" />}
+                    {p.lastAlert}
+                  </span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      ) : (
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col /><col style={{ width: 92 }} /><col style={{ width: 138 }} />
@@ -438,8 +485,9 @@ function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: P
           })}
         </tbody>
       </table>
+      )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderTop: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 13, color: 'var(--fg2)' }}>Mostrando 1–{rows.length} de {patients.length} pacientes</span>
         <div style={{ display: 'flex', gap: 8 }}>
           {['chevron-left', 'chevron-right'].map((icon, i) => (
@@ -596,6 +644,7 @@ interface OverviewPageProps {
 
 export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
   const [selected, setSelected] = useState<Patient | null>(null)
+  const isNarrow = useIsNarrow()
 
   useAlertsRealtime()
 
@@ -656,8 +705,20 @@ export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 1440, minWidth: 1180, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+    // `minWidth: 1180` obligaba a desplazar la página de lado en cualquier pantalla
+    // más angosta: en el teléfono el resumen quedaba cortado por la mitad.
+    <div style={{
+      padding: isNarrow ? '16px 12px 28px' : 32,
+      maxWidth: 1440, minWidth: isNarrow ? 0 : 1180,
+      margin: '0 auto', width: '100%', boxSizing: 'border-box',
+    }}>
+      {/* Las cuatro métricas en fila no caben; en dos columnas siguen siendo legibles */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))',
+        gap: isNarrow ? 10 : 16,
+        marginBottom: isNarrow ? 16 : 24,
+      }}>
         <MetricCard icon="users" label="Pacientes activos" value={patients.length} tone="teal" important
           sub={<><WIcon name="trending-up" size={14} color="var(--sage-500)" /><span style={{ color: 'var(--sage-500)', fontWeight: 600 }}>activos</span> · total en mi sede</>} />
         <MetricCard icon="inbox" label="Solicitudes pendientes" value={reqCount} tone="amber" important
@@ -669,7 +730,12 @@ export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
           sub="días promedio por paciente · acumulado 2026" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1.85fr) minmax(0,1fr)', gap: 16, alignItems: 'start' }}>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isNarrow ? '1fr' : 'minmax(0,1.85fr) minmax(0,1fr)',
+        gap: isNarrow ? 12 : 16,
+        alignItems: 'start',
+      }}>
         <PatientTable patients={patients} onOpen={setSelected} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <PanicPanel todayAlerts={todayAlerts} onOpenPatient={openByName} />
