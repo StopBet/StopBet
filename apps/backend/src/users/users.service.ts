@@ -5,6 +5,7 @@ import { User } from './entities/user.entity';
 import { PatientProgress } from '@stopbet/shared-types';
 import { CheckIn } from '../check-ins/entities/check-in.entity';
 import { AbstinencePeriod } from '../achievements/entities/abstinence-period.entity';
+import { todayInChile } from '../common/chile-date';
 
 const MILESTONES = [30, 60, 90, 180, 365];
 
@@ -17,7 +18,7 @@ function daysBetween(startDate: string, endDate: string): number {
 }
 
 function today(): string {
-  return new Date().toISOString().split('T')[0];
+  return todayInChile();
 }
 
 export interface PatientListItem {
