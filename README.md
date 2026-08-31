@@ -230,14 +230,42 @@ npx react-native run-android
 
 ## Despliegue en producción
 
-| Servicio | Plataforma | Configuración |
-|---------|-----------|--------------|
-| Dashboard web | Vercel | `vercel.json` en raíz |
-| Backend + DB | Railway | `apps/backend/railway.toml` |
+| Servicio | Plataforma | URL |
+|---------|-----------|-----|
+| Dashboard web | Vercel | https://stopbet-lemon.vercel.app |
+| Backend + DB | Railway | https://stopbetbackend-production.up.railway.app (`/health`, `/api/docs`) |
 | Archivos (PDF, fotos) | Cloudflare R2 | API compatible S3 |
 
-Railway y Vercel se conectan automáticamente con GitHub y hacen deploy en cada push a `main`.  
-Las variables de entorno de producción se configuran en los dashboards de cada plataforma.
+Railway y Vercel se conectan automáticamente con GitHub y hacen deploy en cada push a `main`.
+Las variables de entorno de producción se configuran en los dashboards de cada plataforma,
+**nunca en el repo**.
+
+> ⚠️ En Railway hay dos proyectos llamados **StopBet**. El de la tabla de arriba es el real,
+> en la cuenta de José Meza. Si aparece otro en el workspace personal de Matías Barraza, es
+> un intento anterior, muerto desde mayo — ignóralo.
+
+### Variables de entorno en Railway (`@stopbet/backend`)
+
+Las mismas de `apps/backend/.env.example`, con dos diferencias respecto a local:
+
+- `CORS_ORIGIN` acepta una lista separada por comas, útil para tener a la vez el dominio de
+  Vercel y `http://localhost:5173` (desarrollo local contra el backend de la nube).
+- **No configurar `NODE_ENV=production`.** El repo no tiene migraciones: con esa variable el
+  `synchronize` de TypeORM se apaga y las tablas nunca se crean. Se deja sin definir a
+  propósito — detalle en `CLAUDE.md` → Deudas técnicas.
+
+### Poblar la base de datos de producción
+
+La base de Railway no trae datos por defecto. Desde tu máquina, con un `apps/backend/.env`
+que apunte al `DATABASE_URL` **público** del Postgres de Railway (no el `.railway.internal`,
+que solo resuelve dentro de la red de Railway) y la **misma** `ENCRYPTION_KEY` que tiene el
+servicio (si no coincide, los RUT quedan cifrados con una clave que el backend no puede
+descifrar):
+
+```bash
+pnpm run seed
+pnpm run seed:family
+```
 
 ---
 
