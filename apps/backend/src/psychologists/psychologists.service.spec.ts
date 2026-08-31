@@ -6,6 +6,7 @@ import { User } from '../users/entities/user.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from './entities/psychologist-sede.entity';
 import { PatientAssignment } from './entities/patient-assignment.entity';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 
 describe('PsychologistsService', () => {
   let service: PsychologistsService;
@@ -25,6 +26,7 @@ describe('PsychologistsService', () => {
     save: jest.Mock;
     create: jest.Mock;
   };
+  let refreshTokenRepo: { update: jest.Mock };
   let dataSource: { transaction: jest.Mock };
 
   const santiago = { id: 'sede-santiago', name: 'Santiago', isActive: true };
@@ -59,6 +61,7 @@ describe('PsychologistsService', () => {
       save: jest.fn(),
       create: jest.fn((data) => data),
     };
+    refreshTokenRepo = { update: jest.fn() };
 
     // El manager enruta a los mismos mocks que usa el resto del spec, así las aserciones
     // sobre `assignmentRepo.update` y compañía siguen valiendo dentro de la transacción.
@@ -68,6 +71,7 @@ describe('PsychologistsService', () => {
         if (entity === Sede) return sedeRepo;
         if (entity === PsychologistSede) return psychSedeRepo;
         if (entity === PatientAssignment) return assignmentRepo;
+        if (entity === RefreshToken) return refreshTokenRepo;
         throw new Error('Entidad sin mock en el spec');
       }),
     };

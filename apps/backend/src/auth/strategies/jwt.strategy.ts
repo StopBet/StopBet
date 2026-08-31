@@ -25,6 +25,13 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.userRepo.findOne({ where: { id: payload.sub } });
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
 
+    // 401 y NO 403: el cliente web solo trata el 401 como sesión caída (api.ts:99). Con un 403 el
+    // dashboard se quedaría abierto mostrando ceros —que en clínica se leen como "nadie está en
+    // crisis"— en vez de volver al login.
+    if (user.accountStatus !== 'active') {
+      throw new UnauthorizedException('Cuenta suspendida');
+    }
+
     return {
       id: user.id,
       email: user.email,
