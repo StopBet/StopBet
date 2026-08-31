@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Notification } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -147,12 +148,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontWeight: '600',
+    fontFamily: Fonts.headingBold,
     fontSize: 16,
     color: Colors.ink900,
   },
   viewAll: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: Colors.primary,
   },
@@ -184,17 +185,19 @@ const styles = StyleSheet.create({
     alignItems: 'baseline',
   },
   cardTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
     lineHeight: 18,
     flex: 1,
   },
   time: {
+    fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.fg2,
     marginLeft: 8,
   },
   body: {
+    fontFamily: Fonts.body,
     fontSize: 12.5,
     color: Colors.fg1,
     lineHeight: 18,

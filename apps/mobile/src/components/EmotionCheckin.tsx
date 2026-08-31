@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { EmotionType } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
 const EMOTIONS: { type: EmotionType; emoji: string; label: string }[] = [
@@ -75,7 +76,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontWeight: '600',
+    fontFamily: Fonts.headingBold,
     fontSize: 16,
     color: Colors.ink900,
   },
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   badgeText: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: Colors.sage500,
   },
@@ -124,14 +125,16 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   emoji: {
+    fontFamily: Fonts.body,
     fontSize: 26,
   },
   label: {
+    fontFamily: Fonts.body,
     fontSize: 11.5,
     color: Colors.fg2,
   },
   labelSelected: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     color: Colors.sage500,
   },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { CrisisSignal, CrisisSuggestion } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 
 const CRISIS_LINE = '*4141';
@@ -57,8 +58,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  title: { fontSize: 15, fontWeight: '700', color: Colors.danger },
-  body: { fontSize: 14, color: Colors.fg2, marginBottom: 12, lineHeight: 20 },
+  title: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.danger },
+  body: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, marginBottom: 12, lineHeight: 20 },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -69,5 +70,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#FBF0F0',
     marginBottom: 6,
   },
-  actionText: { fontSize: 14, fontWeight: '600', color: Colors.fg1 },
+  actionText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg1 },
 });

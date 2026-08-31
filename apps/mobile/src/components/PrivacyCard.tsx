@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
 export function PrivacyCard() {
@@ -65,13 +66,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
+    fontFamily: Fonts.bodyBold,
     flex: 1,
-    fontWeight: '700',
     fontSize: 15,
     color: Colors.ink900,
     lineHeight: 20,
   },
   body: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.fg2,
     lineHeight: 19,
@@ -91,6 +93,7 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   listText: {
+    fontFamily: Fonts.body,
     flex: 1,
     fontSize: 12.5,
     color: Colors.ink900,

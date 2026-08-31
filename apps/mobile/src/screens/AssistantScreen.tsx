@@ -21,6 +21,7 @@ import type {
   TechniqueType,
 } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import {
   buildLocalUserMessage,
@@ -416,8 +417,8 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     backgroundColor: Colors.primary,
   },
-  headerTitle: { fontWeight: '700', fontSize: 15, color: Colors.ink900 },
-  headerSub: { fontSize: 12, color: Colors.fg2, marginTop: 1 },
+  headerTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
+  headerSub: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   closeBtn: {
     paddingHorizontal: 10,
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: 9999,
   },
-  closeBtnText: { fontSize: 12, color: Colors.fg2, fontWeight: '600' },
+  closeBtnText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
   panicBtn: {
     width: 38,
     height: 38,
@@ -449,8 +450,8 @@ const styles = StyleSheet.create({
   },
   recallIcon: { marginTop: 1 },
   recallText: { flex: 1 },
-  recallTitle: { fontWeight: '700', fontSize: 13, color: Colors.sage500 },
-  recallBody: { fontSize: 12.5, color: Colors.fg2, lineHeight: 17, marginTop: 3 },
+  recallTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.sage500 },
+  recallBody: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2, lineHeight: 17, marginTop: 3 },
 
   bubbleWrap: { maxWidth: '80%' },
   bubbleWrapLeft: { alignSelf: 'flex-start' },
@@ -470,10 +471,10 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderBottomLeftRadius: 4,
   },
-  bubbleText: { fontSize: 15, lineHeight: 21 },
+  bubbleText: { fontFamily: Fonts.body, fontSize: 15, lineHeight: 21 },
   bubbleTextUser: { color: Colors.white },
   bubbleTextAI: { color: Colors.ink900 },
-  bubbleTime: { fontSize: 10, color: Colors.fg2, marginTop: 4, alignSelf: 'flex-end' },
+  bubbleTime: { fontFamily: Fonts.body, fontSize: 10, color: Colors.fg2, marginTop: 4, alignSelf: 'flex-end' },
   bubbleTimeUser: { color: Colors.overlayWhite72 },
 
   inputBar: {
@@ -487,6 +488,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   input: {
+    fontFamily: Fonts.body,
     flex: 1,
     backgroundColor: Colors.bg,
     borderRadius: 22,

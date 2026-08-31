@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
 interface Props {
@@ -82,7 +83,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.sage500,
   },
   dotNum: {
-    fontWeight: '800',
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.fg2,
   },
@@ -90,7 +91,7 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   cap: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     fontSize: 11,
     color: Colors.fg2,
   },

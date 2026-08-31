@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import type { BadgeMilestone } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 
 interface BadgeDef {
@@ -291,32 +292,33 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   headline: {
-    fontWeight: '800',
+    fontFamily: Fonts.bodyBold,
     fontSize: 19,
     color: Colors.ink900,
     textAlign: 'center',
     marginBottom: 4,
   },
   days: {
-    fontWeight: '900',
+    fontFamily: Fonts.headingBold,
     fontSize: 58,
     color: Colors.primary,
     letterSpacing: -2,
     lineHeight: 62,
   },
   daysUnit: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     fontSize: 16,
     color: Colors.fg2,
     marginTop: 0,
   },
   label: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.accent,
     marginTop: 5,
   },
   sub: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.fg2,
     textAlign: 'center',
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  btnPrimaryText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
+  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
   btnLink: { marginTop: 14, padding: 4 },
-  btnLinkText: { color: Colors.fg2, fontWeight: '700', fontSize: 14 },
+  btnLinkText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 14 },
 });

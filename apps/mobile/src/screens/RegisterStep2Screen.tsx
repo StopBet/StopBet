@@ -17,6 +17,7 @@ import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterStep2'>;
@@ -142,8 +143,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 22, paddingBottom: 16 },
-  title: { fontWeight: '700', fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6 },
-  subtitle: { fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6 },
+  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
 
   card: {
     flexDirection: 'row',
@@ -167,8 +168,8 @@ const styles = StyleSheet.create({
   },
   pinSelected: { backgroundColor: Colors.white },
   cardBody: { flex: 1 },
-  cardName: { fontWeight: '700', fontSize: 16, color: Colors.ink900 },
-  cardAddr: { fontSize: 13, color: Colors.fg2, marginTop: 1 },
+  cardName: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.ink900 },
+  cardAddr: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 1 },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -180,11 +181,11 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginTop: 8,
   },
-  metaText: { fontWeight: '600', fontSize: 11.5, color: Colors.sage500 },
+  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.sage500 },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
   btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.4 },
-  btnText: { fontWeight: '700', fontSize: 16, color: Colors.white },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
 });

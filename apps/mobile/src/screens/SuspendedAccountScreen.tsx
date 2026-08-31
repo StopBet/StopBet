@@ -17,6 +17,7 @@ import type { BillingStatus, Invoice } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
 
@@ -413,7 +414,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
   },
-  suspBannerText: { fontWeight: '600', fontSize: 13, color: Colors.accent },
+  suspBannerText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.accent },
 
   scroll: { flex: 1, backgroundColor: Colors.bg },
   scrollContent: { padding: 22, paddingBottom: 48, gap: 22 },
@@ -429,7 +430,7 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   mainTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 26,
     color: Colors.fg1,
     textAlign: 'center',
@@ -438,6 +439,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   mainSub: {
+    fontFamily: Fonts.body,
     fontSize: 15,
     color: Colors.fg2,
     textAlign: 'center',
@@ -459,7 +461,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  overdueCardTitle: { fontWeight: '600', fontSize: 16, color: Colors.accent },
+  overdueCardTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.accent },
   overdueMonths: { marginTop: 10, gap: 0 },
   monthRow: {
     flexDirection: 'row',
@@ -467,25 +469,25 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderBottomWidth: 0,
   },
-  monthLabel: { fontSize: 13.5, color: Colors.fg2 },
-  monthAmount: { fontSize: 13.5, fontWeight: '600', color: Colors.fg1 },
+  monthLabel: { fontFamily: Fonts.body, fontSize: 13.5, color: Colors.fg2 },
+  monthAmount: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.fg1 },
   divider: { height: 1, backgroundColor: Colors.border, marginVertical: 14 },
   totalRow: { flexDirection: 'row', alignItems: 'baseline' },
-  totalAmount: { fontWeight: '700', fontSize: 24, color: Colors.fg1, letterSpacing: -0.3 },
-  totalLabel: { fontSize: 13, color: Colors.fg2, fontWeight: '600' },
-  overdueDate: { fontSize: 13, color: Colors.danger, fontWeight: '600' },
+  totalAmount: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3 },
+  totalLabel: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.fg2 },
+  overdueDate: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.danger },
 
   /* Actions */
   actions: { gap: 12 },
-  helpLink: { fontSize: 12, color: Colors.fg2, textAlign: 'center' },
-  helpLinkBold: { color: Colors.primary, fontWeight: '600' },
+  helpLink: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, textAlign: 'center' },
+  helpLinkBold: { fontFamily: Fonts.bodyBold, color: Colors.primary },
 
   /* Emergency divider */
   emDivider: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   emDividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
   emDividerText: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 11,
-    fontWeight: '600',
     letterSpacing: 1,
     color: Colors.danger,
     textTransform: 'uppercase',
@@ -501,7 +503,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: 20,
   },
-  panicCardLead: { fontSize: 13, color: Colors.fg2, lineHeight: 20, textAlign: 'center' },
+  panicCardLead: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 20, textAlign: 'center' },
   panicButton: {
     width: 72,
     height: 72,
@@ -517,15 +519,15 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 10,
   },
-  panicButtonEmoji: { fontSize: 30 },
+  panicButtonEmoji: { fontFamily: Fonts.body, fontSize: 30 },
   panicButtonLabel: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
     letterSpacing: 1,
     color: Colors.danger,
     textTransform: 'uppercase',
   },
-  panicFoot: { fontSize: 12, color: Colors.danger, marginTop: 8 },
+  panicFoot: { fontFamily: Fonts.body, fontSize: 12, color: Colors.danger, marginTop: 8 },
 
   /* Bottom sheet */
   sheetOverlay: {
@@ -548,8 +550,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 16,
   },
-  sheetTitle: { fontWeight: '700', fontSize: 19, color: Colors.fg1 },
-  sheetSub: { fontSize: 13.5, color: Colors.fg2, lineHeight: 20, marginTop: 6 },
+  sheetTitle: { fontFamily: Fonts.headingBold, fontSize: 19, color: Colors.fg1 },
+  sheetSub: { fontFamily: Fonts.body, fontSize: 13.5, color: Colors.fg2, lineHeight: 20, marginTop: 6 },
   famRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -570,10 +572,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  famAvatarText: { fontWeight: '700', fontSize: 16, color: Colors.white },
+  famAvatarText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
   famInfo: { flex: 1 },
-  famName: { fontWeight: '700', fontSize: 15, color: Colors.fg1 },
-  famRel: { fontSize: 12, color: Colors.fg2, marginTop: 2 },
+  famName: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
+  famRel: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 2 },
   linkBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -583,7 +585,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 10,
   },
-  linkBoxText: { fontSize: 12.5, color: Colors.primary, flex: 1 },
+  linkBoxText: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.primary, flex: 1 },
   sheetActions: { gap: 10 },
 
   /* Buttons */
@@ -593,7 +595,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: 'center',
   },
-  btnPrimaryText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
+  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
   btnOutline: {
     borderRadius: 9999,
     paddingVertical: 15,
@@ -602,7 +604,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
     backgroundColor: 'transparent',
   },
-  btnOutlineText: { color: Colors.primary, fontWeight: '700', fontSize: 16 },
+  btnOutlineText: { fontFamily: Fonts.bodyBold, color: Colors.primary, fontSize: 16 },
   btnDisabled: { opacity: 0.6 },
 
   /* Reactivated state */
@@ -642,15 +644,16 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
-  checkEmoji: { fontSize: 52 },
+  checkEmoji: { fontFamily: Fonts.body, fontSize: 52 },
   reactivatedTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 28,
     color: Colors.fg1,
     textAlign: 'center',
     letterSpacing: -0.4,
   },
   reactivatedSub: {
+    fontFamily: Fonts.body,
     fontSize: 15,
     color: Colors.fg2,
     textAlign: 'center',
@@ -670,7 +673,7 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     justifyContent: 'center',
   },
-  nextPaymentLabel: { fontSize: 12, color: Colors.fg2 },
-  nextPaymentText: { fontSize: 12, color: Colors.fg2 },
-  nextPaymentVal: { fontWeight: '700', fontSize: 14, color: Colors.fg1 },
+  nextPaymentLabel: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
+  nextPaymentText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
+  nextPaymentVal: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg1 },
 });

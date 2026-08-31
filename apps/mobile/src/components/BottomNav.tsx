@@ -7,6 +7,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 
 export type NavTab = 'home' | 'community' | 'achievements' | 'profile';
@@ -86,12 +87,12 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   tabLabel: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    fontWeight: '600',
     color: Colors.fg2,
   },
   tabLabelActive: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     color: Colors.primary,
   },
   panicContent: {
@@ -100,7 +101,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   panicLabel: {
-    fontWeight: '900',
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: Colors.white,
     letterSpacing: 1.5,

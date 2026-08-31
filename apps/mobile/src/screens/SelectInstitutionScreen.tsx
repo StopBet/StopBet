@@ -13,6 +13,7 @@ import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 
 const INSTITUTION_ID = 'AJUTER';
 
@@ -96,8 +97,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 22, paddingBottom: 16 },
-  title: { fontWeight: '700', fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6 },
-  subtitle: { fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6 },
+  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
 
   card: {
     flexDirection: 'row',
@@ -131,13 +132,13 @@ const styles = StyleSheet.create({
   },
   logoSelected: { backgroundColor: Colors.primary },
   logoSoon: { backgroundColor: Colors.bg, borderWidth: 1.5, borderStyle: 'dashed', borderColor: Colors.border },
-  logoText: { fontWeight: '800', fontSize: 12, color: Colors.white, letterSpacing: 0.5 },
-  logoTextSoon: { fontSize: 20, color: Colors.fg2 },
+  logoText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.white, letterSpacing: 0.5 },
+  logoTextSoon: { fontFamily: Fonts.heading, fontSize: 20, color: Colors.fg2 },
 
   cardBody: { flex: 1 },
-  cardName: { fontWeight: '700', fontSize: 16, color: Colors.ink900 },
-  cardNameSoon: { fontWeight: '700', fontSize: 16, color: Colors.fg2 },
-  cardAddr: { fontSize: 13, color: Colors.fg2, marginTop: 1 },
+  cardName: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.ink900 },
+  cardNameSoon: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.fg2 },
+  cardAddr: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 1 },
 
   metaPill: {
     flexDirection: 'row',
@@ -151,8 +152,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   metaSoon: { backgroundColor: Colors.bg },
-  metaText: { fontWeight: '600', fontSize: 11.5, color: Colors.sage500 },
-  metaTextSoon: { fontWeight: '600', fontSize: 11.5, color: Colors.fg2 },
+  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.sage500 },
+  metaTextSoon: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.fg2 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
   btn: {
@@ -165,5 +166,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnDisabled: { opacity: 0.4 },
-  btnText: { fontWeight: '700', fontSize: 16, color: Colors.white },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
 });

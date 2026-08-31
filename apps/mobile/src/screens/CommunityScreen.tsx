@@ -25,6 +25,7 @@ import type { AppStackParamList } from '../navigation/types';
 import { BottomNav } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
 import { readCommunity, saveCommunity } from '../services/offlineStore';
@@ -634,21 +635,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingTop: 16,
     paddingBottom: 14,
     backgroundColor: Colors.primary,
     gap: 12,
   },
   headerMeta: { flex: 1, minWidth: 0 },
-  headerTitle: { fontWeight: '700', fontSize: 20, color: Colors.white },
-  headerSub: { fontSize: 14, color: Colors.teal400, marginTop: 3 },
+  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.teal400, marginTop: 3 },
   panicBtn: {
     backgroundColor: Colors.danger,
     borderRadius: 9999,
     paddingHorizontal: 13,
     paddingVertical: 8,
   },
-  panicBtnText: { color: Colors.white, fontWeight: '700', fontSize: 12 },
+  panicBtnText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
 
   tabs: {
     flexDirection: 'row',
@@ -657,8 +658,8 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.border,
   },
   tab: { flex: 1, alignItems: 'center', paddingTop: 14, paddingBottom: 12 },
-  tabText: { fontWeight: '600', fontSize: 14, color: Colors.fg2 },
-  tabTextActive: { color: Colors.primary, fontWeight: '700' },
+  tabText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg2 },
+  tabTextActive: { fontFamily: Fonts.bodyBold, color: Colors.primary },
   tabUnderline: {
     position: 'absolute',
     bottom: 0,
@@ -674,7 +675,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 18,
   },
-  offlineText: { color: Colors.accent, fontWeight: '700', fontSize: 13 },
+  offlineText: { fontFamily: Fonts.bodyBold, color: Colors.accent, fontSize: 13 },
 
   loader: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
 
@@ -689,8 +690,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     gap: 12,
   },
-  emptyTitle: { fontWeight: '700', fontSize: 18, color: Colors.ink900, marginBottom: 8 },
-  emptyText: { fontSize: 14, color: Colors.fg2, textAlign: 'center', lineHeight: 21 },
+  emptyTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900, marginBottom: 8 },
+  emptyText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, textAlign: 'center', lineHeight: 21 },
 
   // Anuncios
   pinCard: {
@@ -705,10 +706,10 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  pinFlag: { fontSize: 11, fontWeight: '600', color: Colors.fg2 },
+  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.fg2 },
   pinHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pinTitle: { fontWeight: '700', fontSize: 15, color: Colors.primary, marginTop: 11 },
-  pinBody: { fontSize: 15, color: Colors.ink900, lineHeight: 22, marginTop: 6 },
+  pinTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.primary, marginTop: 11 },
+  pinBody: { fontFamily: Fonts.body, fontSize: 15, color: Colors.ink900, lineHeight: 22, marginTop: 6 },
   annCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -720,7 +721,7 @@ const styles = StyleSheet.create({
     gap: 10,
     flexWrap: 'wrap',
   },
-  annDate: { fontSize: 12, color: Colors.fg2, fontWeight: '600' },
+  annDate: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
   attendBtn: {
     backgroundColor: Colors.sage50,
     borderWidth: 1.5,
@@ -730,14 +731,14 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   attendBtnOn: { backgroundColor: Colors.primary },
-  attendBtnText: { fontWeight: '700', fontSize: 13, color: Colors.primary },
+  attendBtnText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.primary },
   attendBtnTextOn: { color: Colors.white },
 
   // Avatares y autores
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { color: Colors.white, fontWeight: '700', fontSize: 16 },
-  authorName: { fontWeight: '600', fontSize: 14, color: Colors.ink900 },
-  authorMeta: { fontSize: 12, color: Colors.fg2, marginTop: 1 },
+  avatarLetter: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
+  authorName: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink900 },
+  authorMeta: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 1 },
   roleChip: {
     backgroundColor: Colors.sage50,
     borderRadius: 9999,
@@ -745,7 +746,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   roleChipAdmin: { backgroundColor: Colors.amber50 },
-  roleChipText: { fontWeight: '700', fontSize: 12, color: Colors.primary },
+  roleChipText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.primary },
   roleChipTextAdmin: { color: Colors.accent },
 
   // Foro
@@ -760,7 +761,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   msgHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  msgBody: { fontSize: 15, color: Colors.ink900, lineHeight: 22, paddingTop: 10 },
+  msgBody: { fontFamily: Fonts.body, fontSize: 15, color: Colors.ink900, lineHeight: 22, paddingTop: 10 },
 
   reactRow: {
     flexDirection: 'row',
@@ -783,8 +784,8 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   reactChipOn: { backgroundColor: Colors.sage50, borderColor: Colors.primary },
-  reactCount: { fontSize: 12, fontWeight: '600', color: Colors.ink900 },
-  replyLink: { fontSize: 12, fontWeight: '600', color: Colors.primary, paddingVertical: 5 },
+  reactCount: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.ink900 },
+  replyLink: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.primary, paddingVertical: 5 },
 
   // Respuestas
   repliesWrap: { marginTop: 8 },
@@ -798,10 +799,10 @@ const styles = StyleSheet.create({
   },
   replyHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatarSm: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  avatarSmLetter: { color: Colors.white, fontWeight: '700', fontSize: 12 },
-  replyName: { fontWeight: '600', fontSize: 13, color: Colors.ink900 },
-  replyTime: { fontSize: 11, color: Colors.fg2 },
-  replyBody: { fontSize: 13, color: Colors.ink900, lineHeight: 20, marginTop: 5, marginLeft: 36 },
+  avatarSmLetter: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
+  replyName: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.ink900 },
+  replyTime: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2 },
+  replyBody: { fontFamily: Fonts.body, fontSize: 13, color: Colors.ink900, lineHeight: 20, marginTop: 5, marginLeft: 36 },
 
   replyComposer: {
     flexDirection: 'row',
@@ -811,6 +812,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   replyInput: {
+    fontFamily: Fonts.body,
     flex: 1,
     backgroundColor: Colors.bg,
     borderWidth: 1,
@@ -828,7 +830,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-  replySendText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
+  replySendText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 13 },
 
   // Composer foro
   composer: {
@@ -844,6 +846,7 @@ const styles = StyleSheet.create({
   },
   composerOff: { opacity: 0.7 },
   composerInput: {
+    fontFamily: Fonts.body,
     flex: 1,
     backgroundColor: Colors.bg,
     borderWidth: 1,
@@ -869,5 +872,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 14,
   },
-  readonlyNoteText: { fontSize: 12.5, color: Colors.fg2 },
+  readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2 },
 });
