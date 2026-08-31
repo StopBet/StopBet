@@ -134,18 +134,17 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 2 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 42, height: 42, borderRadius: 12,
             background: 'rgba(255,255,255,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <img src={isotipo} alt="" style={{ width: 21, height: 21, display: 'block' }} />
+            <img src={isotipo} alt="" style={{ width: 25, height: 25, display: 'block' }} />
           </div>
           {/* El manual escribe la marca "StopBet" entera: antes la segunda mitad iba
               al 72% de opacidad, como si fueran dos palabras distintas. */}
-          <span style={{ fontWeight: 700, fontSize: 22, letterSpacing: -0.5, fontFamily: 'var(--sb-font-heading)' }}>
+          <span style={{ fontWeight: 700, fontSize: 26, letterSpacing: -0.5, fontFamily: 'var(--sb-font-heading)' }}>
             StopBet
           </span>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginLeft: 4 }}>· AJUTER</span>
         </div>
 
         {/* Contenido central */}
@@ -220,11 +219,11 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             <div style={{ lineHeight: 1.2 }}>
               <div style={{
                 fontFamily: 'var(--sb-font-heading)', fontWeight: 700,
-                fontSize: 22, letterSpacing: -0.5, color: 'var(--sb-blue)',
+                fontSize: 25, letterSpacing: -0.5, color: 'var(--sb-blue)',
               }}>
                 StopBet
               </div>
-              <div style={{ fontSize: 12, color: 'var(--fg2)' }}>Panel clínico · AJUTER</div>
+              <div style={{ fontSize: 12, color: 'var(--fg2)' }}>Panel clínico</div>
             </div>
           </div>
         )}

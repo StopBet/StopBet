@@ -30,7 +30,7 @@ export function generatePatientPDF(patient: Patient, from: string, to: string): 
 
   doc.setFontSize(9)
   doc.setFont('helvetica', 'normal')
-  doc.text('Dashboard Clínico — AJUTER', 14, 18)
+  doc.text('Dashboard Clínico - AJUTER', 14, 18)
 
   doc.setFontSize(8)
   doc.text('Reporte de Seguimiento del Paciente', W - 14, 14, { align: 'right' })
@@ -74,7 +74,7 @@ export function generatePatientPDF(patient: Patient, from: string, to: string): 
   y += 4
   sectionTitle('Período Consultado')
   const fmt = (d: string) => {
-    if (!d) return '—'
+    if (!d) return '-'
     const [y, m, day] = d.split('-')
     return `${day}/${m}/${y}`
   }
