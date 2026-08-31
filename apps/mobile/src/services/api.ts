@@ -40,8 +40,12 @@ export function suppressNextExternalRelapseDetection(): void {
   _suppressExternalDetection = true;
 }
 
-// localhost funciona en dispositivo real gracias a `adb reverse tcp:3000 tcp:3000`
-const BASE_URL = 'http://localhost:3000';
+// En debug el teléfono alcanza el backend del PC por `adb reverse tcp:3000 tcp:3000`.
+// En release no hay túnel: el APK que se instala fuera del computador de alguien
+// del equipo tiene que ir contra el backend desplegado o no llega a nada.
+const BASE_URL = __DEV__
+  ? 'http://localhost:3000'
+  : 'https://stopbetbackend-production.up.railway.app';
 
 const REQUEST_TIMEOUT_MS = 8000;
 

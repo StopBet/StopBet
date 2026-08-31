@@ -23,8 +23,17 @@ async function bootstrap() {
     }),
   );
 
+  // Vercel le da una URL distinta a cada preview deployment, y el equipo levanta
+  // la web en local contra este mismo backend. Con una sola string quedaba
+  // habilitado un origen y bloqueados todos los demás, sin aviso salvo el error
+  // de CORS en la consola del navegador.
+  const corsOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
+    origin: corsOrigins,
     credentials: true,
   });
 
