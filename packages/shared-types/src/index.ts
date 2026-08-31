@@ -146,6 +146,9 @@ export interface EarnedBadge {
   earnedAt: string;
   sharedToCommunity: boolean;
   periodId: string;
+  // Instante exacto en que se otorgó. `earnedAt` es solo el día, y no alcanza para
+  // saber si la insignia se ganó recién (el chip "¡Nuevo!" dura una hora).
+  createdAt: string;
 }
 
 export interface AbstinencePeriod {
