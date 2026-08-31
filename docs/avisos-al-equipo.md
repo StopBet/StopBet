@@ -20,6 +20,35 @@ está.
 
 ---
 
+## 2026-08-31 — Despliegue a producción: backend en Railway, web en Vercel (rama `chore/despliegue-nube-jose-meza`)
+
+### El backend y la web ya están desplegados de verdad — no son solo config sin probar
+
+**A quién le pega:** a todo el equipo, para cualquier cosa que se pruebe contra la nube en vez
+de local (demo, QA, mostrarle el avance a alguien).
+
+**Qué hay ahora:**
+- Backend: `https://stopbetbackend-production.up.railway.app` (`/health`, `/api/docs`). Base de
+  datos sembrada con `pnpm run seed` + `pnpm run seed:family` — las mismas cuentas que en local,
+  misma clave `Stopbet2026!`.
+- Web: `https://stopbet-lemon.vercel.app`, ya apuntando a ese backend.
+- `CORS_ORIGIN` ahora acepta una **lista separada por comas** (`apps/backend/src/main.ts`); antes
+  aceptaba un solo origen y con dos se rompía uno de los dos.
+- La app mobile ya no tiene `BASE_URL` fijo a `localhost` (`apps/mobile/src/services/api.ts`):
+  usa `__DEV__` para elegir entre local (desarrollo) y Railway (release). Cualquier APK de
+  release que compilen ustedes o el CI (`mobile-preview.yml`) ahora funciona en un teléfono sin
+  el `adb reverse` ni el computador prendido.
+
+**Qué hacer:** nada obligatorio — no hay dependencias nuevas ni pasos de `pnpm install`. Si van
+a probar contra la nube, usen las URLs de arriba (también quedaron en el README, sección
+"Despliegue en producción").
+
+**Ojo con esto, no es un bug:** en Railway aparecen **dos** proyectos llamados "StopBet". El real
+es el de arriba, en la cuenta de José. El otro, en el workspace personal de Matías Barraza, es
+un intento viejo muerto desde mayo (deploy `FAILED`, dominio 404) — no hay nada ahí, ignórenlo.
+
+---
+
 ## 2026-08-31 — Cierre de acceso a cuentas suspendidas (rama `fix/cuenta-suspendida-cierra-acceso-matias-lara`)
 
 ### Suspender un psicólogo ahora sí le cierra el acceso — y toca archivos de `auth/**` (José)
