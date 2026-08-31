@@ -30,6 +30,11 @@ export class PostReport {
   @JoinColumn({ name: 'reporterId' })
   reporter: User;
 
+  // CA5.3: motivo que indica el denunciante al reportar. Lleva default porque
+  // los reportes anteriores a este criterio se registraron sin motivo.
+  @Column({ type: 'text', default: 'Sin motivo indicado' })
+  reason: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }

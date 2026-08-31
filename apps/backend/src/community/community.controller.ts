@@ -24,6 +24,7 @@ import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
+import { ReportPostDto } from './dto/report-post.dto';
 
 @ApiTags('community')
 @Controller('community')
@@ -161,13 +162,17 @@ export class CommunityController {
 
   @Post('posts/:id/report')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Reporta una publicación (máx 1 reporte por usuario)' })
+  @ApiOperation({ summary: 'Reporta una publicación con un motivo (máx 1 reporte por usuario)' })
   @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario' })
   @ApiParam({ name: 'id', description: 'UUID de la publicación' })
   @ApiResponse({ status: 200, description: '{ reported: true }' })
   @ApiResponse({ status: 404, description: 'Publicación no encontrada' })
-  reportPost(@Param('id') id: string, @Headers('x-user-id') userId: string) {
-    return this.service.reportPost(id, userId);
+  reportPost(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId: string,
+    @Body() dto: ReportPostDto,
+  ) {
+    return this.service.reportPost(id, userId, dto.reason);
   }
 
   // ── Moderación (psicólogo, desde el dashboard) ───────────────────────────
@@ -176,7 +181,10 @@ export class CommunityController {
   @ApiOperation({ summary: 'Lista publicaciones con 1+ reporte para moderación (psicólogo)' })
   @ApiHeader({ name: 'x-user-id', description: 'UUID del psicólogo' })
   @ApiQuery({ name: 'sede', description: 'Sede (Santiago | Viña del Mar | Concepción)' })
-  @ApiResponse({ status: 200, description: 'CommunityPost[] reportadas' })
+  @ApiResponse({
+    status: 200,
+    description: 'CommunityPost[] reportadas, con los motivos (sin identificar al denunciante)',
+  })
   @ApiResponse({ status: 403, description: 'Solo un psicólogo puede moderar' })
   findFlagged(
     @Headers('x-user-id') userId: string,

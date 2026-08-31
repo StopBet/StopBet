@@ -332,10 +332,11 @@ export const api = {
       body: JSON.stringify({ body }),
     }),
 
-  reportPost: (userId: string, postId: string) =>
+  reportPost: (userId: string, postId: string, reason: string) =>
     request<{ reported: boolean }>(`/community/posts/${postId}/report`, {
       userId,
       method: 'POST',
+      body: JSON.stringify({ reason }),
     }),
 
   deletePost: (userId: string, postId: string) =>
