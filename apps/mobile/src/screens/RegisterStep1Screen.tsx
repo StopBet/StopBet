@@ -21,6 +21,7 @@ import { FormInput } from '../components/FormInput';
 import { BirthDatePicker } from '../components/BirthDatePicker';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterStep1'>;
 
@@ -176,14 +177,14 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 22, paddingBottom: 16 },
-  title: { fontWeight: '700', fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6, marginBottom: 0 },
-  subtitle: { fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6, marginBottom: 0 },
+  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 28 },
   sheet: { backgroundColor: Colors.surface, borderRadius: 18, paddingVertical: 8 },
-  sheetTitle: { fontWeight: '700', fontSize: 15, color: Colors.fg1, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 8 },
+  sheetTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 8 },
   sheetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14 },
-  sheetText: { fontSize: 15, color: Colors.fg1 },
+  sheetText: { fontFamily: Fonts.body, fontSize: 15, color: Colors.fg1 },
   btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
-  btnText: { fontWeight: '700', fontSize: 16, color: Colors.white },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
 });

@@ -61,6 +61,12 @@ packages/shared-types/ → Tipos TS compartidos entre backend y web
 #### Design System (paleta AJUTER)
 El dashboard usa el tema AJUTER — naranja cálido institucional, no el teal verde base de StopBet.
 
+> **Excepción: el login.** `LoginPage.tsx` va con la marca StopBet (azul `#396fb6`, Chillax y
+> Satoshi) porque es la puerta común al panel clínico y al portal del familiar, y el familiar
+> llega desde la app, no desde AJUTER. Sus tokens viven aparte en
+> `src/styles/stopbet-brand.css` (prefijo `--sb-`) y **no** tocan el tema del shell. La paleta
+> completa está en [`docs/manual-marca.md`](docs/manual-marca.md).
+
 **Archivos:**
 ```
 apps/web/src/styles/

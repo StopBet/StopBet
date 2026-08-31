@@ -2,52 +2,70 @@ import { useState } from 'react'
 import { WIcon } from '../components/WIcon'
 import { api, type LoginResponse } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
+import isotipo from '../assets/isotipo-blanco.png'
 
-function SupportNetwork() {
-  const nodes = [
-    { x: 82,  y: 148, r: 28 },
-    { x: 205, y: 68,  r: 22 },
-    { x: 336, y: 134, r: 34 },
-    { x: 468, y: 62,  r: 20 },
-    { x: 482, y: 192, r: 26 },
-    { x: 260, y: 215, r: 18 },
-    { x: 128, y: 258, r: 23 },
+// Reemplaza a la red de "personitas conectadas", que era genérica y podía ser de
+// cualquier producto. Esto dibuja lo único que el paciente mira todos los días: la
+// racha de días sin apostar subiendo, con las insignias de los hitos reales del
+// backend (1, 7, 30, 60, 90).
+function RecoveryPath() {
+  const milestones = [
+    { x: 48,  y: 250, label: '1' },
+    { x: 168, y: 205, label: '7' },
+    { x: 288, y: 150, label: '30' },
+    { x: 408, y: 92,  label: '60' },
+    { x: 512, y: 44,  label: '90' },
   ]
-  const links: [number, number][] = [
-    [0, 1], [1, 2], [2, 3], [2, 4],
-    [1, 5], [5, 6], [0, 6], [5, 2], [3, 4],
-  ]
+  const curve = 'M 48 250 C 108 236, 128 214, 168 205 S 248 178, 288 150 S 368 112, 408 92 S 480 56, 512 44'
 
   return (
     <svg viewBox="0 0 560 310" width="100%" aria-hidden style={{ display: 'block' }}>
-      {links.map(([a, b], i) => (
-        <line key={i}
-          x1={nodes[a].x} y1={nodes[a].y}
-          x2={nodes[b].x} y2={nodes[b].y}
-          stroke="rgba(255,255,255,0.20)" strokeWidth="1.5" strokeLinecap="round"
-        />
+      <defs>
+        <linearGradient id="sb-path-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(255,255,255,0.20)" />
+          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+        </linearGradient>
+      </defs>
+
+      {/* Área bajo la curva: da volumen sin competir con el texto */}
+      <path d={`${curve} L 512 300 L 48 300 Z`} fill="url(#sb-path-fill)" />
+
+      {/* Guías horizontales, como el fondo de un gráfico de progreso */}
+      {[92, 150, 205, 250].map(y => (
+        <line key={y} x1="34" y1={y} x2="536" y2={y}
+          stroke="rgba(255,255,255,0.10)" strokeWidth="1" strokeDasharray="4 8" />
       ))}
-      {nodes.map((n, i) => (
-        <g key={i}>
-          <circle cx={n.x} cy={n.y} r={n.r}
-            fill="rgba(255,255,255,0.14)" stroke="rgba(255,255,255,0.38)" strokeWidth="1.5" />
-          <circle cx={n.x} cy={n.y - n.r * 0.18} r={n.r * 0.30}
-            fill="rgba(255,255,255,0.88)" />
-          <path
-            d={`M ${n.x - n.r * 0.50} ${n.y + n.r * 0.52} q ${n.r * 0.50} ${-n.r * 0.48} ${n.r} 0`}
-            fill="none" stroke="rgba(255,255,255,0.40)"
-            strokeWidth={Math.max(1.4, n.r * 0.12)} strokeLinecap="round"
-          />
-        </g>
-      ))}
+
+      <path d={curve} fill="none" stroke="rgba(255,255,255,0.75)"
+        strokeWidth="3" strokeLinecap="round" />
+
+      {milestones.map((m, i) => {
+        const isLast = i === milestones.length - 1
+        return (
+          <g key={m.label}>
+            {/* El último hito va abierto, para que el camino se lea como continuo */}
+            <circle cx={m.x} cy={m.y} r={isLast ? 22 : 17}
+              fill={isLast ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.92)'}
+              stroke="rgba(255,255,255,0.85)" strokeWidth={isLast ? 2 : 0} />
+            <text x={m.x} y={m.y + 5}
+              textAnchor="middle"
+              fontSize={isLast ? 15 : 13}
+              fontWeight="700"
+              fontFamily="var(--sb-font-heading)"
+              fill={isLast ? 'rgba(255,255,255,0.95)' : 'var(--sb-blue)'}>
+              {m.label}
+            </text>
+          </g>
+        )
+      })}
     </svg>
   )
 }
 
 type FormState = 'idle' | 'loading' | 'error' | 'forbidden' | 'offline'
 
-const TEAL = '#1B6F63'
-const TEAL_LIGHT = '#EFF4F1'
+const BLUE = 'var(--sb-blue)'
+const BLUE_LIGHT = '#EAF1F9'
 
 // /auth/login autentica a cualquier rol, así que el filtro de quién entra a la
 // web vive acá. Sin esto un paciente o padrino aterrizaría en el shell clínico
@@ -100,13 +118,15 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
       display: 'flex',
       minHeight: '100vh',
       overflow: isNarrow ? 'auto' : 'hidden',
-      fontFamily: 'var(--font-body)',
+      fontFamily: 'var(--sb-font-body)',
     }}>
 
-      {/* Panel izquierdo — marca AJUTER. Se oculta en pantallas angostas. */}
+      {/* Panel izquierdo — marca StopBet. Se oculta en pantallas angostas.
+          El login es la puerta común al panel clínico y al portal del familiar, así
+          que lleva la marca del producto; el shell del psicólogo sigue en AJUTER. */}
       {!isNarrow && <div style={{
         width: '50%', flexShrink: 0,
-        background: 'linear-gradient(160deg, var(--color-ajuter-orange) 0%, var(--color-ajuter-red-orange) 100%)',
+        background: 'linear-gradient(160deg, var(--sb-blue) 0%, var(--sb-blue-dark) 100%)',
         display: 'flex', flexDirection: 'column',
         padding: '44px 52px', color: '#fff',
         position: 'relative', overflow: 'hidden',
@@ -118,13 +138,12 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             background: 'rgba(255,255,255,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-              stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-            </svg>
+            <img src={isotipo} alt="" style={{ width: 21, height: 21, display: 'block' }} />
           </div>
-          <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: -0.5, fontFamily: 'var(--font-heading)' }}>
-            Stop<span style={{ opacity: 0.72 }}>Bet</span>
+          {/* El manual escribe la marca "StopBet" entera: antes la segunda mitad iba
+              al 72% de opacidad, como si fueran dos palabras distintas. */}
+          <span style={{ fontWeight: 700, fontSize: 22, letterSpacing: -0.5, fontFamily: 'var(--sb-font-heading)' }}>
+            StopBet
           </span>
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginLeft: 4 }}>· AJUTER</span>
         </div>
@@ -134,7 +153,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
           <h1 style={{
             fontWeight: 700, fontSize: 40, lineHeight: 1.2,
             margin: '0 0 14px', letterSpacing: -0.5,
-            fontFamily: 'var(--font-heading)',
+            fontFamily: 'var(--sb-font-heading)',
           }}>
             Panel clínico
           </h1>
@@ -167,26 +186,48 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
           </ul>
         </div>
 
-        {/* Ilustración red de apoyo */}
+        {/* Ilustración: la racha de días sin apostar y sus hitos */}
         <div style={{
           position: 'absolute', right: -60, bottom: -20,
           width: 580, zIndex: 1, opacity: 0.85, pointerEvents: 'none',
         }}>
-          <SupportNetwork />
+          <RecoveryPath />
         </div>
-
-        <p style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.30)', position: 'relative', zIndex: 2, margin: 0 }}>
-          GPI-2026 · Grupo 04
-        </p>
       </div>}
 
-      {/* Panel derecho — formulario */}
+      {/* Panel derecho: el formulario */}
       <div style={{
-        flex: 1, background: 'var(--bg)',
+        flex: 1, minWidth: 0, background: 'var(--bg)',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        padding: isNarrow ? '24px 16px' : '40px', position: 'relative',
+        padding: isNarrow ? '20px 16px 28px' : '40px', position: 'relative',
       }}>
+        {/* En el teléfono el panel de marca no cabe y se oculta entero, así que el
+            login quedaba sin logo ni color: una tarjeta blanca suelta. Esta cabecera
+            devuelve la identidad en el poco alto que hay. */}
+        {isNarrow && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            marginBottom: 22, alignSelf: 'center',
+          }}>
+            <div style={{
+              width: 42, height: 42, borderRadius: 12,
+              background: 'var(--sb-blue)', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <img src={isotipo} alt="" style={{ width: 25, height: 25, display: 'block' }} />
+            </div>
+            <div style={{ lineHeight: 1.2 }}>
+              <div style={{
+                fontFamily: 'var(--sb-font-heading)', fontWeight: 700,
+                fontSize: 22, letterSpacing: -0.5, color: 'var(--sb-blue)',
+              }}>
+                StopBet
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--fg2)' }}>Panel clínico · AJUTER</div>
+            </div>
+          </div>
+        )}
         {/* Banner sesión expirada */}
         {sessionExpired && (
           <div style={{
@@ -211,32 +252,32 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
           background: 'var(--surface)',
           borderRadius: 'var(--r-lg)',
           boxShadow: 'var(--shadow-medium)',
-          padding: '40px 36px',
+          padding: isNarrow ? '28px 22px' : '40px 36px',
           boxSizing: 'border-box',
         }}>
           <h2 style={{
             fontWeight: 700, fontSize: 28,
             color: 'var(--fg1)', margin: '0 0 6px',
-            fontFamily: 'var(--font-heading)',
+            fontFamily: 'var(--sb-font-heading)',
           }}>
             Bienvenido
           </h2>
           <p style={{ fontSize: 14, color: 'var(--fg2)', margin: '0 0 20px' }}>
-            Accede a tu cuenta de AJUTER
+            Accede a tu cuenta
           </p>
 
           {/* Badge acceso restringido */}
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 7,
-            background: TEAL_LIGHT, borderRadius: 8,
+            background: BLUE_LIGHT, borderRadius: 8,
             padding: '7px 12px', marginBottom: 24,
           }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-              stroke={TEAL} strokeWidth="2.5" strokeLinecap="round">
+              stroke={BLUE} strokeWidth="2.5" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            <span style={{ fontSize: 12, fontWeight: 600, color: TEAL }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: BLUE }}>
               Acceso para equipo clínico y familiares
             </span>
           </div>
@@ -245,7 +286,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             {/* Correo */}
             <label style={{ display: 'block' }}>
               <span style={{ display: 'block', fontWeight: 600, fontSize: 13, color: 'var(--fg1)', marginBottom: 7 }}>
-                Correo AJUTER
+                Correo
               </span>
               <div style={{
                 display: 'flex', alignItems: 'center',
@@ -262,7 +303,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   autoComplete="email"
                   style={{
                     flex: 1, border: 'none', outline: 'none',
-                    background: 'transparent', fontFamily: 'var(--font-body)',
+                    background: 'transparent', fontFamily: 'var(--sb-font-body)',
                     fontSize: 15, color: 'var(--fg1)',
                   }}
                 />
@@ -278,7 +319,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             <label style={{ display: 'block' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
                 <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg1)' }}>Contraseña</span>
-                <a href="#" style={{ fontSize: 12.5, fontWeight: 600, color: TEAL, textDecoration: 'none' }}>
+                <a href="#" style={{ fontSize: 12.5, fontWeight: 600, color: BLUE, textDecoration: 'none' }}>
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
@@ -297,7 +338,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   autoComplete="current-password"
                   style={{
                     flex: 1, border: 'none', outline: 'none',
-                    background: 'transparent', fontFamily: 'var(--font-body)',
+                    background: 'transparent', fontFamily: 'var(--sb-font-body)',
                     fontSize: 15, color: 'var(--fg1)',
                   }}
                 />
@@ -335,7 +376,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             >
               <div style={{
                 width: 42, height: 24, borderRadius: 9999, flexShrink: 0, position: 'relative',
-                background: keepSession ? TEAL : 'var(--border)',
+                background: keepSession ? BLUE : 'var(--border)',
                 transition: 'background 0.2s var(--ease-soft)',
               }}>
                 <div style={{
@@ -357,10 +398,10 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
               style={{
                 width: '100%', height: 52,
                 borderRadius: 'var(--r-full)',
-                background: isLoading ? `${TEAL}cc` : TEAL,
+                background: isLoading ? `${BLUE}cc` : BLUE,
                 color: '#fff', border: 'none',
                 cursor: isLoading ? 'default' : 'pointer',
-                fontFamily: 'var(--font-body)', fontWeight: 700, fontSize: 16,
+                fontFamily: 'var(--sb-font-body)', fontWeight: 700, fontSize: 16,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
                 transition: 'background 0.2s',
               }}
@@ -412,8 +453,8 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
 
           <p style={{ fontSize: 12, color: 'var(--fg2)', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
             ¿No tienes acceso? Contacta a{' '}
-            <a href="mailto:admin@ajuter.cl" style={{ color: TEAL, fontWeight: 600, textDecoration: 'none' }}>
-              admin@ajuter.cl
+            <a href="mailto:admin@stopbet.cl" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>
+              admin@stopbet.cl
             </a>
           </p>
         </div>

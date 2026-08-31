@@ -13,6 +13,7 @@ import { EarnedBadge } from './entities/earned-badge.entity';
 import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
 import { CommunityService } from '../community/community.service';
+import { daysAgoInChile, todayInChile } from '../common/chile-date';
 
 const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
 
@@ -174,7 +175,7 @@ export class AchievementsService implements OnModuleInit {
 
   async devSetDays(userId: string, days: number): Promise<{ startDate: string; daysAchieved: number }> {
     const today = this.today();
-    const startDate = new Date(Date.now() - days * 86_400_000).toISOString().split('T')[0];
+    const startDate = daysAgoInChile(days);
 
     let period = await this.periodRepo.findOne({ where: { userId, endDate: IsNull() } });
     if (!period) {
@@ -212,7 +213,7 @@ export class AchievementsService implements OnModuleInit {
   }
 
   private today(): string {
-    return new Date().toISOString().split('T')[0];
+    return todayInChile();
   }
 
   private daysBetween(startDate: string, endDate: string): number {
@@ -241,6 +242,7 @@ export class AchievementsService implements OnModuleInit {
           earnedAt: b.earnedAt,
           sharedToCommunity: b.sharedToCommunity,
           periodId: b.periodId,
+          createdAt: b.createdAt.toISOString(),
         }),
       ),
     };

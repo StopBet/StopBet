@@ -54,9 +54,24 @@ import { PatientAssignment } from './psychologists/entities/patient-assignment.e
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 
-    // Límite base por IP; el endpoint de mensajes al asistente IA puede
-    // sobreescribirlo con @Throttle() si necesita un límite más estricto (S.9)
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }]),
+    // Límite base por IP; los endpoints sensibles lo endurecen con @Throttle() (S.9).
+    //
+    // 20/min era demasiado poco para un límite *global*: el dashboard hace varias
+    // consultas por pantalla más los refetch de TanStack Query, así que navegar
+    // normalmente por el portal ya devolvía 429. El techo alto protege contra abuso
+    // sin estorbar el uso real; la protección contra fuerza bruta vive en el
+    // @Throttle de /auth/login, que es donde de verdad importa.
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        throttlers: [{ ttl: 60_000, limit: 300 }],
+        // Los e2e hacen varios logins seguidos a propósito (probar 401, probar
+        // roles), y con el límite estricto de /auth/login recibían 429 donde
+        // esperaban 401. Se desactiva solo en tests: el límite de producción
+        // queda igual.
+        skipIf: () => config.get<string>('NODE_ENV') === 'test',
+      }),
+    }),
 
     // Habilita @Cron() en toda la app — lo usa HealthModule para vigilar la BD (S.7)
     ScheduleModule.forRoot(),

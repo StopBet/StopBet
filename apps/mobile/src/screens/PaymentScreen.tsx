@@ -18,6 +18,7 @@ import { StepperHeader } from '../components/StepperHeader';
 import { FormInput } from '../components/FormInput';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Payment'>;
@@ -181,8 +182,8 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.bg },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 22, paddingBottom: 16 },
-  title: { fontWeight: '700', fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6 },
-  subtitle: { fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6 },
+  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
 
   planCard: {
     backgroundColor: Colors.surface,
@@ -205,17 +206,17 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 14,
   },
-  planLogoText: { fontWeight: '800', fontSize: 17, color: Colors.white, letterSpacing: 0.5 },
-  planName: { textAlign: 'center', fontWeight: '600', fontSize: 16, color: Colors.ink900 },
+  planLogoText: { fontFamily: Fonts.headingBold, fontSize: 17, color: Colors.white, letterSpacing: 0.5 },
+  planName: { fontFamily: Fonts.headingBold, textAlign: 'center', fontSize: 16, color: Colors.ink900 },
   planPrice: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 6, marginVertical: 8 },
-  planAmt: { fontWeight: '800', fontSize: 40, color: Colors.primary, letterSpacing: -0.8 },
-  planPer: { fontSize: 18, color: Colors.fg2 },
+  planAmt: { fontFamily: Fonts.bodyBold, fontSize: 40, color: Colors.primary, letterSpacing: -0.8 },
+  planPer: { fontFamily: Fonts.body, fontSize: 18, color: Colors.fg2 },
   planSep: { height: 1, backgroundColor: Colors.border, marginBottom: 16 },
   planFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 11 },
-  planFeatText: { flex: 1, fontSize: 14, color: Colors.ink900, lineHeight: 20 },
-  planRenew: { fontSize: 11, fontStyle: 'italic', color: Colors.fg2, lineHeight: 16, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.border },
+  planFeatText: { fontFamily: Fonts.body, flex: 1, fontSize: 14, color: Colors.ink900, lineHeight: 20 },
+  planRenew: { fontFamily: Fonts.body, fontSize: 11, fontStyle: 'italic', color: Colors.fg2, lineHeight: 16, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.border },
 
-  methodsTitle: { fontWeight: '700', fontSize: 15, color: Colors.ink900, marginBottom: 12, marginTop: 4 },
+  methodsTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900, marginBottom: 12, marginTop: 4 },
   methodCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
   methodCardSel: { borderColor: Colors.primary, backgroundColor: '#EAF3F2' },
   methodIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
   methodIconSel: { backgroundColor: Colors.white },
-  methodLabel: { flex: 1, fontWeight: '600', fontSize: 15, color: Colors.ink900 },
+  methodLabel: { fontFamily: Fonts.bodyBold, flex: 1, fontSize: 15, color: Colors.ink900 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
   radioSel: { borderColor: Colors.primary },
   radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: Colors.primary },
@@ -239,10 +240,10 @@ const styles = StyleSheet.create({
   halfField: { flex: 1 },
 
   secureNote: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 16, marginBottom: 2 },
-  secureText: { fontSize: 11, color: Colors.fg2 },
+  secureText: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
   btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.5 },
-  btnText: { fontWeight: '700', fontSize: 16, color: Colors.white },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
 });

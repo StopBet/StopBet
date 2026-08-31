@@ -20,6 +20,7 @@ import { BottomNav, NavTab } from '../components/BottomNav';
 import { NotificationSection } from '../components/NotificationSection';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { api, hasPendingExternalRelapse, acknowledgePendingRelapse } from '../services/api';
 import {
   flushPending,
@@ -302,7 +303,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingBottom: 18,
-    paddingTop: 2,
+    paddingTop: 16,
     backgroundColor: Colors.primary,
     gap: 14,
   },
@@ -316,12 +317,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   greeting: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 22,
     color: Colors.white,
     lineHeight: 28,
   },
   subtitle: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.teal400,
     marginTop: 2,
@@ -337,7 +339,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarLetter: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 20,
     color: Colors.white,
   },
@@ -369,6 +371,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   offlineText: {
+    fontFamily: Fonts.body,
     flex: 1,
     fontSize: 13,
     color: Colors.fg2,
@@ -384,6 +387,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   counterPlaceholderText: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.fg2,
     textAlign: 'center',

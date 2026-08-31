@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +17,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { AuthContext } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
@@ -63,20 +65,15 @@ export function LoginScreen({ navigation }: Props) {
             </Pressable>
           </View>
 
-          {/* Marca */}
+          {/* Marca — logotipo horizontal del manual, en vez de los anillos con
+              un corazón genérico y la marca escrita en minúsculas. */}
           <View style={styles.brand}>
-            <View style={styles.ringOuter}>
-              <View style={styles.ringMid}>
-                <View style={styles.ringInner}>
-                  <View style={styles.logoBadge}>
-                    <Icon name="heart" size={28} color={Colors.white} />
-                  </View>
-                </View>
-              </View>
-            </View>
-            <Text style={styles.logoText}>
-              stop<Text style={styles.logoAccent}>bet</Text>
-            </Text>
+            <Image
+              source={require('../assets/logo-horizontal.png')}
+              style={styles.logoHorizontal}
+              resizeMode="contain"
+              accessibilityLabel="StopBet"
+            />
             <Text style={styles.tagline}>Tu acompañamiento en el camino</Text>
           </View>
 
@@ -120,10 +117,16 @@ export function LoginScreen({ navigation }: Props) {
                 />
                 <Pressable
                   onPress={() => setShowPassword(s => !s)}
-                  hitSlop={8}
+                  hitSlop={10}
                   style={styles.eyeBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                 >
-                  <Text style={styles.eyeText}>{showPassword ? 'Ocultar' : 'Ver'}</Text>
+                  <Icon
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={20}
+                    color={Colors.fg2}
+                  />
                 </Pressable>
               </View>
             </View>
@@ -164,14 +167,6 @@ export function LoginScreen({ navigation }: Props) {
           <Pressable style={styles.btnOutline}>
             <Text style={styles.btnOutlineText}>Iniciar con huella digital</Text>
           </Pressable>
-
-          {/* Ir a registro */}
-          <View style={styles.footerRow}>
-            <Text style={styles.footerText}>¿Eres nuevo? · </Text>
-            <Pressable onPress={() => navigation.navigate('SelectInstitution')}>
-              <Text style={styles.footerLink}>Registrarse</Text>
-            </Pressable>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -203,7 +198,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     color: Colors.primary,
   },
   brand: {
@@ -211,55 +206,15 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 24,
   },
-  ringOuter: {
-    width: 152,
-    height: 152,
-    borderRadius: 76,
-    borderWidth: 1.5,
-    borderColor: 'rgba(232,136,58,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  ringMid: {
-    width: 116,
-    height: 116,
-    borderRadius: 58,
-    borderWidth: 1.5,
-    borderColor: 'rgba(232,136,58,0.28)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ringInner: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(232,136,58,0.10)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoBadge: {
-    width: 60,
+  logoHorizontal: {
+    width: 220,
     height: 60,
-    borderRadius: 16,
-    backgroundColor: Colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoText: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: Colors.primary,
-    letterSpacing: -0.5,
-    marginTop: 14,
-  },
-  logoAccent: {
-    color: Colors.accent,
   },
   tagline: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.fg2,
-    marginTop: 6,
+    marginTop: 10,
     textAlign: 'center',
   },
   card: {
@@ -274,11 +229,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     fontSize: 22,
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     color: Colors.ink900,
     marginBottom: 4,
   },
   cardSubtitle: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.fg2,
     marginBottom: 22,
@@ -288,7 +244,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     color: Colors.fg1,
     marginBottom: 7,
   },
@@ -311,18 +267,14 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   input: {
+    fontFamily: Fonts.body,
     flex: 1,
     fontSize: 15,
     color: Colors.ink900,
     paddingVertical: 0,
   },
   eyeBtn: {
-    paddingLeft: 8,
-  },
-  eyeText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: Colors.fg2,
+    paddingLeft: 10,
   },
   btnPrimary: {
     height: 52,
@@ -337,7 +289,7 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     fontSize: 16,
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     color: Colors.white,
   },
   errorBanner: {
@@ -351,7 +303,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     color: Colors.danger,
   },
   forgotBtn: {
@@ -360,7 +312,7 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     fontSize: 13.5,
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     color: Colors.primary,
   },
   dividerRow: {
@@ -375,6 +327,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.border,
   },
   dividerLabel: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.fg2,
     paddingHorizontal: 4,
@@ -389,22 +342,7 @@ const styles = StyleSheet.create({
   },
   btnOutlineText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: Colors.primary,
-  },
-  footerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 28,
-  },
-  footerText: {
-    fontSize: 14,
-    color: Colors.fg2,
-  },
-  footerLink: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     color: Colors.primary,
   },
 });

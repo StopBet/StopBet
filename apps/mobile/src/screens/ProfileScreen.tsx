@@ -16,6 +16,7 @@ import type { AppStackParamList } from '../navigation/types';
 import { BottomNav } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { devFlags } from '../store/devFlags';
 import { api } from '../services/api';
 
@@ -351,12 +352,12 @@ const styles = StyleSheet.create({
 
   header: {
     paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingTop: 16,
     paddingBottom: 18,
     backgroundColor: Colors.primary,
   },
-  headerTitle: { fontWeight: '700', fontSize: 20, color: Colors.white },
-  headerSub: { fontSize: 14, color: Colors.teal400, marginTop: 3 },
+  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.teal400, marginTop: 3 },
 
   scroll: { flex: 1, backgroundColor: Colors.bg },
   scrollContent: { padding: 16, paddingBottom: 24, gap: 16 },
@@ -381,9 +382,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 14,
   },
-  avatarLetter: { fontWeight: '800', fontSize: 36, color: Colors.white },
-  userName: { fontWeight: '700', fontSize: 22, color: Colors.ink900 },
-  userSub: { fontSize: 14, color: Colors.fg2, marginTop: 4 },
+  avatarLetter: { fontFamily: Fonts.headingBold, fontSize: 36, color: Colors.white },
+  userName: { fontFamily: Fonts.headingBold, fontSize: 22, color: Colors.ink900 },
+  userSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, marginTop: 4 },
 
   menuCard: {
     backgroundColor: Colors.surface,
@@ -408,8 +409,8 @@ const styles = StyleSheet.create({
   },
   menuIcon: { width: 28, alignItems: 'center' },
   menuText: { flex: 1 },
-  menuLabel: { fontWeight: '600', fontSize: 15, color: Colors.ink900 },
-  menuSub: { fontSize: 13, color: Colors.fg2, marginTop: 2 },
+  menuLabel: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
+  menuSub: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 2 },
 
   comingSoonCard: {
     flexDirection: 'row',
@@ -420,7 +421,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
   },
-  comingSoonText: { fontSize: 13, color: Colors.fg2, textAlign: 'center' },
+  comingSoonText: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, textAlign: 'center' },
 
   devCard: {
     backgroundColor: Colors.surface,
@@ -431,11 +432,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   devHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  devTitle: { fontSize: 12, fontWeight: '700', color: Colors.fg2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  devTitle: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2, textTransform: 'uppercase', letterSpacing: 0.5 },
   devRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   devText: { flex: 1 },
-  devLabel: { fontWeight: '600', fontSize: 15, color: Colors.ink900 },
-  devSub: { fontSize: 12, color: Colors.fg2, marginTop: 2, lineHeight: 17 },
+  devLabel: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
+  devSub: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 2, lineHeight: 17 },
   devBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -445,10 +446,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  devBadgeText: { fontSize: 12, fontWeight: '700', color: Colors.danger },
+  devBadgeText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.danger },
   devDivider: { height: 1, backgroundColor: Colors.border },
   devDaysRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   devDaysInput: {
+    fontFamily: Fonts.bodyBold,
     width: 64,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -456,7 +458,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
     fontSize: 16,
-    fontWeight: '700',
     color: Colors.ink900,
     textAlign: 'center',
     backgroundColor: Colors.bg,
@@ -467,7 +468,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  devApplyText: { color: Colors.white, fontWeight: '700', fontSize: 13 },
+  devApplyText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 13 },
   devClearBtn: {
     width: 30,
     height: 30,

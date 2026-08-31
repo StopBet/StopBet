@@ -19,25 +19,71 @@ function capitalize(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
-function AttendanceBadge({ confirmed }: { confirmed: boolean }) {
-  const color = confirmed ? 'var(--secondary)' : 'var(--fg2)'
+// Reemplaza al enlace "Cambiar respuesta": el estado y la acción de cambiarlo son
+// la misma cosa, así que un interruptor los une en un solo control en vez de
+// obligar a leer una insignia y buscar un enlace aparte.
+function AttendanceToggle({
+  confirmed,
+  onToggle,
+  isPending,
+}: {
+  confirmed: boolean
+  onToggle: () => void
+  isPending: boolean
+}) {
+  const accent = confirmed ? 'var(--secondary)' : 'var(--fg2)'
+
   return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        background: confirmed ? 'var(--sage-50, #EDF3ED)' : 'var(--bg)',
-        border: `1px solid ${color}`,
-        borderRadius: 999,
-        padding: '5px 12px',
-        fontSize: 12.5,
-        fontWeight: 600,
-        color,
-      }}
-    >
-      <WIcon name={confirmed ? 'circle-check' : 'x'} size={14} />
-      {confirmed ? 'Confirmaste tu asistencia' : 'Avisaste que no puedes ir'}
+    <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={confirmed}
+        aria-label="Confirmar asistencia a la sesión"
+        onClick={onToggle}
+        disabled={isPending}
+        style={{
+          position: 'relative',
+          width: 52,
+          height: 30,
+          flexShrink: 0,
+          borderRadius: 999,
+          border: `1px solid ${confirmed ? 'var(--secondary)' : 'var(--border)'}`,
+          background: confirmed ? 'var(--secondary)' : 'var(--surface-alt)',
+          cursor: isPending ? 'wait' : 'pointer',
+          opacity: isPending ? 0.6 : 1,
+          padding: 0,
+          transition: 'background .18s ease, border-color .18s ease',
+        }}
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 3,
+            left: confirmed ? 24 : 3,
+            width: 22,
+            height: 22,
+            borderRadius: '50%',
+            background: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,.28)',
+            display: 'grid',
+            placeItems: 'center',
+            color: accent,
+            transition: 'left .18s ease',
+          }}
+        >
+          <WIcon name={confirmed ? 'check' : 'x'} size={13} />
+        </span>
+      </button>
+
+      <div style={{ lineHeight: 1.3 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: accent }}>
+          {confirmed ? 'Asistiré' : 'No podré ir'}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--fg2)' }}>
+          {isPending ? 'Guardando…' : 'Toca para cambiar tu respuesta'}
+        </div>
+      </div>
     </div>
   )
 }
@@ -102,31 +148,17 @@ export function SessionCard({
           </div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 5, fontSize: 13.5, color: 'var(--fg2)' }}>
             <WIcon name={session.isOnline ? 'message-circle' : 'map-pin'} size={14} />
-            {session.isOnline ? `Online — ${session.location}` : session.location}
+            {session.isOnline ? `Online - ${session.location}` : session.location}
           </div>
         </div>
       </div>
 
       {answered ? (
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-          <AttendanceBadge confirmed={session.userAttends === true} />
-          <button
-            onClick={() => onRespond(!session.userAttends)}
-            disabled={isPending}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: 'var(--primary)',
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: isPending ? 'wait' : 'pointer',
-              padding: 0,
-              textDecoration: 'underline',
-            }}
-          >
-            Cambiar respuesta
-          </button>
-        </div>
+        <AttendanceToggle
+          confirmed={session.userAttends === true}
+          onToggle={() => onRespond(!session.userAttends)}
+          isPending={isPending}
+        />
       ) : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           <button

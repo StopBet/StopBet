@@ -19,6 +19,7 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon } from '../components/Icon';
 import { api } from '../services/api';
 
@@ -321,7 +322,7 @@ export function PanicScreen({ navigation }: Props) {
   // ── Estado 4: Sin conexión ─────────────────────────────────────────────
   if (state.kind === 'offline') {
     return (
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor={Colors.danger} />
         <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
@@ -376,7 +377,7 @@ export function PanicScreen({ navigation }: Props) {
           >
             <View style={[styles.callIcon, styles.callIconDanger]}><Icon name="siren" size={20} color={Colors.danger} /></View>
             <View style={styles.callMeta}>
-              <Text style={[styles.callLabel, { fontWeight: '700', color: Colors.ink900 }]}>
+              <Text style={[styles.callLabel, { color: Colors.ink900 }]}>
                 Línea de prevención del suicidio
               </Text>
               <Text style={[styles.callNumber, { color: Colors.danger, fontSize: 20 }]}>
@@ -395,7 +396,7 @@ export function PanicScreen({ navigation }: Props) {
   if (state.kind === 'responded' || state.kind === 'escalated') {
     const sponsor = state.kind === 'responded' ? state.sponsor : null;
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F0FAF5' }]} edges={['top']}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F0FAF5' }]} edges={['top', 'bottom']}>
         <StatusBar barStyle="dark-content" backgroundColor="#F0FAF5" />
         <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
@@ -518,7 +519,7 @@ export function PanicScreen({ navigation }: Props) {
               <Text style={styles.iaBannerTitle}>Asistente IA disponible</Text>
               <Text style={styles.iaBannerBody}>
                 Tomará contacto automáticamente en{' '}
-                <Text style={{ fontWeight: '700' }}>{formatCountdown(countdown)}</Text>
+                <Text style={{ fontFamily: Fonts.bodyBold }}>{formatCountdown(countdown)}</Text>
                 {' '}si nadie responde, o inicia el chat ahora mismo.
               </Text>
             </View>
@@ -568,7 +569,7 @@ export function PanicScreen({ navigation }: Props) {
   // ── Estado 1: Idle (listo) ─────────────────────────────────────────────
   const { sponsor } = state;
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
       <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
         <Icon name="arrow-left" size={20} color={Colors.fg1} />
@@ -689,6 +690,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   loadingText: {
+    fontFamily: Fonts.body,
     color: Colors.fg2,
     fontSize: 16,
   },
@@ -701,8 +703,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   offlineBannerText: {
+    fontFamily: Fonts.bodyBold,
     color: '#fff',
-    fontWeight: '700',
     fontSize: 14,
   },
   warnCard: {
@@ -713,11 +715,12 @@ const styles = StyleSheet.create({
     padding: 14,
   },
   warnCardTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.ink900,
   },
   warnCardBody: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.fg2,
     marginTop: 4,
@@ -751,15 +754,17 @@ const styles = StyleSheet.create({
   },
   callMeta: { flex: 1 },
   callLabel: {
+    fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.fg2,
   },
   callNumber: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 16,
     color: Colors.primary,
   },
   callSubLabel: {
+    fontFamily: Fonts.body,
     fontSize: 11,
     color: Colors.fg2,
     marginTop: 2,
@@ -767,13 +772,14 @@ const styles = StyleSheet.create({
 
   // ── Textos generales ──
   title: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 24,
     color: Colors.ink900,
     textAlign: 'center',
     lineHeight: 30,
   },
   subtitle: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.fg2,
     textAlign: 'center',
@@ -828,17 +834,19 @@ const styles = StyleSheet.create({
     elevation: 0,
   },
   panicBtnLabel: {
+    fontFamily: Fonts.bodyBold,
     color: '#fff',
-    fontWeight: '700',
     fontSize: 14,
     letterSpacing: 2,
   },
   holdHint: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.fg2,
     textAlign: 'center',
   },
   holdHintDisabled: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: '#ccc',
     textAlign: 'center',
@@ -865,6 +873,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sponsorCardLabel: {
+    fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.fg2,
     marginBottom: 10,
@@ -884,8 +893,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatarLetter: {
+    fontFamily: Fonts.bodyBold,
     color: '#fff',
-    fontWeight: '700',
     fontSize: 18,
   },
   onlineDot: {
@@ -901,23 +910,24 @@ const styles = StyleSheet.create({
   },
   sponsorMeta: { flex: 1 },
   sponsorName: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 16,
     color: Colors.ink900,
   },
   sponsorStatus: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: Colors.sage500,
     marginTop: 2,
-    fontWeight: '600',
   },
   sponsorOnline: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: Colors.sage500,
     marginTop: 2,
-    fontWeight: '600',
   },
   noSponsorText: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.fg2,
     flex: 1,
@@ -931,11 +941,12 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   callSmallBtnText: {
+    fontFamily: Fonts.bodyBold,
     color: Colors.primary,
-    fontWeight: '700',
     fontSize: 13,
   },
   notifTime: {
+    fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.fg2,
     marginTop: 2,
@@ -974,7 +985,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   timerNum: {
-    fontWeight: '800',
+    fontFamily: Fonts.bodyBold,
     fontSize: 48,
     color: Colors.danger,
     lineHeight: 52,
@@ -984,20 +995,21 @@ const styles = StyleSheet.create({
     color: Colors.danger,
   },
   timerCap: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 11,
     color: Colors.fg2,
     textTransform: 'uppercase',
     letterSpacing: 1,
     marginTop: 4,
-    fontWeight: '600',
   },
   waitTitle: {
-    fontWeight: '600',
+    fontFamily: Fonts.headingBold,
     fontSize: 18,
     color: Colors.ink900,
     textAlign: 'center',
   },
   waitSub: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.fg2,
     textAlign: 'center',
@@ -1008,6 +1020,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   waitDots: {
+    fontFamily: Fonts.body,
     color: Colors.fg2,
     fontSize: 14,
   },
@@ -1024,11 +1037,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   iaBannerTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
     color: Colors.accent,
   },
   iaBannerBody: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.ink900,
     lineHeight: 20,
@@ -1047,11 +1061,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   communityTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
     color: Colors.primary,
   },
   communityBody: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.ink900,
     lineHeight: 20,
@@ -1076,13 +1091,14 @@ const styles = StyleSheet.create({
     borderColor: Colors.sage500,
   },
   respondedTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 24,
     color: Colors.ink900,
     textAlign: 'center',
     lineHeight: 30,
   },
   respondedSub: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.fg2,
     textAlign: 'center',
@@ -1114,18 +1130,18 @@ const styles = StyleSheet.create({
     borderColor: Colors.danger,
   },
   btnTextLight: {
+    fontFamily: Fonts.bodyBold,
     color: '#fff',
-    fontWeight: '700',
     fontSize: 16,
   },
   btnTextPrimary: {
+    fontFamily: Fonts.bodyBold,
     color: Colors.primary,
-    fontWeight: '700',
     fontSize: 16,
   },
   btnTextDanger: {
+    fontFamily: Fonts.bodyBold,
     color: Colors.danger,
-    fontWeight: '700',
     fontSize: 16,
   },
 });

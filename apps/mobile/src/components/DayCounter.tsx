@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
 interface Props {
@@ -67,13 +68,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   daysNumber: {
-    fontFamily: 'System',
-    fontWeight: '800',
+    fontFamily: Fonts.headingBold,
     fontSize: 44,
     lineHeight: 48,
     color: Colors.primary,
   },
   daysText: {
+    fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.fg2,
     marginTop: 4,
@@ -86,11 +87,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   milestoneLabel: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.fg2,
   },
   milestonePercent: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
     color: Colors.sage500,
   },
@@ -113,6 +115,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   daysLeftText: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.fg2,
     textAlign: 'center',

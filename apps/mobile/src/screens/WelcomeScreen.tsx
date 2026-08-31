@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Image,
   StatusBar,
   StyleSheet,
   Text,
@@ -9,8 +10,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
-import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
@@ -25,15 +26,20 @@ export function WelcomeScreen({ navigation }: Props) {
           <View style={styles.ringMid}>
             <View style={styles.ringInner}>
               <View style={styles.badge}>
-                <Icon name="heart" size={36} color={Colors.white} />
+                <Image
+                  source={require('../assets/isotipo-blanco.png')}
+                  style={styles.isotipo}
+                  resizeMode="contain"
+                  accessibilityLabel="StopBet"
+                />
               </View>
             </View>
           </View>
         </View>
 
-        <Text style={styles.logo}>
-          stop<Text style={styles.logoBold}>bet</Text>
-        </Text>
+        {/* El manual escribe la marca "StopBet": antes decía "stopbet" en
+            minúsculas y con dos tonos de azul que no son de la paleta. */}
+        <Text style={styles.logo}>StopBet</Text>
         <Text style={styles.tagline}>Tu camino hacia una vida libre</Text>
       </View>
 
@@ -70,12 +76,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 30,
   },
+  // Los anillos venían en rgba(232,136,58) — el naranja AJUTER de la paleta
+  // anterior. Ahora derivan del azul principal del manual (#396fb6).
   ringOuter: {
     width: 200,
     height: 200,
     borderRadius: 100,
     borderWidth: 1.5,
-    borderColor: 'rgba(232,136,58,0.18)',
+    borderColor: 'rgba(57,111,182,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -85,7 +93,7 @@ const styles = StyleSheet.create({
     height: 152,
     borderRadius: 76,
     borderWidth: 1.5,
-    borderColor: 'rgba(232,136,58,0.28)',
+    borderColor: 'rgba(57,111,182,0.28)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -93,7 +101,7 @@ const styles = StyleSheet.create({
     width: 104,
     height: 104,
     borderRadius: 52,
-    backgroundColor: 'rgba(232,136,58,0.10)',
+    backgroundColor: 'rgba(57,111,182,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -101,21 +109,26 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 22,
-    backgroundColor: Colors.accent,
+    // El isotipo es blanco: sobre el azul claro no se leía.
+    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  isotipo: {
+    width: 46,
+    height: 46,
+  },
   logo: {
-    fontWeight: '800',
+    // Chillax es la tipografía primaria del manual. Sin fontFamily explícito
+    // heredaba Lato del default global de App.tsx.
+    fontFamily: Fonts.headingBold,
     fontSize: 40,
     color: Colors.primary,
     letterSpacing: -0.5,
     marginTop: 22,
   },
-  logoBold: {
-    color: Colors.accent,
-  },
   tagline: {
+    fontFamily: Fonts.body,
     fontSize: 16,
     color: Colors.fg2,
     marginTop: 10,
@@ -135,7 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnPrimaryText: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 16,
     color: Colors.white,
   },
@@ -145,7 +158,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   btnLinkText: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.primary,
   },

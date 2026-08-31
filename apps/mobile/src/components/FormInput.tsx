@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 
 interface Props {
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
     color: Colors.ink900,
     marginBottom: 7,
@@ -149,7 +150,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   prefix: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     fontSize: 15,
     color: Colors.fg1,
     paddingRight: 10,
@@ -157,6 +158,7 @@ const styles = StyleSheet.create({
     borderRightColor: Colors.border,
   },
   input: {
+    fontFamily: Fonts.body,
     flex: 1,
     fontSize: 15,
     color: Colors.ink900,
@@ -176,10 +178,12 @@ const styles = StyleSheet.create({
     marginTop: 7,
   },
   error: {
+    fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.danger,
   },
   hint: {
+    fontFamily: Fonts.body,
     fontSize: 12,
     color: Colors.fg2,
     marginTop: 7,

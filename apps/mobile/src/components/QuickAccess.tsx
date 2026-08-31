@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
 interface Props {
@@ -88,12 +89,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   primaryTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 17,
     color: Colors.white,
     lineHeight: 22,
   },
   primarySubtitle: {
+    fontFamily: Fonts.body,
     fontSize: 13,
     color: Colors.overlayWhite72,
     marginTop: 4,
@@ -123,7 +125,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   secondaryLabel: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: Colors.fg1,
   },

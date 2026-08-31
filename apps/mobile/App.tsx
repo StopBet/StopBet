@@ -1,19 +1,5 @@
 import React from 'react';
-import { Text, TextInput } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-
-// Fuente body por defecto en toda la app — manual de marca StopBet.
-// React Native no declara `defaultProps` en sus tipos aunque en runtime exista,
-// así que se accede por una vista tipada del componente en vez de `any`.
-type WithDefaultProps = { defaultProps?: { style?: { fontFamily: string } } };
-
-function setDefaultFont(component: WithDefaultProps): void {
-  component.defaultProps = component.defaultProps ?? {};
-  component.defaultProps.style = { fontFamily: 'Lato-Regular' };
-}
-
-setDefaultFont(Text as unknown as WithDefaultProps);
-setDefaultFont(TextInput as unknown as WithDefaultProps);
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AppStackParamList, AuthStackParamList } from './src/navigation/types';
 import { AuthContext } from './src/context/AuthContext';

@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import type { TechniqueType } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 
 interface TechniqueStep {
@@ -95,7 +96,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   title: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     fontSize: 15,
     color: Colors.primary,
   },
@@ -117,19 +118,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   numText: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: Colors.white,
   },
   stepLabel: {
+    fontFamily: Fonts.body,
     flex: 1,
     fontSize: 13.5,
     color: Colors.ink900,
   },
   secs: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 12,
     color: Colors.fg2,
-    fontWeight: '600',
   },
   cta: {
     flexDirection: 'row',
@@ -143,7 +145,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
   },
   ctaText: {
-    fontWeight: '700',
+    fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
     color: Colors.white,
   },

@@ -1,7 +1,7 @@
-// Tipografía oficial StopBet — manual de marca
-// Primaria  (títulos):       Chillax
-// Secundaria (cuerpo/UI):    Lato      ← aplicada como default global en App.tsx
-// Terciaria  (subtítulos):   Satoshi
+// Tipografía oficial StopBet — manual de marca (docs/manual-marca.md)
+// Primaria   (títulos):    Chillax
+// Secundaria (cuerpo/UI):  Satoshi   ← aplicada como default global en App.tsx
+// Terciaria  (complemento): Lato
 
 export const Fonts = {
   // Chillax — títulos y headings principales
@@ -9,14 +9,14 @@ export const Fonts = {
   heading:         'Chillax-SemiBold',
   headingBold:     'Chillax-Bold',
 
-  // Lato — body, labels, botones (default global via Text.defaultProps)
-  body:            'Lato-Regular',
-  bodyBold:        'Lato-Bold',
+  // Satoshi — body, labels, botones (default global via Text.defaultProps)
+  body:            'Satoshi-Regular',
+  bodyMedium:      'Satoshi-Medium',
+  bodyBold:        'Satoshi-Bold',
 
-  // Satoshi — subtítulos, metadata, complementario
-  caption:         'Satoshi-Regular',
-  captionMedium:   'Satoshi-Medium',
-  captionBold:     'Satoshi-Bold',
+  // Lato — complementaria: apoyos, metadata, texto de bajo énfasis
+  caption:         'Lato-Regular',
+  captionBold:     'Lato-Bold',
 };
 
 export const FontSize = {

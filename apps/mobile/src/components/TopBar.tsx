@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
 interface Props {
@@ -49,13 +50,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
+    fontFamily: Fonts.bodyBold,
     flex: 1,
-    fontWeight: '700',
     fontSize: 15,
     color: Colors.fg1,
   },
   stepLabel: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
     color: Colors.fg2,
   },

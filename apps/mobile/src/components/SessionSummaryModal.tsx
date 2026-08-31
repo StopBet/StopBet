@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import type { AiSessionSummary } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 
 interface SummaryChip {
@@ -178,8 +179,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontWeight: '800', fontSize: 22, color: Colors.ink900, marginTop: 16 },
-  sub: { fontSize: 13, color: Colors.fg2, lineHeight: 18, textAlign: 'center', marginTop: 4 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 22, color: Colors.ink900, marginTop: 16 },
+  sub: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 18, textAlign: 'center', marginTop: 4 },
 
   grid: {
     flexDirection: 'row',
@@ -205,8 +206,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipText: { flex: 1 },
-  chipLabel: { fontSize: 10, color: Colors.fg2, fontWeight: '600', letterSpacing: 0.3 },
-  chipValue: { fontWeight: '700', fontSize: 13.5, color: Colors.ink900, marginTop: 2 },
+  chipLabel: { fontFamily: Fonts.bodyBold, fontSize: 10, color: Colors.fg2, letterSpacing: 0.3 },
+  chipValue: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.ink900, marginTop: 2 },
 
   noteRow: {
     flexDirection: 'row',
@@ -216,6 +217,7 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   note: {
+    fontFamily: Fonts.body,
     flex: 1,
     fontSize: 13,
     color: Colors.fg2,
@@ -228,7 +230,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: 'center',
   },
-  btnText: { fontWeight: '700', fontSize: 16, color: Colors.white },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
   linkBtn: { marginTop: 12, padding: 4 },
-  linkText: { fontWeight: '700', fontSize: 14, color: Colors.primary },
+  linkText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
 });

@@ -10,6 +10,7 @@ import {
 import { Invoice } from './entities/invoice.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { todayInChile } from '../common/chile-date';
 
 const MONTHLY_AMOUNT_CLP = 30_000;
 
@@ -113,7 +114,7 @@ export class BillingService {
   }
 
   private today(): string {
-    return new Date().toISOString().split('T')[0];
+    return todayInChile();
   }
 
   private nextMonthStr(dateStr: string): string {

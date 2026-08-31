@@ -1,0 +1,10 @@
+<resources>
+
+    <!-- API 29+: sin esto el sistema dibuja igual un velo gris de contraste sobre la
+         barra transparente, que es justo lo que se veía cortado del resto de la app. -->
+    <style name="AppTheme" parent="AppTheme.Base">
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+    </style>
+
+</resources>

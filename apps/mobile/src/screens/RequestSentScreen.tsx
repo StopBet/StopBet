@@ -12,6 +12,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RequestSent'>;
 
@@ -128,8 +129,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 22,
   },
-  title: { fontWeight: '700', fontSize: 28, color: Colors.ink900, letterSpacing: -0.3, textAlign: 'center' },
-  subtitle: { fontWeight: '600', fontSize: 15, color: Colors.sage500, marginTop: 12, textAlign: 'center' },
+  title: { fontFamily: Fonts.headingBold, fontSize: 28, color: Colors.ink900, letterSpacing: -0.3, textAlign: 'center' },
+  subtitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.sage500, marginTop: 12, textAlign: 'center' },
 
   card: {
     backgroundColor: Colors.surface,
@@ -157,12 +158,12 @@ const styles = StyleSheet.create({
   tlLine: { width: 2, flex: 1, minHeight: 16, marginVertical: 3, backgroundColor: Colors.border },
   tlLineDone: { backgroundColor: Colors.sage500 },
   tlBody: { flex: 1, paddingBottom: 18 },
-  tlTitle: { fontWeight: '600', fontSize: 14, color: Colors.ink900, lineHeight: 19 },
-  tlTitleTodo: { fontWeight: '400', color: Colors.fg2 },
-  tlMeta: { fontSize: 13, color: Colors.fg2, marginTop: 3, lineHeight: 18 },
+  tlTitle: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink900, lineHeight: 19 },
+  tlTitleTodo: { fontFamily: Fonts.heading, color: Colors.fg2 },
+  tlMeta: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 3, lineHeight: 18 },
 
-  note: { fontSize: 14, color: Colors.fg2, marginTop: 20, lineHeight: 21, textAlign: 'center', maxWidth: 290 },
-  noteEmail: { fontWeight: '600', color: Colors.fg1 },
+  note: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, marginTop: 20, lineHeight: 21, textAlign: 'center', maxWidth: 290 },
+  noteEmail: { fontFamily: Fonts.bodyBold, color: Colors.fg1 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14, alignItems: 'center' },
   btnOutline: {
@@ -174,8 +175,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnOutlineText: { fontWeight: '700', fontSize: 16, color: Colors.primary },
-  contactText: { fontSize: 13, color: Colors.fg2, marginTop: 12 },
-  contactLink: { color: Colors.primary, fontWeight: '600' },
-  powered: { fontSize: 11, color: Colors.fg2, marginTop: 6, opacity: 0.6 },
+  btnOutlineText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.primary },
+  contactText: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 12 },
+  contactLink: { fontFamily: Fonts.bodyBold, color: Colors.primary },
+  powered: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2, marginTop: 6, opacity: 0.6 },
 });

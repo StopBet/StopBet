@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
 type Props = {
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  title: { fontWeight: '700', fontSize: 16.5, color: Colors.fg1 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 16.5, color: Colors.fg1 },
   crumbs: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -227,9 +228,9 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   crumbPillOn: { borderColor: Colors.primary, backgroundColor: Colors.surface },
-  crumb: { fontSize: 14, color: Colors.primary, fontWeight: '600' },
-  crumbActive: { color: Colors.primary, fontWeight: '700' },
-  crumbHint: { fontSize: 12.5, color: Colors.fg2, marginLeft: 'auto' },
+  crumb: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
+  crumbActive: { fontFamily: Fonts.bodyBold, color: Colors.primary },
+  crumbHint: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2, marginLeft: 'auto' },
   scroll: { maxHeight: 320 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell3: {
@@ -246,15 +247,15 @@ const styles = StyleSheet.create({
   },
   cellOn: { backgroundColor: Colors.primary },
   cellOff: { opacity: 0.28 },
-  cellText: { fontSize: 15, color: Colors.fg1 },
-  cellTextOn: { color: Colors.white, fontWeight: '700' },
+  cellText: { fontFamily: Fonts.body, fontSize: 15, color: Colors.fg1 },
+  cellTextOn: { fontFamily: Fonts.bodyBold, color: Colors.white },
   cellTextOff: { color: Colors.fg2 },
   weekRow: { flexDirection: 'row', marginBottom: 6 },
   weekday: {
+    fontFamily: Fonts.bodyBold,
     width: '14.28%',
     textAlign: 'center',
     fontSize: 12,
-    fontWeight: '600',
     color: Colors.fg2,
   },
 });

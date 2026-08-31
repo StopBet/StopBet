@@ -24,6 +24,7 @@ import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
 import { BottomNav, NavTab } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
+import { Fonts } from '../constants/typography';
 import {
   api,
   hasPendingExternalRelapse,
@@ -47,6 +48,9 @@ const MONTHS_SHORT = [
 ];
 
 const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
+
+// Cuánto dura el chip "¡Nuevo!" sobre la última insignia ganada.
+const NEW_BADGE_TTL_MS = 60 * 60 * 1000;
 
 const MILESTONE_DRAFT: Record<BadgeMilestone, string> = {
   1:  'Hoy es el primer día de mi abstinencia. Espero que sea el inicio de un gran camino.',
@@ -237,9 +241,17 @@ export function AchievementsScreen({ navigation }: Props) {
   const currentPeriod = data.currentPeriod;
   const days = currentPeriod.daysAchieved;
   const earnedSet = new Set(currentPeriod.earnedBadges.map((b) => b.milestone));
-  const newestEarnedMilestone = currentPeriod.earnedBadges
-    .filter((b) => !b.sharedToCommunity)
-    .sort((a, b) => b.milestone - a.milestone)[0]?.milestone as BadgeMilestone | undefined;
+  // El chip marca la insignia recién ganada. Antes se elegía "la más alta que no
+  // compartiste", que no tiene relación con cuándo se ganó: al compartir las de 30 y
+  // 45 días, el chip retrocedía a la de 21 y se quedaba ahí para siempre.
+  const newestEarnedMilestone = ((): BadgeMilestone | undefined => {
+    const latest = currentPeriod.earnedBadges
+      .filter((b) => Boolean(b.createdAt))
+      .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+    if (!latest) return undefined;
+    const age = Date.now() - Date.parse(latest.createdAt);
+    return age < NEW_BADGE_TTL_MS ? (latest.milestone as BadgeMilestone) : undefined;
+  })();
 
   // EMPTY_DATA deja el id vacío: sirve para distinguir "todavía no hay datos"
   // de "el paciente lleva 0 días", que en pantalla se ven igual.
@@ -481,14 +493,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 4,
+    paddingTop: 16,
     paddingBottom: 18,
     backgroundColor: Colors.primary,
     gap: 12,
   },
   headerText: { flex: 1 },
-  headerTitle: { fontWeight: '700', fontSize: 20, color: Colors.white, lineHeight: 26 },
-  headerSub: { fontSize: 14, color: Colors.teal400, marginTop: 3 },
+  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white, lineHeight: 26 },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.teal400, marginTop: 3 },
   trophyCircle: {
     width: 44,
     height: 44,
@@ -517,11 +529,13 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   offlineText: {
+    fontFamily: Fonts.body,
     flex: 1,
     fontSize: 13,
     color: Colors.fg2,
   },
   counterPlaceholderText: {
+    fontFamily: Fonts.body,
     fontSize: 14,
     color: Colors.fg2,
     textAlign: 'center',
@@ -540,14 +554,14 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   counterNum: {
-    fontWeight: '800',
+    fontFamily: Fonts.bodyBold,
     fontSize: 72,
     color: Colors.primary,
     letterSpacing: -1,
     lineHeight: 80,
   },
-  counterUnit: { fontWeight: '600', fontSize: 18, color: Colors.fg2, marginTop: 2 },
-  counterStart: { fontSize: 12, color: Colors.fg2 },
+  counterUnit: { fontFamily: Fonts.bodyBold, fontSize: 18, color: Colors.fg2, marginTop: 2 },
+  counterStart: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
 
   progressWrap: { width: '100%', marginTop: 20 },
   progressTrack: {
@@ -562,9 +576,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.sage500,
   },
   progressLabel: {
+    fontFamily: Fonts.bodyBold,
     fontSize: 13,
     color: Colors.gold,
-    fontWeight: '600',
     textAlign: 'center',
   },
 
@@ -576,11 +590,11 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 18,
   },
-  relapseBtnText: { color: Colors.danger, fontWeight: '700', fontSize: 13 },
+  relapseBtnText: { fontFamily: Fonts.bodyBold, color: Colors.danger, fontSize: 13 },
 
   /* Section title */
   sectionTitle: {
-    fontWeight: '600',
+    fontFamily: Fonts.headingBold,
     fontSize: 18,
     color: Colors.fg1,
     marginTop: 28,
@@ -641,8 +655,9 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     zIndex: 1,
   },
-  newChipText: { color: Colors.white, fontWeight: '700', fontSize: 9 },
+  newChipText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 9 },
   badgeLabel: {
+    fontFamily: Fonts.body,
     fontSize: 10,
     color: Colors.fg1,
     textAlign: 'center',
@@ -651,7 +666,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   badgeLabelLocked: { color: Colors.fg2 },
-  badgeDays: { fontSize: 9, color: Colors.fg2, fontWeight: '600', marginTop: 2 },
+  badgeDays: { fontFamily: Fonts.bodyBold, fontSize: 9, color: Colors.fg2, marginTop: 2 },
 
   /* Cycle card */
   cycleCard: {
@@ -674,10 +689,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  cycleChipText: { color: Colors.sage500, fontWeight: '700', fontSize: 11 },
-  cycleDates: { fontSize: 12, color: Colors.fg2 },
+  cycleChipText: { fontFamily: Fonts.bodyBold, color: Colors.sage500, fontSize: 11 },
+  cycleDates: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
   cycleProgress: {
-    fontWeight: '600',
+    fontFamily: Fonts.bodyBold,
     fontSize: 15,
     color: Colors.ink900,
     marginTop: 11,
@@ -695,7 +710,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cycleNote: { marginTop: 13 },
-  cycleNoteText: { fontSize: 12, color: Colors.fg2, fontStyle: 'italic', lineHeight: 18 },
+  cycleNoteText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, fontStyle: 'italic', lineHeight: 18 },
 
   /* Overlay + modals */
   overlay: {
@@ -728,7 +743,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   modalTitle: {
-    fontWeight: '700',
+    fontFamily: Fonts.headingBold,
     fontSize: 22,
     color: Colors.ink900,
     textAlign: 'center',
@@ -737,6 +752,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
   },
   modalText: {
+    fontFamily: Fonts.body,
     fontSize: 15,
     color: Colors.fg2,
     textAlign: 'center',
@@ -753,7 +769,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 22,
   },
-  btnPrimaryText: { color: Colors.white, fontWeight: '700', fontSize: 16 },
+  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
   btnLink: { marginTop: 14, padding: 4 },
-  btnLinkText: { color: Colors.fg2, fontWeight: '700', fontSize: 14 },
+  btnLinkText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 14 },
 });

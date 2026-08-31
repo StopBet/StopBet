@@ -176,6 +176,9 @@ export const api = {
         earnedAt: new Date(startMs + m * 86_400_000).toISOString(),
         sharedToCommunity: false,
         periodId: data.currentPeriod.id,
+        // Insignias simuladas: se "ganaron" en el pasado, así que no deben salir
+        // con el chip de recién obtenida.
+        createdAt: new Date(startMs + m * 86_400_000).toISOString(),
       }));
 
     const newestMilestone = earnedBadges.length > 0

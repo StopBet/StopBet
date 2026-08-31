@@ -1,0 +1,9 @@
+<resources>
+
+    <!-- API 27+: los íconos de la barra de navegación pasan a oscuros, porque el
+         fondo que queda detrás es el crema de la app y los blancos no se veían. -->
+    <style name="AppTheme" parent="AppTheme.Base">
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+</resources>
