@@ -226,7 +226,9 @@ export interface FlaggedPost {
   id: string
   authorId: string
   authorName: string | null
-  authorInitials: string
+  // El backend no manda iniciales: la respuesta real trae authorRole, no
+  // authorInitials. Estaba declarado como `string` obligatorio y llegaba
+  // undefined, así que el avatar salía siempre vacío. Se deriva del nombre.
   type: string
   sede: string
   body: string | null
