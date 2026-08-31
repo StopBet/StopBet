@@ -220,13 +220,14 @@ export class CommunityService {
     return this.serializeReply(reply);
   }
 
-  async reportPost(postId: string, reporterId: string) {
+  // CA5.3: el denunciante indica un motivo, que queda registrado con el reporte
+  async reportPost(postId: string, reporterId: string, reason: string) {
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) throw new NotFoundException('Publicación no encontrada');
 
     const existing = await this.reportRepo.findOne({ where: { postId, reporterId } });
     if (!existing) {
-      await this.reportRepo.save(this.reportRepo.create({ postId, reporterId }));
+      await this.reportRepo.save(this.reportRepo.create({ postId, reporterId, reason }));
       await this.postRepo.increment({ id: postId }, 'reportCount', 1);
     }
     return { reported: true };
@@ -242,7 +243,25 @@ export class CommunityService {
       relations: ['author'],
       order: { reportCount: 'DESC' },
     });
-    return posts.map((p) => this.serializePost(p, [], 0, requesterId));
+    if (!posts.length) return [];
+
+    // Los motivos van sin identificar al denunciante: saber quién reportó a quién
+    // desincentiva reportar, y para moderar basta con el motivo.
+    const reports = await this.reportRepo.find({
+      where: { postId: In(posts.map((p) => p.id)) },
+      select: ['postId', 'reason'],
+      order: { createdAt: 'ASC' },
+    });
+    const reasonsByPost = new Map<string, string[]>();
+    for (const r of reports) {
+      if (!reasonsByPost.has(r.postId)) reasonsByPost.set(r.postId, []);
+      reasonsByPost.get(r.postId)!.push(r.reason);
+    }
+
+    return posts.map((p) => ({
+      ...this.serializePost(p, [], 0, requesterId),
+      reportReasons: reasonsByPost.get(p.id) ?? [],
+    }));
   }
 
   // CA3 (psicólogo modera) + CA5.4 (autor elimina su propia publicación)

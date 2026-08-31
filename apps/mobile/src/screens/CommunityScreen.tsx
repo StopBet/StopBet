@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StatusBar,
@@ -72,6 +73,11 @@ export function CommunityScreen({ navigation, route }: Props) {
   // Composer del foro
   const [draft, setDraft] = useState(route.params?.draft ?? '');
   const [posting, setPosting] = useState(false);
+
+  // Reporte con motivo (CA5.3)
+  const [reportPostId, setReportPostId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSending, setReportSending] = useState(false);
 
   // Respuestas: expansión y cache por post
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -195,31 +201,31 @@ export function CommunityScreen({ navigation, route }: Props) {
   };
 
   // ── Reportar ───────────────────────────────────────────────────────────
+  // CA5.3 exige indicar un motivo. Android no tiene Alert.prompt, así que el
+  // motivo se pide en un modal propio en vez de un Alert.
   const handleReport = (postId: string) => {
-    Alert.alert(
-      'Reportar publicación',
-      '¿Quieres reportar este mensaje al equipo clínico? Si recibe varios reportes será revisado.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Reportar',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await api.reportPost(TEMP_USER_ID, postId);
-              // CA5.3: el backend ya deja de devolvérselo a quien reportó, pero
-              // la pantalla carga una sola vez y el post seguía a la vista hasta
-              // salir y volver. Se quita del feed apenas se confirma.
-              setPosts((prev) => prev.filter((p) => p.id !== postId));
-              setAnnouncements((prev) => prev.filter((p) => p.id !== postId));
-              Alert.alert('Gracias', 'El equipo clínico revisará esta publicación.');
-            } catch {
-              Alert.alert('Sin conexión', 'No se pudo enviar el reporte.');
-            }
-          },
-        },
-      ],
-    );
+    setReportPostId(postId);
+    setReportReason('');
+  };
+
+  const submitReport = async () => {
+    const reason = reportReason.trim();
+    if (!reason || !reportPostId || reportSending) return;
+    setReportSending(true);
+    try {
+      await api.reportPost(TEMP_USER_ID, reportPostId, reason);
+      // CA5.3: el backend ya deja de devolvérselo a quien reportó, pero
+      // la pantalla carga una sola vez y el post seguía a la vista hasta
+      // salir y volver. Se quita del feed apenas se confirma.
+      setPosts((prev) => prev.filter((p) => p.id !== reportPostId));
+      setAnnouncements((prev) => prev.filter((p) => p.id !== reportPostId));
+      setReportPostId(null);
+      Alert.alert('Gracias', 'El equipo clínico revisará esta publicación.');
+    } catch {
+      Alert.alert('Sin conexión', 'No se pudo enviar el reporte.');
+    } finally {
+      setReportSending(false);
+    }
   };
 
   // ── Eliminar publicación propia ──────────────────────────────────────
@@ -402,6 +408,51 @@ export function CommunityScreen({ navigation, route }: Props) {
           )}
         </KeyboardAvoidingView>
       )}
+
+      {/* CA5.3: motivo del reporte */}
+      <Modal
+        visible={reportPostId !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReportPostId(null)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Reportar publicación</Text>
+            <Text style={styles.modalText}>
+              Cuéntanos por qué la reportas. El equipo clínico revisará tu reporte.
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Motivo del reporte…"
+              placeholderTextColor={Colors.fg2}
+              value={reportReason}
+              onChangeText={setReportReason}
+              multiline
+              maxLength={500}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setReportPostId(null)}
+                disabled={reportSending}
+              >
+                <Text style={styles.modalCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalSubmit, (!reportReason.trim() || reportSending) && styles.modalSubmitDisabled]}
+                onPress={submitReport}
+                disabled={!reportReason.trim() || reportSending}
+              >
+                {reportSending
+                  ? <ActivityIndicator size="small" color={Colors.white} />
+                  : <Text style={styles.modalSubmitText}>Reportar</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <BottomNav active="community" onTabPress={handleTabPress} onPanicPress={() => navigation.navigate('Panic')} />
     </SafeAreaView>
@@ -873,4 +924,48 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2 },
+
+  // Modal de reporte (CA5.3)
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: Colors.surface,
+    borderRadius: 18,
+    padding: 20,
+    gap: 12,
+  },
+  modalTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900 },
+  modalText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, lineHeight: 20 },
+  modalInput: {
+    fontFamily: Fonts.body,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: Colors.ink900,
+    backgroundColor: Colors.bg,
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
+  modalCancel: { paddingHorizontal: 18, paddingVertical: 11 },
+  modalCancelText: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: Colors.fg2 },
+  modalSubmit: {
+    backgroundColor: Colors.danger,
+    borderRadius: 9999,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    minWidth: 110,
+    alignItems: 'center',
+  },
+  modalSubmitDisabled: { backgroundColor: Colors.border },
+  modalSubmitText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
 });
