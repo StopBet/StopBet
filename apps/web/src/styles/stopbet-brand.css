@@ -1,0 +1,49 @@
+/* Marca StopBet — paleta y tipografías del manual (docs/manual-marca.md).
+ *
+ * Va en un archivo aparte y no toca colors_and_type.css ni ajuter-theme.css: el
+ * shell clínico sigue siendo AJUTER naranja. Estos tokens los consume por ahora
+ * solo el login, que es la puerta común a los dos productos.
+ *
+ * Las fuentes son .ttf en vez de .woff2 como el resto: pesan 60–74 KB cada una y
+ * es lo que hay en el repo. Si alguien las convierte a woff2, cambiar acá la ruta. */
+
+@font-face {
+  font-family: 'Chillax';
+  src: url('./fonts/Chillax-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Chillax';
+  src: url('./fonts/Chillax-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('./fonts/Satoshi-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('./fonts/Satoshi-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --sb-blue:       #396fb6;
+  --sb-blue-dark:  #2d5a9e;
+  --sb-blue-light: #93bce5;
+  --sb-cream:      #f4f4e9;
+  --sb-ink:        #504f4f;
+  --sb-green:      #c2d66e;
+  --sb-lavender:   #b7a9d3;
+
+  --sb-font-heading: 'Chillax', 'Nunito', system-ui, sans-serif;
+  --sb-font-body:    'Satoshi', 'Inter', system-ui, sans-serif;
+}
