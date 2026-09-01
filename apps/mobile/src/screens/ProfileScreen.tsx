@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import {
   Alert,
   ScrollView,
@@ -19,6 +19,7 @@ import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { devFlags } from '../store/devFlags';
 import { api } from '../services/api';
+import { AuthContext } from '../context/AuthContext';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -26,6 +27,7 @@ const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
 
 export function ProfileScreen({ navigation }: Props) {
+  const { signOut } = useContext(AuthContext);
   const [offline, setOffline] = useState(devFlags.simulateOffline);
   const [communityMuted, setCommunityMuted] = useState(false);
   const [muteLoading, setMuteLoading] = useState(false);
@@ -111,6 +113,17 @@ export function ProfileScreen({ navigation }: Props) {
       setCheckInResetStatus('error');
       setTimeout(() => setCheckInResetStatus('idle'), 2500);
     }
+  };
+
+  const confirmSignOut = () => {
+    Alert.alert(
+      'Cerrar sesión',
+      '¿Seguro que quieres salir de tu cuenta?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
+      ],
+    );
   };
 
   return (
@@ -325,6 +338,16 @@ export function ProfileScreen({ navigation }: Props) {
             </View>
           )}
         </View>
+
+        <TouchableOpacity
+          style={styles.signOutBtn}
+          onPress={confirmSignOut}
+          accessibilityRole="button"
+          accessibilityLabel="Cerrar sesión"
+        >
+          <Icon name="log-out" size={18} color={Colors.danger} />
+          <Text style={styles.signOutText}>Cerrar sesión</Text>
+        </TouchableOpacity>
       </ScrollView>
 
       <BottomNav
@@ -422,6 +445,19 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   comingSoonText: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, textAlign: 'center' },
+
+  signOutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.danger,
+    padding: 16,
+  },
+  signOutText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.danger },
 
   devCard: {
     backgroundColor: Colors.surface,

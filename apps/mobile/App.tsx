@@ -70,7 +70,10 @@ export default function App() {
   const [isSignedIn, setIsSignedIn] = React.useState(false);
 
   return (
-    <AuthContext.Provider value={{ signIn: () => setIsSignedIn(true) }}>
+    <AuthContext.Provider value={{
+      signIn: () => setIsSignedIn(true),
+      signOut: () => setIsSignedIn(false),
+    }}>
       <NavigationContainer>
         {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
       </NavigationContainer>
