@@ -20,6 +20,46 @@ está.
 
 ---
 
+## 2026-09-01 — `@nestjs/schedule` y `@nestjs/terminus` rompían **todos** los tests e2e (rama `fix/dependencias-nestjs-jose-meza`)
+
+### Hay que correr `pnpm install` después de pullear — y si `test:e2e` te fallaba entero, no era tu código
+
+**A quién le pega:** a todos los que corran `pnpm run test:e2e` o `pnpm test` en el backend.
+
+**Qué hacer**, una vez después de pullear, desde la raíz:
+
+```bash
+pnpm install
+```
+
+**Por qué:** `apps/backend/package.json` tenía `@nestjs/schedule@^6.1.3` y
+`@nestjs/terminus@^11.1.1` — ambas son versiones para NestJS 11, mientras que el resto del
+proyecto (`@nestjs/core`, `@nestjs/common`, etc.) está fijado en 10. Eso rompía la app
+**entera** al arrancar en modo test: `Nest can't resolve dependencies of the
+SchedulerMetadataAccessor (?) ... Reflector`. Como `AppModule` no levanta, **los 4 suites
+e2e fallaban completos (49/49 tests)**, sin relación con lo que cada uno haya tocado —  si te
+pasó, no busques el bug en tu código, era esto.
+
+Bajadas a `@nestjs/schedule@^4.1.2` y `@nestjs/terminus@^10.3.0` (compatibles con Nest 10).
+Además se agregó `pnpm.overrides` en el `package.json` de la raíz fijando
+`@nestjs/core`/`@nestjs/common` a `10.4.22`: sin eso, pnpm seguía resolviendo dos instancias
+físicas distintas de `@nestjs/core` en el árbol (una para el resto de la app, otra para
+`schedule`/`terminus`), y aunque ambas decían "10.4.22", Nest las trataba como clases
+distintas por referencia — el síntoma es el mismo error de `Reflector` incluso con las
+versiones ya corregidas. Si en el futuro alguien agrega una dependencia de NestJS y vuelve a
+pasar esto, revisen primero `pnpm why @nestjs/core` antes de sospechar del código.
+
+**Ojo si tu `.env` local apunta a Railway en vez de a tu Postgres local:** de paso se encontró
+un `apps/backend/.env` con `DATABASE_URL` apuntando a la base de **producción** de Railway y
+`NODE_ENV=production`. Si el tuyo también apunta ahí, tus tests e2e van a intentar crear y
+borrar usuarios contra la base real — revisa que tu `DATABASE_URL` sea
+`postgresql://postgres:password@localhost:5432/stopbet` y `NODE_ENV=development`, como dice
+`CLAUDE.md`. Si tu Postgres local no tiene esa contraseña, no hay que reinstalar nada: se
+resetea con `ALTER USER postgres WITH PASSWORD 'password';` desde `psql` (requiere editar
+`pg_hba.conf` a `trust` temporalmente si perdiste el acceso — pregúntenme si hace falta).
+
+---
+
 ## 2026-09-01 — La demo en la nube ya está lista, y cómo compilar el APK de release en Windows (rama `docs/demo-nube-y-apk-release-alex-dominguez`)
 
 ### Para mostrar la app ya no hace falta levantar nada local
