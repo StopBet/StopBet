@@ -36,6 +36,8 @@
 
 **Total: 61 SP · 46 criterios de aceptación, todos comprometidos.**
 
+> **Evidencia de cierre del SPIKE 1:** [`evidencia-spike-sprint1.md`](evidencia-spike-sprint1.md) — los 12 criterios (S.1 a S.12), con descripción breve y cómo demostrar cada uno (comando o video).
+
 \* HdU05 llegó sin estimar en el documento de HdU. Se propone **8 SP** según el trabajo restante en el código.
 
 ### Nota de capacidad
@@ -114,6 +116,9 @@ Eduardo con el bug de MoodChart y el endpoint de métricas.
 ## 4. Matriz de responsabilidad — los 46 criterios
 
 **Cada criterio tiene un único dueño.** Si algo no está en esta tabla, no está en el sprint.
+
+**Los 12 criterios `S.*` del SPIKE tienen su evidencia de cierre en
+[`evidencia-spike-sprint1.md`](evidencia-spike-sprint1.md).**
 
 | ID | Criterio (resumido) | Dueño |
 |----|---------------------|-------|

@@ -276,6 +276,7 @@ pnpm run seed:family
 - Pull Requests requieren al menos **1 reviewer** antes de mergear a `main`
 - `main` siempre debe estar en estado desplegable
 - **Estado del proyecto:** el estado actual (qué corre, qué está en curso, deudas) vive en [`CLAUDE.md`](CLAUDE.md). Tras un cambio significativo, actualízalo ahí para que cualquiera —y cualquier sesión de Claude— entienda el estado sin reconstruirlo.
+- **Evidencia del SPIKE 1** (seguridad, disponibilidad e IA): [`docs/planning/evidencia-spike-sprint1.md`](docs/planning/evidencia-spike-sprint1.md) — los 12 criterios, con comando o video para demostrar cada uno.
 
 ### Atribución de Claude Code
 
