@@ -20,6 +20,68 @@ está.
 
 ---
 
+## 2026-09-01 — La demo en la nube ya está lista, y cómo compilar el APK de release en Windows (rama `docs/demo-nube-y-apk-release-alex-dominguez`)
+
+### Para mostrar la app ya no hace falta levantar nada local
+
+**A quién le pega:** a cualquiera que tenga que mostrar el producto (reunión, avance, demo).
+
+**Qué hacer:** mandar el link y entrar. Nada de backend, Metro ni túneles `adb`.
+
+- Dashboard web: <https://stopbet-lemon.vercel.app> (ya apunta al backend de Railway)
+- Clave de todas las cuentas de prueba: `Stopbet2026!`
+
+**Por qué:** `CLAUDE.md` decía que la base de Railway estaba vacía y que no había con qué
+entrar. Eso quedó desactualizado: alguien ya corrió `pnpm run seed` y `seed:family` contra
+ella. Verificado el 2026-09-01, `POST /auth/login` devuelve token para las cuentas del seed,
+incluidas las del portal del familiar. Ya lo corregí en `CLAUDE.md`.
+
+### Para compilar el APK de release en Windows, copia el repo a una ruta corta
+
+**A quién le pega:** a quien necesite un APK instalable, para probar sin cable o para pasarle
+la app a alguien. Solo en Windows, y **solo para release**: el debug no cambia en nada.
+
+**Qué hacer:** no corras `assembleRelease` sobre el repo que tienes en OneDrive, ni con el
+`subst S:`. Copia el repo a una ruta corta, instala ahí y compila ahí:
+
+```bash
+robocopy <tu-repo> C:\sb /E /XD node_modules .git build .cxx .gradle dist
+cd C:\sb && pnpm install --frozen-lockfile
+pnpm --filter @stopbet/shared-types build
+cd C:\sb\apps\mobile\android && ./gradlew assembleRelease
+```
+
+El APK sale en `C:\sb\apps\mobile\android\app\build\outputs\apk\release\app-release.apk`.
+Verificado el 2026-09-01: `BUILD SUCCESSFUL` en 10m 36s, instalado y funcionando en un
+Galaxy S21 sin cable. Alternativa sin tocar tu máquina: lanzar
+`.github/workflows/mobile-preview.yml` desde Actions > Mobile Preview > Run workflow, que
+corre en Linux y publica el APK en Firebase App Distribution.
+
+**Por qué la ruta corta:** el build necesita dos cosas que en el layout actual se estorban, y
+ninguna de las dos configuraciones habituales sirve:
+
+- **Desde `C:\Users\...\OneDrive\Escritorio\...` falla el C++.** Ese prefijo son 56
+  caracteres, la ruta de objetos de CMake llega a unos 265 y revienta el límite MAX_PATH de
+  260 de Windows.
+- **Desde el `subst S:` que crea `scripts/android-run.ps1` falla Metro.** Los junctions de
+  pnpm apuntan todos a `C:`, así que Metro mezcla dos unidades. Con `STOPBET_REAL_ROOT`
+  definida arma rutas imposibles como `S:\C:\Users\...\metro-runtime\...`; sin ella, corta
+  con `Failed to get the SHA-1`.
+
+`C:\sb` cumple las dos: ruta corta **y** una sola unidad, sin `subst` de por medio.
+
+**Callejones sin salida, para que nadie los repita:** separar las etapas no sirve
+(pre-generar el bundle y correr `gradlew -x createBundleReleaseJsAndAssets` falla porque AGP
+consulta el provider de esa tarea igual), y tampoco reemplazar el junction de
+`@stopbet/shared-types` por una copia real (destapa que el problema es de todos los junctions
+de pnpm, no de ese paquete).
+
+**Ojo con el síntoma:** el primer error es
+`ninja: error: mkdir(...): No such file or directory`, que no se parece en nada a un problema
+de largo de ruta. Son 8 a 10 minutos por intento.
+
+---
+
 ## 2026-08-31 — El dashboard web pasó del naranja AJUTER al azul StopBet (rama `fix/dashboard-responsive-completo-alex-dominguez`)
 
 ### El panel se ve azul después de pullear. No está roto.
