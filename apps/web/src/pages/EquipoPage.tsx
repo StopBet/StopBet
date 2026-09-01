@@ -3,11 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
 import { api } from '../services/api'
 import type { ApiError, CreatePsychologistResponse, PsychologistListItem, Sede } from '../services/api'
+import { useIsNarrow } from '../hooks/useIsNarrow'
 
 const fieldStyle: CSSProperties = { height: 42, width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', padding: '0 12px', fontSize: 13.5, color: 'var(--fg1)', outline: 'none' }
 const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 5 }
 const overlayStyle: CSSProperties = { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }
-const scrimStyle: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(30,45,44,0.32)', animation: 'sb-scrim-in 0.18s ease', border: 'none', padding: 0, cursor: 'pointer' }
+const scrimStyle: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease', border: 'none', padding: 0, cursor: 'pointer' }
 const cardStyle: CSSProperties = { position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', animation: 'sb-modal-in 0.28s cubic-bezier(0.34,1.56,0.64,1)', zIndex: 1 }
 const closeBtnStyle: CSSProperties = { width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const primaryBtnStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 8, height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer' }
@@ -20,7 +21,9 @@ function Scrim({ onClose }: { onClose: () => void }) {
 }
 
 function Head({ label }: { label: string }) {
-  return <th style={{ textAlign: 'left', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 14px 12px' }}>{label}</th>
+  // Sin padding arriba la fila de cabeceras quedaba pegada al borde superior de la
+  // tarjeta y las mayusculas se leian recortadas contra la esquina redondeada.
+  return <th style={{ textAlign: 'left', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '16px 14px 12px', whiteSpace: 'nowrap' }}>{label}</th>
 }
 
 function initialsOf(firstName: string, lastName: string) {
@@ -79,7 +82,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
         <div style={{ ...cardStyle, width: 460, padding: 28 }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)' }}>Psicólogo creado</h2>
           <p style={{ margin: '5px 0 18px', fontSize: 13, color: 'var(--fg2)' }}>
-            Entrégale estas credenciales — no se van a volver a mostrar.
+            Entrégale estas credenciales: no se van a volver a mostrar.
           </p>
           <div style={{ background: 'var(--teal-50)', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
             <div style={{ fontSize: 12, color: 'var(--fg2)', marginBottom: 4 }}>Correo</div>
@@ -197,7 +200,7 @@ function DeactivateModal({
           <div>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger)' }}>Desactivar psicólogo</h2>
             <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>
-              {psychologist.firstName} {psychologist.lastName} — {psychologist.patientCount} paciente{psychologist.patientCount !== 1 ? 's' : ''} activo{psychologist.patientCount !== 1 ? 's' : ''}
+              {psychologist.firstName} {psychologist.lastName} · {psychologist.sedes.map(s => s.name).join(', ') || 'sin sedes'}
             </p>
           </div>
           <button onClick={onClose} style={closeBtnStyle}>
@@ -414,6 +417,7 @@ function EditSedesModal({
 
 /* ── Equipo Page ─────────────────────────────────────── */
 export function EquipoPage() {
+  const isNarrow = useIsNarrow()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [deactivateTarget, setDeactivateTarget] = useState<PsychologistListItem | null>(null)
@@ -430,8 +434,8 @@ export function EquipoPage() {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 1440, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+    <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1440, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      <div style={{ display: 'flex', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: isNarrow ? 16 : 24, gap: 12, flexDirection: isNarrow ? 'column' : 'row' }}>
         <div>
           <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, color: 'var(--fg1)' }}>Equipo</h1>
           <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--fg2)' }}>Cuentas de psicólogo y sus sedes asignadas.</p>
@@ -460,8 +464,65 @@ export function EquipoPage() {
             <div style={{ marginTop: 4, fontSize: 13 }}>Crea el primero con el botón de arriba.</div>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 110 }} /><col style={{ width: 190 }} /><col style={{ width: 110 }} /><col style={{ width: 220 }} /></colgroup>
+          isNarrow ? (
+            /* Cinco columnas de ancho fijo no caben en un teléfono: el nombre y el
+               correo quedaban aplastados contra las etiquetas de sede. */
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {psychologists.map((p) => (
+                <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>
+                      {initialsOf(p.firstName, p.lastName)}
+                    </div>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.firstName} {p.lastName}</div>
+                      <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.email}</div>
+                    </div>
+                    <span style={{
+                      flexShrink: 0,
+                      background: p.accountStatus === 'active' ? 'var(--sage-50)' : 'var(--red-50)',
+                      color: p.accountStatus === 'active' ? 'var(--sage-500)' : 'var(--danger)',
+                      borderRadius: 8, padding: '4px 10px', fontSize: 11.5, fontWeight: 600,
+                    }}>
+                      {p.accountStatus === 'active' ? 'Activo' : 'Inactivo'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {p.sedes.length === 0
+                      ? <span style={{ fontSize: 12.5, color: 'var(--fg2)' }}>Sin sedes</span>
+                      : p.sedes.map((s) => (
+                          <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 11.5, fontWeight: 600 }}>{s.name}</span>
+                        ))}
+                  </div>
+
+                  {p.accountStatus === 'active' && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => setEditSedesTarget(p)}
+                        style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+                        <WIcon name="map-pin" size={14} /> Sedes
+                      </button>
+                      <button onClick={() => setDeactivateTarget(p)}
+                        style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+                        <WIcon name="x" size={14} /> Desactivar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+          /* tableLayout auto en vez de fixed: con anchos fijos que suman 630 px la
+             columna del psicólogo se quedaba sin espacio, el nombre y el correo se
+             recortaban a nada y las cabeceras se encimaban. En auto el navegador
+             reparte según el contenido y las celdas nunca se solapan.
+
+             El scroll propio va aquí porque la tarjeta tiene overflow hidden para
+             mantener las esquinas redondeadas: entre 861 px y ~1150 px las cinco
+             columnas no caben y la de Acciones se recortaba sin forma de llegar a
+             ella. Con minWidth el navegador desborda y este contenedor lo desplaza. */
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', tableLayout: 'auto' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <Head label="Psicólogo" /><Head label="Pacientes" /><Head label="Sedes" /><Head label="Estado" /><Head label="Acciones" />
@@ -475,9 +536,9 @@ export function EquipoPage() {
                       <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>
                         {initialsOf(p.firstName, p.lastName)}
                       </div>
-                      <div>
-                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{p.firstName} {p.lastName}</div>
-                        <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{p.email}</div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.firstName} {p.lastName}</div>
+                        <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.email}>{p.email}</div>
                       </div>
                     </div>
                   </td>
@@ -505,7 +566,7 @@ export function EquipoPage() {
                       color: p.accountStatus === 'active' ? 'var(--sage-500)' : 'var(--danger)',
                       borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600,
                     }}>
-                      {p.accountStatus === 'active' ? 'Activo' : 'Suspendido'}
+                      {p.accountStatus === 'active' ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
@@ -526,6 +587,8 @@ export function EquipoPage() {
               ))}
             </tbody>
           </table>
+          </div>
+          )
         )}
       </div>
 

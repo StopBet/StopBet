@@ -5,6 +5,7 @@ import { useAlertsRealtime } from '../hooks/useAlertsRealtime'
 import { MetricCard } from '../components/MetricCard'
 import { api } from '../services/api'
 import type { AlertHistoryItem } from '../services/api'
+import { useIsNarrow } from '../hooks/useIsNarrow'
 
 type FilterChip = 'todas' | 'sin-resolver' | 'resuelto-ia' | 'resuelto-manual'
 
@@ -57,6 +58,7 @@ const FILTER_LABELS: Record<FilterChip, string> = {
 }
 
 export function AlertasPage() {
+  const isNarrow = useIsNarrow()
   const [filter, setFilter] = useState<FilterChip>('todas')
   const [histPage, setHistPage] = useState(0)
   const [attnPage, setAttnPage] = useState(0)
@@ -84,7 +86,7 @@ export function AlertasPage() {
     id: a.id,
     initials: a.patientName.split(' ').map(n => n[0] ?? '').slice(0, 2).join('').toUpperCase(),
     name: a.patientName,
-    sede: shortSedeName(sedeMap[a.sedeId ?? ''] ?? a.sedeId ?? '—'),
+    sede: shortSedeName(sedeMap[a.sedeId ?? ''] ?? a.sedeId ?? '-'),
     fecha: new Date(a.createdAt).toLocaleString('es-CL', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit',
@@ -108,9 +110,9 @@ export function AlertasPage() {
   )
 
   return (
-    <div style={{ padding: 32, maxWidth: 1440, minWidth: 1100, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1440, minWidth: isNarrow ? 0 : 1100, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* Metrics */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))', gap: isNarrow ? 10 : 16, marginBottom: isNarrow ? 16 : 24 }}>
         <MetricCard icon="triangle-alert" label="Total alertas" value={allRows.length} tone="red" important
           sub="historial completo de botones de pánico" />
         <MetricCard icon="circle-alert" label="Sin resolver" value={unresolved.length} tone="amber" important
@@ -121,7 +123,7 @@ export function AlertasPage() {
           sub="desde activación hasta contención" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2.2fr) minmax(0,1fr)', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'minmax(0,2.2fr) minmax(0,1fr)', gap: isNarrow ? 12 : 16, alignItems: 'start' }}>
         {/* Alerts table */}
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
           <div style={{ padding: '20px 24px 0' }}>
@@ -152,10 +154,48 @@ export function AlertasPage() {
           {isLoading ? (
             <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Cargando alertas…</div>
           ) : (
+            isNarrow ? (
+              /* Con seis columnas fijas el encabezado se encimaba ("PACIENTE" sobre
+                 "SEDE") y el nombre del paciente quedaba cortado. Una tarjeta por
+                 alerta mantiene los mismos datos y respeta el ancho del teléfono. */
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {pagedRows.map(a => {
+                  const unresolved = a.status === 'sin-resolver'
+                  return (
+                    <div key={a.id} style={{
+                      display: 'flex', flexDirection: 'column', gap: 10,
+                      padding: '14px 20px', borderTop: '1px solid var(--border)',
+                      background: unresolved ? 'var(--red-50)' : 'transparent',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                        <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: unresolved ? 'var(--surface)' : 'var(--teal-50)', color: unresolved ? 'var(--danger)' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+                          <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{a.fecha}</div>
+                        </div>
+                        <AlertStatusBadge status={a.status} />
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 8, padding: '3px 9px', fontSize: 11.5, fontWeight: 600 }}>
+                          <WIcon name="triangle-alert" size={12} /> {a.tipo}
+                        </span>
+                        <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 11.5, fontWeight: 600 }}>{a.sede}</span>
+                        <button style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                          Ver <WIcon name="arrow-right" size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <colgroup>
-                <col /><col style={{ width: 100 }} /><col style={{ width: 160 }} />
-                <col style={{ width: 140 }} /><col style={{ width: 190 }} /><col style={{ width: 80 }} />
+                {/* Las columnas fijas sumaban 670 px y dejaban a la del paciente sin
+                    espacio. Recortadas a 578, que es lo que miden sus contenidos. */}
+                <col /><col style={{ width: 92 }} /><col style={{ width: 148 }} />
+                <col style={{ width: 124 }} /><col style={{ width: 148 }} /><col style={{ width: 66 }} />
               </colgroup>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -171,9 +211,12 @@ export function AlertasPage() {
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td style={{ padding: '14px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                         <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: a.status === 'sin-resolver' ? 'var(--red-50)' : 'var(--teal-50)', color: a.status === 'sin-resolver' ? 'var(--danger)' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
-                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{a.name}</span>
+                        {/* Sin esto el nombre se desbordaba de la celda (tableLayout
+                            fijo no recorta solo) y la etiqueta de sede de la columna
+                            siguiente le quedaba encima. */}
+                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</span>
                       </div>
                     </td>
                     <td style={{ padding: '14px 14px' }}>
@@ -193,6 +236,7 @@ export function AlertasPage() {
                 ))}
               </tbody>
             </table>
+            )
           )}
 
           <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { WIcon, DownloadIcon } from '../components/WIcon'
 import { MetricCard } from '../components/MetricCard'
 import { PAYMENT_DATA, UPCOMING_PAYMENTS, RECENT_COBROS, SEDES, type PaymentData } from '../data/mockData'
+import { useIsNarrow } from '../hooks/useIsNarrow'
 
 type PayStatus = PaymentData['status']
 
@@ -23,6 +24,7 @@ const pendiente = PAYMENT_DATA.filter(p => p.status === 'pendiente').length
 const vencido   = PAYMENT_DATA.filter(p => p.status === 'vencido').length
 
 export function FinanzasPage() {
+  const isNarrow = useIsNarrow()
   const [sedeFilter, setSedeFilter] = useState('Todas')
   const [statusFilter, setStatusFilter] = useState<'todas' | PayStatus>('todas')
 
@@ -40,9 +42,9 @@ export function FinanzasPage() {
   )
 
   return (
-    <div style={{ padding: 32, maxWidth: 1440, minWidth: 1100, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1440, minWidth: isNarrow ? 0 : 1100, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* Metrics */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))', gap: isNarrow ? 10 : 16, marginBottom: isNarrow ? 16 : 24 }}>
         <MetricCard icon="wallet" label="Recaudado este mes" value={fmt(totalRecaudado)} tone="teal" important
           sub={<><WIcon name="trending-up" size={14} color="var(--sage-500)" /><span style={{ color: 'var(--sage-500)', fontWeight: 600 }}>+12%</span> vs. mes anterior</>} />
         <MetricCard icon="circle-check" label="Pagos al día" value={pagado} tone="sage" important
@@ -53,12 +55,14 @@ export function FinanzasPage() {
           sub="requieren seguimiento" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)', gap: 16, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : 'minmax(0,2fr) minmax(0,1fr)', gap: isNarrow ? 12 : 16, alignItems: 'start' }}>
         {/* Payments table */}
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
           <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Pagos del mes</h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* En angosto los tres controles no caben en una línea y el botón de
+                exportar quedaba cortado por la derecha. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {/* Sede filter */}
               <div style={{ position: 'relative' }}>
                 <select value={sedeFilter} onChange={e => setSedeFilter(e.target.value)}
@@ -89,6 +93,43 @@ export function FinanzasPage() {
             </div>
           </div>
 
+          {isNarrow ? (
+            /* Siete columnas de ancho fijo: la de nombre se aplastaba a nada y el
+               monto y el vencimiento, que es lo que se viene a mirar acá, quedaban
+               fuera de pantalla. */
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {rows.map(p => {
+                const overdue = p.status === 'vencido'
+                return (
+                  <div key={p.id} style={{
+                    display: 'flex', flexDirection: 'column', gap: 9,
+                    padding: '14px 20px', borderTop: '1px solid var(--border)',
+                    background: overdue ? 'var(--red-50)' : 'transparent',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12.5 }}>{p.initials}</div>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                        <div style={{ fontSize: 12, color: overdue ? 'var(--danger)' : 'var(--fg2)', fontWeight: overdue ? 600 : 400 }}>
+                          Vence {p.dueDate}
+                        </div>
+                      </div>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, color: 'var(--fg1)', flexShrink: 0 }}>{fmt(p.amount)}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <PayStatusChip status={p.status} />
+                      <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 11.5, fontWeight: 600 }}>{p.sede}</span>
+                      <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{p.permanencia} mes{p.permanencia !== 1 ? 'es' : ''}</span>
+                      <button style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+                        Ver <WIcon name="arrow-right" size={13} />
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup><col /><col style={{ width: 102 }} /><col style={{ width: 115 }} /><col style={{ width: 100 }} /><col style={{ width: 60 }} /><col style={{ width: 120 }} /><col style={{ width: 80 }} /></colgroup>
             <thead>
@@ -104,9 +145,9 @@ export function FinanzasPage() {
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <td style={{ padding: '13px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
                       <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12 }}>{p.initials}</div>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)' }}>{p.name}</span>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.name}>{p.name}</span>
                     </div>
                   </td>
                   <td style={{ padding: '13px 14px' }}>
@@ -125,6 +166,7 @@ export function FinanzasPage() {
               ))}
             </tbody>
           </table>
+          )}
         </div>
 
         {/* Right column */}

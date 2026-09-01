@@ -134,18 +134,17 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 2 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
+            width: 42, height: 42, borderRadius: 12,
             background: 'rgba(255,255,255,0.15)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            <img src={isotipo} alt="" style={{ width: 21, height: 21, display: 'block' }} />
+            <img src={isotipo} alt="" style={{ width: 25, height: 25, display: 'block' }} />
           </div>
           {/* El manual escribe la marca "StopBet" entera: antes la segunda mitad iba
               al 72% de opacidad, como si fueran dos palabras distintas. */}
-          <span style={{ fontWeight: 700, fontSize: 22, letterSpacing: -0.5, fontFamily: 'var(--sb-font-heading)' }}>
+          <span style={{ fontWeight: 700, fontSize: 26, letterSpacing: -0.5, fontFamily: 'var(--sb-font-heading)' }}>
             StopBet
           </span>
-          <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginLeft: 4 }}>· AJUTER</span>
         </div>
 
         {/* Contenido central */}
@@ -220,11 +219,11 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             <div style={{ lineHeight: 1.2 }}>
               <div style={{
                 fontFamily: 'var(--sb-font-heading)', fontWeight: 700,
-                fontSize: 22, letterSpacing: -0.5, color: 'var(--sb-blue)',
+                fontSize: 25, letterSpacing: -0.5, color: 'var(--sb-blue)',
               }}>
                 StopBet
               </div>
-              <div style={{ fontSize: 12, color: 'var(--fg2)' }}>Panel clínico · AJUTER</div>
+              <div style={{ fontSize: 12, color: 'var(--fg2)' }}>Panel clínico</div>
             </div>
           </div>
         )}
@@ -233,14 +232,14 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
           <div style={{
             position: 'absolute', top: 28, left: 40, right: 40,
             display: 'flex', alignItems: 'center', gap: 10,
-            background: 'var(--amber-50)', border: '1px solid rgba(232,136,58,0.30)',
+            background: 'var(--amber-50)', border: '1px solid rgba(57,111,182,0.30)',
             borderRadius: 12, padding: '12px 16px',
           }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-              stroke="#E8883A" strokeWidth="2" strokeLinecap="round">
+              stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: '#9A4B22' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--primary-hover)' }}>
               Tu sesión expiró por seguridad. Vuelve a iniciar sesión.
             </span>
           </div>
@@ -384,7 +383,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   left: keepSession ? 21 : 3,
                   width: 18, height: 18, borderRadius: '50%',
                   background: '#fff',
-                  boxShadow: '0 1px 3px rgba(30,45,44,0.22)',
+                  boxShadow: '0 1px 3px rgba(45,90,158,0.22)',
                   transition: 'left 0.2s var(--ease-soft)',
                 }} />
               </div>

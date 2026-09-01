@@ -59,14 +59,15 @@ packages/shared-types/ → Tipos TS compartidos entre backend y web
 - Tailwind v4: usar clases utilitarias directamente. No crear CSS custom salvo para animaciones complejas.
 - Recharts para todas las visualizaciones de métricas JITAI.
 
-#### Design System (paleta AJUTER)
-El dashboard usa el tema AJUTER — naranja cálido institucional, no el teal verde base de StopBet.
+#### Design System (marca StopBet)
+El dashboard usa la marca StopBet — azul `#396fb6` sobre crema, con Chillax y Satoshi.
 
-> **Excepción: el login.** `LoginPage.tsx` va con la marca StopBet (azul `#396fb6`, Chillax y
-> Satoshi) porque es la puerta común al panel clínico y al portal del familiar, y el familiar
-> llega desde la app, no desde AJUTER. Sus tokens viven aparte en
-> `src/styles/stopbet-brand.css` (prefijo `--sb-`) y **no** tocan el tema del shell. La paleta
-> completa está en [`docs/manual-marca.md`](docs/manual-marca.md).
+> **Cambió el 2026-08-31.** Antes el shell clínico iba con el tema AJUTER (naranja `#E8883A`)
+> y el login era la única excepción azul: la misma sesión cambiaba de identidad al entrar.
+> Ahora todo el panel va con la marca del producto y `ajuter-theme.css` **ya no existe**. El
+> logo de AJUTER no desapareció: vive al pie del sidebar, porque el panel sigue identificando
+> a la institución que lo usa. La paleta completa está en
+> [`docs/manual-marca.md`](docs/manual-marca.md).
 
 **Archivos:**
 ```
@@ -75,7 +76,8 @@ apps/web/src/styles/
 │   ├── Inter-{400,600,700}.woff2
 │   └── Nunito-{400,600,700}.woff2
 ├── colors_and_type.css  ← Tokens base + @font-face
-└── ajuter-theme.css     ← Override de paleta para vistas AJUTER
+├── stopbet-brand.css    ← @font-face de Chillax/Satoshi + tokens del login (--sb-)
+└── stopbet-theme.css    ← Override de paleta del shell (azul StopBet)
 ```
 
 **Regla:** usar siempre tokens semánticos de Tailwind, nunca colores genéricos.
@@ -91,17 +93,20 @@ apps/web/src/styles/
 **Tokens principales:**
 | Clase Tailwind | Hex | Uso |
 |---|---|---|
-| `bg-primary` / `text-primary` | `#E8883A` | Naranja AJUTER — acciones, headers |
-| `bg-accent` / `text-accent` | `#F0B040` | Oro — CTAs, highlights |
-| `bg-bg` | `#FAF7F4` | Fondo crema cálido |
+| `bg-primary` / `text-primary` | `#396fb6` | Azul StopBet — acciones, headers |
+| `bg-accent` / `text-accent` | `#93bce5` | Azul claro — CTAs, highlights |
+| `bg-bg` | `#f4f4e9` | Fondo crema |
 | `bg-surface` | `#FFFFFF` | Tarjetas, modales |
-| `text-fg1` | `#2A2624` | Texto principal |
-| `text-fg2` | `#574F4A` | Texto secundario |
+| `text-fg1` | `#3a3939` | Texto principal |
+| `text-fg2` | `#6b6a6a` | Texto secundario |
 | `bg-danger` / `text-danger` | `#B83232` | Solo botón de pánico |
 
+El verde del manual (`#c2d66e`) se usa oscurecido a `#97b23f` como `--sage-500`: el original
+no alcanza contraste AA sobre blanco.
+
 **Tipografía:**
-- Headings: **Nunito** — `font-heading` o `style={{ fontFamily: 'var(--font-heading)' }}`
-- Body/UI: **Inter** — `font-body` (aplicado globalmente en `body`)
+- Headings: **Chillax** (respaldo Nunito) — `font-heading` o `style={{ fontFamily: 'var(--font-heading)' }}`
+- Body/UI: **Satoshi** (respaldo Inter) — `font-body` (aplicado globalmente en `body`)
 
 ### Mobile (React Native CLI)
 - Navegación con React Navigation v7.

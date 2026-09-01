@@ -35,7 +35,7 @@ export function MoodChart({ data }: { data: MoodPoint[] }) {
             fontSize="11" fill="var(--fg2)" fontFamily="var(--font-body)">{m}</text>
         </g>
       ))}
-      <polygon points={areaPtsFinal} fill="rgba(232,136,58,0.10)" />
+      <polygon points={areaPtsFinal} fill="rgba(57,111,182,0.10)" />
       <polyline points={linePtsFinal} fill="none"
         stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {data.map((d, i) => (

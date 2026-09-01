@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { WIcon } from '../components/WIcon'
+import { useIsNarrow } from '../hooks/useIsNarrow'
 
 type ConfigSection = 'perfil' | 'notificaciones' | 'sede' | 'seguridad'
 
 function SectionNav({ active, onSelect }: { active: ConfigSection; onSelect: (s: ConfigSection) => void }) {
+  const isNarrow = useIsNarrow()
   const sections: Array<{ id: ConfigSection; icon: string; label: string }> = [
     { id: 'perfil',         icon: 'user-round',    label: 'Perfil clínico'   },
     { id: 'notificaciones', icon: 'bell',          label: 'Notificaciones'   },
@@ -11,12 +13,39 @@ function SectionNav({ active, onSelect }: { active: ConfigSection; onSelect: (s:
     { id: 'seguridad',      icon: 'shield',        label: 'Seguridad'        },
   ]
   return (
-    <div style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 3 }}>
+    // En el teléfono la columna de 220px se comía media pantalla. Pasan a pestañas
+    // subrayadas en una sola línea, el patrón habitual en móvil: la clase .sb-tabs
+    // esconde la barra de scroll sin impedir el desplazamiento.
+    <div
+      className={isNarrow ? 'sb-tabs' : undefined}
+      style={{
+        width: isNarrow ? '100%' : 220,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: isNarrow ? 'row' : 'column',
+        gap: isNarrow ? 0 : 3,
+        borderBottom: isNarrow ? '1px solid var(--border)' : undefined,
+      }}
+    >
       {sections.map(s => {
         const on = active === s.id
         return (
           <button key={s.id} onClick={() => onSelect(s.id)}
-            style={{ display: 'flex', alignItems: 'center', gap: 11, height: 44, padding: '0 12px', borderRadius: 10, border: 'none', background: on ? 'var(--teal-50)' : 'transparent', color: on ? 'var(--primary)' : 'var(--fg2)', fontFamily: 'var(--font-body)', fontSize: 14.5, fontWeight: on ? 700 : 500, cursor: 'pointer', textAlign: 'left', borderLeft: on ? '3px solid var(--primary)' : '3px solid transparent' }}>
+            style={{
+              display: 'flex', alignItems: 'center', gap: isNarrow ? 6 : 11, height: 44,
+              padding: isNarrow ? '0 13px' : '0 12px',
+              borderRadius: isNarrow ? 0 : 10,
+              flexShrink: 0, whiteSpace: 'nowrap',
+              border: 'none',
+              background: isNarrow ? 'transparent' : (on ? 'var(--teal-50)' : 'transparent'),
+              color: on ? 'var(--primary)' : 'var(--fg2)',
+              fontFamily: 'var(--font-body)', fontSize: isNarrow ? 13.5 : 14.5,
+              fontWeight: on ? 700 : 500, cursor: 'pointer', textAlign: 'left',
+              // Angosto: subrayado bajo la activa. Ancho: la barra vertical de siempre.
+              borderBottom: isNarrow ? `2.5px solid ${on ? 'var(--primary)' : 'transparent'}` : undefined,
+              borderLeft: isNarrow ? undefined : (on ? '3px solid var(--primary)' : '3px solid transparent'),
+              marginBottom: isNarrow ? -1 : undefined,
+            }}>
             <WIcon name={s.icon} size={18} />
             {s.label}
           </button>
@@ -44,11 +73,12 @@ function ToggleRow({ label, desc, value, onChange }: { label: string; desc: stri
 }
 
 function PerfilSection() {
+  const isNarrow = useIsNarrow()
   const fieldStyle: React.CSSProperties = { height: 42, width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', padding: '0 12px', fontSize: 13.5, color: 'var(--fg1)', outline: 'none' }
   return (
     <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
       {/* Avatar card */}
-      <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, padding: '24px 28px' }}>
+      <div style={{ flex: isNarrow ? '1 1 100%' : '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 16, padding: '24px 28px' }}>
         <div style={{ width: 80, height: 80, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 28 }}>MG</div>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 16, color: 'var(--fg1)' }}>Dra. González</div>
@@ -56,7 +86,10 @@ function PerfilSection() {
         </div>
         <div style={{ display: 'flex', gap: 6, flexDirection: 'column', width: '100%' }}>
           <span style={{ display: 'inline-block', background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600, textAlign: 'center' }}>Sede Santiago</span>
-          <span style={{ display: 'inline-block', background: 'var(--amber-50)', color: 'var(--accent)', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600, textAlign: 'center' }}>24 pacientes activos</span>
+          {/* Decía "24 pacientes activos". En AJUTER los psicólogos se asignan por
+              sede y las terapias son grupales, así que un conteo de pacientes por
+              profesional no representa nada real. */}
+          <span style={{ display: 'inline-block', background: 'var(--amber-50)', color: 'var(--accent)', borderRadius: 8, padding: '5px 12px', fontSize: 12, fontWeight: 600, textAlign: 'center' }}>Terapia grupal</span>
         </div>
         <button style={{ background: 'none', border: '1.5px dashed var(--border)', borderRadius: 10, padding: '8px 16px', fontSize: 13, color: 'var(--fg2)', cursor: 'pointer', width: '100%' }}>
           Cambiar foto
@@ -64,8 +97,8 @@ function PerfilSection() {
       </div>
 
       {/* Form */}
-      <div style={{ flex: 1, minWidth: 320 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+      <div style={{ flex: 1, minWidth: isNarrow ? 0 : 320, width: isNarrow ? '100%' : undefined }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 14 }}>
           {[
             { l: 'Nombre', v: 'María', placeholder: 'Nombre' },
             { l: 'Apellido', v: 'González', placeholder: 'Apellido' },
@@ -79,7 +112,7 @@ function PerfilSection() {
         {[
           { l: 'Correo profesional', v: 'm.gonzalez@ajuter.cl', placeholder: 'correo@ajuter.cl' },
           { l: 'Número de RUT / Registro profesional', v: '15.234.789-K', placeholder: 'RUT' },
-          { l: 'Especialidad', v: 'Psicología clínica — Ludopatía', placeholder: 'Especialidad' },
+          { l: 'Especialidad', v: 'Psicología clínica - Ludopatía', placeholder: 'Especialidad' },
         ].map(({ l, v, placeholder }) => (
           <div key={l} style={{ marginBottom: 14 }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 5 }}>{l}</label>
@@ -131,6 +164,7 @@ function SkeletonSection({ title, desc }: { title: string; desc: string }) {
 }
 
 export function ConfiguracionPage() {
+  const isNarrow = useIsNarrow()
   const [section, setSection] = useState<ConfigSection>('perfil')
   const titles: Record<ConfigSection, string> = {
     perfil: 'Perfil clínico',
@@ -140,13 +174,13 @@ export function ConfiguracionPage() {
   }
 
   return (
-    <div style={{ padding: 32, maxWidth: 1000, minWidth: 820, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1000, minWidth: isNarrow ? 0 : 820, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <h1 style={{ margin: '0 0 24px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, color: 'var(--fg1)' }}>Configuración</h1>
 
-      <div style={{ display: 'flex', gap: 28, alignItems: 'flex-start' }}>
+      <div style={{ display: 'flex', flexDirection: isNarrow ? 'column' : 'row', gap: isNarrow ? 14 : 28, alignItems: 'stretch' }}>
         <SectionNav active={section} onSelect={setSection} />
 
-        <div style={{ flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', padding: '24px 28px' }}>
+        <div style={{ flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', padding: isNarrow ? '18px 16px' : '24px 28px' }}>
           <h2 style={{ margin: '0 0 20px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)' }}>{titles[section]}</h2>
 
           {section === 'perfil'         && <PerfilSection />}

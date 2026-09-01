@@ -2,10 +2,10 @@ import type { CSSProperties } from 'react'
 import {
   Activity, AlertTriangle, ArrowRight, BarChart2, Bell, Calendar,
   Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert,
-  CircleCheck, ClipboardList, Clock, Download, Hand, HeartHandshake,
+  CircleCheck, ClipboardList, Clock, Download, Flag, Hand, HeartHandshake,
   Home, Inbox, LifeBuoy, MapPin, Menu, MessageCircle, MoreHorizontal,
   NotebookPen, Search, Send, Settings, Shield, Sparkles, Target,
-  TrendingUp, Trophy, Users, UserRound, UserPlus, Wallet, X,
+  Trash2, TrendingUp, Trophy, Users, UserRound, UserPlus, Wallet, X,
   type LucideProps,
 } from 'lucide-react'
 import type { FC } from 'react'
@@ -26,6 +26,7 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'clipboard-list': ClipboardList,
   'clock':          Clock,
   'download':       Download,
+  'flag':           Flag,
   'hand':           Hand,
   'heart-handshake':HeartHandshake,
   'house':          Home,
@@ -42,6 +43,7 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'shield':         Shield,
   'sparkles':       Sparkles,
   'target':         Target,
+  'trash-2':        Trash2,
   'trending-up':    TrendingUp,
   'triangle-alert': AlertTriangle,
   'trophy':         Trophy,

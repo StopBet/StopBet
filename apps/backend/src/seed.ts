@@ -33,12 +33,17 @@ const PATIENT4_ID    = '66666666-6666-6666-6666-666666666666';
 const REPORTER1_ID   = '77777777-7777-7777-7777-777777777777';
 const REPORTER2_ID   = '88888888-8888-8888-8888-888888888888';
 const COORDINATOR_ID = '99999999-9999-9999-9999-999999999999';
+const PSYCHOLOGIST_2_ID = 'aaaaaaaa-0002-0000-0000-000000000000';
+const PSYCHOLOGIST_3_ID = 'aaaaaaaa-0003-0000-0000-000000000000';
+const PSYCHOLOGIST_4_ID = 'aaaaaaaa-0004-0000-0000-000000000000';
 
 // Clave única de desarrollo para los 8 usuarios del seed. Solo datos locales de prueba.
 const DEV_PASSWORD = 'Stopbet2026!';
 
 const DAYS_STREAK = 45;
 const SANTIAGO_SEDE = 'Santiago';
+const VINA_SEDE = 'Viña del Mar';
+const CONCEPCION_SEDE = 'Concepción';
 
 function daysAgo(n: number): string {
   const d = new Date();
@@ -144,6 +149,50 @@ async function seed() {
     phone: '+56911223344',
     sedeId: SANTIAGO_SEDE,
     accountStatus: 'active',
+    onboardingStatus: 'complete',
+  });
+
+  // Con un solo psicólogo la pantalla de Equipo y el selector de reasignación se
+  // ven vacíos, y no hay forma de mostrar el estado 'suspended' ni una sede que no
+  // sea Santiago. Estos tres cubren esos casos.
+  await upsertUser(userRepo, {
+    id: PSYCHOLOGIST_2_ID,
+    email: 'valentina.rojas@ajuter.cl',
+    passwordHash: devPasswordHash,
+    role: 'psychologist',
+    firstName: 'Valentina',
+    lastName: 'Rojas',
+    phone: '+56922334455',
+    sedeId: SANTIAGO_SEDE,
+    accountStatus: 'active',
+    onboardingStatus: 'complete',
+  });
+
+  await upsertUser(userRepo, {
+    id: PSYCHOLOGIST_3_ID,
+    email: 'tomas.herrera@ajuter.cl',
+    passwordHash: devPasswordHash,
+    role: 'psychologist',
+    firstName: 'Tomás',
+    lastName: 'Herrera',
+    phone: '+56933445566',
+    sedeId: VINA_SEDE,
+    accountStatus: 'active',
+    onboardingStatus: 'complete',
+  });
+
+  // Suspendido a propósito: la tabla de Equipo distingue 'Activo' de 'Suspendido' y
+  // sin esta cuenta esa rama no se puede mostrar.
+  await upsertUser(userRepo, {
+    id: PSYCHOLOGIST_4_ID,
+    email: 'camila.soto@ajuter.cl',
+    passwordHash: devPasswordHash,
+    role: 'psychologist',
+    firstName: 'Camila',
+    lastName: 'Soto',
+    phone: '+56944556677',
+    sedeId: CONCEPCION_SEDE,
+    accountStatus: 'suspended',
     onboardingStatus: 'complete',
   });
 

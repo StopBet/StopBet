@@ -173,13 +173,15 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
             onClick={() => setMenuOpen(true)}
             aria-label="Abrir menú"
             style={{
-              display: 'flex', alignItems: 'center', gap: 10,
+              display: 'flex', alignItems: 'center', gap: 12,
               background: 'var(--primary)', color: '#fff', border: 'none',
-              padding: '12px 16px', fontSize: 15, fontWeight: 600, cursor: 'pointer',
-              fontFamily: 'var(--font-heading)',
+              // Este botón hace de cabecera de la página, no de control secundario:
+              // con 15px el título se leía más chico que el contenido de abajo.
+              padding: '14px 16px', fontSize: 20, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'var(--font-heading)', textAlign: 'left', letterSpacing: -0.2,
             }}
           >
-            <WIcon name="menu" size={20} />
+            <WIcon name="menu" size={24} />
             {PAGE_TITLES[nav]}
           </button>
         )}

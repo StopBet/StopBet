@@ -20,6 +20,36 @@ está.
 
 ---
 
+## 2026-08-31 — El dashboard web pasó del naranja AJUTER al azul StopBet (rama `fix/dashboard-responsive-completo-alex-dominguez`)
+
+### El panel se ve azul después de pullear. No está roto.
+
+**A quién le pega:** a cualquiera que levante el dashboard web o trabaje en `apps/web`.
+
+**Qué hacer:** nada. No hay comando ni variable nueva. Solo no asustarse.
+
+**Por qué:** el shell clínico usaba el tema AJUTER (naranja `#E8883A`) y el login la marca
+StopBet (azul `#396fb6`). La misma sesión cambiaba de identidad al entrar. Ahora todo el
+panel va con la marca del producto. El logo de AJUTER **no desapareció**: bajó al pie del
+sidebar, porque el panel sigue identificando a la institución que lo usa.
+
+**Lo que sí cambia si tocas estilos:**
+
+- **`src/styles/ajuter-theme.css` ya no existe.** Lo reemplaza `stopbet-theme.css`, con la
+  misma mecánica: redefine los tokens semánticos y las páginas no se tocan una por una. Si
+  tu rama lo modificó, ese cambio hay que rehacerlo en el archivo nuevo.
+- **Las fuentes cambiaron**: Chillax para títulos y Satoshi para body, con Nunito e Inter de
+  respaldo. Si algo se ve con otra métrica de texto, es esto.
+- **`--ajuter-gradient` conserva el nombre pero ahora es azul.** Se dejó así para no tocar
+  las páginas que ya lo consumen.
+- Si escribiste un color a mano en vez de usar un token semántico, tu vista quedó naranja en
+  medio de un panel azul. Esa es la señal para cambiarlo por el token.
+
+**Ojo con los conflictos:** el PR toca 12 archivos compartidos de `apps/web` (`Sidebar`,
+`TopBar`, `MetricCard`, `index.css` y 7 páginas). Si tu rama toca alguno, rebasea temprano.
+
+---
+
 ## 2026-08-31 — Despliegue a producción: backend en Railway, web en Vercel (rama `chore/despliegue-nube-jose-meza`)
 
 ### El backend y la web ya están desplegados de verdad — no son solo config sin probar

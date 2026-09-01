@@ -12,41 +12,49 @@ pnpm run web        # http://localhost:5173
 
 ## Design System
 
-El dashboard usa la paleta **AJUTER** — naranja cálido institucional.
+El dashboard usa la marca **StopBet** — azul sobre crema. Hasta el 2026-08-31 el shell iba
+con la paleta AJUTER (naranja) y solo el login era azul; ahora todo el panel va con la marca
+del producto y el logo de AJUTER vive al pie del sidebar.
 
 ### Estructura
 
 ```
 src/styles/
 ├── fonts/               ← Fuentes self-hosted (.woff2)
-│   ├── Inter-{400,600,700}.woff2     ← UI / body text
-│   └── Nunito-{400,600,700}.woff2   ← Headings
+│   ├── Inter-{400,600,700}.woff2     ← respaldo de body text
+│   └── Nunito-{400,600,700}.woff2   ← respaldo de headings
 ├── colors_and_type.css  ← Tokens base + @font-face
-└── ajuter-theme.css     ← Override de paleta AJUTER
+├── stopbet-brand.css    ← @font-face de Chillax/Satoshi + tokens del login (--sb-)
+└── stopbet-theme.css    ← Override de paleta del shell (azul StopBet)
 ```
 
 ### Paleta de colores
 
 | Token | Clase Tailwind | Hex | Uso |
 |---|---|---|---|
-| primary | `bg-primary` `text-primary` | `#E8883A` | Naranja AJUTER — acciones, headers |
-| primary-hover | `text-primary-hover` | `#C8513B` | Coral — hover states |
-| accent | `bg-accent` `text-accent` | `#F0B040` | Oro — CTAs, highlights, badges |
-| secondary | `bg-secondary` | `#6A9E6A` | Verde salvia — progreso, positivo |
+| primary | `bg-primary` `text-primary` | `#396fb6` | Azul StopBet — acciones, headers |
+| primary-hover | `text-primary-hover` | `#2d5a9e` | Azul oscuro — hover states |
+| accent | `bg-accent` `text-accent` | `#93bce5` | Azul claro — CTAs, highlights, badges |
+| secondary | `bg-secondary` | `#97b23f` | Verde del manual — progreso, positivo |
 | danger | `bg-danger` `text-danger` | `#B83232` | **Solo** botón de pánico y alertas críticas |
-| bg | `bg-bg` | `#FAF7F4` | Fondo principal |
+| bg | `bg-bg` | `#f4f4e9` | Fondo principal |
 | surface | `bg-surface` | `#FFFFFF` | Tarjetas, modales |
-| surface-alt | `bg-surface-alt` | `#FFF5EB` | Fondo alternativo cálido |
-| fg1 | `text-fg1` | `#2A2624` | Texto principal |
-| fg2 | `text-fg2` | `#574F4A` | Texto secundario, captions |
-| border | `border-border` | `#E8E2DC` | Bordes, divisores |
+| surface-alt | `bg-surface-alt` | `#EAF1F9` | Fondo alternativo azulado |
+| fg1 | `text-fg1` | `#3a3939` | Texto principal |
+| fg2 | `text-fg2` | `#6b6a6a` | Texto secundario, captions |
+| border | `border-border` | `#E2E2D6` | Bordes, divisores |
+
+El verde del manual es `#c2d66e`, pero sobre blanco no alcanza contraste AA: se usa
+oscurecido a `#97b23f`.
 
 ### Tipografía
 
 | Fuente | Pesos | Uso | Clase |
 |---|---|---|---|
-| **Nunito** | 400, 600, 700 | Títulos, headings | `font-heading` |
-| **Inter** | 400, 600, 700 | UI, body text | `font-body` (default en `body`) |
+| **Chillax** | 600, 700 | Títulos, headings | `font-heading` |
+| **Satoshi** | 400, 700 | UI, body text | `font-body` (default en `body`) |
+
+Nunito e Inter quedan como respaldo en la cadena de fuentes.
 
 Escala de tamaños via CSS vars: `--fs-12` hasta `--fs-36`.
 
@@ -54,8 +62,11 @@ Escala de tamaños via CSS vars: `--fs-12` hasta `--fs-36`.
 
 ```css
 background: var(--ajuter-gradient);
-/* = linear-gradient(90deg, #F0B040, #E8883A, #D06A30) */
+/* = linear-gradient(90deg, #93bce5, #396fb6, #2d5a9e) */
 ```
+
+> El nombre de la variable quedó de la etapa AJUTER. Se conserva para no tocar las páginas
+> que ya la consumen; su contenido es azul.
 
 ### Regla de uso
 
@@ -69,7 +80,7 @@ Usar siempre los tokens semánticos — nunca colores Tailwind genéricos:
 <button className="bg-orange-500 text-white hover:bg-orange-600">
 ```
 
-Esto permite cambiar el tema completo modificando solo `ajuter-theme.css`.
+Esto permite cambiar el tema completo modificando solo `stopbet-theme.css`.
 
 ## Íconos
 

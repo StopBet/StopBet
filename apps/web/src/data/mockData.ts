@@ -144,7 +144,7 @@ export const PAYMENT_DATA: PaymentData[] = [
   { id: 'antonia',   initials: 'AR', name: 'Antonia Reyes',     sede: 'Concepción',  amount: 30000, dueDate: '30/06/2026', permanencia: 8,  status: 'pendiente' },
   { id: 'diego',     initials: 'DM', name: 'Diego Morales',     sede: 'Santiago',    amount: 30000, dueDate: '30/06/2026', permanencia: 1,  status: 'pendiente' },
   { id: 'francisca', initials: 'FL', name: 'Francisca Lagos',   sede: 'Temuco',      amount: 30000, dueDate: '31/05/2026', permanencia: 3,  status: 'pagado'    },
-  { id: 'tomas',     initials: 'TH', name: 'Tomás Herrera',     sede: 'Valparaíso',  amount: 30000, dueDate: '—',          permanencia: 3,  status: 'exento'    },
+  { id: 'tomas',     initials: 'TH', name: 'Tomás Herrera',     sede: 'Valparaíso',  amount: 30000, dueDate: '-',          permanencia: 3,  status: 'exento'    },
   { id: 'camila',    initials: 'CF', name: 'Camila Fernández',  sede: 'Concepción',  amount: 30000, dueDate: '31/05/2026', permanencia: 6,  status: 'pagado'    },
   { id: 'sebastian', initials: 'SP', name: 'Sebastián Paredes', sede: 'Temuco',      amount: 30000, dueDate: '30/06/2026', permanencia: 1,  status: 'pendiente' },
   { id: 'javiera',   initials: 'JC', name: 'Javiera Contreras', sede: 'Santiago',    amount: 30000, dueDate: '31/05/2026', permanencia: 2,  status: 'pagado'    },
