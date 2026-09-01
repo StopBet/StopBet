@@ -20,6 +20,34 @@ está.
 
 ---
 
+## 2026-09-01 — La skill de diseño web estaba en el tema viejo: si tu Claude escribía naranja, era esto (commit directo en `main`)
+
+### Reinicia tu sesión de Claude Code si trabajas en `apps/web`
+
+**A quién le pega:** a quien use Claude Code para construir componentes o páginas en `apps/web`.
+
+**Qué hacer:** nada que instalar. Solo **reiniciar la sesión de Claude Code** después de pullear:
+las skills se cargan al arrancar y quedan en caché, así que una sesión ya abierta sigue con la
+versión vieja.
+
+**Por qué:** `.claude/skills/stopbet-web-design/SKILL.md` seguía documentando el tema AJUTER
+naranja que se reemplazó el 31-08 por el azul StopBet. Estaba equivocada en casi todo: `bg-primary`
+como `#E8883A` en vez de `#396fb6`, las fuentes como Nunito/Inter en vez de Chillax/Satoshi, y una
+lista de ~70 íconos que no existen. **Si le pediste un componente nuevo y te salió naranja dentro
+del panel azul, no era invento del modelo: era la skill.** Ya está corregida contra el CSS real.
+
+**De paso quedaron documentadas dos trampas** que no estaban en ningún lado:
+
+- Los nombres de las variables crudas **ya no describen su color**. `stopbet-theme.css` redefine
+  la paleta de `colors_and_type.css` conservando los nombres: `--teal-700` es azul `#396fb6`,
+  `--amber-500` es azul claro. No te guíes por el nombre. Igual que `--ajuter-gradient`, que
+  conserva el nombre y hoy es azul.
+- **`WIcon` con un nombre que no está en su `ICON_MAP` no falla: renderiza un hueco vacío**, sin
+  error ni warning en consola. Si un ícono "no aparece", revisa primero que el nombre esté en la
+  lista (son 41, están en la skill) antes de buscar el problema en otro lado.
+
+---
+
 ## 2026-09-01 — La demo en la nube ya está lista, y cómo compilar el APK de release en Windows (rama `docs/demo-nube-y-apk-release-alex-dominguez`)
 
 ### Para mostrar la app ya no hace falta levantar nada local
