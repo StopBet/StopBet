@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { WIcon } from './WIcon'
+import { useIsNarrow } from '../hooks/useIsNarrow'
 
 type Tone = 'teal' | 'sage' | 'amber' | 'gold' | 'red'
 
@@ -23,25 +24,36 @@ interface MetricCardProps {
 
 export function MetricCard({ icon, label, value, sub, tone = 'teal', important, onClick }: MetricCardProps) {
   const t = TONES[tone]
+  const isNarrow = useIsNarrow()
+
+  // En dos columnas de teléfono el título se parte en dos líneas y una cifra
+  // como "$150.000" a 36 px no cabe. Se achica el valor según su largo.
+  const valueLength = String(value).length
+  const valueSize = isNarrow
+    ? (valueLength > 6 ? 24 : valueLength > 3 ? 30 : 34)
+    : 36
+
   return (
     <div
       onClick={onClick}
       style={{
-        flex: 1, background: 'var(--surface)', borderRadius: 16,
+        flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16,
         border: '1px solid var(--border)',
         borderLeft: important ? `4px solid ${t.fg}` : '1px solid var(--border)',
-        boxShadow: 'var(--shadow-soft)', padding: 20,
+        boxShadow: 'var(--shadow-soft)', padding: isNarrow ? '14px 14px 16px' : 20,
         cursor: onClick ? 'pointer' : undefined,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ fontSize: 13, color: 'var(--fg2)', fontWeight: 600 }}>{label}</span>
-        <div style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, background: t.bg, color: t.fg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <WIcon name={icon} size={18} />
+      {/* flex-start, no center: con el título en dos líneas el icono quedaba a media
+          altura y se leía como encimado. */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: isNarrow ? 10 : 14 }}>
+        <span style={{ fontSize: isNarrow ? 12.5 : 13, color: 'var(--fg2)', fontWeight: 600, minWidth: 0, lineHeight: 1.3 }}>{label}</span>
+        <div style={{ width: isNarrow ? 28 : 34, height: isNarrow ? 28 : 34, borderRadius: isNarrow ? 8 : 10, flexShrink: 0, background: t.bg, color: t.fg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <WIcon name={icon} size={isNarrow ? 15 : 18} />
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 36, color: t.fg, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: valueSize, color: t.fg, lineHeight: 1, fontVariantNumeric: 'tabular-nums', minWidth: 0, overflowWrap: 'anywhere' }}>
           {value}
         </span>
         {tone === 'red' && (
@@ -49,7 +61,7 @@ export function MetricCard({ icon, label, value, sub, tone = 'teal', important, 
         )}
       </div>
       {sub && (
-        <div style={{ fontSize: 12.5, color: 'var(--fg2)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ fontSize: isNarrow ? 11.5 : 12.5, color: 'var(--fg2)', marginTop: isNarrow ? 6 : 8, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', lineHeight: 1.35 }}>
           {sub}
         </div>
       )}

@@ -232,14 +232,14 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
           <div style={{
             position: 'absolute', top: 28, left: 40, right: 40,
             display: 'flex', alignItems: 'center', gap: 10,
-            background: 'var(--amber-50)', border: '1px solid rgba(232,136,58,0.30)',
+            background: 'var(--amber-50)', border: '1px solid rgba(57,111,182,0.30)',
             borderRadius: 12, padding: '12px 16px',
           }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-              stroke="#E8883A" strokeWidth="2" strokeLinecap="round">
+              stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
-            <span style={{ fontSize: 13.5, fontWeight: 600, color: '#9A4B22' }}>
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--primary-hover)' }}>
               Tu sesión expiró por seguridad. Vuelve a iniciar sesión.
             </span>
           </div>
@@ -383,7 +383,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   left: keepSession ? 21 : 3,
                   width: 18, height: 18, borderRadius: '50%',
                   background: '#fff',
-                  boxShadow: '0 1px 3px rgba(30,45,44,0.22)',
+                  boxShadow: '0 1px 3px rgba(45,90,158,0.22)',
                   transition: 'left 0.2s var(--ease-soft)',
                 }} />
               </div>

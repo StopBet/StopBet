@@ -192,8 +192,10 @@ export function AlertasPage() {
             ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <colgroup>
-                <col /><col style={{ width: 100 }} /><col style={{ width: 160 }} />
-                <col style={{ width: 140 }} /><col style={{ width: 190 }} /><col style={{ width: 80 }} />
+                {/* Las columnas fijas sumaban 670 px y dejaban a la del paciente sin
+                    espacio. Recortadas a 578, que es lo que miden sus contenidos. */}
+                <col /><col style={{ width: 92 }} /><col style={{ width: 148 }} />
+                <col style={{ width: 124 }} /><col style={{ width: 148 }} /><col style={{ width: 66 }} />
               </colgroup>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -209,9 +211,12 @@ export function AlertasPage() {
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
                     <td style={{ padding: '14px 14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
                         <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: a.status === 'sin-resolver' ? 'var(--red-50)' : 'var(--teal-50)', color: a.status === 'sin-resolver' ? 'var(--danger)' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
-                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{a.name}</span>
+                        {/* Sin esto el nombre se desbordaba de la celda (tableLayout
+                            fijo no recorta solo) y la etiqueta de sede de la columna
+                            siguiente le quedaba encima. */}
+                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={a.name}>{a.name}</span>
                       </div>
                     </td>
                     <td style={{ padding: '14px 14px' }}>

@@ -60,7 +60,9 @@ export function FinanzasPage() {
         <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
           <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Pagos del mes</h2>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* En angosto los tres controles no caben en una línea y el botón de
+                exportar quedaba cortado por la derecha. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               {/* Sede filter */}
               <div style={{ position: 'relative' }}>
                 <select value={sedeFilter} onChange={e => setSedeFilter(e.target.value)}
@@ -143,9 +145,9 @@ export function FinanzasPage() {
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <td style={{ padding: '13px 14px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
                       <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12 }}>{p.initials}</div>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)' }}>{p.name}</span>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.name}>{p.name}</span>
                     </div>
                   </td>
                   <td style={{ padding: '13px 14px' }}>

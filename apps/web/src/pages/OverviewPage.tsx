@@ -164,7 +164,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
     <>
       <div
         onClick={onClose}
-        style={{ position: 'fixed', inset: 0, background: 'rgba(30,45,44,0.32)', zIndex: 40, animation: 'sb-scrim-in 0.24s ease' }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(45,90,158,0.32)', zIndex: 40, animation: 'sb-scrim-in 0.24s ease' }}
       />
       <div style={{
         position: 'fixed', top: 0, right: 0, height: '100vh', width: 480,
@@ -627,7 +627,7 @@ function ExportPanel({ patients }: { patients: Patient[] }) {
       </p>
 
       {toast && (
-        <div style={{ position: 'absolute', left: 20, right: 20, bottom: 20, background: toast.ok ? '#1e2d2c' : 'var(--danger)', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 9, boxShadow: 'var(--shadow-strong)', zIndex: 10 }}>
+        <div style={{ position: 'absolute', left: 20, right: 20, bottom: 20, background: toast.ok ? 'var(--primary-hover)' : 'var(--danger)', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 9, boxShadow: 'var(--shadow-strong)', zIndex: 10 }}>
           <WIcon name={toast.ok ? 'circle-check' : 'circle-alert'} size={17} color={toast.ok ? 'var(--teal-400)' : '#fff'} />
           {toast.msg}
         </div>

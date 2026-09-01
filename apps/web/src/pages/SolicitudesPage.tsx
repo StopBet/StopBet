@@ -42,7 +42,7 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(30,45,44,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
       <div style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 520, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', animation: 'sb-modal-in 0.28s cubic-bezier(0.34,1.56,0.64,1)', zIndex: 1 }}>
         <div style={{ padding: '28px 28px 0' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 22 }}>
@@ -138,7 +138,7 @@ function RejectModal({ req, onClose, onConfirm }: { req: RegistrationRequest; on
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(30,45,44,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
       <div style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 480, maxWidth: '95vw', animation: 'sb-modal-in 0.28s cubic-bezier(0.34,1.56,0.64,1)', zIndex: 1 }}>
         <div style={{ padding: '28px 28px 0' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 22 }}>
@@ -188,7 +188,7 @@ function RejectModal({ req, onClose, onConfirm }: { req: RegistrationRequest; on
 function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedPost; onClose: () => void; onConfirm: () => void; loading: boolean }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(30,45,44,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
       <div style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 460, maxWidth: '95vw', animation: 'sb-modal-in 0.28s cubic-bezier(0.34,1.56,0.64,1)', zIndex: 1, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
@@ -476,9 +476,11 @@ export function SolicitudesPage({ requests, psychId, onApprove, onReject }: Soli
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--amber-50)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>{r.initials}</div>
-                      <div>
-                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{r.name}</div>
-                        <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.email}</div>
+                      {/* Sin acotar, con tableLayout fijo el nombre se desborda de la
+                          celda y la columna siguiente le queda encima. */}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.name}>{r.name}</div>
+                        <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
                       </div>
                     </div>
                   </td>

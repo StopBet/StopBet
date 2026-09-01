@@ -1,4 +1,5 @@
 import { WIcon } from './WIcon'
+import isotipo from '../assets/isotipo-blanco.png'
 import type { AuthUser } from '../services/api'
 
 type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
@@ -29,18 +30,31 @@ export function Sidebar({ active, onNav, onLogout, reqCount, user }: SidebarProp
   const roleLabel = user.role === 'coordinator' ? 'Coordinación' : 'Psicólogo/a'
 
   return (
+    // overflowY auto: si el contenido no cabe en la altura de la ventana, antes el
+    // bloque del usuario y "Cerrar sesión" quedaban fuera de pantalla sin forma de
+    // llegar a ellos.
     <aside style={{
       width: 240, flexShrink: 0, background: 'var(--primary)', color: '#fff',
-      display: 'flex', flexDirection: 'column', position: 'sticky', top: 0, height: '100vh',
+      display: 'flex', flexDirection: 'column', position: 'sticky', top: 0,
+      height: '100vh', overflowY: 'auto',
     }}>
-      {/* Logo AJUTER */}
+      {/* Marca StopBet. El logo de AJUTER baja al pie: el producto encabeza, pero
+          el panel sigue identificando a la institución que lo usa. */}
       <div style={{ padding: '26px 24px 18px' }}>
-        <div style={{ background: 'rgba(255,255,255,0.92)', borderRadius: 10, padding: '8px 12px', display: 'inline-block' }}>
-          <img
-            src="https://ajuter.org/wp-content/uploads/2025/04/Logo-Ajuter-con-texto.png"
-            alt="AJUTER"
-            style={{ display: 'block', maxWidth: 160, height: 'auto' }}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+            background: 'rgba(255,255,255,0.16)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <img src={isotipo} alt="" style={{ width: 23, height: 23, display: 'block' }} />
+          </div>
+          <span style={{
+            fontFamily: 'var(--font-heading)', fontWeight: 700,
+            fontSize: 22, letterSpacing: -0.5,
+          }}>
+            StopBet
+          </span>
         </div>
         <div style={{
           marginTop: 9, display: 'inline-block', fontSize: 11, fontWeight: 600,
@@ -89,8 +103,8 @@ export function Sidebar({ active, onNav, onLogout, reqCount, user }: SidebarProp
       </nav>
 
       {/* Usuario logueado */}
-      <div style={{ marginTop: 'auto', padding: '16px 16px 22px' }}>
-        <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', marginBottom: 16 }} />
+      <div style={{ marginTop: 'auto', flexShrink: 0, padding: '12px 16px 18px' }}>
+        <div style={{ height: 1, background: 'rgba(255,255,255,0.14)', marginBottom: 12 }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
           <div style={{
             width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
@@ -116,6 +130,20 @@ export function Sidebar({ active, onNav, onLogout, reqCount, user }: SidebarProp
         >
           <WIcon name="life-buoy" size={14} /> Cerrar sesión
         </button>
+
+        {/* AJUTER es la institución dueña del panel: va al pie, en una sola línea.
+            Antes ocupaba dos separadores más y empujaba al usuario fuera de la
+            pantalla en ventanas de poca altura. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 16 }}>
+          <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.55)', flexShrink: 0 }}>Para</span>
+          <div style={{ background: 'rgba(255,255,255,0.92)', borderRadius: 6, padding: '3px 7px', display: 'inline-block' }}>
+            <img
+              src="https://ajuter.org/wp-content/uploads/2025/04/Logo-Ajuter-con-texto.png"
+              alt="AJUTER"
+              style={{ display: 'block', maxWidth: 76, height: 'auto' }}
+            />
+          </div>
+        </div>
       </div>
     </aside>
   )

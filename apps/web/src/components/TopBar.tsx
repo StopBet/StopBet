@@ -9,7 +9,7 @@ export function TopBar({ title }: TopBarProps) {
     <header style={{
       height: 64, flexShrink: 0, background: 'var(--surface)',
       borderBottom: '1px solid var(--border)',
-      boxShadow: '0 1px 3px rgba(30,45,44,0.04)',
+      boxShadow: '0 1px 3px rgba(45,90,158,0.04)',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 32px', position: 'sticky', top: 0, zIndex: 5,
     }}>

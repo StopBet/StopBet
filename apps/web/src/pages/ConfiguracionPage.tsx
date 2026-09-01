@@ -13,32 +13,38 @@ function SectionNav({ active, onSelect }: { active: ConfigSection; onSelect: (s:
     { id: 'seguridad',      icon: 'shield',        label: 'Seguridad'        },
   ]
   return (
-    // En el teléfono la columna de 220px se comía media pantalla, así que las
-    // secciones pasan a una fila que se desplaza de lado, como pestañas.
-    <div style={{
-      width: isNarrow ? '100%' : 220,
-      flexShrink: 0,
-      display: 'flex',
-      flexDirection: isNarrow ? 'row' : 'column',
-      gap: isNarrow ? 8 : 3,
-      overflowX: isNarrow ? 'auto' : undefined,
-      paddingBottom: isNarrow ? 4 : undefined,
-    }}>
+    // En el teléfono la columna de 220px se comía media pantalla. Pasan a pestañas
+    // subrayadas en una sola línea, el patrón habitual en móvil: la clase .sb-tabs
+    // esconde la barra de scroll sin impedir el desplazamiento.
+    <div
+      className={isNarrow ? 'sb-tabs' : undefined}
+      style={{
+        width: isNarrow ? '100%' : 220,
+        flexShrink: 0,
+        display: 'flex',
+        flexDirection: isNarrow ? 'row' : 'column',
+        gap: isNarrow ? 0 : 3,
+        borderBottom: isNarrow ? '1px solid var(--border)' : undefined,
+      }}
+    >
       {sections.map(s => {
         const on = active === s.id
         return (
           <button key={s.id} onClick={() => onSelect(s.id)}
             style={{
-              display: 'flex', alignItems: 'center', gap: isNarrow ? 7 : 11, height: 44,
-              padding: isNarrow ? '0 14px' : '0 12px',
-              borderRadius: isNarrow ? 9999 : 10,
+              display: 'flex', alignItems: 'center', gap: isNarrow ? 6 : 11, height: 44,
+              padding: isNarrow ? '0 13px' : '0 12px',
+              borderRadius: isNarrow ? 0 : 10,
               flexShrink: 0, whiteSpace: 'nowrap',
-              border: isNarrow ? `1.5px solid ${on ? 'var(--primary)' : 'var(--border)'}` : 'none',
-              background: on ? 'var(--teal-50)' : isNarrow ? 'var(--surface)' : 'transparent',
+              border: 'none',
+              background: isNarrow ? 'transparent' : (on ? 'var(--teal-50)' : 'transparent'),
               color: on ? 'var(--primary)' : 'var(--fg2)',
               fontFamily: 'var(--font-body)', fontSize: isNarrow ? 13.5 : 14.5,
               fontWeight: on ? 700 : 500, cursor: 'pointer', textAlign: 'left',
+              // Angosto: subrayado bajo la activa. Ancho: la barra vertical de siempre.
+              borderBottom: isNarrow ? `2.5px solid ${on ? 'var(--primary)' : 'transparent'}` : undefined,
               borderLeft: isNarrow ? undefined : (on ? '3px solid var(--primary)' : '3px solid transparent'),
+              marginBottom: isNarrow ? -1 : undefined,
             }}>
             <WIcon name={s.icon} size={18} />
             {s.label}
