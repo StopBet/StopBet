@@ -22,6 +22,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Login con email y contraseña — emite access y refresh token' })
   @ApiResponse({ status: 200, description: 'LoginResponse' })
   @ApiResponse({ status: 401, description: 'Credenciales incorrectas' })
+  @ApiResponse({ status: 403, description: 'Cuenta suspendida' })
   @ApiResponse({ status: 429, description: 'Demasiados intentos de login' })
   login(@Body() body: LoginDto): Promise<LoginResponse> {
     return this.authService.login(body.email, body.password);
@@ -33,6 +34,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Rota el refresh token y emite un nuevo par de tokens' })
   @ApiResponse({ status: 200, description: 'LoginResponse' })
   @ApiResponse({ status: 401, description: 'Refresh token inválido o expirado' })
+  @ApiResponse({ status: 403, description: 'Cuenta suspendida' })
   refresh(@Body() body: RefreshDto): Promise<LoginResponse> {
     return this.authService.refresh(body.refreshToken);
   }

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { Repository } from 'typeorm';
@@ -47,6 +47,12 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales incorrectas');
     }
 
+    // Va después de verificar la clave a propósito: si fuera antes, cualquiera podría averiguar
+    // qué correos existen preguntando. Acá solo se entera quien ya demostró tener la credencial.
+    if (user.accountStatus !== 'active') {
+      throw new ForbiddenException('Tu cuenta está suspendida. Contacta a tu coordinador.');
+    }
+
     return this.issueTokens(user);
   }
 
@@ -60,6 +66,12 @@ export class AuthService {
 
     const user = await this.userRepo.findOne({ where: { id: stored.userId } });
     if (!user) throw new UnauthorizedException('Usuario no encontrado');
+
+    // Suspender tiene que cortar también las sesiones vivas: sin esto, quien ya tenía un refresh
+    // token seguiría renovando su acceso hasta 7 días después de la baja.
+    if (user.accountStatus !== 'active') {
+      throw new ForbiddenException('Tu cuenta está suspendida. Contacta a tu coordinador.');
+    }
 
     // Rotación: el refresh token usado queda inutilizable de inmediato
     stored.revokedAt = new Date();

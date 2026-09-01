@@ -50,6 +50,64 @@ sidebar, porque el panel sigue identificando a la institución que lo usa.
 
 ---
 
+## 2026-08-31 — Despliegue a producción: backend en Railway, web en Vercel (rama `chore/despliegue-nube-jose-meza`)
+
+### El backend y la web ya están desplegados de verdad — no son solo config sin probar
+
+**A quién le pega:** a todo el equipo, para cualquier cosa que se pruebe contra la nube en vez
+de local (demo, QA, mostrarle el avance a alguien).
+
+**Qué hay ahora:**
+- Backend: `https://stopbetbackend-production.up.railway.app` (`/health`, `/api/docs`). Base de
+  datos sembrada con `pnpm run seed` + `pnpm run seed:family` — las mismas cuentas que en local,
+  misma clave `Stopbet2026!`.
+- Web: `https://stopbet-lemon.vercel.app`, ya apuntando a ese backend.
+- `CORS_ORIGIN` ahora acepta una **lista separada por comas** (`apps/backend/src/main.ts`); antes
+  aceptaba un solo origen y con dos se rompía uno de los dos.
+- La app mobile ya no tiene `BASE_URL` fijo a `localhost` (`apps/mobile/src/services/api.ts`):
+  usa `__DEV__` para elegir entre local (desarrollo) y Railway (release). Cualquier APK de
+  release que compilen ustedes o el CI (`mobile-preview.yml`) ahora funciona en un teléfono sin
+  el `adb reverse` ni el computador prendido.
+
+**Qué hacer:** nada obligatorio — no hay dependencias nuevas ni pasos de `pnpm install`. Si van
+a probar contra la nube, usen las URLs de arriba (también quedaron en el README, sección
+"Despliegue en producción").
+
+**Ojo con esto, no es un bug:** en Railway aparecen **dos** proyectos llamados "StopBet". El real
+es el de arriba, en la cuenta de José. El otro, en el workspace personal de Matías Barraza, es
+un intento viejo muerto desde mayo (deploy `FAILED`, dominio 404) — no hay nada ahí, ignórenlo.
+
+---
+
+## 2026-08-31 — Cierre de acceso a cuentas suspendidas (rama `fix/cuenta-suspendida-cierra-acceso-matias-lara`)
+
+### Suspender un psicólogo ahora sí le cierra el acceso — y toca archivos de `auth/**` (José)
+
+**A quién le pega:** a todo el equipo que pruebe login o cuentas suspendidas; a José, dueño de
+`apps/backend/src/auth/**`, aunque no haya podido revisarlo antes de este commit.
+
+**Qué cambió:**
+1. Una cuenta con `accountStatus: 'suspended'` ya no puede hacer login (`403`, banner "Tu cuenta
+   no tiene permisos para acceder") ni renovar su sesión con `/auth/refresh`.
+2. Cualquier request autenticado de una cuenta que se suspendió **mientras tenía sesión abierta**
+   se corta en el siguiente request (`401` → el dashboard expulsa al login solo).
+3. Suspender ahora revoca en la misma transacción todos los refresh tokens vivos de esa cuenta.
+4. `POST /auth/login` puede devolver `403` además de `401` — ojo si tienen scripts o colecciones
+   de Postman que solo esperaban `200`/`401`.
+
+**Qué hacer:** si en tu BD local tenías psicólogos de prueba ya suspendidos, dejarán de poder
+entrar (era el bug). Correr `pnpm run seed` los devuelve a los estados de siempre.
+
+**Por qué se tocó `auth/**` sin José:** el hallazgo es de seguridad clínica (una cuenta suspendida
+podía seguir entrando y viendo pacientes) y él estaba ocupado con otras tareas. Quedó con tests
+unitarios, e2e y verificación manual por API y por navegador — ver `claude_privado/pendientes.md`
+para el detalle si hace falta.
+
+**Fuera de esta rama a propósito:** no se tocó `docs/security/permissions-matrix.md` (es de José);
+esto agrega una condición de estado de cuenta, no cambia permisos por endpoint.
+
+---
+
 ## 2026-08-30 — HU-24 · Reasignación de pacientes por sede (rama `feature/HU-24-reasignacion-por-sede-matias-lara`)
 
 ### Hay que recompilar `shared-types` después de pullear

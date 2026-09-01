@@ -1,4 +1,4 @@
-import { UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
@@ -26,6 +26,7 @@ describe('AuthService', () => {
     firstName: 'Sofía',
     lastName: 'Reyes',
     sedeId: null,
+    accountStatus: 'active',
   };
 
   beforeAll(async () => {
@@ -91,6 +92,18 @@ describe('AuthService', () => {
         UnauthorizedException,
       );
     });
+
+    it('rechaza con 403 cuando la cuenta está suspendida, aunque la clave sea correcta', async () => {
+      userRepo.findOne.mockResolvedValue({
+        ...baseUser,
+        passwordHash,
+        accountStatus: 'suspended',
+      });
+
+      await expect(service.login(baseUser.email!, rawPassword)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
   });
 
   describe('refresh', () => {
@@ -142,6 +155,20 @@ describe('AuthService', () => {
       refreshTokenRepo.findOne.mockResolvedValue(null);
 
       await expect(service.refresh('token-inexistente')).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('rechaza con 403 cuando el usuario está suspendido, aunque el refresh token sea válido', async () => {
+      const stored: Partial<RefreshToken> = {
+        id: 'rt-1',
+        userId: baseUser.id!,
+        tokenHash: 'hash-viejo',
+        expiresAt: new Date(Date.now() + 1000 * 60 * 60),
+        revokedAt: null,
+      };
+      refreshTokenRepo.findOne.mockResolvedValue(stored);
+      userRepo.findOne.mockResolvedValue({ ...baseUser, passwordHash, accountStatus: 'suspended' });
+
+      await expect(service.refresh('token-valido')).rejects.toThrow(ForbiddenException);
     });
   });
 });

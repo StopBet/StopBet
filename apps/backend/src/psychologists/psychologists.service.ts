@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, QueryFailedError, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { CreatePsychologistResponse, PsychologistListItem } from '@stopbet/shared-types';
@@ -13,6 +13,7 @@ import { User } from '../users/entities/user.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from './entities/psychologist-sede.entity';
 import { PatientAssignment } from './entities/patient-assignment.entity';
+import { RefreshToken } from '../auth/entities/refresh-token.entity';
 import { CreatePsychologistDto } from './dto/create-psychologist.dto';
 import { DeactivatePsychologistDto } from './dto/deactivate-psychologist.dto';
 import { UpdateSedesDto } from './dto/update-sedes.dto';
@@ -279,6 +280,12 @@ export class PsychologistsService {
       }
 
       await manager.getRepository(User).update(id, { accountStatus: 'suspended' });
+
+      // Las tres puertas de auth ya rechazan a una cuenta suspendida; esto además deja las sesiones
+      // revocadas en la BD, para no depender solo de un chequeo en runtime.
+      await manager
+        .getRepository(RefreshToken)
+        .update({ userId: id, revokedAt: IsNull() }, { revokedAt: new Date() });
     });
   }
 
