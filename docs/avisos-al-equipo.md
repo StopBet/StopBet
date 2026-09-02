@@ -20,6 +20,44 @@ está.
 
 ---
 
+## 2026-09-02 — Firebase push activo: falta `firebase-service-account.json` en local (PR pendiente, rama `fix/dependencias-nestjs-jose-meza`)
+
+### Sin ese archivo, el backend arranca igual pero con push desactivado — no es un bug
+
+**A quién le pega:** a quien levante `apps/backend` en local y quiera probar notificaciones
+push, o le extrañe ver `[PushService] Firebase sin configurar: las notificaciones push quedan
+desactivadas` al arrancar.
+
+**Qué hacer**, una vez, en `apps/backend/`:
+
+1. Pedir el archivo `firebase-service-account.json` a José Meza (o generarlo de nuevo desde
+   Firebase Console → Project Settings → Service accounts → Generate new private key, si
+   tienes acceso al proyecto).
+2. Ponerlo en `apps/backend/firebase-service-account.json` — ya está en `.gitignore`
+   (`apps/backend/firebase-service-account.json` y `**/*-firebase-adminsdk-*.json`), nunca se
+   sube al repo.
+3. Agregar en `apps/backend/.env`:
+   ```
+   FIREBASE_SERVICE_ACCOUNT_PATH=firebase-service-account.json
+   ```
+
+**Por qué:** `push.service.ts` ya soportaba esto desde que se implementó FCM, pero nadie había
+configurado la credencial real en ningún ambiente — ni local ni Railway. Se generó el service
+account en Firebase Console y se configuró en ambos: local vía
+`FIREBASE_SERVICE_ACCOUNT_PATH` (archivo), Railway vía `FIREBASE_SERVICE_ACCOUNT_JSON`
+(variable con el JSON completo, porque Railway no permite subir archivos). Producción ya lo
+tiene — confirmado en los logs de Railway: `[PushService] Firebase inicializado:
+notificaciones push activas`. En local sigue habiendo que configurarlo a mano por persona,
+porque el archivo de credenciales nunca puede vivir en el repo.
+
+De paso quedó también resuelto **S.7** (alerta de caída a Discord): `DISCORD_ALERT_WEBHOOK_URL`
+estaba configurada hace tiempo en Railway pero nunca se había probado el flujo completo — se
+confirmó forzando `AlertsService.checkDatabaseHealth()` contra el webhook real (sin apagar la
+BD de producción) y llegó el mensaje al canal del equipo. No requiere ninguna acción de nadie,
+va acá solo para que quede registrado junto con el cambio de Firebase de la misma sesión.
+
+---
+
 ## 2026-09-01 — `@nestjs/schedule` y `@nestjs/terminus` rompían **todos** los tests e2e (rama `fix/dependencias-nestjs-jose-meza`)
 
 ### Hay que correr `pnpm install` después de pullear — y si `test:e2e` te fallaba entero, no era tu código
