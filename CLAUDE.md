@@ -11,7 +11,10 @@ Plataforma clínica para tratamiento de ludopatía. Datos de pacientes son **sen
 - **Auth real, con el dashboard web ya migrado**: módulo `auth` con JWT (`POST /auth/login`, `/auth/refresh` con rotación, `/auth/logout`), `JwtAuthGuard` + `RolesGuard` + `@Roles()` + `@CurrentUser()` en `common/`. Rol `coordinator` agregado. `POST /users/login` **fue eliminado** — no verificaba la contraseña. `/auth/login` **no filtra por rol**: quién entra a la web se decide en `LoginPage.tsx` (psicólogo, coordinador y familiar). **Suspender una cuenta cierra el acceso en las tres puertas**: `login()` y `refresh()` rechazan con 403 a `accountStatus !== 'active'`, `JwtStrategy.validate()` corta con 401 cualquier request de una sesión ya abierta, y `deactivate()` revoca sus refresh tokens en la misma transacción.
   - ⚠️ **Solo 3 controladores de 17 tienen guard**: `family`, `metrics` y `users`. El resto **sigue leyendo `x-user-id` sin verificar**. `GET /registration/pending` y `GET /panic/alerts/history` se cerraron por método porque devolvían nombres y correos de pacientes sin pedir token; los demás siguen abiertos. Registrar `JwtAuthGuard` como guard global (con `@Public()` donde corresponda) sigue pendiente — ver `docs/security/permissions-matrix.md`.
   - **`apps/mobile` sigue sin migrar** a `Authorization: Bearer`.
-- **Backend** (NestJS): módulos `achievements`, `ai-assistant`, `auth`, `billing`, `check-ins`, `community`, `family`, `health`, `notifications`, `panic`, `push`, `registration`, `sedes`, `subscriptions`, `users`. `GET /health` verifica la conexión real a la BD (antes era un `{status:'ok'}` fijo) y alerta a un webhook de Discord ante caída — inactivo hasta que el equipo configure `DISCORD_ALERT_WEBHOOK_URL`. El RUT (`User.rut`) se cifra en reposo (AES-256-GCM). Nuevos endpoints para el dashboard web: `GET /users/patients`, `GET /registration/pending`, `GET /panic/alerts/history`.
+- **Backend** (NestJS): módulos `achievements`, `ai-assistant`, `auth`, `billing`, `check-ins`, `community`, `family`, `health`, `mail`, `notifications`, `panic`, `psychologists`, `push`, `registration`, `sedes`, `subscriptions`, `users`. `GET /health` verifica la conexión real a la BD (antes era un `{status:'ok'}` fijo) y alerta a un webhook de Discord ante caída — inactivo hasta que el equipo configure `DISCORD_ALERT_WEBHOOK_URL`. El RUT (`User.rut`) se cifra en reposo (AES-256-GCM). Nuevos endpoints para el dashboard web: `GET /users/patients`, `GET /registration/pending`, `GET /panic/alerts/history`.
+- **Envío de correo** (CA24.1): al crear un psicólogo, el backend le manda sus credenciales por correo. Módulo `mail` con **Nodemailer sobre SMTP genérico** — no el SDK de un proveedor — así que cambiar de Gmail a Resend o Brevo es cambiar variables de entorno, sin tocar código. **Es opcional y se apaga solo**: sin `SMTP_HOST` el backend arranca igual, `send()` devuelve `false`, y la respuesta del `POST /psychologists` lo informa en `credentialsEmailSent` para que `EquipoPage` caiga al flujo anterior (mostrar la contraseña en pantalla para entrega a mano). **Hoy en Railway está apagado** — nadie configuró las variables ahí. Dos avisos:
+  - ⚠️ **Los correos caen en spam.** Verificado el 2026-09-02 con la cuenta `stopbet.fds@gmail.com`. No es problema de autenticación (la firma de Gmail pasa): es que el remitente es un `@gmail.com` sin historial y el cuerpo lleva una contraseña, que es la forma exacta de un correo de phishing.
+  - Mandar la contraseña en texto plano es mala práctica en una plataforma clínica. Lo correcto es un **enlace de invitación de un solo uso** — y arregla el spam de paso. No se hizo porque necesita una pantalla web nueva y una ruta en `DashboardApp.tsx`, que es de otro integrante.
 - **Web dashboard**: vistas del terapeuta (login, Overview, Alertas, Finanzas, Solicitudes, Sesiones de familiares, Configuración) conectadas a la API real con TanStack Query (`@tanstack/react-query`). `Finanzas` y `Configuración` siguen con datos mock. El cliente HTTP (`apps/web/src/services/api.ts`) manda `Authorization: Bearer` con refresh automático; quedan algunas llamadas con `x-user-id` para endpoints que aún no tienen guard.
   - **Portal del familiar** (`src/pages/familiar/`): app aparte del shell clínico, no rutas dentro de `DashboardApp`. `App.tsx` bifurca por `user.role === 'family'` antes del gate de psicólogo.
   - Las páginas usan **estilos en línea con las variables del tema** y el componente `WIcon`, no las clases de Tailwind que describe la sección de Design System más abajo.
@@ -25,7 +28,7 @@ Plataforma clínica para tratamiento de ludopatía. Datos de pacientes son **sen
 - **Deudas técnicas**:
   - ⚠️ **No hay ninguna migración en el repo, y por eso el backend de Railway corre con `NODE_ENV=development`** — se dejó así a propósito para que TypeORM cree el esquema con `synchronize`. Es decir: las tablas nuevas **sí** se crean en producción, pero al precio de violar la regla del propio proyecto ("nunca `synchronize: true` en producción"). Hay que resolverlo con migraciones reales **antes de manejar datos de pacientes de verdad**.
   - ⚠️ **Hay dos proyectos de Railway llamados "StopBet".** El real vive en la cuenta de José Meza (`stopbetbackend-production.up.railway.app`, deploy `SUCCESS`). El otro es un intento anterior en el workspace personal de Matías Barraza, muerto desde mayo (deploy `FAILED`, su dominio devuelve 404). Si alguien lo encuentra buscando "StopBet" en Railway, es ese — no hay nada que rescatar ahí.
-  - Borrar `apps/mobile/package-lock.json` (residuo de npm en repo pnpm); conectar `FinanzasPage` y `ConfiguracionPage` a la API; migrar `apps/mobile` de `x-user-id` a `Authorization: Bearer`; registrar `JwtAuthGuard` como guard global.
+  - Borrar `apps/mobile/package-lock.json` (residuo de npm en repo pnpm); conectar `FinanzasPage` y `ConfiguracionPage` a la API; migrar `apps/mobile` de `x-user-id` a `Authorization: Bearer`; registrar `JwtAuthGuard` como guard global; reemplazar la contraseña temporal por correo con un **enlace de invitación de un solo uso** (ver "Envío de correo" arriba).
   - _Resueltas:_ seed del usuario demo; `GEMINI_API_KEY` opcional; dashboard web conectado a la API real y migrado a Bearer; módulo `auth`; los dos endpoints que respondían sin login (`/panic/alerts/history`, `/registration/pending`); **FCM implementado** (módulo `push` con `firebase-admin`, tabla `device_tokens`; requiere `FIREBASE_SERVICE_ACCOUNT_PATH` o `..._JSON`, y sin eso el backend arranca igual con los push desactivados); **backend y dashboard desplegados** en Railway y Vercel (ver `README.md` → "Despliegue en producción"); `BASE_URL` de mobile ya no está fijo a `localhost`; el servicio duplicado y mal configurado `@stopbet/web` de Railway (corría el build y el start command del backend sin ninguna de sus variables de entorno, así que el healthcheck siempre fallaba) se borró; **la base de datos de Railway ya está poblada** (verificado el 2026-09-01: `/health` responde `200` y `POST /auth/login` devuelve token para las cuentas del seed, incluidas las de `seed:family`), así que la demo en la nube ya tiene con qué entrar.
 
 ## Estructura del monorepo
@@ -285,7 +288,20 @@ CORS_ORIGIN=http://localhost:5173
 JWT_SECRET=...
 GEMINI_API_KEY=...
 ENCRYPTION_KEY=...
+
+# Opcionales — sin SMTP_HOST no se envía ningún correo y el backend arranca igual
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=...
+SMTP_PASSWORD=...
+MAIL_FROM=StopBet <no-reply@...>
+WEB_APP_URL=http://localhost:5173
 ```
+
+> Para probar el correo en local sin cuenta de ningún proveedor, hay un buzón falso
+> documentado en [`README.md`](README.md) y en `apps/backend/.env.example`. En producción,
+> `WEB_APP_URL` **debe ser la URL de Vercel**, no `localhost`: es lo que se enlaza dentro
+> del correo.
 
 > **`ENCRYPTION_KEY` es obligatoria** — cifra el RUT en reposo (AES-256-GCM). Sin ella
 > `pnpm run seed` **se cae** y el backend no puede escribir ningún RUT. Debe ser una
