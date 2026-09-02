@@ -13,6 +13,8 @@ const cardStyle: CSSProperties = { position: 'relative', background: 'var(--surf
 const closeBtnStyle: CSSProperties = { width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const primaryBtnStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 8, height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer' }
 const secondaryBtnStyle: CSSProperties = { height: 46, padding: '0 22px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, cursor: 'pointer' }
+const linkBtnStyle: CSSProperties = { border: 'none', background: 'none', padding: 0, fontSize: 13, fontWeight: 600, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }
+const noticeStyle: CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-start', borderRadius: 12, padding: '13px 15px', marginBottom: 16, fontSize: 13, lineHeight: 1.45, color: 'var(--fg1)' }
 
 // El scrim cierra el modal al hacer clic. Como <div> no lo alcanza el teclado ni lo anuncia
 // un lector de pantalla, y era la unica via de cierre para quien no usa mouse.
@@ -55,6 +57,9 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
   const [selectedSedes, setSelectedSedes] = useState<Set<string>>(new Set())
   const [error, setError] = useState<string | null>(null)
   const [created, setCreated] = useState<CreatePsychologistResponse | null>(null)
+  // Con el correo entregado la clave queda oculta: mostrarla igual invita a reenviarla por
+  // un canal peor. Se revela a pedido, para el caso de que el correo no haya llegado.
+  const [showPassword, setShowPassword] = useState(false)
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -82,19 +87,44 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
         <div style={{ ...cardStyle, width: 460, padding: 28 }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)' }}>Psicólogo creado</h2>
           <p style={{ margin: '5px 0 18px', fontSize: 13, color: 'var(--fg2)' }}>
-            Entrégale estas credenciales: no se van a volver a mostrar.
+            {created.credentialsEmailSent
+              ? 'Ya recibió sus credenciales de acceso por correo.'
+              : 'Entrégale estas credenciales: no se van a volver a mostrar.'}
           </p>
-          <div style={{ background: 'var(--teal-50)', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
-            <div style={{ fontSize: 12, color: 'var(--fg2)', marginBottom: 4 }}>Correo</div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)', marginBottom: 12 }}>
-              {created.email}
+
+          {created.credentialsEmailSent ? (
+            <div style={{ ...noticeStyle, background: 'var(--sage-50)' }}>
+              <span style={{ color: 'var(--sage-500)', flexShrink: 0, marginTop: 1 }}><WIcon name="circle-check" size={17} /></span>
+              <div>Correo enviado a <strong>{created.email}</strong>. Si no lo ve, pídele que revise la carpeta de spam.</div>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--fg2)', marginBottom: 4 }}>Contraseña temporal</div>
-            <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 16, color: 'var(--primary)', letterSpacing: '0.03em' }}>
-              {created.temporaryPassword}
+          ) : (
+            <div style={{ ...noticeStyle, background: 'var(--red-50)' }}>
+              <span style={{ color: 'var(--danger)', flexShrink: 0, marginTop: 1 }}><WIcon name="circle-alert" size={17} /></span>
+              <div>No se pudo enviar el correo. La cuenta quedó creada igual: entrégale tú la contraseña.</div>
             </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          )}
+
+          {(!created.credentialsEmailSent || showPassword) && (
+            <div style={{ background: 'var(--teal-50)', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+              <div style={{ fontSize: 12, color: 'var(--fg2)', marginBottom: 4 }}>Correo</div>
+              <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)', marginBottom: 12 }}>
+                {created.email}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--fg2)', marginBottom: 4 }}>Contraseña temporal</div>
+              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 16, color: 'var(--primary)', letterSpacing: '0.03em' }}>
+                {created.temporaryPassword}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            {created.credentialsEmailSent && !showPassword ? (
+              <button type="button" onClick={() => setShowPassword(true)} style={linkBtnStyle}>
+                ¿No le llegó? Ver la contraseña
+              </button>
+            ) : (
+              <span />
+            )}
             <button onClick={onDone} style={primaryBtnStyle}>Entendido</button>
           </div>
         </div>
@@ -111,7 +141,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 22 }}>
           <div>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 21, color: 'var(--fg1)' }}>Crear psicólogo</h2>
-            <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>Se genera una contraseña temporal que deberás entregarle.</p>
+            <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>Se genera una contraseña temporal y se le envía por correo.</p>
           </div>
           <button onClick={onClose} style={closeBtnStyle}>
             <WIcon name="x" size={16} />

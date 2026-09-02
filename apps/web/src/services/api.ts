@@ -276,6 +276,7 @@ export interface CreatePsychologistResponse {
   email: string
   sedes: Sede[]
   temporaryPassword: string
+  credentialsEmailSent: boolean
 }
 
 // ── Llamadas ──────────────────────────────────────────────────────────────────

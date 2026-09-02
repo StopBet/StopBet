@@ -53,6 +53,28 @@ es obligatoria.
 
 **Ojo si tocas `apps/web/src/services/api.ts`:** la interfaz `FamilySession` suma el campo
 `isMandatory`. Son 3 líneas en medio del archivo, no al final, así que puede chocar con tu rama.
+## 2026-09-01 — Dependencia nueva (`nodemailer`) y módulo `mail` (rama `feature/HU-24-envio-credenciales-correo-matias-lara`)
+
+### Corre `pnpm install` después de pullear
+
+**A quién le pega:** a todos. Se agregó `nodemailer` (+ `@types/nodemailer`) a
+`apps/backend`. Sin `pnpm install` el backend no compila y el error apunta a un import de
+`mail.service.ts`, que no es donde está el problema.
+
+**Qué hacer:** `pnpm install` en la raíz. Nada más.
+
+**Qué cambió:** al crear un psicólogo, el backend ahora **le envía las credenciales por
+correo** (CA24.1: "el sistema … le envía sus credenciales de acceso"). Antes solo se mostraban
+en pantalla para entrega a mano.
+
+**No necesitas configurar nada.** El correo es **opcional**: sin `SMTP_HOST` en tu `.env` el
+backend arranca igual, no manda nada, y la pantalla de Equipo sigue mostrando la contraseña
+temporal como siempre, avisando que la entregues tú. Si quieres probar el envío, hay un buzón
+falso local documentado en el `README.md` y en `apps/backend/.env.example`.
+
+**Ojo, esto sí se puede confundir con un bug:** el modal "Psicólogo creado" ahora **oculta la
+contraseña** cuando el correo salió bien; está detrás del enlace *"¿No le llegó? Ver la
+contraseña"*. Si el correo no sale, se muestra como antes.
 
 ---
 
