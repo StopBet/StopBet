@@ -276,6 +276,7 @@ export interface CreatePsychologistResponse {
   email: string
   sedes: Sede[]
   temporaryPassword: string
+  credentialsEmailSent: boolean
 }
 
 // ── Llamadas ──────────────────────────────────────────────────────────────────
@@ -364,6 +365,9 @@ export interface FamilySession {
   isOnline: boolean
   sedeId: string
   createdAt: string
+  // true = parte del tratamiento del paciente: le corresponde igual, solo puede
+  // avisar que no podrá asistir
+  isMandatory: boolean
   // null = el familiar todavía no respondió
   userAttends: boolean | null
 }

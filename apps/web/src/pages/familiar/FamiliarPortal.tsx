@@ -2,14 +2,28 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../../components/WIcon'
 import { api, type AuthUser, type FamilySessionsResponse } from '../../services/api'
 import { SessionCard } from './SessionCard'
+import { SessionCalendar } from './SessionCalendar'
+import { useIsWide } from './useIsWide'
 
 const SESSIONS_KEY = ['family', 'sessions']
 
-function Shell({ user, onLogout, children }: { user: AuthUser; onLogout: () => void; children: React.ReactNode }) {
+function Shell({
+  user,
+  onLogout,
+  // El ancho lo fija cada vista para que el encabezado quede alineado con su
+  // contenido: los avisos siguen angostos y solo el portal de dos columnas se ensancha.
+  maxWidth = 720,
+  children,
+}: {
+  user: AuthUser
+  onLogout: () => void
+  maxWidth?: number
+  children: React.ReactNode
+}) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <header style={{ background: 'var(--ajuter-gradient)', padding: '26px 24px' }}>
-        <div style={{ maxWidth: 720, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+        <div style={{ maxWidth, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 22, color: '#fff' }}>
               Hola, {user.firstName}
@@ -37,7 +51,7 @@ function Shell({ user, onLogout, children }: { user: AuthUser; onLogout: () => v
         </div>
       </header>
 
-      <main style={{ maxWidth: 720, margin: '0 auto', padding: '28px 24px 64px' }}>{children}</main>
+      <main style={{ maxWidth, margin: '0 auto', padding: '28px 24px 64px' }}>{children}</main>
     </div>
   )
 }
@@ -91,6 +105,7 @@ function Notice({
 
 export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const queryClient = useQueryClient()
+  const isWide = useIsWide()
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: SESSIONS_KEY,
@@ -200,34 +215,96 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
     )
   }
 
-  // CA 11.1 + 11.3 + 11.4 — calendario de la sede, ordenado por proximidad
+  // CA 11.1 + 11.3 + 11.4 — sesiones de la sede, ordenadas por proximidad.
+  // Se muestran en dos bloques: arriba la agenda de la sede, donde se responde;
+  // abajo, en calendario, la agenda propia del familiar. Las obligatorias entran
+  // aunque no haya respondido: le corresponden igual, esa es la diferencia.
+  const agenda = data.sessions.filter((s) => s.userAttends === true || s.isMandatory)
+
   return (
-    <Shell user={user} onLogout={onLogout}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
-          Mis sesiones
-        </h2>
-        <span style={{ fontSize: 13, color: 'var(--fg2)' }}>
-          {data.sessions.length === 1 ? '1 sesión' : `${data.sessions.length} sesiones`}
-        </span>
-      </div>
+    <Shell user={user} onLogout={onLogout} maxWidth={isWide ? 1140 : 720}>
+      <div
+        style={{
+          display: 'grid',
+          // En pantalla ancha van lado a lado; en teléfono el grid colapsa a una sola
+          // columna y queda el mismo orden de lectura que antes.
+          gridTemplateColumns: isWide ? 'minmax(0, 1fr) 372px' : '1fr',
+          gap: isWide ? 32 : 38,
+          alignItems: 'start',
+        }}
+      >
+        <section>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
+              Próximas sesiones
+            </h2>
+            <span style={{ fontSize: 13, color: 'var(--fg2)' }}>
+              {data.sessions.length === 1 ? '1 sesión' : `${data.sessions.length} sesiones`}
+            </span>
+          </div>
+          <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--fg2)' }}>
+            Sesiones grupales de tu sede. Confirma si vas a asistir.
+          </p>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-        {data.sessions.map((s) => (
-          <SessionCard
-            key={s.id}
-            session={s}
-            isPending={respond.isPending && respond.variables?.sessionId === s.id}
-            onRespond={(confirmed) => respond.mutate({ sessionId: s.id, confirmed })}
-          />
-        ))}
-      </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {data.sessions.map((s) => (
+              <SessionCard
+                key={s.id}
+                session={s}
+                isPending={respond.isPending && respond.variables?.sessionId === s.id}
+                onRespond={(confirmed) => respond.mutate({ sessionId: s.id, confirmed })}
+              />
+            ))}
+          </div>
 
-      {respond.isError && (
-        <p style={{ marginTop: 16, fontSize: 13.5, color: 'var(--fg2)' }}>
-          No pudimos guardar tu respuesta. Vuelve a intentarlo.
-        </p>
-      )}
+          {respond.isError && (
+            <p style={{ marginTop: 16, fontSize: 13.5, color: 'var(--fg2)' }}>
+              No pudimos guardar tu respuesta. Vuelve a intentarlo.
+            </p>
+          )}
+        </section>
+
+        {/* Pegajoso solo en pantalla ancha: la lista de la izquierda es más larga que
+            el calendario, y sin esto la columna derecha deja un hueco al hacer scroll. */}
+        <section style={isWide ? { position: 'sticky', top: 24 } : undefined}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
+              Mis sesiones
+            </h2>
+            <span style={{ fontSize: 13, color: 'var(--fg2)' }}>
+              {agenda.length === 1 ? '1 sesión' : `${agenda.length} sesiones`}
+            </span>
+          </div>
+          <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--fg2)' }}>
+            Tu calendario: las sesiones que confirmaste y las obligatorias del tratamiento de tu familiar.
+          </p>
+
+          {agenda.length > 0 ? (
+            <SessionCalendar sessions={agenda} />
+          ) : (
+            <div
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 16,
+                boxShadow: 'var(--shadow-soft)',
+                padding: '24px 22px',
+                display: 'flex',
+                gap: 14,
+                alignItems: 'flex-start',
+              }}
+            >
+              <span style={{ flexShrink: 0, color: 'var(--primary)', marginTop: 1 }}>
+                <WIcon name="calendar" size={20} />
+              </span>
+              <p style={{ margin: 0, fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>
+                Todavía no confirmaste tu asistencia a ninguna sesión. Cuando lo hagas, aparecerán acá
+                en tu calendario.
+              </p>
+            </div>
+          )}
+        </section>
+      </div>
     </Shell>
   )
 }

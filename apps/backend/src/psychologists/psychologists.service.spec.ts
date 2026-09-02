@@ -28,6 +28,7 @@ describe('PsychologistsService', () => {
   };
   let refreshTokenRepo: { update: jest.Mock };
   let dataSource: { transaction: jest.Mock };
+  let mailService: { send: jest.Mock; webAppUrl: string };
 
   const santiago = { id: 'sede-santiago', name: 'Santiago', isActive: true };
   const online = { id: 'sede-online', name: 'Online', isActive: true };
@@ -62,6 +63,7 @@ describe('PsychologistsService', () => {
       create: jest.fn((data) => data),
     };
     refreshTokenRepo = { update: jest.fn() };
+    mailService = { send: jest.fn().mockResolvedValue(true), webAppUrl: 'https://panel.stopbet.cl' };
 
     // El manager enruta a los mismos mocks que usa el resto del spec, así las aserciones
     // sobre `assignmentRepo.update` y compañía siguen valiendo dentro de la transacción.
@@ -85,6 +87,7 @@ describe('PsychologistsService', () => {
       psychSedeRepo as any,
       assignmentRepo as any,
       dataSource as any,
+      mailService as any,
     );
   });
 
@@ -152,6 +155,38 @@ describe('PsychologistsService', () => {
         { psychologistId: 'new-psych', sedeId: 'sede-santiago' },
         { psychologistId: 'new-psych', sedeId: 'sede-online' },
       ]);
+    });
+
+    // CA24.1: "el sistema la genera ... y le envía sus credenciales de acceso".
+    it('le envía por correo la misma contraseña temporal que devuelve', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      sedeRepo.find.mockResolvedValue([santiago, online]);
+      userRepo.save.mockImplementation(async (data) => ({ id: 'new-psych', ...data }));
+
+      const result = await service.create(dto);
+
+      expect(result.credentialsEmailSent).toBe(true);
+      expect(mailService.send).toHaveBeenCalledTimes(1);
+
+      const enviado = mailService.send.mock.calls[0][0];
+      expect(enviado.to).toBe(dto.email);
+      expect(enviado.text).toContain(result.temporaryPassword);
+    });
+
+    // El correo es el último paso y es best-effort: la cuenta ya está en la BD y deshacerla
+    // porque el SMTP esté caído dejaría al coordinador sin nada. Se informa y se sigue.
+    it('deja la cuenta creada aunque el correo falle, y lo informa en la respuesta', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      sedeRepo.find.mockResolvedValue([santiago, online]);
+      userRepo.save.mockImplementation(async (data) => ({ id: 'new-psych', ...data }));
+      mailService.send.mockResolvedValue(false);
+
+      const result = await service.create(dto);
+
+      expect(result.id).toBe('new-psych');
+      expect(result.credentialsEmailSent).toBe(false);
+      // Sigue viniendo en la respuesta: es el respaldo para la entrega a mano.
+      expect(result.temporaryPassword).toHaveLength(12);
     });
   });
 

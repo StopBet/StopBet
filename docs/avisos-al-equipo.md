@@ -58,6 +58,74 @@ va acá solo para que quede registrado junto con el cambio de Firebase de la mis
 
 ---
 
+## 2026-09-02 — Al cerrar sesión, la cuenta siguiente heredaba los datos de la anterior (rama `fix/limpiar-cache-al-cerrar-sesion-alex-dominguez`)
+
+### Confidencialidad: si probaste dos cuentas seguidas, viste datos ajenos
+
+**A quién le pega:** a todo el que pruebe el dashboard cambiando de cuenta, y a cualquier
+máquina compartida de la clínica.
+
+**Qué hacer:** nada, solo pullear. No hay comando ni dependencia nueva.
+
+**Qué pasaba:** `clearSession()` en `App.tsx` limpiaba el almacenamiento, los tokens y el
+estado de React, pero **no la caché de TanStack Query**, que vive en memoria y sobrevive al
+logout. Como **ninguna clave de caché lleva el id del usuario**, la cuenta siguiente heredaba
+lo de la anterior: `['patients']`, `['alerts','history']`, `['registration','pending']`,
+`['psychologists']`, `['family','sessions']`.
+
+Y era peor que un parpadeo: con `staleTime: 30_000` esos datos se consideraban **frescos**, así
+que los componentes ni siquiera volvían a pedirlos. Un psicólogo que entraba después de otro
+podía estar viendo la lista de pacientes ajena hasta medio minuto. Recargar con F5 lo tapaba,
+porque la caché es solo de memoria.
+
+**El arreglo:** una línea, `queryClient.clear()` dentro de `clearSession()`. Cubre las tres
+salidas: logout manual, sesión expirada y el corte por rol.
+
+**Lo que vas a notar:** al cerrar sesión y entrar con otra cuenta, ahora aparece brevemente el
+estado de carga en vez de la vista anterior. Eso es lo correcto, no un bug nuevo.
+
+**Para tener en cuenta al escribir queries nuevas:** las claves siguen sin llevar identidad. Si
+agregas una `useQuery` con datos de un usuario, considera incluir su id en la clave; hoy lo
+único que las separa es este `clear()`.
+
+---
+
+## 2026-09-02 — El portal del familiar suma calendario y sesiones obligatorias (rama `feature/HU-11-calendario-mis-sesiones-alex-dominguez`)
+
+### Corre `pnpm run seed:family` después de pullear
+
+**A quién le pega:** a quien levante el portal del familiar o toque el módulo `family`.
+
+**Qué hacer**, una vez, desde la raíz y con el backend ya reiniciado:
+
+```bash
+pnpm run seed:family
+```
+
+**Por qué:** `family_sessions` suma la columna `isMandatory`. TypeORM la crea sola al arrancar
+el backend (`synchronize`), así que no hay migración que correr, pero **el seed viejo no trae
+ninguna sesión obligatoria**: sin volver a sembrar, la funcionalidad nueva no se ve por
+ningún lado y parece que no estuviera hecha.
+
+Después del seed, `patricia.gomez@stopbet.cl` queda con 4 sesiones en vez de 3, y una de ellas
+es obligatoria.
+
+### Dos cambios visibles que podrías confundir con un bug
+
+- **"Mis sesiones" ya no es la lista de arriba.** El portal se partió en dos: *Próximas
+  sesiones* es la agenda de la sede, donde se responde, y *Mis sesiones* es un calendario
+  mensual con lo que le corresponde asistir al familiar. Sobre 1024px van lado a lado; abajo
+  de eso se apilan como antes.
+- **Las tarjetas ya no muestran los botones "Confirmar asistencia" y "No podré ir".** Ahora
+  todas usan el interruptor, con **tres** apariencias y no dos: sin responder va con borde
+  punteado y la perilla al medio, que no es lo mismo que un rechazo. Si ves una sesión "a
+  medio marcar", es eso y está bien.
+
+**Ojo si tocas `apps/web/src/services/api.ts`:** la interfaz `FamilySession` suma el campo
+`isMandatory`. Son 3 líneas en medio del archivo, no al final, así que puede chocar con tu rama.
+
+---
+
 ## 2026-09-01 — `@nestjs/schedule` y `@nestjs/terminus` rompían **todos** los tests e2e (rama `fix/dependencias-nestjs-jose-meza`)
 
 ### Hay que correr `pnpm install` después de pullear — y si `test:e2e` te fallaba entero, no era tu código
@@ -95,6 +163,59 @@ borrar usuarios contra la base real — revisa que tu `DATABASE_URL` sea
 `CLAUDE.md`. Si tu Postgres local no tiene esa contraseña, no hay que reinstalar nada: se
 resetea con `ALTER USER postgres WITH PASSWORD 'password';` desde `psql` (requiere editar
 `pg_hba.conf` a `trust` temporalmente si perdiste el acceso — pregúntenme si hace falta).
+
+---
+
+## 2026-09-01 — Dependencia nueva (`nodemailer`) y módulo `mail` (rama `feature/HU-24-envio-credenciales-correo-matias-lara`)
+
+### Corre `pnpm install` después de pullear
+
+**A quién le pega:** a todos. Se agregó `nodemailer` (+ `@types/nodemailer`) a
+`apps/backend`. Sin `pnpm install` el backend no compila y el error apunta a un import de
+`mail.service.ts`, que no es donde está el problema.
+
+**Qué hacer:** `pnpm install` en la raíz. Nada más.
+
+**Qué cambió:** al crear un psicólogo, el backend ahora **le envía las credenciales por
+correo** (CA24.1: "el sistema … le envía sus credenciales de acceso"). Antes solo se mostraban
+en pantalla para entrega a mano.
+
+**No necesitas configurar nada.** El correo es **opcional**: sin `SMTP_HOST` en tu `.env` el
+backend arranca igual, no manda nada, y la pantalla de Equipo sigue mostrando la contraseña
+temporal como siempre, avisando que la entregues tú. Si quieres probar el envío, hay un buzón
+falso local documentado en el `README.md` y en `apps/backend/.env.example`.
+
+**Ojo, esto sí se puede confundir con un bug:** el modal "Psicólogo creado" ahora **oculta la
+contraseña** cuando el correo salió bien; está detrás del enlace *"¿No le llegó? Ver la
+contraseña"*. Si el correo no sale, se muestra como antes.
+
+---
+
+## 2026-09-01 — La skill de diseño web estaba en el tema viejo: si tu Claude escribía naranja, era esto (commit directo en `main`)
+
+### Reinicia tu sesión de Claude Code si trabajas en `apps/web`
+
+**A quién le pega:** a quien use Claude Code para construir componentes o páginas en `apps/web`.
+
+**Qué hacer:** nada que instalar. Solo **reiniciar la sesión de Claude Code** después de pullear:
+las skills se cargan al arrancar y quedan en caché, así que una sesión ya abierta sigue con la
+versión vieja.
+
+**Por qué:** `.claude/skills/stopbet-web-design/SKILL.md` seguía documentando el tema AJUTER
+naranja que se reemplazó el 31-08 por el azul StopBet. Estaba equivocada en casi todo: `bg-primary`
+como `#E8883A` en vez de `#396fb6`, las fuentes como Nunito/Inter en vez de Chillax/Satoshi, y una
+lista de ~70 íconos que no existen. **Si le pediste un componente nuevo y te salió naranja dentro
+del panel azul, no era invento del modelo: era la skill.** Ya está corregida contra el CSS real.
+
+**De paso quedaron documentadas dos trampas** que no estaban en ningún lado:
+
+- Los nombres de las variables crudas **ya no describen su color**. `stopbet-theme.css` redefine
+  la paleta de `colors_and_type.css` conservando los nombres: `--teal-700` es azul `#396fb6`,
+  `--amber-500` es azul claro. No te guíes por el nombre. Igual que `--ajuter-gradient`, que
+  conserva el nombre y hoy es azul.
+- **`WIcon` con un nombre que no está en su `ICON_MAP` no falla: renderiza un hueco vacío**, sin
+  error ni warning en consola. Si un ícono "no aparece", revisa primero que el nombre esté en la
+  lista (son 41, están en la skill) antes de buscar el problema en otro lado.
 
 ---
 

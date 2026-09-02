@@ -384,6 +384,8 @@ export interface CreatePsychologistResponse {
   sedes: Sede[];
   // Contraseña en texto plano — se devuelve una sola vez en el 201, nunca se persiste así
   temporaryPassword: string;
+  // false si el SMTP está sin configurar o falló: la entrega queda a cargo del coordinador
+  credentialsEmailSent: boolean;
 }
 
 // ── HdU06: validación de fechas de calendario, compartida entre mobile y backend ──
