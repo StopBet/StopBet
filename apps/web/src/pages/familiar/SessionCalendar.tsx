@@ -73,6 +73,10 @@ export function SessionCalendar({ sessions }: { sessions: FamilySession[] }) {
     [sessions, year, month],
   )
 
+  // Solo llegan acá las confirmadas y las obligatorias, así que un `false` implica
+  // una obligatoria rechazada. La leyenda de ese caso se muestra solo si existe.
+  const hasDeclinedMandatory = sessionsOfMonth.some((x) => x.session.userAttends === false)
+
   const byDay = useMemo(() => {
     const map = new Map<number, typeof sessionsOfMonth>()
     for (const item of sessionsOfMonth) {
@@ -176,19 +180,38 @@ export function SessionCalendar({ sessions }: { sessions: FamilySession[] }) {
                 // ocupando el día, pero se distingue en contorno para no dar a entender
                 // que ya respondió que sí.
                 const anyConfirmed = items?.some((x) => x.session.userAttends === true) ?? false
+                const anyPending = items?.some((x) => x.session.userAttends === null) ?? false
                 const isToday = sameDay(dayDate, today)
 
-                // Hoy se marca con relleno gris y NO con contorno: el contorno azul es
-                // la marca de "obligatoria sin responder" y con los dos iguales no se
-                // distinguía cuál era cuál.
-                const background = anyConfirmed
-                  ? 'var(--secondary)'
-                  : isToday && !hasSession
-                    ? 'var(--surface-alt)'
-                    : 'transparent'
-                const color = anyConfirmed ? '#fff' : hasSession ? 'var(--primary)' : 'var(--fg1)'
+                // Relleno verde = voy. Relleno azul = obligatoria, me corresponde igual.
+                // Contorno azul = obligatoria que rechacé. Hoy va en gris relleno y nunca
+                // en contorno, para no confundirse con la obligatoria rechazada.
+                const tone: 'confirmed' | 'mandatory' | 'declined' | 'today' | 'plain' = anyConfirmed
+                  ? 'confirmed'
+                  : hasSession && anyPending
+                    ? 'mandatory'
+                    : hasSession
+                      ? 'declined'
+                      : isToday
+                        ? 'today'
+                        : 'plain'
+
+                const background =
+                  tone === 'confirmed'
+                    ? 'var(--secondary)'
+                    : tone === 'mandatory'
+                      ? 'var(--primary)'
+                      : tone === 'today'
+                        ? 'var(--surface-alt)'
+                        : 'transparent'
+                const color =
+                  tone === 'confirmed' || tone === 'mandatory'
+                    ? '#fff'
+                    : tone === 'declined'
+                      ? 'var(--primary)'
+                      : 'var(--fg1)'
                 const border =
-                  hasSession && !anyConfirmed ? '1px solid var(--primary)' : '1px solid transparent'
+                  tone === 'declined' ? '1px solid var(--primary)' : '1px solid transparent'
 
                 return (
                   <td key={di} style={{ padding: 2, textAlign: 'center' }}>
@@ -224,9 +247,15 @@ export function SessionCalendar({ sessions }: { sessions: FamilySession[] }) {
           Confirmaste asistencia
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ width: 12, height: 12, borderRadius: '50%', border: '1px solid var(--primary)' }} />
+          <span style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--primary)' }} />
           Obligatoria sin responder
         </span>
+        {hasDeclinedMandatory && (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ width: 12, height: 12, borderRadius: '50%', border: '1px solid var(--primary)' }} />
+            Obligatoria, avisaste que no irás
+          </span>
+        )}
       </div>
 
       <div style={{ marginTop: 18, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
