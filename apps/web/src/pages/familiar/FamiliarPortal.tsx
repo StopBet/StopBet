@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../../components/WIcon'
 import { api, type AuthUser, type FamilySessionsResponse } from '../../services/api'
 import { SessionCard } from './SessionCard'
+import { SessionCalendar } from './SessionCalendar'
 
 const SESSIONS_KEY = ['family', 'sessions']
 
@@ -200,17 +201,25 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
     )
   }
 
-  // CA 11.1 + 11.3 + 11.4 — calendario de la sede, ordenado por proximidad
+  // CA 11.1 + 11.3 + 11.4 — sesiones de la sede, ordenadas por proximidad.
+  // Se muestran en dos bloques: arriba la agenda de la sede, donde se responde;
+  // abajo, en calendario, la agenda propia del familiar. Las obligatorias entran
+  // aunque no haya respondido: le corresponden igual, esa es la diferencia.
+  const agenda = data.sessions.filter((s) => s.userAttends === true || s.isMandatory)
+
   return (
     <Shell user={user} onLogout={onLogout}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
         <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
-          Mis sesiones
+          Próximas sesiones
         </h2>
         <span style={{ fontSize: 13, color: 'var(--fg2)' }}>
           {data.sessions.length === 1 ? '1 sesión' : `${data.sessions.length} sesiones`}
         </span>
       </div>
+      <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--fg2)' }}>
+        Sesiones grupales de tu sede. Confirma si vas a asistir.
+      </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {data.sessions.map((s) => (
@@ -227,6 +236,43 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
         <p style={{ marginTop: 16, fontSize: 13.5, color: 'var(--fg2)' }}>
           No pudimos guardar tu respuesta. Vuelve a intentarlo.
         </p>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, margin: '38px 0 6px' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
+          Mis sesiones
+        </h2>
+        <span style={{ fontSize: 13, color: 'var(--fg2)' }}>
+          {agenda.length === 1 ? '1 sesión' : `${agenda.length} sesiones`}
+        </span>
+      </div>
+      <p style={{ margin: '0 0 16px', fontSize: 13.5, color: 'var(--fg2)' }}>
+        Tu calendario: las sesiones que confirmaste y las obligatorias del tratamiento de tu familiar.
+      </p>
+
+      {agenda.length > 0 ? (
+        <SessionCalendar sessions={agenda} />
+      ) : (
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 16,
+            boxShadow: 'var(--shadow-soft)',
+            padding: '24px 22px',
+            display: 'flex',
+            gap: 14,
+            alignItems: 'flex-start',
+          }}
+        >
+          <span style={{ flexShrink: 0, color: 'var(--primary)', marginTop: 1 }}>
+            <WIcon name="calendar" size={20} />
+          </span>
+          <p style={{ margin: 0, fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>
+            Todavía no confirmaste tu asistencia a ninguna sesión. Cuando lo hagas, aparecerán acá en
+            tu calendario.
+          </p>
+        </div>
       )}
     </Shell>
   )

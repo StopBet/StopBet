@@ -133,9 +133,33 @@ export function SessionCard({
         </div>
 
         <div style={{ minWidth: 0 }}>
-          <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 17, color: 'var(--fg1)' }}>
-            {session.title}
-          </h3>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 9 }}>
+            <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 17, color: 'var(--fg1)' }}>
+              {session.title}
+            </h3>
+            {session.isMandatory && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  background: 'var(--surface-alt)',
+                  color: 'var(--primary)',
+                  border: '1px solid var(--primary)',
+                  borderRadius: 999,
+                  padding: '2px 10px',
+                  fontSize: 11.5,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.05em',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <WIcon name="flag" size={11} />
+                Obligatoria
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', marginTop: 7, fontSize: 13.5, color: 'var(--fg2)' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <WIcon name="calendar" size={14} />
@@ -200,6 +224,30 @@ export function SessionCard({
           >
             No podré ir
           </button>
+        </div>
+      )}
+
+      {/* Sin --danger: la regla clínica lo reserva para el botón de pánico, así que
+          el aviso de una obligatoria rechazada va en el azul de marca. */}
+      {session.isMandatory && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 9,
+            alignItems: 'flex-start',
+            background: 'var(--surface-alt)',
+            borderRadius: 12,
+            padding: '11px 13px',
+          }}
+        >
+          <span style={{ flexShrink: 0, color: 'var(--primary)', marginTop: 1 }}>
+            <WIcon name="circle-alert" size={15} />
+          </span>
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--fg2)', lineHeight: 1.55 }}>
+            {session.userAttends === false
+              ? 'Esta sesión es parte del tratamiento de tu familiar. Le avisamos a su profesional que no podrás asistir.'
+              : 'Esta sesión es parte del tratamiento de tu familiar, así que te corresponde asistir. Si no puedes, avísanos con tiempo.'}
+          </p>
         </div>
       )}
     </article>
