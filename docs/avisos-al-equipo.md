@@ -20,6 +20,44 @@ está.
 
 ---
 
+## 2026-09-02 — Firebase push activo: falta `firebase-service-account.json` en local (PR pendiente, rama `fix/dependencias-nestjs-jose-meza`)
+
+### Sin ese archivo, el backend arranca igual pero con push desactivado — no es un bug
+
+**A quién le pega:** a quien levante `apps/backend` en local y quiera probar notificaciones
+push, o le extrañe ver `[PushService] Firebase sin configurar: las notificaciones push quedan
+desactivadas` al arrancar.
+
+**Qué hacer**, una vez, en `apps/backend/`:
+
+1. Pedir el archivo `firebase-service-account.json` a José Meza (o generarlo de nuevo desde
+   Firebase Console → Project Settings → Service accounts → Generate new private key, si
+   tienes acceso al proyecto).
+2. Ponerlo en `apps/backend/firebase-service-account.json` — ya está en `.gitignore`
+   (`apps/backend/firebase-service-account.json` y `**/*-firebase-adminsdk-*.json`), nunca se
+   sube al repo.
+3. Agregar en `apps/backend/.env`:
+   ```
+   FIREBASE_SERVICE_ACCOUNT_PATH=firebase-service-account.json
+   ```
+
+**Por qué:** `push.service.ts` ya soportaba esto desde que se implementó FCM, pero nadie había
+configurado la credencial real en ningún ambiente — ni local ni Railway. Se generó el service
+account en Firebase Console y se configuró en ambos: local vía
+`FIREBASE_SERVICE_ACCOUNT_PATH` (archivo), Railway vía `FIREBASE_SERVICE_ACCOUNT_JSON`
+(variable con el JSON completo, porque Railway no permite subir archivos). Producción ya lo
+tiene — confirmado en los logs de Railway: `[PushService] Firebase inicializado:
+notificaciones push activas`. En local sigue habiendo que configurarlo a mano por persona,
+porque el archivo de credenciales nunca puede vivir en el repo.
+
+De paso quedó también resuelto **S.7** (alerta de caída a Discord): `DISCORD_ALERT_WEBHOOK_URL`
+estaba configurada hace tiempo en Railway pero nunca se había probado el flujo completo — se
+confirmó forzando `AlertsService.checkDatabaseHealth()` contra el webhook real (sin apagar la
+BD de producción) y llegó el mensaje al canal del equipo. No requiere ninguna acción de nadie,
+va acá solo para que quede registrado junto con el cambio de Firebase de la misma sesión.
+
+---
+
 ## 2026-09-02 — Al cerrar sesión, la cuenta siguiente heredaba los datos de la anterior (rama `fix/limpiar-cache-al-cerrar-sesion-alex-dominguez`)
 
 ### Confidencialidad: si probaste dos cuentas seguidas, viste datos ajenos
@@ -85,6 +123,46 @@ es obligatoria.
 
 **Ojo si tocas `apps/web/src/services/api.ts`:** la interfaz `FamilySession` suma el campo
 `isMandatory`. Son 3 líneas en medio del archivo, no al final, así que puede chocar con tu rama.
+
+---
+
+## 2026-09-01 — `@nestjs/schedule` y `@nestjs/terminus` rompían **todos** los tests e2e (rama `fix/dependencias-nestjs-jose-meza`)
+
+### Hay que correr `pnpm install` después de pullear — y si `test:e2e` te fallaba entero, no era tu código
+
+**A quién le pega:** a todos los que corran `pnpm run test:e2e` o `pnpm test` en el backend.
+
+**Qué hacer**, una vez después de pullear, desde la raíz:
+
+```bash
+pnpm install
+```
+
+**Por qué:** `apps/backend/package.json` tenía `@nestjs/schedule@^6.1.3` y
+`@nestjs/terminus@^11.1.1` — ambas son versiones para NestJS 11, mientras que el resto del
+proyecto (`@nestjs/core`, `@nestjs/common`, etc.) está fijado en 10. Eso rompía la app
+**entera** al arrancar en modo test: `Nest can't resolve dependencies of the
+SchedulerMetadataAccessor (?) ... Reflector`. Como `AppModule` no levanta, **los 4 suites
+e2e fallaban completos (49/49 tests)**, sin relación con lo que cada uno haya tocado —  si te
+pasó, no busques el bug en tu código, era esto.
+
+Bajadas a `@nestjs/schedule@^4.1.2` y `@nestjs/terminus@^10.3.0` (compatibles con Nest 10).
+Además se agregó `pnpm.overrides` en el `package.json` de la raíz fijando
+`@nestjs/core`/`@nestjs/common` a `10.4.22`: sin eso, pnpm seguía resolviendo dos instancias
+físicas distintas de `@nestjs/core` en el árbol (una para el resto de la app, otra para
+`schedule`/`terminus`), y aunque ambas decían "10.4.22", Nest las trataba como clases
+distintas por referencia — el síntoma es el mismo error de `Reflector` incluso con las
+versiones ya corregidas. Si en el futuro alguien agrega una dependencia de NestJS y vuelve a
+pasar esto, revisen primero `pnpm why @nestjs/core` antes de sospechar del código.
+
+**Ojo si tu `.env` local apunta a Railway en vez de a tu Postgres local:** de paso se encontró
+un `apps/backend/.env` con `DATABASE_URL` apuntando a la base de **producción** de Railway y
+`NODE_ENV=production`. Si el tuyo también apunta ahí, tus tests e2e van a intentar crear y
+borrar usuarios contra la base real — revisa que tu `DATABASE_URL` sea
+`postgresql://postgres:password@localhost:5432/stopbet` y `NODE_ENV=development`, como dice
+`CLAUDE.md`. Si tu Postgres local no tiene esa contraseña, no hay que reinstalar nada: se
+resetea con `ALTER USER postgres WITH PASSWORD 'password';` desde `psql` (requiere editar
+`pg_hba.conf` a `trust` temporalmente si perdiste el acceso — pregúntenme si hace falta).
 
 ---
 
