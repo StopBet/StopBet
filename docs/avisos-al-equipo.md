@@ -20,6 +20,42 @@ está.
 
 ---
 
+## 2026-09-02 — El portal del familiar suma calendario y sesiones obligatorias (rama `feature/HU-11-calendario-mis-sesiones-alex-dominguez`)
+
+### Corre `pnpm run seed:family` después de pullear
+
+**A quién le pega:** a quien levante el portal del familiar o toque el módulo `family`.
+
+**Qué hacer**, una vez, desde la raíz y con el backend ya reiniciado:
+
+```bash
+pnpm run seed:family
+```
+
+**Por qué:** `family_sessions` suma la columna `isMandatory`. TypeORM la crea sola al arrancar
+el backend (`synchronize`), así que no hay migración que correr, pero **el seed viejo no trae
+ninguna sesión obligatoria**: sin volver a sembrar, la funcionalidad nueva no se ve por
+ningún lado y parece que no estuviera hecha.
+
+Después del seed, `patricia.gomez@stopbet.cl` queda con 4 sesiones en vez de 3, y una de ellas
+es obligatoria.
+
+### Dos cambios visibles que podrías confundir con un bug
+
+- **"Mis sesiones" ya no es la lista de arriba.** El portal se partió en dos: *Próximas
+  sesiones* es la agenda de la sede, donde se responde, y *Mis sesiones* es un calendario
+  mensual con lo que le corresponde asistir al familiar. Sobre 1024px van lado a lado; abajo
+  de eso se apilan como antes.
+- **Las tarjetas ya no muestran los botones "Confirmar asistencia" y "No podré ir".** Ahora
+  todas usan el interruptor, con **tres** apariencias y no dos: sin responder va con borde
+  punteado y la perilla al medio, que no es lo mismo que un rechazo. Si ves una sesión "a
+  medio marcar", es eso y está bien.
+
+**Ojo si tocas `apps/web/src/services/api.ts`:** la interfaz `FamilySession` suma el campo
+`isMandatory`. Son 3 líneas en medio del archivo, no al final, así que puede chocar con tu rama.
+
+---
+
 ## 2026-09-01 — La skill de diseño web estaba en el tema viejo: si tu Claude escribía naranja, era esto (commit directo en `main`)
 
 ### Reinicia tu sesión de Claude Code si trabajas en `apps/web`
