@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardApp } from './DashboardApp'
@@ -34,6 +35,7 @@ function hasStoredSession(): boolean {
 }
 
 export default function App() {
+  const queryClient = useQueryClient()
   const [user, setUser] = useState<AuthUser | null>(readUser)
   const [isLoggedIn, setIsLoggedIn] = useState(hasStoredSession)
   const [sessionExpired, setSessionExpired] = useState(false)
@@ -44,6 +46,12 @@ export default function App() {
       storage.removeItem(USER_KEY)
     }
     session.clear()
+    // Las claves de caché no llevan el id del usuario, así que sin esto la cuenta
+    // siguiente hereda lo que quedó de la anterior: pacientes, alertas, solicitudes,
+    // sesiones del familiar. Y con `staleTime: 30_000` esos datos se consideran
+    // frescos, así que ni siquiera se vuelven a pedir: se muestran tal cual hasta
+    // medio minuto. Recargar la página lo tapaba porque la caché es solo de memoria.
+    queryClient.clear()
     setUser(null)
     setIsLoggedIn(false)
   }
