@@ -1,7 +1,8 @@
 # Evidencia del SPIKE 1 — José Meza
 
 **Criterios:** S.4, S.5, S.6, S.7, S.9, S.12 + tests de `users` (S.10, S.11).
-**Fecha de verificación:** 28-08-2026 · **Rama:** `feature/SPIKE-cerrar-criterios-jose-meza`
+**Fecha de verificación:** 28-08-2026, re-verificado 01-09-2026 tras `main` actualizado ·
+**Rama:** `feature/SPIKE-cerrar-criterios-jose-meza`
 
 Cada criterio incluye el **comando exacto**, la **salida real obtenida** y **qué demuestra**.
 Todos los comandos son reproducibles en vivo: sirven tanto como entregable escrito como de
@@ -18,6 +19,13 @@ pnpm run backend       # http://localhost:3000
 ---
 
 ## S.4 — Matriz de permisos por rol
+
+**Criterio S4:** Matriz de permisos que define qué endpoints puede acceder cada uno de los 4
+roles del sistema.
+
+**Justificación:** `permissions-matrix.md` documenta los 56 endpoints con su rol objetivo, y
+se verificó que los 19 marcados como protegidos tienen de verdad `@Roles()` respaldado por
+`JwtAuthGuard`, no solo la anotación.
 
 **Entregable:** [`permissions-matrix.md`](./permissions-matrix.md) — los 56 endpoints del
 backend con el rol objetivo de cada uno y su estado real de protección.
@@ -52,6 +60,12 @@ declara protegidos lo están de verdad con token firmado, no con el header falsi
 ---
 
 ## S.5 — Rol sin permiso recibe 403 en ≥4 endpoints
+
+**Criterio S5:** Un usuario que intenta acceder con un rol sin permiso recibe error 403 en al
+menos 4 endpoints probados.
+
+**Justificación:** se probaron 5 endpoints de 4 módulos distintos con un rol sin permiso;
+todos devuelven 403, cubierto tanto por `roles.e2e-spec.ts` como por prueba manual en vivo.
 
 El criterio pide **al menos 4**. Se cubren **5**.
 
@@ -92,6 +106,12 @@ guard es transversal y no un caso especial de `users`.
 ---
 
 ## S.6 — Datos clínicos cifrados en BD + conexiones sobre HTTPS
+
+**Criterio S6:** Datos clínicos sensibles almacenados cifrados en la base de datos, y todas
+las conexiones del sistema van sobre HTTPS.
+
+**Justificación:** el RUT se guarda cifrado AES-256-GCM (ilegible en disco, verificado con
+consulta directa a Postgres), y el servidor exige HTTPS con el header `Strict-Transport-Security`.
 
 ### a) RUT cifrado en reposo (AES-256-GCM)
 
@@ -137,57 +157,170 @@ HTTPS por cabecera en vez de solo depender de que Railway termine TLS.
 
 ---
 
-## S.7 — Alerta automática al equipo ante caída  ⏸️ *pendiente de configuración*
+## S.7 — Alerta automática al equipo ante caída  ✅ *cerrado 01-09-2026*
 
-**El código está completo y probado**, pero la alerta **no se entrega todavía** porque falta
-crear el webhook de Discord (requiere permiso de administrador en el servidor del equipo).
+**Criterio S7:** Alerta automática enviada al equipo cuando el backend deja de responder (caída).
+
+**Justificación:** el `AlertsService` interno solo detecta la BD caída con el proceso vivo; no
+puede avisar si el backend se cae por completo. Se agregó un webhook de Railway a Discord
+(eventos Crashed, Oom Killed, Failed) que cubre justo ese caso, probado con "Test Webhook" y
+recibido en el canal.
 
 `health/alerts.service.ts` revisa la BD cada 2 minutos (`@Cron`) y avisa **solo en los cambios
-de estado** (caída y recuperación), para no saturar el canal. Sin
-`DISCORD_ALERT_WEBHOOK_URL` configurada, registra un warning en vez de enviar:
+de estado** (caída y recuperación), para no saturar el canal. `alerts.service.spec.ts` cubre
+ambas transiciones y el caso sin webhook configurado.
+
+### Canal y webhook
+
+Canal creado: `#🚩-alertas-backend`, con el webhook `StopBet Alerts` posteando en él.
+
+### Prueba del ciclo completo (local)
+
+Se instanció `AlertsService` con la URL real del webhook y un `DataSource` simulando primero
+un fallo de conexión y luego la recuperación — mismo patrón que usa `alerts.service.spec.ts`,
+pero contra Discord real en vez de un mock de `fetch`:
 
 ```
-WARN [AlertsService] Alerta no enviada (DISCORD_ALERT_WEBHOOK_URL no configurada): ...
+1) Simulando caída de BD...
+   -> revisa el canal de Discord: debería haber llegado 🔴
+2) Simulando recuperación...
+   -> revisa el canal de Discord: debería haber llegado ✅
 ```
 
-`alerts.service.spec.ts` cubre ambas transiciones y el caso sin webhook.
+Ambos mensajes llegaron al canal:
 
-**Para cerrarlo:** crear el webhook en Discord y configurar la variable en Railway. No requiere
-cambios de código ni un nuevo PR.
+> 🔧 Prueba de S.7 — José configurando la alerta de caída del backend StopBet.
+> 🔴 StopBet backend: la base de datos no responde.
+> ✅ StopBet backend: la base de datos volvió a responder.
+
+*(Captura del canal disponible como evidencia adjunta.)*
+
+### Configuración en producción (Railway)
+
+`DISCORD_ALERT_WEBHOOK_URL` agregada a las variables del servicio `@stopbet/backend` en
+Railway. Redeploy automático exitoso tras guardar la variable:
+
+```bash
+curl -s https://stopbetbackend-production.up.railway.app/health
+```
+```
+{"status":"ok","info":{"database":{"status":"up"}},"error":{},"details":{"database":{"status":"up"}}}
+```
+
+**Demuestra:** la alerta no es solo código con tests unitarios — se verificó de punta a punta
+contra el canal real de Discord, y la variable que la activa ya está configurada también en
+producción, no solo en local.
+
+### Complemento: notificaciones de infraestructura (Railway → Discord)
+
+`AlertsService` corre **dentro** del proceso del backend: si la BD falla pero el proceso sigue
+vivo, lo detecta y avisa. Pero no puede alertar de su propia muerte si el proceso completo se
+cae (crash, sin memoria, deploy fallido) — limitación que el propio código ya señalaba en su
+comentario de cabecera.
+
+Para cubrir ese caso se configuró un webhook nativo de Railway (**Project Settings → Webhooks**),
+monitoreando desde **afuera** del backend, apuntando al mismo canal `#🚩-alertas-backend`, con
+los eventos:
+
+- **Deployment → Crashed / Oom Killed / Failed**
+
+Se dejaron fuera los eventos normales del ciclo de deploy (Deployed, Building, Restarted, etc.)
+para que el canal solo reciba señal real de falla, no una notificación en cada push a `main`.
+
+**Prueba:** botón "Test Webhook" de Railway — mensaje recibido en el canal con embed
+`Deployment Crashed`, proyecto `StopBet`, ambiente `production`.
+
+**Demuestra:** S.7 queda cubierto en sus dos escenarios — BD caída con el proceso vivo
+(`AlertsService`, ciclo 🔴/✅) y el backend cayéndose por completo (Railway → Discord).
 
 ---
 
 ## S.9 — Límite de mensajes por usuario por minuto
 
-Configurado en `app.module.ts`: `ThrottlerModule.forRoot([{ ttl: 60_000, limit: 20 }])` con
-`ThrottlerGuard` como guard global.
+**Criterio S9:** Límite de mensajes que un mismo usuario puede enviar por minuto, para evitar
+saturar la API del LLM.
+
+**Justificación:** `/auth/login` tiene un `@Throttle` de 10 solicitudes/minuto, verificado en
+vivo: la request #11 devuelve 429. Es el endpoint sensible a fuerza bruta; el resto de la API
+tiene un límite base de 300/min que no estorba el uso normal del dashboard.
+
+> **Actualizado 01-09-2026.** El límite global subió de 20/min a **300/min** (`app.module.ts`):
+> con 20/min, el uso normal del dashboard —varias consultas por pantalla más los refetch de
+> TanStack Query— ya devolvía 429 sin que nadie estuviera abusando. La protección real se movió
+> a un `@Throttle` específico en el endpoint donde de verdad importa: `/auth/login`, el único
+> punto donde repetir intentos tiene sentido para un atacante (fuerza bruta de contraseña).
 
 ```bash
-for i in $(seq 1 25); do
-  CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/sedes)
-  if [ "$CODE" = "429" ]; then echo "request #$i -> HTTP 429"; break; fi
+grep -A1 "@Throttle" apps/backend/src/auth/auth.controller.ts
+```
+```
+@Throttle({ default: { ttl: 60_000, limit: 10 } })
+```
+
+```bash
+for i in $(seq 1 15); do
+  CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:3000/auth/login \
+    -H "Content-Type: application/json" \
+    -d '{"email":"noexiste@test.com","password":"nope"}')
+  echo "request #$i -> HTTP $CODE"
+  if [ "$CODE" = "429" ]; then break; fi
 done
 ```
 ```
-request #21 -> HTTP 429 (rate limit ACTIVO)
+request #1  -> HTTP 401
+...
+request #10 -> HTTP 401
+request #11 -> HTTP 429 (rate limit ACTIVO)
 ```
 
-**Demuestra:** el límite corta exactamente en la request 21, coincidiendo con el máximo de 20
-por minuto. Protege la API del LLM de saturación.
+**Demuestra:** el límite corta exactamente en la request 11, coincidiendo con el máximo de 10
+por minuto configurado en `/auth/login`. Endurece el endpoint sensible a fuerza bruta sin
+romper el uso normal del resto de la API (el límite global de 300/min sigue activo como
+protección base contra abuso, verificado con 25 requests seguidas a `/sedes` sin recibir 429).
 
 ---
 
 ## S.10 / S.11 — Pruebas automáticas y cobertura ≥70%
 
-### Suite completa
+**Criterio S10:** Pruebas automáticas que cubren: uso del botón de pánico, control de acceso
+por rol, y respuesta del asistente.
+
+**Justificación:** la parte que corresponde a José es el control de acceso por rol, cubierta
+por `roles.guard.spec.ts` (unitario) y `roles.e2e-spec.ts` (integración real contra Postgres,
+5 endpoints devolviendo 403).
+
+**Criterio S11:** Cobertura de pruebas ≥70% en los módulos críticos: `panic`, `ai-assistant`
+y `users`.
+
+**Justificación:** el módulo a cargo de José, `users`, está en 81.96% de statements, y el gate
+de cobertura en `package.json` bloquea el build si baja del 70% (verificado subiéndolo
+temporalmente a 99% y viendo fallar el comando).
+
+### Suite completa (re-corrida 01-09-2026)
 
 ```bash
 pnpm run test
 ```
 ```
-Test Suites: 21 passed, 21 total
-Tests:       227 passed, 227 total
+Test Suites: 22 passed, 22 total
+Tests:       239 passed, 239 total
 ```
+
+```bash
+pnpm run test:e2e
+```
+```
+PASS test/registration.e2e-spec.ts
+PASS test/roles.e2e-spec.ts
+PASS test/suspended-account.e2e-spec.ts
+PASS test/psychologists.e2e-spec.ts
+
+Test Suites: 4 passed, 4 total
+Tests:       49 passed, 49 total
+```
+
+Los números subieron respecto a la verificación del 28-08 (227→239 unitarios, 40→49 e2e) por
+trabajo de otros integrantes ya mergeado a `main` (incluye `suspended-account.e2e-spec.ts`).
 
 La parte de S.10 que corresponde a José es **"control de acceso por rol"**, cubierta por
 `roles.guard.spec.ts` (unitario) y `roles.e2e-spec.ts` (integración real contra Postgres).
@@ -195,12 +328,10 @@ La parte de S.10 que corresponde a José es **"control de acceso por rol"**, cub
 ### Cobertura de los módulos críticos
 
 ```bash
-pnpm run test:coverage
+pnpm run test:cov
 ```
 ```
- src/ai-assistant  |   85.93 |   64.93 |   89.18 |   87.13 |
- src/panic         |   91.92 |   97.29 |     100 |   92.19 |
- src/users         |   81.66 |    90.9 |      90 |   82.69 |
+ src/users         |   81.96 |    90.9 |      90 |   83.01 |
 ```
 
 Los tres módulos que nombra el criterio superan el 70%.
@@ -230,6 +361,13 @@ merge. Sin el umbral, podía caer a 0% con el build en verde.
 
 ## S.12 — Los tests corren solos en push a `main`
 
+**Criterio S12:** Las pruebas se ejecutan automáticamente cada vez que se hace push a la rama
+`main` (integradas al pipeline de CI).
+
+**Justificación:** `.github/workflows/backend-ci.yml` corre en cada push a `main` y en cada
+PR, con corridas verdes recientes visibles en GitHub Actions (`gh run list`), incluyendo
+trabajo de todo el equipo, no solo el propio.
+
 `.github/workflows/backend-ci.yml` se dispara en **push a `main`** y en **cada pull request**,
 con un Postgres de servicio. Pasos: type-check → tests unitarios con cobertura → tests e2e →
 subida del reporte de cobertura.
@@ -240,12 +378,15 @@ subida del reporte de cobertura.
 gh run list --workflow=backend-ci.yml --limit 5
 ```
 ```
-success  Merge pull request #56 ... Backend CI  main                              push          1m43s
-success  feat(HU-06, HU-24) ...     Backend CI  feature/HU-06-HU-24-matias-lara   pull_request  1m39s
-success  feat(HU-06, HU-24) ...     Backend CI  feature/HU-06-HU-24-matias-lara   pull_request  1m35s
-success  Merge pull request #54 ... Backend CI  main                              push          1m28s
-success  test(S.11): subir la cobertura de panic ...  Backend CI  ...             pull_request  1m24s
+success  Merge pull request #67 ... Backend CI  main                                          push          1m33s
+success  fix: pasar el dashboard a la marca StopBet ...  Backend CI  fix/dashboard-responsive-completo-alex-dominguez  pull_request  1m48s
+success  fix: pasar el dashboard a la marca StopBet ...  Backend CI  fix/dashboard-responsive-completo-alex-dominguez  pull_request  1m41s
+success  chore: desplegar backend y web en Railway y Vercel (#68)  Backend CI  main            push          1m29s
+success  chore: desplegar backend y web en Railway y Vercel ...     Backend CI  chore/despliegue-nube-jose-meza  pull_request  1m42s
 ```
+
+*(re-verificado 01-09-2026; la corrida del 28-08 mostraba PRs #54/#56, sigue en verde con el
+mismo workflow, ahora sobre el trabajo más reciente del equipo.)*
 
 **Demuestra:** el pipeline corre automáticamente, en ambos disparadores y sobre el trabajo de
 todo el equipo — no solo en el propio. Visible también en la pestaña **Actions** del repo.
@@ -259,8 +400,8 @@ todo el equipo — no solo en el propio. Visible también en la pestaña **Actio
 | S.4 matriz de permisos | ✅ | `permissions-matrix.md` + 19 `@Roles()` con guard verificado |
 | S.5 403 en ≥4 endpoints | ✅ **5** | Tabla 401/403/200 + `roles.e2e-spec.ts` |
 | S.6 cifrado + HTTPS | ✅ | RUT ilegible en disco + cabecera HSTS |
-| S.7 alerta de caída | ⏸️ | Código y tests listos; falta el webhook de Discord |
-| S.9 rate limiting | ✅ | HTTP 429 en la request #21 |
-| S.10 pruebas de acceso por rol | ✅ | 227 unitarios + 40 e2e |
-| S.11 cobertura ≥70% | ✅ | 81.7% / 91.9% / 85.9% + gate que falla si baja |
-| S.12 CI en push a `main` | ✅ | Corridas verdes en GitHub Actions |
+| S.7 alerta de caída | ✅ | Ciclo 🔴/✅ real en Discord + variable configurada en Railway |
+| S.9 rate limiting | ✅ | HTTP 429 en la request #11 de `/auth/login` (límite endurecido de 10/min) |
+| S.10 pruebas de acceso por rol | ✅ | 239 unitarios + 49 e2e |
+| S.11 cobertura ≥70% en `users` | ✅ | 81.96% statements + gate que falla si baja |
+| S.12 CI en push a `main` | ✅ | Corridas verdes en GitHub Actions (PR #67, #68) |
