@@ -53,6 +53,9 @@ es obligatoria.
 
 **Ojo si tocas `apps/web/src/services/api.ts`:** la interfaz `FamilySession` suma el campo
 `isMandatory`. Son 3 líneas en medio del archivo, no al final, así que puede chocar con tu rama.
+
+---
+
 ## 2026-09-01 — Dependencia nueva (`nodemailer`) y módulo `mail` (rama `feature/HU-24-envio-credenciales-correo-matias-lara`)
 
 ### Corre `pnpm install` después de pullear
