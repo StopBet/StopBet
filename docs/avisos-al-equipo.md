@@ -20,6 +20,38 @@ está.
 
 ---
 
+## 2026-09-02 — Al cerrar sesión, la cuenta siguiente heredaba los datos de la anterior (rama `fix/limpiar-cache-al-cerrar-sesion-alex-dominguez`)
+
+### Confidencialidad: si probaste dos cuentas seguidas, viste datos ajenos
+
+**A quién le pega:** a todo el que pruebe el dashboard cambiando de cuenta, y a cualquier
+máquina compartida de la clínica.
+
+**Qué hacer:** nada, solo pullear. No hay comando ni dependencia nueva.
+
+**Qué pasaba:** `clearSession()` en `App.tsx` limpiaba el almacenamiento, los tokens y el
+estado de React, pero **no la caché de TanStack Query**, que vive en memoria y sobrevive al
+logout. Como **ninguna clave de caché lleva el id del usuario**, la cuenta siguiente heredaba
+lo de la anterior: `['patients']`, `['alerts','history']`, `['registration','pending']`,
+`['psychologists']`, `['family','sessions']`.
+
+Y era peor que un parpadeo: con `staleTime: 30_000` esos datos se consideraban **frescos**, así
+que los componentes ni siquiera volvían a pedirlos. Un psicólogo que entraba después de otro
+podía estar viendo la lista de pacientes ajena hasta medio minuto. Recargar con F5 lo tapaba,
+porque la caché es solo de memoria.
+
+**El arreglo:** una línea, `queryClient.clear()` dentro de `clearSession()`. Cubre las tres
+salidas: logout manual, sesión expirada y el corte por rol.
+
+**Lo que vas a notar:** al cerrar sesión y entrar con otra cuenta, ahora aparece brevemente el
+estado de carga en vez de la vista anterior. Eso es lo correcto, no un bug nuevo.
+
+**Para tener en cuenta al escribir queries nuevas:** las claves siguen sin llevar identidad. Si
+agregas una `useQuery` con datos de un usuario, considera incluir su id en la clave; hoy lo
+único que las separa es este `clear()`.
+
+---
+
 ## 2026-09-02 — El portal del familiar suma calendario y sesiones obligatorias (rama `feature/HU-11-calendario-mis-sesiones-alex-dominguez`)
 
 ### Corre `pnpm run seed:family` después de pullear
@@ -53,6 +85,9 @@ es obligatoria.
 
 **Ojo si tocas `apps/web/src/services/api.ts`:** la interfaz `FamilySession` suma el campo
 `isMandatory`. Son 3 líneas en medio del archivo, no al final, así que puede chocar con tu rama.
+
+---
+
 ## 2026-09-01 — Dependencia nueva (`nodemailer`) y módulo `mail` (rama `feature/HU-24-envio-credenciales-correo-matias-lara`)
 
 ### Corre `pnpm install` después de pullear
