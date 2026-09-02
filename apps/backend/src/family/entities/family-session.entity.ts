@@ -27,6 +27,12 @@ export class FamilySession {
   @Column()
   sedeId: string;
 
+  // Sesiones que forman parte del tratamiento del paciente: el familiar no elige
+  // si le corresponden, solo puede avisar que no podrá asistir. Por defecto false
+  // para que las sesiones ya creadas sigan siendo opcionales.
+  @Column({ default: false })
+  isMandatory: boolean;
+
   @CreateDateColumn()
   createdAt: Date;
 }
