@@ -6,9 +6,13 @@ import { PsychologistSede } from './entities/psychologist-sede.entity';
 import { PatientAssignment } from './entities/patient-assignment.entity';
 import { PsychologistsController } from './psychologists.controller';
 import { PsychologistsService } from './psychologists.service';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, Sede, PsychologistSede, PatientAssignment])],
+  imports: [
+    TypeOrmModule.forFeature([User, Sede, PsychologistSede, PatientAssignment]),
+    MailModule,
+  ],
   controllers: [PsychologistsController],
   providers: [PsychologistsService],
 })

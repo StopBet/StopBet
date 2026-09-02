@@ -112,6 +112,20 @@ GEMINI_API_KEY=tu_api_key_de_google_ai_studio
 
 > Obtén tu `GEMINI_API_KEY` gratis en [Google AI Studio](https://aistudio.google.com). Es **opcional**: si la dejas vacía el backend levanta igual y el chatbot responde con mensajes de fallback.
 
+> **SMTP es opcional** (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`,
+> `WEB_APP_URL`). Solo se usa para enviarle las credenciales a un psicólogo recién creado
+> (CA24.1). Sin `SMTP_HOST` el backend arranca igual, no envía nada, y la pantalla de Equipo
+> avisa que hay que entregar la contraseña a mano. Para probarlo en local sin cuenta de
+> ningún proveedor, levanta un buzón falso:
+>
+> ```bash
+> docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit
+> # SMTP_HOST=localhost  SMTP_PORT=1025  (sin usuario ni clave)
+> # los correos se leen en http://localhost:8025
+> ```
+>
+> Ver todas las variables comentadas en [`apps/backend/.env.example`](apps/backend/.env.example).
+
 #### `apps/web/.env`
 
 ```env

@@ -49,6 +49,7 @@ import { CommunityMute } from './notifications/entities/community-mute.entity';
 import { PsychologistsModule } from './psychologists/psychologists.module';
 import { PsychologistSede } from './psychologists/entities/psychologist-sede.entity';
 import { PatientAssignment } from './psychologists/entities/patient-assignment.entity';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -122,6 +123,7 @@ import { PatientAssignment } from './psychologists/entities/patient-assignment.e
     FamilyModule,
     PushModule,
     PsychologistsModule,
+    MailModule,
   ],
   controllers: [],
   providers: [
