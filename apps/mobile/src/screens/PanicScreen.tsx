@@ -157,8 +157,15 @@ export function PanicScreen({ navigation }: Props) {
   const startCountdown = useCallback((alertCreatedAt: Date) => {
     if (countdownRef.current) return;
     const tick = () => {
+      // `alertCreatedAt` viene del servidor y se compara con el reloj del teléfono.
+      // Si el teléfono va atrasado, `elapsed` sale negativo y la cuenta arrancaba
+      // sobre el tope: se vio "2:10" con 10 s de desfase. Se acota por ambos lados
+      // para que la pantalla nunca prometa más espera de la que el backend respeta.
       const elapsed = Math.floor((Date.now() - alertCreatedAt.getTime()) / 1000);
-      const remaining = Math.max(0, ESCALATION_SECONDS - elapsed);
+      const remaining = Math.min(
+        ESCALATION_SECONDS,
+        Math.max(0, ESCALATION_SECONDS - elapsed),
+      );
       setCountdown(remaining);
     };
     tick();
