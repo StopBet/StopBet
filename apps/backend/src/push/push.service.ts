@@ -105,6 +105,7 @@ export class PushService implements OnModuleInit {
     userIds: string[],
     title: string,
     body: string,
+    canal: 'recordatorios' | 'panic_alerts' = 'recordatorios',
   ): Promise<number> {
     if (!this.app || userIds.length === 0) return 0;
 
@@ -115,6 +116,14 @@ export class PushService implements OnModuleInit {
     const respuesta = await getMessaging(this.app).sendEachForMulticast({
       tokens,
       notification: { title, body },
+      // Sin canal explícito, Android entrega por `fcm_fallback_notification_channel`,
+      // que tiene importancia media: la notificación queda en la barra y solo se ve
+      // al desplegarla. La app ya crea `recordatorios` con importancia alta, que es
+      // la que muestra el aviso flotante sobre la pantalla.
+      android: {
+        priority: 'high',
+        notification: { channelId: canal },
+      },
     });
 
     const invalidos = respuesta.responses.reduce<string[]>((acc, r, i) => {
