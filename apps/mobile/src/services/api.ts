@@ -47,7 +47,7 @@ const BASE_URL = __DEV__
   ? 'http://localhost:3000'
   : 'https://stopbetbackend-production.up.railway.app';
 
-const REQUEST_TIMEOUT_MS = 8000;
+const REQUEST_TIMEOUT_MS = 25000;
 
 async function request<T>(
   path: string,
