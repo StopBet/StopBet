@@ -30,6 +30,7 @@ import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
 import { readCommunity, saveCommunity } from '../services/offlineStore';
+import { devFlags } from '../store/devFlags';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -133,8 +134,8 @@ export function CommunityScreen({ navigation, route }: Props) {
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === announcementId ? { ...a, userAttends: attends } : a)),
       );
-    } catch {
-      Alert.alert('Sin conexión', 'No se pudo actualizar tu asistencia. Inténtalo de nuevo.');
+    } catch (err) {
+      alertFailure('actualizar tu asistencia', err);
     }
   };
 
@@ -147,8 +148,8 @@ export function CommunityScreen({ navigation, route }: Props) {
         ? await api.addReaction(TEMP_USER_ID, post.id, emoji)
         : await api.removeReaction(TEMP_USER_ID, post.id, emoji);
       setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, reactions } : p)));
-    } catch {
-      Alert.alert('Sin conexión', 'No se pudo registrar tu reacción.');
+    } catch (err) {
+      alertFailure('registrar tu reacción', err);
     }
   };
 
@@ -161,8 +162,8 @@ export function CommunityScreen({ navigation, route }: Props) {
       const created = await api.createForumPost(TEMP_USER_ID, TEMP_SEDE, body);
       setPosts((prev) => [created, ...prev]);
       setDraft('');
-    } catch {
-      Alert.alert('Sin conexión', 'No se pudo publicar tu mensaje. Inténtalo de nuevo.');
+    } catch (err) {
+      alertFailure('publicar tu mensaje', err);
     } finally {
       setPosting(false);
     }
@@ -195,8 +196,8 @@ export function CommunityScreen({ navigation, route }: Props) {
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, replyCount: p.replyCount + 1 } : p)),
       );
-    } catch {
-      Alert.alert('Sin conexión', 'No se pudo enviar tu respuesta.');
+    } catch (err) {
+      alertFailure('enviar tu respuesta', err);
     }
   };
 
@@ -221,8 +222,8 @@ export function CommunityScreen({ navigation, route }: Props) {
       setAnnouncements((prev) => prev.filter((p) => p.id !== reportPostId));
       setReportPostId(null);
       Alert.alert('Gracias', 'El equipo clínico revisará esta publicación.');
-    } catch {
-      Alert.alert('Sin conexión', 'No se pudo enviar el reporte.');
+    } catch (err) {
+      alertFailure('enviar el reporte', err);
     } finally {
       setReportSending(false);
     }
@@ -242,8 +243,8 @@ export function CommunityScreen({ navigation, route }: Props) {
             try {
               await api.deletePost(TEMP_USER_ID, postId);
               setPosts((prev) => prev.filter((p) => p.id !== postId));
-            } catch {
-              Alert.alert('Sin conexión', 'No se pudo eliminar tu publicación.');
+            } catch (err) {
+              alertFailure('eliminar tu publicación', err);
             }
           },
         },
@@ -298,11 +299,17 @@ export function CommunityScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
-      {offline && (
+      {/* El modo simulado producía un banner idéntico al de una caída real, así que
+          no había forma de saber si la app estaba rota o si el flag quedó encendido. */}
+      {(offline || devFlags.simulateOffline) && (
         <View style={styles.offlineBanner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="triangle-alert" size={14} color={Colors.accent} />
-            <Text style={styles.offlineText}>Sin conexión · Solo lectura</Text>
+            <Text style={styles.offlineText}>
+              {devFlags.simulateOffline
+                ? 'Modo sin conexión SIMULADO · actívalo o apágalo en Perfil'
+                : 'Sin conexión · Solo lectura'}
+            </Text>
           </View>
         </View>
       )}
@@ -647,6 +654,40 @@ function PostCard({
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+// Antes cada acción avisaba "Sin conexión" pasara lo que pasara: un 500 del
+// servidor, el modo de prueba encendido y un corte de red real se veían igual, y
+// el error no quedaba en ningún log, así que no había ni cómo diagnosticarlo.
+//
+// `action` se escribe en infinitivo ("enviar tu respuesta") para completar la
+// frase "No se pudo ...".
+function alertFailure(action: string, err: unknown) {
+  // Deja rastro en logcat: el catch se lo tragaba y no quedaba nada que mirar.
+  console.warn(`[Comunidad] falló ${action}:`, err);
+
+  if (devFlags.simulateOffline) {
+    Alert.alert(
+      'Modo sin conexión simulado',
+      `No se intentó ${action}: tienes activado "Simular sin conexión" en Perfil → ` +
+        'Herramientas de prueba. Apágalo para volver a la normalidad.',
+    );
+    return;
+  }
+
+  if (isNetworkError(err)) {
+    Alert.alert('Sin conexión', `No se pudo ${action}. Revisa tu conexión e inténtalo de nuevo.`);
+    return;
+  }
+
+  // `request()` lanza "<status> <cuerpo>" ante una respuesta no OK.
+  const status = parseInt((err as Error)?.message ?? '', 10);
+  Alert.alert(
+    'No se pudo completar',
+    Number.isFinite(status)
+      ? `No se pudo ${action}. El servidor respondió ${status}.`
+      : `No se pudo ${action}. Inténtalo de nuevo.`,
+  );
+}
 
 function initial(name: string): string {
   return (name?.trim().charAt(0) || '?').toUpperCase();
