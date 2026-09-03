@@ -111,10 +111,6 @@ function daysFromNowInChile(days: number): string {
   return daysAgoInChile(-days);
 }
 
-function minutesAgo(m: number): Date {
-  return new Date(Date.now() - m * 60_000);
-}
-
 // RUT módulo 11 (mismo algoritmo que packages/shared-types/src/validators/rut.ts). Genera
 // un dígito verificador válido en vez de escribirlo a mano y arriesgar un typo.
 function rutFor(body: string): string {
@@ -415,49 +411,70 @@ async function seedDemo(): Promise<void> {
   // Estas SIEMPRE se refrescan (no solo la primera vez): "alertas hoy" caduca cada 24 h.
   //
   // OverviewPage.tsx compara con `new Date().toISOString().slice(0,10)` — día calendario
-  // **UTC**, no de Chile. Chile va 3-4 h detrás de UTC, así que entrada de la noche el día
-  // UTC ya cambió. Por eso los `createdAt` van a menos de una hora de "ahora" (el momento en
-  // que se corre el seed) y no a varias horas: un offset grande arriesga caer del lado
-  // equivocado de la medianoche UTC según a qué hora de Chile se corra el seed.
+  // **UTC**, no de Chile.
+  //
+  // `panic_alerts.createdAt` es `@CreateDateColumn()` **sin** `timestamptz` (a diferencia de
+  // `respondedAt`/`escalatedAt`/`cancelledAt`, que sí lo son). Pasar un `Date` de JS por el
+  // repositorio de TypeORM para esa columna la serializa con la hora LOCAL de la máquina que
+  // corre el seed, no en UTC — invisible en local (Postgres de Windows también asume hora
+  // local, así que escritura y lectura se cancelan) pero se ve mal contra Railway (sesión en
+  // UTC): una alerta "de hace 10 min" quedaba fechada varias horas atrás. Por eso esto usa
+  // SQL crudo con `now()` calculado por el propio Postgres — ni la hora ni el huso de la
+  // máquina que corre el seed importan.
   console.log('\n── Alertas de pánico de hoy ────────────────');
   async function upsertTodayAlert(
     id: string,
     patientId: string,
     status: 'responded' | 'escalated',
-    createdAt: Date,
-    extra: Partial<Pick<PanicAlert, 'respondedAt' | 'escalatedAt'>>,
+    createdAgoMinutes: number,
+    resolvedAgoMinutes: number,
     label: string,
   ): Promise<void> {
-    const data = {
-      patientId,
-      sponsorId: SPONSOR_ID,
-      status,
-      communityNotified: false,
-      respondedAt: null,
-      escalatedAt: null,
-      cancelledAt: null,
-      createdAt,
-      ...extra,
-    };
-    const existing = await panicRepo.findOne({ where: { id } });
-    if (existing) {
-      await panicRepo.update(id, data);
-      console.log(`  → ${label} (refrescada)`);
-    } else {
-      await panicRepo.save(panicRepo.create({ id, ...data }));
-      console.log(`  ✓ ${label}`);
-    }
+    // $4 (status, columna enum) se usa una sola vez y sin casts en conflicto: Postgres
+    // necesita que todas las apariciones de un mismo parámetro resuelvan al mismo tipo, así
+    // que las ramas del CASE comparan por separado con booleans ($5/$6), no releyendo $4.
+    await ds.query(
+      `
+      INSERT INTO panic_alerts
+        (id, "patientId", "sponsorId", status, "communityNotified",
+         "respondedAt", "escalatedAt", "cancelledAt", "createdAt", "updatedAt")
+      VALUES (
+        $1, $2, $3, $4, false,
+        CASE WHEN $5 THEN now() - make_interval(mins => $7) END,
+        CASE WHEN $6 THEN now() - make_interval(mins => $7) END,
+        NULL,
+        now() - make_interval(mins => $8),
+        now()
+      )
+      ON CONFLICT (id) DO UPDATE SET
+        "patientId" = EXCLUDED."patientId",
+        "sponsorId" = EXCLUDED."sponsorId",
+        status = EXCLUDED.status,
+        "communityNotified" = false,
+        "respondedAt" = EXCLUDED."respondedAt",
+        "escalatedAt" = EXCLUDED."escalatedAt",
+        "cancelledAt" = NULL,
+        "createdAt" = EXCLUDED."createdAt",
+        "updatedAt" = now()
+      `,
+      [
+        id, patientId, SPONSOR_ID, status,
+        status === 'responded', status === 'escalated',
+        resolvedAgoMinutes, createdAgoMinutes,
+      ],
+    );
+    console.log(`  ✓ ${label}`);
   }
   await upsertTodayAlert(
-    ALERT_ROBERTO_ID, PATIENT4_ID, 'escalated', minutesAgo(40), { escalatedAt: minutesAgo(38) },
+    ALERT_ROBERTO_ID, PATIENT4_ID, 'escalated', 40, 38,
     'Roberto Fuentes — escalada a IA (hace 40 min)',
   );
   await upsertTodayAlert(
-    ALERT_JORGE_ID, REPORTER1_ID, 'escalated', minutesAgo(25), { escalatedAt: minutesAgo(25) },
+    ALERT_JORGE_ID, REPORTER1_ID, 'escalated', 25, 25,
     'Jorge Morales — escalada a IA (hace 25 min)',
   );
   await upsertTodayAlert(
-    ALERT_ANA_ID, PATIENT3_ID, 'responded', minutesAgo(10), { respondedAt: minutesAgo(10) },
+    ALERT_ANA_ID, PATIENT3_ID, 'responded', 10, 10,
     'Ana Pérez — respondida (hace 10 min)',
   );
 
