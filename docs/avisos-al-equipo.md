@@ -166,7 +166,7 @@ resetea con `ALTER USER postgres WITH PASSWORD 'password';` desde `psql` (requie
 
 ---
 
-## 2026-09-01 — Dependencia nueva (`nodemailer`) y módulo `mail` (rama `feature/HU-24-envio-credenciales-correo-matias-lara`)
+## 2026-09-01 — Dependencia nueva (`nodemailer`) y módulo `mail` ([PR #75](https://github.com/StopBet/StopBet/pull/75))
 
 ### Corre `pnpm install` después de pullear
 
@@ -188,6 +188,25 @@ falso local documentado en el `README.md` y en `apps/backend/.env.example`.
 **Ojo, esto sí se puede confundir con un bug:** el modal "Psicólogo creado" ahora **oculta la
 contraseña** cuando el correo salió bien; está detrás del enlace *"¿No le llegó? Ver la
 contraseña"*. Si el correo no sale, se muestra como antes.
+
+### Añadido 2026-09-02 — En Railway el correo NO va a funcionar, y no es un bug nuestro
+
+**Railway bloquea las conexiones SMTP salientes en los planes Free, Trial y Hobby** — puertos
+25, 465, 587 y 2525. Solo Pro y superiores las permiten, y el proyecto corre en Hobby.
+([Documentación de Railway](https://docs.railway.com/networking/outbound-networking).)
+
+**Verificado en producción**, no deducido: con las variables SMTP bien configuradas, el log del
+deploy da `ERROR [MailService] ... Connection timeout`, y el Network Log muestra el
+`POST /psychologists` tardando **10 s exactos** —el timeout del servicio— antes de responder
+`201`. La conexión a Gmail nunca llega a establecerse.
+
+**Qué significa para ti:** si pruebas crear un psicólogo **en la web de producción**, vas a ver
+el recuadro rojo *"No se pudo enviar el correo"* y una espera de varios segundos. **No lo
+reportes como bug ni lo intentes arreglar**: es una limitación del plan de la infraestructura.
+En local, con el buzón falso o con Gmail, funciona perfecto.
+
+**La salida** es cambiar a un proveedor con **API HTTPS** (Brevo o Resend), que no pasa por los
+puertos bloqueados — es lo que Railway mismo recomienda. Pendiente, no está hecho.
 
 ---
 
