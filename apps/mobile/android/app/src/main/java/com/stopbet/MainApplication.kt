@@ -55,12 +55,12 @@ private object NetDiagnostics : EventListener() {
     Log.e(TAG, "[${call.hashCode()}] connectFailed ${ioe.javaClass.simpleName}: ${ioe.message} t=${ms()}")
   }
   override fun connectEnd(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy, protocol: Protocol?) {
-    Log.e(TAG, "[${call.hashCode()}] connectEnd t=${ms()}")
+    Log.e(TAG, "[${call.hashCode()}] connectEnd protocolo=$protocol t=${ms()}")
   }
   override fun connectionAcquired(call: Call, connection: Connection) {
     // Sin connectStart/connectEnd previos para este mismo call = se reusó una conexión del
     // pool en vez de abrir un socket nuevo.
-    Log.e(TAG, "[${call.hashCode()}] connectionAcquired conn=${System.identityHashCode(connection)} t=${ms()}")
+    Log.e(TAG, "[${call.hashCode()}] connectionAcquired conn=${System.identityHashCode(connection)} protocolo=${connection.protocol()} t=${ms()}")
   }
   override fun connectionReleased(call: Call, connection: Connection) {
     Log.e(TAG, "[${call.hashCode()}] connectionReleased conn=${System.identityHashCode(connection)} t=${ms()}")
@@ -116,6 +116,13 @@ class MainApplication : Application(), ReactApplication {
     // hace que nunca exista una conexión zombi que reutilizar.
     OkHttpClientProvider.setOkHttpClientFactory {
       OkHttpClientProvider.createClientBuilder(this)
+          // Railway negocia h2 por ALPN; el backend local es HTTP/1.1 plano. Esa es la
+          // única diferencia estructural entre "en local funciona" y "en Railway no":
+          // sobre HTTP/2 las escrituras completan bien en OkHttp (201/409, callEnd OK)
+          // pero la respuesta nunca llega a JS, que ve `Network request failed`. Las
+          // lecturas se salvan porque el polling las repite cada 5 s; un POST no.
+          // Forzar HTTP/1.1 deja al teléfono en el mismo transporte donde sí funciona.
+          .protocols(listOf(Protocol.HTTP_1_1))
           .connectionPool(ConnectionPool(5, 30L, TimeUnit.SECONDS))
           .eventListener(NetDiagnostics)
           .build()
