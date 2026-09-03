@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateReplyDto {
   @ApiProperty({ example: '¡Mucho ánimo! Cada día cuenta.' })
@@ -7,4 +7,14 @@ export class CreateReplyDto {
   @IsString()
   @MaxLength(500)
   body: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Id que genera el cliente por acción y conserva al reintentar. Si llega repetido, ' +
+      'se devuelve la respuesta ya creada en vez de crear otra.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  clientRequestId?: string;
 }

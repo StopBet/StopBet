@@ -140,9 +140,28 @@ export class CommunityService {
     };
   }
 
+  // El cliente manda `clientRequestId` y lo conserva al reintentar. Sin esto, una
+  // respuesta perdida de vuelta dejaba al paciente viendo "sin conexión" con el post
+  // ya guardado: al reintentar quedaba publicado dos veces delante de su grupo.
   async createPost(dto: CreatePostDto, authorId: string) {
+    if (dto.clientRequestId) {
+      const existing = await this.postRepo.findOne({
+        where: { clientRequestId: dto.clientRequestId },
+        relations: ['author'],
+      });
+      // Se devuelve la respuesta original en vez de 409: para el cliente el
+      // reintento tiene que verse igual que si la primera hubiera llegado.
+      if (existing) return this.serializePost(existing, [], 0, authorId);
+    }
+
     const post = await this.postRepo.save(
-      this.postRepo.create({ authorId, type: 'forum_post', sede: dto.sede, body: dto.body }),
+      this.postRepo.create({
+        authorId,
+        type: 'forum_post',
+        sede: dto.sede,
+        body: dto.body,
+        clientRequestId: dto.clientRequestId ?? null,
+      }),
     );
     const author = await this.userRepo.findOneOrFail({ where: { id: authorId } });
     post.author = author;
@@ -211,8 +230,24 @@ export class CommunityService {
     const post = await this.postRepo.findOne({ where: { id: postId } });
     if (!post) throw new NotFoundException('Publicación no encontrada');
 
+    // Mismo mecanismo que en createPost. Acá importa más: la respuesta duplicada
+    // queda visible dentro del hilo, debajo de la original.
+    if (dto.clientRequestId) {
+      const existing = await this.replyRepo.findOne({
+        where: { clientRequestId: dto.clientRequestId },
+        relations: ['author'],
+      });
+      // Sin volver a notificar: el aviso ya salió con la primera.
+      if (existing) return this.serializeReply(existing);
+    }
+
     const reply = await this.replyRepo.save(
-      this.replyRepo.create({ postId, authorId, body: dto.body }),
+      this.replyRepo.create({
+        postId,
+        authorId,
+        body: dto.body,
+        clientRequestId: dto.clientRequestId ?? null,
+      }),
     );
     const author = await this.userRepo.findOneOrFail({ where: { id: authorId } });
     reply.author = author;

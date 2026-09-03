@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreatePostDto {
   @ApiProperty({ example: 'Hoy fue difícil pero lo logré. Quería compartirlo con ustedes.' })
@@ -12,4 +12,14 @@ export class CreatePostDto {
   @IsNotEmpty()
   @IsString()
   sede: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Id que genera el cliente por acción y conserva al reintentar. Si llega repetido, ' +
+      'se devuelve el post ya creado en vez de crear otro.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  clientRequestId?: string;
 }

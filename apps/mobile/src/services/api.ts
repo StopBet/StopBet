@@ -306,11 +306,14 @@ export const api = {
       { userId },
     ),
 
-  createForumPost: (userId: string, sede: string, body: string) =>
+  // `clientRequestId` se conserva entre reintentos: si la respuesta se pierde de
+  // vuelta y el paciente vuelve a enviar, el backend devuelve el post ya creado en
+  // vez de publicarlo dos veces.
+  createForumPost: (userId: string, sede: string, body: string, clientRequestId?: string) =>
     request<CommunityPost>('/community/posts', {
       userId,
       method: 'POST',
-      body: JSON.stringify({ sede, body }),
+      body: JSON.stringify({ sede, body, clientRequestId }),
     }),
 
   addReaction: (userId: string, postId: string, emoji: ReactionEmoji) =>
@@ -329,11 +332,11 @@ export const api = {
   getReplies: (userId: string, postId: string) =>
     request<CommunityReply[]>(`/community/posts/${postId}/replies`, { userId }),
 
-  createReply: (userId: string, postId: string, body: string) =>
+  createReply: (userId: string, postId: string, body: string, clientRequestId?: string) =>
     request<CommunityReply>(`/community/posts/${postId}/replies`, {
       userId,
       method: 'POST',
-      body: JSON.stringify({ body }),
+      body: JSON.stringify({ body, clientRequestId }),
     }),
 
   reportPost: (userId: string, postId: string, reason: string) =>
