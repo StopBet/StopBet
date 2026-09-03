@@ -50,6 +50,28 @@ una alerta `pending` real para probar algo, dispárala desde el celular.
 
 ---
 
+## 2026-09-03 — El RUT ya no se duplica al escribirlo en el registro mobile (PR #86)
+
+### Si viste el campo RUT escribiendo `123123123123...` solo, esto era
+
+**A quién le pega:** a quien pruebe el registro de paciente (`RegisterStep1Screen`) en un
+Android con **texto predictivo activado** en el teclado. Con predicción apagada, o en
+iOS, nunca se vio.
+
+**Qué pasaba:** el campo reformatea el RUT en cada tecla (`formatRut` agrega puntos y
+mueve el guión), y eso rompía la composición del teclado predictivo: al reescribirle el
+texto por debajo, el teclado volvía a soltar su buffer entero. No era una regresión —
+estaba así desde HU-06 (27-ago) — pero solo se disparaba con esa combinación puntual de
+teclado y ajuste, así que a la mayoría nunca le tocó verlo.
+
+**Qué hacer:** nada que instalar ni correr. Si a alguien le vuelve a pasar en **otro**
+campo que se reformatea solo (no en el RUT, que ya está resuelto), es el mismo bug:
+revisar `apps/mobile/src/components/FormInput.tsx` — el prop `autoCorrect` no basta en
+todos los teclados (el de Samsung lo ignora), hace falta `keyboardType="visible-password"`
+en el campo específico, como se dejó en el de RUT.
+
+---
+
 ## 2026-09-03 — Publicar y responder en Comunidad ya no se duplica al reintentar (rama `fix/escrituras-idempotentes-comunidad-alex-dominguez`)
 
 ### Si viste mensajes repetidos en el foro, esto era
