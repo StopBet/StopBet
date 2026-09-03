@@ -52,19 +52,6 @@ const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
 // Cuánto dura el chip "¡Nuevo!" sobre la última insignia ganada.
 const NEW_BADGE_TTL_MS = 60 * 60 * 1000;
 
-const MILESTONE_DRAFT: Record<BadgeMilestone, string> = {
-  1:  'Hoy es el primer día de mi abstinencia. Espero que sea el inicio de un gran camino.',
-  3:  'Tres días y aquí sigo. Cada día que pasa me demuestra que puedo lograrlo.',
-  7:  'Una semana completa sin apostar. Nunca creí que llegaría aquí tan rápido.',
-  14: 'Dos semanas de constancia. Estoy aprendiendo que hay vida más allá del juego.',
-  21: '21 días. Lo que empezó como un reto se está convirtiendo en un hábito.',
-  30: 'Un mes entero sin apostar. Hoy siento que realmente estoy cambiando.',
-  45: '45 días. Cada vez que siento el impulso, recuerdo lo lejos que he llegado.',
-  60: 'Dos meses sin apostar. Es más de lo que me imaginé cuando empecé.',
-  75: '75 días enfocado en lo que realmente importa. El camino sigue y yo también.',
-  90: 'Tres meses. No fue fácil, pero cada día valió la pena. Gracias a todos los que me acompañaron.',
-};
-
 // Persiste mientras la app sigue viva — evita re-mostrar el modal al navegar de vuelta
 const shownMilestones = new Set<BadgeMilestone>();
 
@@ -223,9 +210,11 @@ export function AchievementsScreen({ navigation }: Props) {
           ),
         },
       }));
-      const draft = MILESTONE_DRAFT[shareMilestone] ?? `¡${shareMilestone} días sin apostar!`;
       setShareMilestone(null);
-      navigation.navigate('Community', { initialTab: 'forum', draft });
+      // CA5.2: el anuncio lo publica el backend al compartir. Antes se llegaba al foro
+      // con el texto ya escrito en el composer y el paciente tenía que enviarlo él
+      // mismo, así que veía su logro dos veces: el anuncio publicado y el borrador.
+      navigation.navigate('Community', { initialTab: 'forum' });
     } catch {
       Alert.alert('Error', 'No se pudo compartir la insignia.');
     }

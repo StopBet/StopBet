@@ -20,6 +20,25 @@ está.
 
 ---
 
+## 2026-09-02 — Compartir una insignia ya no precarga el mensaje en el foro (PR #80)
+
+**A quién le pega:** a quien pruebe o demuestre el módulo de Comunidad.
+
+**Qué hacer:** nada que instalar ni correr. Solo saber que el cambio es a propósito.
+
+**Por qué:** el CA5.2 pide un anuncio **automático**, y el backend ya lo publicaba solo. La app
+además llegaba al foro con un mensaje predeterminado en el cuadro de abajo, sobrante del flujo
+manual anterior: el paciente veía su logro dos veces. **Si esperabas ver el texto precargado y
+ya no está, no es un bug.** El anuncio aparece publicado en el feed. De paso el foro ahora se
+recarga al enfocar la pantalla, así que el post recién creado se ve al llegar.
+
+**Ojo, quien lleve pánico (CA5.1):** en el mismo PR va un arreglo en `PanicScreen.tsx`. La
+pantalla marcaba la comunidad como avisada sin mirar la respuesta, y `notifyCommunity` contesta
+200 con `false` cuando el paciente no tiene sede: se ocultaban la tarjeta y el botón, y el
+paciente en crisis quedaba sin la opción creyendo que su red ya sabía. Ahora avisa y el botón
+sigue disponible. **Queda pendiente el residuo del borrador**: `PanicScreen.tsx:290` todavía
+precarga un texto en el composer aunque el post ya se publicó solo — no lo toqué por ser de
+otro criterio.
 ## 2026-09-02 — Si en Comunidad te sale "Sin conexión", revisa primero el interruptor de prueba (rama `fix/errores-comunidad-mobile-alex-dominguez`)
 
 ### El mensaje mentía: cualquier error decía "Sin conexión"
