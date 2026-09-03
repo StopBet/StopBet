@@ -32,9 +32,13 @@ manual anterior: el paciente veía su logro dos veces. **Si esperabas ver el tex
 ya no está, no es un bug.** El anuncio aparece publicado en el feed. De paso el foro ahora se
 recarga al enfocar la pantalla, así que el post recién creado se ve al llegar.
 
-**Ojo, quien lleve pánico (CA5.1):** ese flujo tiene el mismo residuo — `PanicScreen.tsx:279`
-sigue pasando un borrador al composer aunque `notifyCommunity` ya publica el post. No lo toqué
-por ser de otro criterio.
+**Ojo, quien lleve pánico (CA5.1):** en el mismo PR va un arreglo en `PanicScreen.tsx`. La
+pantalla marcaba la comunidad como avisada sin mirar la respuesta, y `notifyCommunity` contesta
+200 con `false` cuando el paciente no tiene sede: se ocultaban la tarjeta y el botón, y el
+paciente en crisis quedaba sin la opción creyendo que su red ya sabía. Ahora avisa y el botón
+sigue disponible. **Queda pendiente el residuo del borrador**: `PanicScreen.tsx:290` todavía
+precarga un texto en el composer aunque el post ya se publicó solo — no lo toqué por ser de
+otro criterio.
 
 ---
 

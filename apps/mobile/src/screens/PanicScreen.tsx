@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
+  Alert,
   Animated,
   Linking,
   Pressable,
@@ -270,7 +271,18 @@ export function PanicScreen({ navigation }: Props) {
   const handleAlertCommunity = useCallback(async () => {
     if (state.kind !== 'waiting') return;
     try {
-      await api.notifyCommunity(TEMP_USER_ID, state.alert.id);
+      const { communityNotified } = await api.notifyCommunity(TEMP_USER_ID, state.alert.id);
+      // CA5.1: el backend responde 200 con `false` cuando no hay foro donde publicar
+      // (paciente sin sede asignada). Marcarlo igual ocultaba la tarjeta y el botón
+      // —ambos se pintan con este flag—, así que el paciente en crisis se quedaba sin
+      // la opción y creyendo que su red ya sabía, cuando nadie había visto nada.
+      if (!communityNotified) {
+        Alert.alert(
+          'No pudimos avisar a tu comunidad',
+          `Tu mensaje no llegó al foro. Puedes intentarlo otra vez, hablar ahora con el asistente o llamar al ${CRISIS_LINE}.`,
+        );
+        return;
+      }
       setState({ kind: 'waiting', alert: { ...state.alert, communityNotified: true }, sponsor: state.sponsor });
     } catch {
       // Silencioso — navegar igual
