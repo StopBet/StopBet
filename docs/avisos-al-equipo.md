@@ -20,6 +20,24 @@ está.
 
 ---
 
+## 2026-09-02 — Compartir una insignia ya no precarga el mensaje en el foro (PR #80)
+
+**A quién le pega:** a quien pruebe o demuestre el módulo de Comunidad.
+
+**Qué hacer:** nada que instalar ni correr. Solo saber que el cambio es a propósito.
+
+**Por qué:** el CA5.2 pide un anuncio **automático**, y el backend ya lo publicaba solo. La app
+además llegaba al foro con un mensaje predeterminado en el cuadro de abajo, sobrante del flujo
+manual anterior: el paciente veía su logro dos veces. **Si esperabas ver el texto precargado y
+ya no está, no es un bug.** El anuncio aparece publicado en el feed. De paso el foro ahora se
+recarga al enfocar la pantalla, así que el post recién creado se ve al llegar.
+
+**Ojo, quien lleve pánico (CA5.1):** ese flujo tiene el mismo residuo — `PanicScreen.tsx:279`
+sigue pasando un borrador al composer aunque `notifyCommunity` ya publica el post. No lo toqué
+por ser de otro criterio.
+
+---
+
 ## 2026-09-01 — La skill de diseño web estaba en el tema viejo: si tu Claude escribía naranja, era esto (commit directo en `main`)
 
 ### Reinicia tu sesión de Claude Code si trabajas en `apps/web`
