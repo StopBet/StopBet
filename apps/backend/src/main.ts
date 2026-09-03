@@ -59,9 +59,14 @@ async function bootstrap() {
   //
   // El tope tiene que quedar por encima del que use el proxy, y headersTimeout por
   // encima de keepAliveTimeout o Node corta antes de leer las cabeceras.
+  // El tope tiene que superar el tiempo que el cliente guarda la conexión en su
+  // pool, no solo el del proxy: OkHttp en Android las retiene 5 minutos, así que
+  // con 65 s el teléfono seguía tomando conexiones ya cerradas en cualquier pausa
+  // de más de un minuto. headersTimeout va por encima o Node corta antes de
+  // terminar de leer las cabeceras.
   const server = app.getHttpServer();
-  server.keepAliveTimeout = 65_000;
-  server.headersTimeout = 66_000;
+  server.keepAliveTimeout = 310_000;
+  server.headersTimeout = 320_000;
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
