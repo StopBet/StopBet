@@ -203,13 +203,29 @@ export class AchievementsService implements OnModuleInit {
     return { startDate, daysAchieved: days };
   }
 
-  // CA1: compartir insignia publica un anuncio de felicitación en el foro de la sede
+  // CA5.2: compartir insignia publica un anuncio de felicitación en el foro de la sede
   async shareBadge(userId: string, milestone: number): Promise<void> {
-    await this.badgeRepo.update({ userId, milestone }, { sharedToCommunity: true });
+    const period = await this.periodRepo.findOne({ where: { userId, endDate: IsNull() } });
+    if (!period) return;
+
+    // Acotado al período actual: tras una recaída el mismo hito se vuelve a ganar, y
+    // buscando solo por (userId, milestone) el hito viejo —ya compartido— tapaba al
+    // nuevo y el anuncio no se publicaba nunca.
+    const badge = await this.badgeRepo.findOne({
+      where: { userId, milestone, periodId: period.id },
+    });
+    // La insignia sigue siendo pulsable después de compartirla: sin esta guarda cada
+    // toque publicaba otro anuncio idéntico en el foro.
+    if (!badge || badge.sharedToCommunity) return;
+
     const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (user?.sedeId) {
-      await this.communityService.createBadgeAnnouncementPost(userId, milestone, user.sedeId);
-    }
+    if (!user?.sedeId) return;
+
+    // El post es lo que la comunidad ve, así que se crea primero: marcar el flag antes
+    // dejaría la insignia como compartida aunque la publicación hubiera fallado, y la
+    // guarda de arriba impediría reintentarlo.
+    await this.communityService.createBadgeAnnouncementPost(userId, milestone, user.sedeId);
+    await this.badgeRepo.update({ id: badge.id }, { sharedToCommunity: true });
   }
 
   private today(): string {

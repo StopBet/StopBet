@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
@@ -124,7 +125,22 @@ export function CommunityScreen({ navigation, route }: Props) {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  // El anuncio de una insignia (CA5.2) o de una alerta de pánico (CA5.1) lo publica el
+  // backend mientras el paciente navega hacia acá. Con useEffect el feed solo se cargaba
+  // al montar la pantalla, así que al volver a una Comunidad ya montada el post recién
+  // publicado no aparecía.
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // navigate() sobre una pantalla ya montada actualiza los params pero no vuelve a
+  // correr el useState inicial: sin esto, compartir la insignia abría Comunidad en
+  // "Anuncios" y el foro con el logro quedaba fuera de la vista. El parámetro se
+  // consume para no reimponer la pestaña al volver de otra pantalla.
+  const requestedTab = route.params?.initialTab;
+  useEffect(() => {
+    if (!requestedTab) return;
+    setTab(requestedTab);
+    navigation.setParams({ initialTab: undefined });
+  }, [requestedTab, navigation]);
 
   // ── Asistencia a eventos ───────────────────────────────────────────────
   const handleToggleAttendance = async (announcementId: string) => {
