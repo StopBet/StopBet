@@ -122,6 +122,9 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
     try {
       await api.approveRequest(id, assignedPsychologistId)
       qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
+      // Aprobar crea una asignación: sin invalidar esto, Equipo y el selector de este mismo
+      // modal siguen mostrando el conteo de pacientes anterior hasta que alguien recargue.
+      qc.invalidateQueries({ queryKey: ['psychologists'] })
       setToast({ message: 'Solicitud aprobada y paciente registrado.', tone: 'success' })
     } catch {
       setToast({ message: 'Error al aprobar la solicitud.', tone: 'error' })
