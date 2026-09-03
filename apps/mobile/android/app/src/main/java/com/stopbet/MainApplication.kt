@@ -1,6 +1,7 @@
 package com.stopbet
 
 import android.app.Application
+import android.util.Log
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -12,8 +13,77 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.modules.network.OkHttpClientProvider
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
+import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
+import okhttp3.Call
+import okhttp3.Connection
 import okhttp3.ConnectionPool
+import okhttp3.EventListener
+import okhttp3.Protocol
+import okhttp3.Request
+import okhttp3.Response
+
+// Diagnóstico temporal (CA1/CA7 — escrituras que se pierden contra Railway): registra el
+// ciclo de vida real de cada llamada HTTP para saber, con evidencia y no con suposiciones,
+// si la conexión es nueva o reusada y en qué paso exacto se pierde la respuesta. Se puede
+// quitar una vez identificada la causa raíz definitiva.
+private object NetDiagnostics : EventListener() {
+  private const val TAG = "STOPBET_NET"
+  private fun ms() = System.currentTimeMillis()
+
+  override fun callStart(call: Call) {
+    Log.e(TAG, "[${call.hashCode()}] callStart ${call.request().method} ${call.request().url.encodedPath} t=${ms()}")
+  }
+  override fun dnsStart(call: Call, domainName: String) {
+    Log.e(TAG, "[${call.hashCode()}] dnsStart $domainName t=${ms()}")
+  }
+  override fun dnsEnd(call: Call, domainName: String, inetAddressList: List<java.net.InetAddress>) {
+    Log.e(TAG, "[${call.hashCode()}] dnsEnd $inetAddressList t=${ms()}")
+  }
+  override fun connectStart(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy) {
+    Log.e(TAG, "[${call.hashCode()}] connectStart SOCKET NUEVO hacia $inetSocketAddress t=${ms()}")
+  }
+  override fun secureConnectStart(call: Call) {
+    Log.e(TAG, "[${call.hashCode()}] secureConnectStart (TLS handshake) t=${ms()}")
+  }
+  override fun secureConnectEnd(call: Call, handshake: okhttp3.Handshake?) {
+    Log.e(TAG, "[${call.hashCode()}] secureConnectEnd t=${ms()}")
+  }
+  override fun connectFailed(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy, protocol: Protocol?, ioe: IOException) {
+    Log.e(TAG, "[${call.hashCode()}] connectFailed ${ioe.javaClass.simpleName}: ${ioe.message} t=${ms()}")
+  }
+  override fun connectEnd(call: Call, inetSocketAddress: InetSocketAddress, proxy: Proxy, protocol: Protocol?) {
+    Log.e(TAG, "[${call.hashCode()}] connectEnd t=${ms()}")
+  }
+  override fun connectionAcquired(call: Call, connection: Connection) {
+    // Sin connectStart/connectEnd previos para este mismo call = se reusó una conexión del
+    // pool en vez de abrir un socket nuevo.
+    Log.e(TAG, "[${call.hashCode()}] connectionAcquired conn=${System.identityHashCode(connection)} t=${ms()}")
+  }
+  override fun connectionReleased(call: Call, connection: Connection) {
+    Log.e(TAG, "[${call.hashCode()}] connectionReleased conn=${System.identityHashCode(connection)} t=${ms()}")
+  }
+  override fun requestHeadersEnd(call: Call, request: Request) {
+    Log.e(TAG, "[${call.hashCode()}] requestHeadersEnd t=${ms()}")
+  }
+  override fun requestBodyEnd(call: Call, byteCount: Long) {
+    Log.e(TAG, "[${call.hashCode()}] requestBodyEnd bytes=$byteCount t=${ms()}")
+  }
+  override fun responseHeadersStart(call: Call) {
+    Log.e(TAG, "[${call.hashCode()}] responseHeadersStart (empezó a leer la respuesta) t=${ms()}")
+  }
+  override fun responseHeadersEnd(call: Call, response: Response) {
+    Log.e(TAG, "[${call.hashCode()}] responseHeadersEnd code=${response.code} t=${ms()}")
+  }
+  override fun callEnd(call: Call) {
+    Log.e(TAG, "[${call.hashCode()}] callEnd OK t=${ms()}")
+  }
+  override fun callFailed(call: Call, ioe: IOException) {
+    Log.e(TAG, "[${call.hashCode()}] callFailed ${ioe.javaClass.name}: ${ioe.message} t=${ms()}")
+  }
+}
 
 class MainApplication : Application(), ReactApplication {
 
@@ -47,6 +117,7 @@ class MainApplication : Application(), ReactApplication {
     OkHttpClientProvider.setOkHttpClientFactory {
       OkHttpClientProvider.createClientBuilder(this)
           .connectionPool(ConnectionPool(5, 30L, TimeUnit.SECONDS))
+          .eventListener(NetDiagnostics)
           .build()
     }
 
