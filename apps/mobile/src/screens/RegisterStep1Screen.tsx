@@ -108,10 +108,16 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
             leadingIcon="user" placeholder="Juan" error={errors.firstName} />
           <FormInput label="Apellido(s)" required value={lastName} onChangeText={setLastName}
             leadingIcon="user" placeholder="Pérez" error={errors.lastName} />
+          {/* "numbers-and-punctuation" era solo iOS: en Android nunca se aplicó —caía al
+              teclado de texto— y en iOS dejaba fuera la K del dígito verificador. Probado
+              en un Galaxy A31 (teclado Samsung, texto predictivo activado): autoCorrect
+              solo no bastó, ese teclado lo ignora y seguía duplicando. "visible-password"
+              sí frena la composición porque Android trata cualquier campo de contraseña
+              como no editable por el teclado predictivo, y de paso deja escribir la K. */}
           <FormInput label="RUT" required value={rut}
             onChangeText={t => setRut(formatRut(t))}
             leadingIcon="id-card" placeholder="12.345.678-9" error={errors.rut}
-            keyboardType="numbers-and-punctuation" maxLength={12}
+            keyboardType="visible-password" autoCorrect={false} maxLength={12}
             hint="Se completan los puntos y el guión automáticamente" />
           <FormInput label="Correo electrónico" required value={email} onChangeText={setEmail}
             leadingIcon="mail" placeholder="tu@correo.cl"
