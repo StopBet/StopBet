@@ -30,6 +30,7 @@ import {
 } from '../services/checkInQueue';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
 import { readProgress, saveProgress } from '../services/offlineStore';
+import { conReintento } from '../services/reintentoEscritura';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -156,7 +157,11 @@ export function HomeScreen({ navigation }: Props) {
 
   const handlePickEmotion = async (emotion: EmotionType) => {
     try {
-      await api.createCheckIn(TEMP_USER_ID, emotion);
+      // La respuesta de una escritura puede perderse aunque el servidor la haya
+      // procesado. Se reintenta antes de darla por fallida: encolar un check-in
+      // que en realidad ya está guardado solo produce un aviso falso de "sin
+      // conexión" y un 409 más tarde.
+      await conReintento(() => api.createCheckIn(TEMP_USER_ID, emotion));
       setTodayEmotion(emotion);
       setCheckInDone(true);
     } catch (err) {

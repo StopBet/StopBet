@@ -23,6 +23,7 @@ import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon } from '../components/Icon';
 import { api } from '../services/api';
+import { conReintento } from '../services/reintentoEscritura';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Constantes
@@ -226,7 +227,12 @@ export function PanicScreen({ navigation }: Props) {
     if (isActivating.current) return;
     isActivating.current = true;
     try {
-      const alert = await api.createPanicAlert(TEMP_USER_ID);
+      // Una escritura puede procesarse en el servidor y aun así perderse la respuesta
+      // de vuelta. En una pantalla de pánico eso es lo peor que puede pasar: el
+      // padrino ya fue avisado y el paciente cree que no. Se reintenta antes de
+      // rendirse; el backend reutiliza la alerta abierta, así que no duplica.
+      const alert = await conReintento(() => api.createPanicAlert(TEMP_USER_ID));
+      if (!alert) throw new Error('sin respuesta de la alerta');
 
       // CA1.2: sin padrino activo el backend devuelve la alerta ya escalada.
       // Al asistente de inmediato, sin cuenta regresiva ni espera.
