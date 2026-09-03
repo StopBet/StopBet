@@ -20,6 +20,29 @@ está.
 
 ---
 
+## 2026-09-02 — Si en Comunidad te sale "Sin conexión", revisa primero el interruptor de prueba (rama `fix/errores-comunidad-mobile-alex-dominguez`)
+
+### El mensaje mentía: cualquier error decía "Sin conexión"
+
+**A quién le pega:** a quien pruebe Comunidad en la app mobile.
+
+**Qué hacer:** nada que instalar. Solo saber que **Perfil → Herramientas de prueba →
+"Simular sin conexión"** corta *todas* las peticiones de la app, y hasta ahora producía un
+aviso idéntico al de una caída de red real. Si estabas probando criterios y de pronto
+"dejó de haber conexión", revisa ese interruptor antes de buscar el bug en otro lado. Vive
+en memoria, así que cerrar la app del todo también lo apaga.
+
+**Qué cambió:** las seis acciones de la pantalla (asistencia, reacción, publicar, responder,
+reportar, eliminar) ahora distinguen tres casos en vez de uno: modo de prueba activo, fallo
+de red real, y error del servidor (mostrando el código). Además el error queda en `logcat`,
+que antes el `catch` se lo tragaba y no dejaba nada que mirar. El banner de la pantalla
+también avisa cuando el modo simulado está encendido.
+
+Ojo: el backend no tenía nada malo. Se verificó contra Railway con el mismo encabezado y
+cuerpo que manda la app: 3 respuestas seguidas y 2 reportes, todos OK.
+
+---
+
 ## 2026-09-02 — Firebase push activo: falta `firebase-service-account.json` en local (PR pendiente, rama `fix/dependencias-nestjs-jose-meza`)
 
 ### Sin ese archivo, el backend arranca igual pero con push desactivado — no es un bug
