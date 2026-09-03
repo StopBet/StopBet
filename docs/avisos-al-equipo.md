@@ -20,6 +20,36 @@ está.
 
 ---
 
+## 2026-09-03 — Nuevo `pnpm run seed:demo` para la revisión en vivo del Sprint 1 (commit directo en `main`)
+
+**A quién le pega:** a quien vaya a poblar la base para la demo de mañana, o a quien la use
+después para probar HdU24, Solicitudes o el portal del familiar con datos reales.
+
+**Qué hacer:** después de `pnpm run seed` y `pnpm run seed:family`, correr también:
+
+```bash
+pnpm run seed:demo -- --reset
+```
+
+Detalle completo, cuentas y orden sugerido de la demo en
+[`docs/demo-sprint1.md`](demo-sprint1.md).
+
+**Por qué:** ni `seed.ts` ni `family.seed.ts` pueblan nunca `patient_assignments`,
+`psychologist_sedes`, `registration_requests`, `notifications` ni `subscriptions`/`invoices`
+— así que Equipo mostraba 0 pacientes por psicólogo, Solicitudes salía vacía y no había forma
+de demostrar CA 24.3/24.5 (reasignar pacientes al desactivar un psicólogo o quitarle una
+sede). El script nuevo (`apps/backend/src/demo.seed.ts`) agrega justo eso, sin tocar los otros
+dos seeds.
+
+**Ojo con esto si tocas `panic.service.ts` o pruebas el botón de pánico:** el `@Cron` que
+escala alertas `pending` a los 120 s (CA 1.3) corre sobre **cualquier** alerta pendiente, sin
+mirar antigüedad razonable — una alerta sembrada con `createdAt` de hace varios minutos se
+escala sola en los primeros 10 s tras arrancar el backend. Por eso `seed:demo` no siembra
+ninguna alerta en `pending`: las tres "de hoy" nacen ya `escalated`/`responded`. Si necesitas
+una alerta `pending` real para probar algo, dispárala desde el celular.
+
+---
+
 ## 2026-09-03 — Publicar y responder en Comunidad ya no se duplica al reintentar (rama `fix/escrituras-idempotentes-comunidad-alex-dominguez`)
 
 ### Si viste mensajes repetidos en el foro, esto era
