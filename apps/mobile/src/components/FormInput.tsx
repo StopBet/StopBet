@@ -28,6 +28,7 @@ interface Props {
   trailingIcon?: IconName;    // ícono para chevron/etc.
   onPress?: () => void;       // convierte el campo en selector (calendario, lista)
   maxLength?: number;
+  autoCorrect?: boolean;      // apagarla en campos que se reformatean solos (ver TextInput)
 }
 
 export function FormInput({
@@ -46,6 +47,7 @@ export function FormInput({
   trailingIcon,
   onPress,
   maxLength,
+  autoCorrect = true,
 }: Props) {
   const [focused, setFocused] = useState(false);
   const [secure, setSecure] = useState(secureTextEntry ?? false);
@@ -74,6 +76,13 @@ export function FormInput({
           {prefix && (
             <Text style={styles.prefix}>{prefix}</Text>
           )}
+          {/* Con la autocorrección encendida el teclado de Android mantiene una región de
+              composición sobre lo que se está escribiendo. Un campo que reescribe su propio
+              texto en cada tecla —como el RUT, que se formatea solo— la deja obsoleta, y el
+              teclado vuelve a soltar su buffer entero: tecleando 123 el campo terminaba con
+              123123123. Apagar autoCorrect evita esto en Gboard, pero no en todos los
+              teclados (probado: el de Samsung lo ignora); ahí hace falta además forzar
+              keyboardType="visible-password" en el campo, que sí o sí corta la composición. */}
           <TextInput
             style={styles.input}
             value={value}
@@ -85,6 +94,11 @@ export function FormInput({
             keyboardType={keyboardType ?? 'default'}
             secureTextEntry={secure}
             editable={editable}
+            maxLength={maxLength}
+            autoCorrect={autoCorrect}
+            spellCheck={autoCorrect}
+            autoComplete={autoCorrect ? undefined : 'off'}
+            importantForAutofill={autoCorrect ? undefined : 'no'}
           />
           {secureTextEntry && (
             <TouchableOpacity onPress={() => setSecure((v) => !v)} style={styles.eyeBtn}>
