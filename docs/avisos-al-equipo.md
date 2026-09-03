@@ -20,6 +20,29 @@ está.
 
 ---
 
+## 2026-09-03 — Aprobar una solicitud ya refresca el conteo de pacientes en Equipo (commit directo en `main`)
+
+**A quién le pega:** a **Eduardo**, porque toca `apps/web/src/DashboardApp.tsx`, que es suyo — si
+lo tienes modificado en tu rama, el rebase trae 3 líneas nuevas dentro de `handleApprove`. Y a
+cualquiera que estuviera probando Solicitudes o Equipo y viera números que no cuadraban.
+
+**Qué hacer:** nada más que pullear.
+
+**Por qué:** aprobar una solicitud escribe tres cosas (la solicitud, el paciente y la asignación
+del psicólogo), pero `handleApprove` solo invalidaba `['registration', 'pending']`. Como
+`EquipoPage` y el selector de psicólogo del propio modal leen `['psychologists']`, y `main.tsx`
+fija `staleTime: 30_000`, **la pantalla quedaba una aprobación atrasada**: se aprobaba un
+paciente y el psicólogo seguía mostrando el conteo anterior hasta que alguien recargara.
+
+Lo engañoso es que **no se perdía ningún dato** — la asignación siempre se guardó bien — pero
+desde el dashboard era indistinguible de un fallo de guardado, y se podía perder rato buscando
+el problema en el backend, donde no estaba. Peor aún: al aprobar dos seguidas mostraba un valor
+intermedio (1 cuando ya había 2), que parece un dato real y nadie cuestiona.
+
+**Reproducido y verificado en local el 2026-09-03** con la BD del seed: Fernanda Fuentes en 0 →
+aprobar 2 solicitudes de Santiago → la pantalla decía 1 y la BD decía 2; con el fix, aprobar una
+tercera la deja en 3 al instante, sin recargar.
+
 ## 2026-09-03 — Nuevo `pnpm run seed:demo` para la revisión en vivo del Sprint 1 (commit directo en `main`)
 
 **A quién le pega:** a quien vaya a poblar la base para la demo de mañana, o a quien la use
