@@ -47,6 +47,22 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api/docs', app, document);
 
+  // Node cierra las conexiones inactivas a los 5 s, pero el proxy de Railway las
+  // mantiene más tiempo. Cuando el cliente reutiliza una que el servidor ya cerró,
+  // la petición llega y se procesa pero la respuesta no vuelve. En Android eso solo
+  // rompe las escrituras: OkHttp reintenta los GET por su cuenta, nunca un POST.
+  //
+  // Medido el 2026-09-02 desde el teléfono contra Railway:
+  //   teléfono  23:23:02.020  POST /check-ins
+  //   servidor  03:23:01.985  POST /check-ins 201 64ms
+  //   teléfono  23:23:02.243  TypeError: Network request failed
+  //
+  // El tope tiene que quedar por encima del que use el proxy, y headersTimeout por
+  // encima de keepAliveTimeout o Node corta antes de leer las cabeceras.
+  const server = app.getHttpServer();
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout = 66_000;
+
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
   console.log(`StopBet backend corriendo en puerto ${port}`);
