@@ -20,6 +20,37 @@ está.
 
 ---
 
+## 2026-09-03 — Publicar y responder en Comunidad ya no se duplica al reintentar (rama `fix/escrituras-idempotentes-comunidad-alex-dominguez`)
+
+### Si viste mensajes repetidos en el foro, esto era
+
+**A quién le pega:** a quien pruebe Comunidad, y a quien toque `community/**` en el backend.
+
+**Qué hacer:** nada que instalar ni correr. Las dos columnas nuevas las crea TypeORM sola al
+arrancar el backend.
+
+**Qué pasaba:** la petición llegaba y el servidor la guardaba, pero **la respuesta se perdía
+de vuelta**. La app avisaba "sin conexión" con el mensaje ya publicado, el paciente lo
+escribía de nuevo y quedaba dos veces en el foro, delante de su grupo. Está verificado en la
+base de producción: dos posts idénticos separados por 110 segundos.
+
+**El arreglo:** `CommunityPost` y `PostReply` suman `clientRequestId`, con índice único. La
+app genera ese id por acción y **lo conserva al reintentar**; si llega repetido, el backend
+devuelve el registro original en vez de crear otro, y tampoco vuelve a notificar al autor.
+
+Detalles que conviene saber si tocas esto:
+
+- **La clave va atada al texto.** Si el paciente corrige lo que escribió antes de reintentar,
+  eso es un mensaje distinto y lleva clave nueva; si no, el backend le devolvería el anterior.
+- **Es opcional.** Un APK viejo que no manda la clave sigue publicando igual (verificado).
+- Quedan 6 tests nuevos en `community.service.spec.ts`, que antes no tenía ninguno.
+
+**Ojo, el mismo patrón está en otras pantallas.** El check-in y el botón de pánico también
+escriben sin clave de idempotencia. No se tocaron acá por ser de otros criterios, pero si
+alguien reporta un duplicado ahí, la causa es esta misma.
+
+---
+
 ## 2026-09-02 — Compartir una insignia ya no precarga el mensaje en el foro (PR #80)
 
 **A quién le pega:** a quien pruebe o demuestre el módulo de Comunidad.

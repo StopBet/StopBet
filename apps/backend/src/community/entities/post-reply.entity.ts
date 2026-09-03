@@ -31,6 +31,11 @@ export class PostReply {
   @Column({ type: 'text' })
   body: string;
 
+  // Ver el mismo campo en CommunityPost: evita que un reintento tras una respuesta
+  // perdida deje la misma respuesta dos veces en el hilo.
+  @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
+  clientRequestId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }

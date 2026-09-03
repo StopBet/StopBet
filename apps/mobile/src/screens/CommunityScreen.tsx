@@ -86,6 +86,13 @@ export function CommunityScreen({ navigation, route }: Props) {
   const [repliesByPost, setRepliesByPost] = useState<Record<string, CommunityReply[]>>({});
   const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
 
+  // Claves de idempotencia de los envíos que todavía no confirmaron. Se guarda el
+  // texto junto al id: si el paciente corrige lo que escribió antes de reintentar,
+  // eso es un mensaje distinto y necesita clave nueva, o el backend le devolvería
+  // el anterior.
+  const [pendingPost, setPendingPost] = useState<{ id: string; body: string } | null>(null);
+  const [pendingReply, setPendingReply] = useState<Record<string, { id: string; body: string }>>({});
+
   const load = useCallback(async () => {
     try {
       const [anns, forum] = await Promise.all([
@@ -173,11 +180,16 @@ export function CommunityScreen({ navigation, route }: Props) {
   const handlePost = async () => {
     const body = draft.trim();
     if (!body || posting) return;
+    // Misma clave mientras el texto no cambie: el reintento se reconoce como el
+    // mismo envío y no publica de nuevo.
+    const requestId = pendingPost?.body === body ? pendingPost.id : newRequestId();
+    setPendingPost({ id: requestId, body });
     setPosting(true);
     try {
-      const created = await api.createForumPost(TEMP_USER_ID, TEMP_SEDE, body);
+      const created = await api.createForumPost(TEMP_USER_ID, TEMP_SEDE, body, requestId);
       setPosts((prev) => [created, ...prev]);
       setDraft('');
+      setPendingPost(null);
     } catch (err) {
       alertFailure('publicar tu mensaje', err);
     } finally {
@@ -202,13 +214,23 @@ export function CommunityScreen({ navigation, route }: Props) {
   const handleReply = async (postId: string) => {
     const body = (replyDraft[postId] ?? '').trim();
     if (!body) return;
+    const pending = pendingReply[postId];
+    const requestId = pending?.body === body ? pending.id : newRequestId();
+    setPendingReply((prev) => ({ ...prev, [postId]: { id: requestId, body } }));
     try {
-      const created = await api.createReply(TEMP_USER_ID, postId, body);
-      setRepliesByPost((prev) => ({
-        ...prev,
-        [postId]: [...(prev[postId] ?? []), created],
-      }));
+      const created = await api.createReply(TEMP_USER_ID, postId, body, requestId);
+      // Si el envío anterior sí había llegado, el backend devuelve aquella misma
+      // respuesta: se descarta el duplicado local en vez de mostrarla dos veces.
+      setRepliesByPost((prev) => {
+        const current = prev[postId] ?? [];
+        if (current.some((r) => r.id === created.id)) return prev;
+        return { ...prev, [postId]: [...current, created] };
+      });
       setReplyDraft((prev) => ({ ...prev, [postId]: '' }));
+      setPendingReply((prev) => {
+        const { [postId]: _discarded, ...rest } = prev;
+        return rest;
+      });
       setPosts((prev) =>
         prev.map((p) => (p.id === postId ? { ...p, replyCount: p.replyCount + 1 } : p)),
       );
@@ -670,6 +692,14 @@ function PostCard({
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+// Identifica un envío para que el backend reconozca el reintento. No es
+// criptografía y no sale del par teléfono-servidor: solo tiene que ser
+// irrepetible entre envíos, así que no se agrega una dependencia de UUID.
+function newRequestId(): string {
+  const rand = () => Math.random().toString(36).slice(2, 10);
+  return `${Date.now().toString(36)}-${rand()}-${rand()}`;
+}
 
 // Antes cada acción avisaba "Sin conexión" pasara lo que pasara: un 500 del
 // servidor, el modo de prueba encendido y un corte de red real se veían igual, y

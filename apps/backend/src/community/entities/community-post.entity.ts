@@ -42,6 +42,15 @@ export class CommunityPost {
   @Column({ type: 'int', default: 0 })
   reportCount: number;
 
+  // Idempotencia (ver `createPost`): la app manda un id propio por acción y lo
+  // conserva al reintentar. Si la respuesta se pierde de vuelta —el paciente ve
+  // "sin conexión" aunque el post ya se guardó— el reintento trae el mismo id y
+  // no duplica. Nullable porque los posts existentes y los que crea el backend
+  // (alerta de pánico, insignia) no lo llevan; en Postgres varios NULL conviven
+  // con un índice único.
+  @Column({ type: 'varchar', length: 64, nullable: true, unique: true })
+  clientRequestId: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
