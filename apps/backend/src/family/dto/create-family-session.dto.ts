@@ -25,4 +25,12 @@ export class CreateFamilySessionDto {
   @IsString()
   @IsNotEmpty()
   sedeId: string;
+
+  @ApiPropertyOptional({
+    description:
+      'true si la sesión es parte del tratamiento del paciente y el familiar no puede optar por saltarla',
+  })
+  @IsBoolean()
+  @IsOptional()
+  isMandatory?: boolean;
 }

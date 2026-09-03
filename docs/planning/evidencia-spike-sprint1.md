@@ -4,7 +4,7 @@
 aceptación del SPIKE 1 (ver `docs/planning/SPRINT1.md`, §4) están cumplidos. Para cada uno:
 descripción breve, quién lo hizo, y **cómo demostrarlo** (comando, video o ambos).
 
-**Fecha de verificación de este documento:** 01-09-2026. Todo lo marcado como "verificado
+**Fecha de verificación de este documento:** 02-09-2026. Todo lo marcado como "verificado
 ahora" se corrió en vivo contra el código actual de `main`, no es una captura vieja.
 
 > **Relación con `docs/security/evidencia-spike-jose.md`:** ese documento ya cubre en detalle
@@ -154,28 +154,32 @@ El RUT queda como `iv:authTag:ciphertext` en disco (AES-256-GCM); el header
 
 ---
 
-## S.7 — Alerta automática al equipo ante caída ⏸️ **pendiente de configuración**
+## S.7 — Alerta automática al equipo ante caída ✅
 
-**Dueño:** José Meza. **Evidencia completa:**
-[`docs/security/evidencia-spike-jose.md`](../security/evidencia-spike-jose.md#s7--alerta-automática-al-equipo-ante-caída--pendiente-de-configuración).
+**Dueño:** José Meza.
 
 **Qué es:** `health/alerts.service.ts` revisa la BD cada 2 minutos y avisa a un webhook de
 Discord solo en los cambios de estado (caída / recuperación). El código y sus tests
 (`alerts.service.spec.ts`) están completos.
 
-**Verificado ahora — sigue sin la variable configurada:** `DISCORD_ALERT_WEBHOOK_URL` no está
-en `apps/backend/.env` ni (según `CLAUDE.md`, sección "Estado actual") en Railway.
+**Verificado ahora (02-09-2026) — configurado y probado de punta a punta:**
+`DISCORD_ALERT_WEBHOOK_URL` está seteada tanto en `apps/backend/.env` local como en las
+Service Variables del backend en Railway (production).
 
-**Cómo demostrarlo:** correr `alerts.service.spec.ts` (cubre ambas transiciones + el caso sin
-webhook) y mostrar el `WARN` en consola:
-```
-WARN [AlertsService] Alerta no enviada (DISCORD_ALERT_WEBHOOK_URL no configurada): ...
+Se instanció `AlertsService` con el `dataSource` real reemplazado por uno que falla (mismo
+patrón que `alerts.service.spec.ts`, pero contra el webhook real en vez de un `fetch`
+mockeado) para forzar `checkDatabaseHealth()` sin apagar la base de datos de producción:
+
+```js
+const fakeDataSource = { query: async () => { throw new Error('simulado: BD caída'); } };
+const service = new AlertsService(configReal, fakeDataSource);
+await service.checkDatabaseHealth();
 ```
 
-**Para la demo del sprint: decirlo así de directo.** El criterio está resuelto en código,
-pero la alerta **no se puede mostrar disparándose de verdad** hasta que alguien con permiso
-de administrador cree el webhook en el Discord del equipo y lo configure en Railway. No
-requiere código nuevo.
+**Demuestra:** llegó al canal del equipo en Discord el mensaje
+`🔴 StopBet backend: la base de datos no responde.` — confirma que el flujo completo
+(detección de cambio de estado → lectura de la variable de entorno → POST al webhook)
+funciona con la configuración real de producción, no solo en el test unitario.
 
 ---
 
@@ -256,14 +260,19 @@ protege el resto de la API sin estorbar el uso normal del dashboard.
 
 **Repartido:** José (rol), Catalina (pánico), Matías Barraza (asistente).
 
-**Verificado ahora:**
+**Verificado ahora (02-09-2026):**
 ```bash
 pnpm run test
 ```
 ```
 Test Suites: 22 passed, 22 total
 Tests:       239 passed, 239 total
+Time:        26.808 s
 ```
+
+Los `console.error`/`WARN` que aparecen en la salida (LLM falla, Discord sin webhook, push de
+Firebase caído) son parte de los propios tests — fuerzan esos escenarios a propósito para
+verificar que el sistema no se cae, no son fallos.
 
 Las tres partes del criterio están cubiertas por archivos concretos:
 - **Pánico:** `panic.service.spec.ts`, `panic.controller.spec.ts`, `panic-stream.controller.spec.ts`.
@@ -295,20 +304,21 @@ el CI bloquea el merge (prueba de esto, forzando el umbral a 99% y de vuelta, en
 
 ## S.12 — Los tests corren solos en push a `main`
 
-**Dueño:** José Meza. **Verificado ahora, con corridas de hoy (no solo de la fecha del SPIKE):**
+**Dueño:** José Meza. **Verificado ahora (02-09-2026), con corridas de hoy:**
 ```bash
 gh run list --workflow=backend-ci.yml --limit 5
 ```
 ```
-success  Merge pull request #67 ...   Backend CI  main                              push          1m33s   2026-09-01
-success  fix: pasar el dashboard...   Backend CI  fix/dashboard-responsive-...      pull_request  1m48s   2026-09-01
-success  fix: pasar el dashboard...   Backend CI  fix/dashboard-responsive-...      pull_request  1m41s   2026-09-01
-success  chore: desplegar backend...  Backend CI  main                              push          1m29s   2026-08-31
-success  chore: desplegar backend...  Backend CI  chore/despliegue-nube-jose-meza   pull_request  1m42s   2026-08-31
+success  fix: cierre de sesión del asistente...        Backend CI  main                                              push          1m38s  2026-09-02
+success  fix: cierre de sesión del asistente...        Backend CI  fix/S2-tope-asistente-y-cierre-sesion-matias...  pull_request  1m33s  2026-09-02
+success  fix: cierre de sesión del asistente...        Backend CI  fix/S2-tope-asistente-y-cierre-sesion-matias...  pull_request  1m32s  2026-09-01
+success  feat(S.2): acotar la espera del asistente...  Backend CI  main                                              push          1m37s  2026-09-01
+success  feat(S.2): acotar la espera del asistente...  Backend CI  feature/S2-tope-latencia-asistente-matias-bar... pull_request  1m35s  2026-09-01
 ```
 
-**Demuestra:** el pipeline sigue corriendo automáticamente, en ambos disparadores, más de una
-semana después de cerrado el SPIKE — no fue una corrida única para la evidencia.
+**Demuestra:** hay una corrida `push` a `main` de hace minutos y el pipeline sigue
+disparándose automáticamente en ambos triggers (`push` y `pull_request`), más de una semana
+después de cerrado el SPIKE — no fue una corrida única para la evidencia.
 
 ---
 
@@ -322,13 +332,11 @@ semana después de cerrado el SPIKE — no fue una corrida única para la eviden
 | S.4 matriz de permisos | ✅ | José | 19 `@Roles()` con guard verificado |
 | S.5 403 en ≥4 endpoints | ✅ **5** | José | Tabla 401/403/200 + `roles.e2e-spec.ts` |
 | S.6 cifrado + HTTPS | ✅ | José | RUT ilegible en disco + header HSTS |
-| S.7 alerta de caída | ⏸️ | José | Código y tests listos; falta el webhook de Discord |
+| S.7 alerta de caída | ✅ | José | Webhook configurado en Railway + mensaje real recibido en Discord |
 | S.8 respaldo ≤5 s | ✅ | Eduardo / M. Barraza | Fallback real en vivo, 1.4 s, con ruta de escalada |
 | S.9 rate limiting | ✅ | José | Login corta en el intento #11 (10/min) |
 | S.10 pruebas de pánico / rol / asistente | ✅ | José · Catalina · M. Barraza | 239 tests pasando |
 | S.11 cobertura ≥70% | ✅ | José · Catalina · M. Barraza | 82.0% / 91.9% / 85.9% + gate que falla si baja |
 | S.12 CI en push a `main` | ✅ | José | Corridas verdes hoy, no solo en la fecha del SPIKE |
 
-**11 de 12 criterios completos y demostrables ahora mismo. S.7 tiene el código y los tests
-listos, pero necesita que alguien con permiso de administrador en el Discord del equipo cree
-el webhook — es el único paso que falta y no requiere código.**
+**12 de 12 criterios completos y demostrables ahora mismo.**

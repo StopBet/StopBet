@@ -112,6 +112,29 @@ GEMINI_API_KEY=tu_api_key_de_google_ai_studio
 
 > Obtén tu `GEMINI_API_KEY` gratis en [Google AI Studio](https://aistudio.google.com). Es **opcional**: si la dejas vacía el backend levanta igual y el chatbot responde con mensajes de fallback.
 
+> **El correo es opcional.** Solo se usa para enviarle las credenciales a un psicólogo recién
+> creado (CA24.1). Sin configurar nada el backend arranca igual, no envía, y la pantalla de
+> Equipo avisa que hay que entregar la contraseña a mano.
+>
+> Hay **dos transportes** y se elige solo según qué variable exista (si están las dos, gana Brevo):
+>
+> | Variable | Cómo envía | Cuándo usarlo |
+> |---|---|---|
+> | `BREVO_API_KEY` | HTTPS | **Producción.** Es el único que funciona en Railway: ahí los puertos SMTP salientes están bloqueados en los planes Free, Trial y Hobby, y el proyecto corre en Hobby. |
+> | `SMTP_HOST` + `SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD` | SMTP | **Local.** Cualquier proveedor, o un buzón falso. |
+>
+> Comunes a los dos: `MAIL_FROM` y `WEB_APP_URL`.
+>
+> Para probarlo en local sin cuenta de ningún proveedor, levanta un buzón falso:
+>
+> ```bash
+> docker run -d -p 1025:1025 -p 8025:8025 axllent/mailpit
+> # SMTP_HOST=localhost  SMTP_PORT=1025  (sin usuario ni clave)
+> # los correos se leen en http://localhost:8025
+> ```
+>
+> Ver todas las variables comentadas en [`apps/backend/.env.example`](apps/backend/.env.example).
+
 #### `apps/web/.env`
 
 ```env

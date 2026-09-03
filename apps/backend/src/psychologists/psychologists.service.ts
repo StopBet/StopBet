@@ -18,6 +18,8 @@ import { CreatePsychologistDto } from './dto/create-psychologist.dto';
 import { DeactivatePsychologistDto } from './dto/deactivate-psychologist.dto';
 import { UpdateSedesDto } from './dto/update-sedes.dto';
 import { resolveSedeId } from './sedes-of-user';
+import { MailService } from '../mail/mail.service';
+import { psychologistCredentialsEmail } from '../mail/templates/psychologist-credentials';
 
 const TEMP_PASSWORD_BYTES = 9; // -> 12 caracteres en base64url
 const BCRYPT_ROUNDS = 10;
@@ -45,6 +47,7 @@ export class PsychologistsService {
     private readonly assignmentRepo: Repository<PatientAssignment>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
 
   // COMPATIBILIDAD TEMPORAL: los psicólogos creados antes de psychologist_sedes solo tienen
@@ -139,6 +142,20 @@ export class PsychologistsService {
       ),
     );
 
+    // CA24.1 pide que el sistema le envíe las credenciales. El envío es el último paso y no
+    // puede deshacer la cuenta: si el SMTP está caído —o directamente sin configurar— la
+    // creación se da por buena igual y el coordinador entrega la clave a mano, que es el
+    // flujo que existía antes. Por eso se informa el resultado en la respuesta: sin ese dato
+    // el correo podría fallar en todos los envíos sin que nadie lo note.
+    const credentialsEmailSent = await this.mailService.send(
+      psychologistCredentialsEmail({
+        to: user.email,
+        firstName: user.firstName,
+        temporaryPassword,
+        loginUrl: this.mailService.webAppUrl,
+      }),
+    );
+
     return {
       id: user.id,
       firstName: user.firstName,
@@ -146,6 +163,7 @@ export class PsychologistsService {
       email: user.email,
       sedes,
       temporaryPassword,
+      credentialsEmailSent,
     };
   }
 

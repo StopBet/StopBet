@@ -51,6 +51,7 @@ const SESSION_SOON_ID   = 'f2000000-0000-0000-0000-000000000002';
 const SESSION_ONLINE_ID = 'f2000000-0000-0000-0000-000000000003';
 const SESSION_LATER_ID  = 'f2000000-0000-0000-0000-000000000004';
 const SESSION_FAR_ID    = 'f2000000-0000-0000-0000-000000000005';
+const SESSION_MANDATORY_ID = 'f2000000-0000-0000-0000-000000000006';
 
 function daysFromNow(days: number, hour: number): Date {
   const d = new Date();
@@ -268,6 +269,18 @@ async function seedFamily(): Promise<void> {
     sedeId: localSedeId,
   }, 'En 9 días — online');
 
+  // Obligatoria: parte del tratamiento del paciente. Sirve para ver en la misma
+  // pantalla la diferencia con las opcionales de arriba.
+  await upsert(sessionRepo, {
+    id: SESSION_MANDATORY_ID,
+    title: 'Sesión familiar del proceso terapéutico',
+    sessionDate: daysFromNow(5, 18),
+    location: localPlace,
+    isOnline: false,
+    sedeId: localSedeId,
+    isMandatory: true,
+  }, 'En 5 días — obligatoria');
+
   await upsert(sessionRepo, {
     id: SESSION_LATER_ID,
     title: 'Círculo de familiares',
@@ -336,7 +349,7 @@ async function seedFamily(): Promise<void> {
   console.log(`
 Listo. Cuentas de familiar (clave: ${DEV_PASSWORD})
 
-  patricia.gomez@stopbet.cl   vínculo activo   → 3 sesiones, 1 ya confirmada
+  patricia.gomez@stopbet.cl   vínculo activo   → 4 sesiones, 1 de ellas obligatoria
   rodrigo.munoz@stopbet.cl    vínculo pendiente → CA 11.6
   elena.vidal@stopbet.cl      activo sin sesiones próximas → CA 11.5
 `);

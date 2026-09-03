@@ -39,6 +39,216 @@ paciente en crisis quedaba sin la opción creyendo que su red ya sabía. Ahora a
 sigue disponible. **Queda pendiente el residuo del borrador**: `PanicScreen.tsx:290` todavía
 precarga un texto en el composer aunque el post ya se publicó solo — no lo toqué por ser de
 otro criterio.
+## 2026-09-02 — Si en Comunidad te sale "Sin conexión", revisa primero el interruptor de prueba (rama `fix/errores-comunidad-mobile-alex-dominguez`)
+
+### El mensaje mentía: cualquier error decía "Sin conexión"
+
+**A quién le pega:** a quien pruebe Comunidad en la app mobile.
+
+**Qué hacer:** nada que instalar. Solo saber que **Perfil → Herramientas de prueba →
+"Simular sin conexión"** corta *todas* las peticiones de la app, y hasta ahora producía un
+aviso idéntico al de una caída de red real. Si estabas probando criterios y de pronto
+"dejó de haber conexión", revisa ese interruptor antes de buscar el bug en otro lado. Vive
+en memoria, así que cerrar la app del todo también lo apaga.
+
+**Qué cambió:** las seis acciones de la pantalla (asistencia, reacción, publicar, responder,
+reportar, eliminar) ahora distinguen tres casos en vez de uno: modo de prueba activo, fallo
+de red real, y error del servidor (mostrando el código). Además el error queda en `logcat`,
+que antes el `catch` se lo tragaba y no dejaba nada que mirar. El banner de la pantalla
+también avisa cuando el modo simulado está encendido.
+
+Ojo: el backend no tenía nada malo. Se verificó contra Railway con el mismo encabezado y
+cuerpo que manda la app: 3 respuestas seguidas y 2 reportes, todos OK.
+
+---
+
+## 2026-09-02 — Firebase push activo: falta `firebase-service-account.json` en local (PR pendiente, rama `fix/dependencias-nestjs-jose-meza`)
+
+### Sin ese archivo, el backend arranca igual pero con push desactivado — no es un bug
+
+**A quién le pega:** a quien levante `apps/backend` en local y quiera probar notificaciones
+push, o le extrañe ver `[PushService] Firebase sin configurar: las notificaciones push quedan
+desactivadas` al arrancar.
+
+**Qué hacer**, una vez, en `apps/backend/`:
+
+1. Pedir el archivo `firebase-service-account.json` a José Meza (o generarlo de nuevo desde
+   Firebase Console → Project Settings → Service accounts → Generate new private key, si
+   tienes acceso al proyecto).
+2. Ponerlo en `apps/backend/firebase-service-account.json` — ya está en `.gitignore`
+   (`apps/backend/firebase-service-account.json` y `**/*-firebase-adminsdk-*.json`), nunca se
+   sube al repo.
+3. Agregar en `apps/backend/.env`:
+   ```
+   FIREBASE_SERVICE_ACCOUNT_PATH=firebase-service-account.json
+   ```
+
+**Por qué:** `push.service.ts` ya soportaba esto desde que se implementó FCM, pero nadie había
+configurado la credencial real en ningún ambiente — ni local ni Railway. Se generó el service
+account en Firebase Console y se configuró en ambos: local vía
+`FIREBASE_SERVICE_ACCOUNT_PATH` (archivo), Railway vía `FIREBASE_SERVICE_ACCOUNT_JSON`
+(variable con el JSON completo, porque Railway no permite subir archivos). Producción ya lo
+tiene — confirmado en los logs de Railway: `[PushService] Firebase inicializado:
+notificaciones push activas`. En local sigue habiendo que configurarlo a mano por persona,
+porque el archivo de credenciales nunca puede vivir en el repo.
+
+De paso quedó también resuelto **S.7** (alerta de caída a Discord): `DISCORD_ALERT_WEBHOOK_URL`
+estaba configurada hace tiempo en Railway pero nunca se había probado el flujo completo — se
+confirmó forzando `AlertsService.checkDatabaseHealth()` contra el webhook real (sin apagar la
+BD de producción) y llegó el mensaje al canal del equipo. No requiere ninguna acción de nadie,
+va acá solo para que quede registrado junto con el cambio de Firebase de la misma sesión.
+
+---
+
+## 2026-09-02 — Al cerrar sesión, la cuenta siguiente heredaba los datos de la anterior (rama `fix/limpiar-cache-al-cerrar-sesion-alex-dominguez`)
+
+### Confidencialidad: si probaste dos cuentas seguidas, viste datos ajenos
+
+**A quién le pega:** a todo el que pruebe el dashboard cambiando de cuenta, y a cualquier
+máquina compartida de la clínica.
+
+**Qué hacer:** nada, solo pullear. No hay comando ni dependencia nueva.
+
+**Qué pasaba:** `clearSession()` en `App.tsx` limpiaba el almacenamiento, los tokens y el
+estado de React, pero **no la caché de TanStack Query**, que vive en memoria y sobrevive al
+logout. Como **ninguna clave de caché lleva el id del usuario**, la cuenta siguiente heredaba
+lo de la anterior: `['patients']`, `['alerts','history']`, `['registration','pending']`,
+`['psychologists']`, `['family','sessions']`.
+
+Y era peor que un parpadeo: con `staleTime: 30_000` esos datos se consideraban **frescos**, así
+que los componentes ni siquiera volvían a pedirlos. Un psicólogo que entraba después de otro
+podía estar viendo la lista de pacientes ajena hasta medio minuto. Recargar con F5 lo tapaba,
+porque la caché es solo de memoria.
+
+**El arreglo:** una línea, `queryClient.clear()` dentro de `clearSession()`. Cubre las tres
+salidas: logout manual, sesión expirada y el corte por rol.
+
+**Lo que vas a notar:** al cerrar sesión y entrar con otra cuenta, ahora aparece brevemente el
+estado de carga en vez de la vista anterior. Eso es lo correcto, no un bug nuevo.
+
+**Para tener en cuenta al escribir queries nuevas:** las claves siguen sin llevar identidad. Si
+agregas una `useQuery` con datos de un usuario, considera incluir su id en la clave; hoy lo
+único que las separa es este `clear()`.
+
+---
+
+## 2026-09-02 — El portal del familiar suma calendario y sesiones obligatorias (rama `feature/HU-11-calendario-mis-sesiones-alex-dominguez`)
+
+### Corre `pnpm run seed:family` después de pullear
+
+**A quién le pega:** a quien levante el portal del familiar o toque el módulo `family`.
+
+**Qué hacer**, una vez, desde la raíz y con el backend ya reiniciado:
+
+```bash
+pnpm run seed:family
+```
+
+**Por qué:** `family_sessions` suma la columna `isMandatory`. TypeORM la crea sola al arrancar
+el backend (`synchronize`), así que no hay migración que correr, pero **el seed viejo no trae
+ninguna sesión obligatoria**: sin volver a sembrar, la funcionalidad nueva no se ve por
+ningún lado y parece que no estuviera hecha.
+
+Después del seed, `patricia.gomez@stopbet.cl` queda con 4 sesiones en vez de 3, y una de ellas
+es obligatoria.
+
+### Dos cambios visibles que podrías confundir con un bug
+
+- **"Mis sesiones" ya no es la lista de arriba.** El portal se partió en dos: *Próximas
+  sesiones* es la agenda de la sede, donde se responde, y *Mis sesiones* es un calendario
+  mensual con lo que le corresponde asistir al familiar. Sobre 1024px van lado a lado; abajo
+  de eso se apilan como antes.
+- **Las tarjetas ya no muestran los botones "Confirmar asistencia" y "No podré ir".** Ahora
+  todas usan el interruptor, con **tres** apariencias y no dos: sin responder va con borde
+  punteado y la perilla al medio, que no es lo mismo que un rechazo. Si ves una sesión "a
+  medio marcar", es eso y está bien.
+
+**Ojo si tocas `apps/web/src/services/api.ts`:** la interfaz `FamilySession` suma el campo
+`isMandatory`. Son 3 líneas en medio del archivo, no al final, así que puede chocar con tu rama.
+
+---
+
+## 2026-09-01 — `@nestjs/schedule` y `@nestjs/terminus` rompían **todos** los tests e2e (rama `fix/dependencias-nestjs-jose-meza`)
+
+### Hay que correr `pnpm install` después de pullear — y si `test:e2e` te fallaba entero, no era tu código
+
+**A quién le pega:** a todos los que corran `pnpm run test:e2e` o `pnpm test` en el backend.
+
+**Qué hacer**, una vez después de pullear, desde la raíz:
+
+```bash
+pnpm install
+```
+
+**Por qué:** `apps/backend/package.json` tenía `@nestjs/schedule@^6.1.3` y
+`@nestjs/terminus@^11.1.1` — ambas son versiones para NestJS 11, mientras que el resto del
+proyecto (`@nestjs/core`, `@nestjs/common`, etc.) está fijado en 10. Eso rompía la app
+**entera** al arrancar en modo test: `Nest can't resolve dependencies of the
+SchedulerMetadataAccessor (?) ... Reflector`. Como `AppModule` no levanta, **los 4 suites
+e2e fallaban completos (49/49 tests)**, sin relación con lo que cada uno haya tocado —  si te
+pasó, no busques el bug en tu código, era esto.
+
+Bajadas a `@nestjs/schedule@^4.1.2` y `@nestjs/terminus@^10.3.0` (compatibles con Nest 10).
+Además se agregó `pnpm.overrides` en el `package.json` de la raíz fijando
+`@nestjs/core`/`@nestjs/common` a `10.4.22`: sin eso, pnpm seguía resolviendo dos instancias
+físicas distintas de `@nestjs/core` en el árbol (una para el resto de la app, otra para
+`schedule`/`terminus`), y aunque ambas decían "10.4.22", Nest las trataba como clases
+distintas por referencia — el síntoma es el mismo error de `Reflector` incluso con las
+versiones ya corregidas. Si en el futuro alguien agrega una dependencia de NestJS y vuelve a
+pasar esto, revisen primero `pnpm why @nestjs/core` antes de sospechar del código.
+
+**Ojo si tu `.env` local apunta a Railway en vez de a tu Postgres local:** de paso se encontró
+un `apps/backend/.env` con `DATABASE_URL` apuntando a la base de **producción** de Railway y
+`NODE_ENV=production`. Si el tuyo también apunta ahí, tus tests e2e van a intentar crear y
+borrar usuarios contra la base real — revisa que tu `DATABASE_URL` sea
+`postgresql://postgres:password@localhost:5432/stopbet` y `NODE_ENV=development`, como dice
+`CLAUDE.md`. Si tu Postgres local no tiene esa contraseña, no hay que reinstalar nada: se
+resetea con `ALTER USER postgres WITH PASSWORD 'password';` desde `psql` (requiere editar
+`pg_hba.conf` a `trust` temporalmente si perdiste el acceso — pregúntenme si hace falta).
+
+---
+
+## 2026-09-01 — Dependencia nueva (`nodemailer`) y módulo `mail` ([PR #75](https://github.com/StopBet/StopBet/pull/75))
+
+### Corre `pnpm install` después de pullear
+
+**A quién le pega:** a todos. Se agregó `nodemailer` (+ `@types/nodemailer`) a
+`apps/backend`. Sin `pnpm install` el backend no compila y el error apunta a un import de
+`mail.service.ts`, que no es donde está el problema.
+
+**Qué hacer:** `pnpm install` en la raíz. Nada más.
+
+**Qué cambió:** al crear un psicólogo, el backend ahora **le envía las credenciales por
+correo** (CA24.1: "el sistema … le envía sus credenciales de acceso"). Antes solo se mostraban
+en pantalla para entrega a mano.
+
+**No necesitas configurar nada.** El correo es **opcional**: sin `SMTP_HOST` en tu `.env` el
+backend arranca igual, no manda nada, y la pantalla de Equipo sigue mostrando la contraseña
+temporal como siempre, avisando que la entregues tú. Si quieres probar el envío, hay un buzón
+falso local documentado en el `README.md` y en `apps/backend/.env.example`.
+
+**Ojo, esto sí se puede confundir con un bug:** el modal "Psicólogo creado" ahora **oculta la
+contraseña** cuando el correo salió bien; está detrás del enlace *"¿No le llegó? Ver la
+contraseña"*. Si el correo no sale, se muestra como antes.
+
+### Añadido 2026-09-02 — En Railway el correo NO va a funcionar, y no es un bug nuestro
+
+**Railway bloquea las conexiones SMTP salientes en los planes Free, Trial y Hobby** — puertos
+25, 465, 587 y 2525. Solo Pro y superiores las permiten, y el proyecto corre en Hobby.
+([Documentación de Railway](https://docs.railway.com/networking/outbound-networking).)
+
+**Verificado en producción**, no deducido: con las variables SMTP bien configuradas, el log del
+deploy da `ERROR [MailService] ... Connection timeout`, y el Network Log muestra el
+`POST /psychologists` tardando **10 s exactos** —el timeout del servicio— antes de responder
+`201`. La conexión a Gmail nunca llega a establecerse.
+
+**Qué significa para ti:** si pruebas crear un psicólogo **en la web de producción**, vas a ver
+el recuadro rojo *"No se pudo enviar el correo"* y una espera de varios segundos. **No lo
+reportes como bug ni lo intentes arreglar**: es una limitación del plan de la infraestructura.
+En local, con el buzón falso o con Gmail, funciona perfecto.
+
+**La salida** es cambiar a un proveedor con **API HTTPS** (Brevo o Resend), que no pasa por los
+puertos bloqueados — es lo que Railway mismo recomienda. Pendiente, no está hecho.
 
 ---
 
