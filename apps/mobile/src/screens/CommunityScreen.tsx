@@ -153,7 +153,7 @@ export function CommunityScreen({ navigation, route }: Props) {
   // ── Asistencia a eventos ───────────────────────────────────────────────
   const handleToggleAttendance = async (announcementId: string) => {
     try {
-      const { attends } = await api.toggleAttendance(TEMP_USER_ID, announcementId);
+      const { attends } = await withRetry(() => api.toggleAttendance(TEMP_USER_ID, announcementId));
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === announcementId ? { ...a, userAttends: attends } : a)),
       );
@@ -168,8 +168,8 @@ export function CommunityScreen({ navigation, route }: Props) {
     const reacting = !current?.userReacted;
     try {
       const { reactions } = reacting
-        ? await api.addReaction(TEMP_USER_ID, post.id, emoji)
-        : await api.removeReaction(TEMP_USER_ID, post.id, emoji);
+        ? await withRetry(() => api.addReaction(TEMP_USER_ID, post.id, emoji))
+        : await withRetry(() => api.removeReaction(TEMP_USER_ID, post.id, emoji));
       setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, reactions } : p)));
     } catch (err) {
       alertFailure('registrar tu reacción', err);
@@ -186,7 +186,7 @@ export function CommunityScreen({ navigation, route }: Props) {
     setPendingPost({ id: requestId, body });
     setPosting(true);
     try {
-      const created = await api.createForumPost(TEMP_USER_ID, TEMP_SEDE, body, requestId);
+      const created = await withRetry(() => api.createForumPost(TEMP_USER_ID, TEMP_SEDE, body, requestId));
       setPosts((prev) => [created, ...prev]);
       setDraft('');
       setPendingPost(null);
@@ -218,7 +218,7 @@ export function CommunityScreen({ navigation, route }: Props) {
     const requestId = pending?.body === body ? pending.id : newRequestId();
     setPendingReply((prev) => ({ ...prev, [postId]: { id: requestId, body } }));
     try {
-      const created = await api.createReply(TEMP_USER_ID, postId, body, requestId);
+      const created = await withRetry(() => api.createReply(TEMP_USER_ID, postId, body, requestId));
       // Si el envío anterior sí había llegado, el backend devuelve aquella misma
       // respuesta: se descarta el duplicado local en vez de mostrarla dos veces.
       setRepliesByPost((prev) => {
@@ -252,7 +252,7 @@ export function CommunityScreen({ navigation, route }: Props) {
     if (!reason || !reportPostId || reportSending) return;
     setReportSending(true);
     try {
-      await api.reportPost(TEMP_USER_ID, reportPostId, reason);
+      await withRetry(() => api.reportPost(TEMP_USER_ID, reportPostId, reason));
       // CA5.3: el backend ya deja de devolvérselo a quien reportó, pero
       // la pantalla carga una sola vez y el post seguía a la vista hasta
       // salir y volver. Se quita del feed apenas se confirma.
@@ -692,6 +692,30 @@ function PostCard({
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+// Android reutiliza conexiones de un pool. Si el servidor cerró una que quedó
+// ociosa y la app manda un POST justo por ahí, la petición llega y se procesa,
+// pero la respuesta se pierde: el cliente ve "Network request failed" con el
+// cambio ya hecho. OkHttp reintenta solo los GET —nunca un POST, porque no sabe
+// si es seguro repetirlo—, y por eso el feed carga bien y solo fallan las
+// escrituras.
+//
+// Verificado en la tablet: `curl` al mismo endpoint responde 200 en 0,5 s
+// mientras la app falla, y el reporte igual quedaba registrado.
+//
+// Reintentar es seguro porque estas escrituras ya son idempotentes: publicar y
+// responder van con `clientRequestId`, y reportar comprueba en el backend antes
+// de insertar.
+async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!isNetworkError(err)) throw err;
+    // Da tiempo a que el pool descarte la conexión muerta antes de reintentar.
+    await new Promise<void>((resolve) => setTimeout(() => resolve(), 600));
+    return fn();
+  }
+}
 
 // Identifica un envío para que el backend reconozca el reintento. No es
 // criptografía y no sale del par teléfono-servidor: solo tiene que ser
