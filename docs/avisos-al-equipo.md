@@ -20,6 +20,24 @@ está.
 
 ---
 
+## 2026-09-09 — `POST /panic/assign` ya exige token de psicólogo o coordinador (rama `fix/panic-assign-guard`, sin pushear todavía)
+
+**A quién le pega:** a **Matías Barraza** (dueño de `panic/**`) — cuidado al rebasear si tienes
+este módulo abierto en tu rama. Y a quien esté probando `/panic/assign` en Swagger o Postman.
+
+**Qué hacer:** nada que instalar. Si pruebas `POST /panic/assign`, ahora necesitas
+`Authorization: Bearer` de un psicólogo o coordinador: sin token da 401, con token de paciente
+o padrino da 403, y con un `patientId`/`sponsorId` que no exista, esté suspendido o tenga el
+rol equivocado da 400.
+
+**Por qué:** el endpoint no pedía ninguna identidad — ni token, ni siquiera el header
+`x-user-id`. Cualquiera con la URL podía reasignar el padrino de cualquier paciente. Matías
+Barraza no estaba disponible; lo cerró Matías Lara, autorizado como hallazgo de seguridad
+clínica (mismo criterio que la suspensión de psicólogos). Los demás endpoints de `panic` (los
+que usa mobile) siguen igual, solo con `x-user-id`.
+
+---
+
 ## 2026-09-03 — Aprobar una solicitud ya refresca el conteo de pacientes en Equipo (commit directo en `main`)
 
 **A quién le pega:** a **Eduardo**, porque toca `apps/web/src/DashboardApp.tsx`, que es suyo — si

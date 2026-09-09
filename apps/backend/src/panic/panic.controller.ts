@@ -38,10 +38,20 @@ export class PanicController {
     return this.service.getSponsorInfo(userId);
   }
 
+  // Reasigna el padrino de cualquier paciente. Sin guard, cualquiera con la URL
+  // podía dejar a un paciente en crisis apuntando a un padrino que no lo conoce.
+  // Ningún cliente lo consume todavía (verificado con grep en web y mobile), así
+  // que cerrarlo no rompe nada.
   @Post('assign')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('psychologist', 'coordinator')
+  @ApiBearerAuth()
   @HttpCode(204)
-  @ApiOperation({ summary: 'Asignar padrino a un paciente (psicólogo)' })
+  @ApiOperation({ summary: 'Asignar padrino a un paciente (psicólogo o coordinador)' })
   @ApiResponse({ status: 204, description: 'Asignación actualizada' })
+  @ApiResponse({ status: 400, description: 'El paciente o el padrino no existe, está inactivo o no tiene ese rol' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Rol sin permiso' })
   assignSponsor(@Body() dto: AssignSponsorDto) {
     return this.service.assignSponsor(dto);
   }

@@ -1,5 +1,9 @@
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { PanicController } from './panic.controller';
 import { PanicService } from './panic.service';
+import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
 
 // El controlador es una capa de delegación: no tiene lógica propia, pero sí
 // decide qué argumento de la petición recibe cada método del servicio. Estos
@@ -113,5 +117,35 @@ describe('PanicController', () => {
       communityNotified: true,
     });
     await expect(controller.cancelActive(PACIENTE)).resolves.toEqual({ cancelled: true });
+  });
+});
+
+// El guard de POST /panic/assign es la única barrera del endpoint: si alguien borra
+// el decorador en un rebase, el endpoint vuelve a quedar abierto a internet sin que
+// falle ningún otro test unitario.
+describe('POST /panic/assign — protección declarada', () => {
+  it('exige JwtAuthGuard y RolesGuard', () => {
+    const guards = Reflect.getMetadata(
+      GUARDS_METADATA,
+      PanicController.prototype.assignSponsor,
+    );
+    expect(guards).toEqual(expect.arrayContaining([JwtAuthGuard, RolesGuard]));
+  });
+
+  it('restringe a psychologist y coordinator', () => {
+    const roles = Reflect.getMetadata(
+      ROLES_KEY,
+      PanicController.prototype.assignSponsor,
+    );
+    expect(roles).toEqual(['psychologist', 'coordinator']);
+  });
+
+  it('no aplica guards a nivel de clase: los endpoints de mobile siguen sin token', () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, PanicController)).toBeUndefined();
+    for (const method of ['getSponsorInfo', 'createAlert', 'getActiveAlert', 'getPendingAlerts'] as const) {
+      expect(
+        Reflect.getMetadata(GUARDS_METADATA, PanicController.prototype[method]),
+      ).toBeUndefined();
+    }
   });
 });

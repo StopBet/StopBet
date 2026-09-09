@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { PanicService } from './panic.service';
 
 describe('PanicService', () => {
@@ -289,6 +289,14 @@ describe('PanicService', () => {
     });
 
     it('assignSponsor: desactiva la asignación anterior y crea la nueva activa', async () => {
+      userRepo.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.id === 'p1'
+            ? { id: 'p1', role: 'patient', accountStatus: 'active' }
+            : { id: 's2', role: 'sponsor', accountStatus: 'active' },
+        ),
+      );
+
       await service.assignSponsor({ patientId: 'p1', sponsorId: 's2' } as any);
 
       expect(assignmentRepo.update).toHaveBeenCalledWith(
@@ -298,6 +306,88 @@ describe('PanicService', () => {
       expect(assignmentRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ patientId: 'p1', sponsorId: 's2', isActive: true }),
       );
+    });
+
+    it('assignSponsor: rechaza si el paciente no existe', async () => {
+      userRepo.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.id === 'p1' ? null : { id: 's2', role: 'sponsor', accountStatus: 'active' },
+        ),
+      );
+
+      await expect(
+        service.assignSponsor({ patientId: 'p1', sponsorId: 's2' } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('assignSponsor: rechaza si el "paciente" tiene otro rol', async () => {
+      userRepo.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.id === 'p1'
+            ? { id: 'p1', role: 'sponsor', accountStatus: 'active' }
+            : { id: 's2', role: 'sponsor', accountStatus: 'active' },
+        ),
+      );
+
+      await expect(
+        service.assignSponsor({ patientId: 'p1', sponsorId: 's2' } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('assignSponsor: rechaza si el paciente está suspendido', async () => {
+      userRepo.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.id === 'p1'
+            ? { id: 'p1', role: 'patient', accountStatus: 'suspended' }
+            : { id: 's2', role: 'sponsor', accountStatus: 'active' },
+        ),
+      );
+
+      await expect(
+        service.assignSponsor({ patientId: 'p1', sponsorId: 's2' } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('assignSponsor: rechaza si el padrino no existe', async () => {
+      userRepo.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.id === 'p1' ? { id: 'p1', role: 'patient', accountStatus: 'active' } : null,
+        ),
+      );
+
+      await expect(
+        service.assignSponsor({ patientId: 'p1', sponsorId: 's2' } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('assignSponsor: rechaza si el "padrino" es un psicólogo', async () => {
+      userRepo.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.id === 'p1'
+            ? { id: 'p1', role: 'patient', accountStatus: 'active' }
+            : { id: 's2', role: 'psychologist', accountStatus: 'active' },
+        ),
+      );
+
+      await expect(
+        service.assignSponsor({ patientId: 'p1', sponsorId: 's2' } as any),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('assignSponsor: padrino suspendido no deja al paciente huérfano (no toca la asignación vigente)', async () => {
+      userRepo.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.id === 'p1'
+            ? { id: 'p1', role: 'patient', accountStatus: 'active' }
+            : { id: 's2', role: 'sponsor', accountStatus: 'suspended' },
+        ),
+      );
+
+      await expect(
+        service.assignSponsor({ patientId: 'p1', sponsorId: 's2' } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(assignmentRepo.update).not.toHaveBeenCalled();
+      expect(assignmentRepo.save).not.toHaveBeenCalled();
     });
 
     it('listHistory: mapea el historial con datos del paciente', async () => {

@@ -71,7 +71,7 @@ Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
 | `GET /panic/sponsor` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /panic/assign` | `psychologist`, `coordinator` | ❌ **Abierto — cualquiera reasigna el padrino de cualquier paciente** |
+| `POST /panic/assign` | `psychologist`, `coordinator` | ✅ Protegido |
 | `POST /panic/alerts` | `patient` (dueño) | ⚠️ Scoped por dueño |
 | `GET /panic/alerts/history` | `psychologist`, `coordinator` | ✅ Protegido |
 | `GET /panic/alerts/active` | `patient` o `sponsor` (dueño) | ⚠️ Scoped por dueño |
@@ -165,11 +165,15 @@ priorice:
 
 | Endpoint | Qué expone/permite | Módulo / dueño en este sprint |
 |---|---|---|
-| `POST /panic/assign` | Reasignar el padrino de cualquier paciente | `panic` — Matías Barraza |
 | `POST /community/announcements` | Crear anuncios oficiales de sede sin verificar rol | `community` — Catalina Yáñez |
 | `GET /community/posts/:id/replies` | Contenido del foro clínico, sin identidad | `community` — Catalina Yáñez |
 | `POST /subscriptions` | Activar la cuenta de cualquier paciente (`userId` en el body) | `subscriptions` — sin dueño asignado este sprint |
 | `POST /achievements/dev-set-days` | Puerta trasera de desarrollo, sin flag de entorno | `achievements` — sin dueño asignado este sprint |
+
+`POST /panic/assign` salió de esta lista el 2026-09-09: cerrado con
+`@Roles('psychologist','coordinator')` y probado con 401/403/400 reales en
+`test/panic-assign.e2e-spec.ts`. El dueño del módulo (Matías Barraza) no estaba disponible;
+lo autorizó Matías Lara.
 
 **De los propios de José:** `GET /users/patients`, `GET /users/:id/progress` y
 `GET /panic/alerts/history` estaban en esta lista — los tres protegidos, y probados con 403

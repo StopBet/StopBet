@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -11,6 +12,7 @@ import {
   PanicAlertDto,
   PanicAlertStatus,
   SponsorInfo,
+  UserRole,
 } from '@stopbet/shared-types';
 import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { PanicAlert } from './entities/panic-alert.entity';
@@ -74,6 +76,21 @@ export class PanicService {
   }
 
   async assignSponsor(dto: AssignSponsorDto): Promise<void> {
+    // El DTO solo garantiza que son UUID bien formados. Un id válido pero equivocado
+    // dejaba al paciente con un padrino inexistente o suspendido: la alerta de pánico
+    // se crea igual y no la recibe nadie. Se valida antes de tocar la BD para que un
+    // error no deje al paciente sin la asignación que ya tenía.
+    await this.assertActiveUserWithRole(
+      dto.patientId,
+      'patient',
+      'El paciente indicado no existe o no está activo',
+    );
+    await this.assertActiveUserWithRole(
+      dto.sponsorId,
+      'sponsor',
+      'El padrino indicado no existe, no está activo o no tiene rol de padrino',
+    );
+
     await this.assignmentRepo.update(
       { patientId: dto.patientId, isActive: true },
       { isActive: false },
@@ -85,6 +102,17 @@ export class PanicService {
         isActive: true,
       }),
     );
+  }
+
+  private async assertActiveUserWithRole(
+    id: string,
+    role: UserRole,
+    message: string,
+  ): Promise<void> {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user || user.role !== role || user.accountStatus !== 'active') {
+      throw new BadRequestException(message);
+    }
   }
 
   // ── Alertas ────────────────────────────────────────────────────────────
