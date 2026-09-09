@@ -51,6 +51,9 @@ const TYPE_STYLES: Record<string, { bg: string; border: string; iconColor: strin
 function timeAgo(createdAt: string): string {
   const diff = Date.now() - new Date(createdAt).getTime();
   const mins = Math.floor(diff / 60000);
+  // El reloj del teléfono puede ir atrasado respecto del servidor: sin esto una
+  // notificación recién creada muestra "Hace -3min".
+  if (mins < 1) return 'Ahora';
   if (mins < 60) return `Hace ${mins}min`;
   const hrs = Math.floor(mins / 60);
   if (hrs < 24) return `Hace ${hrs}h`;
