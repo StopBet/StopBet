@@ -390,6 +390,31 @@ describe('PanicService', () => {
       expect(assignmentRepo.save).not.toHaveBeenCalled();
     });
 
+    it('assignSponsor: acepta a otro paciente activo como padrino (estilo AA)', async () => {
+      userRepo.findOne.mockImplementation(({ where }: any) =>
+        Promise.resolve(
+          where.id === 'p1'
+            ? { id: 'p1', role: 'patient', accountStatus: 'active' }
+            : { id: 'p2', role: 'patient', accountStatus: 'active' },
+        ),
+      );
+
+      await service.assignSponsor({ patientId: 'p1', sponsorId: 'p2' } as any);
+
+      expect(assignmentRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ patientId: 'p1', sponsorId: 'p2', isActive: true }),
+      );
+    });
+
+    it('assignSponsor: rechaza que un paciente sea su propio padrino', async () => {
+      await expect(
+        service.assignSponsor({ patientId: 'p1', sponsorId: 'p1' } as any),
+      ).rejects.toThrow(BadRequestException);
+      expect(userRepo.findOne).not.toHaveBeenCalled();
+      expect(assignmentRepo.update).not.toHaveBeenCalled();
+      expect(assignmentRepo.save).not.toHaveBeenCalled();
+    });
+
     it('listHistory: mapea el historial con datos del paciente', async () => {
       alertRepo.find.mockResolvedValue([
         {

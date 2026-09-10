@@ -75,20 +75,29 @@ export class PanicService {
     return assignment ? this.serializeSponsor(assignment.sponsor) : null;
   }
 
+  // Roles que pueden actuar como padrino: un paciente puede apadrinar a otro
+  // (estilo AA — el padrino no deja de ser paciente por serlo, solo se crea esta
+  // fila) o, si en el futuro se da de alta, una cuenta dedicada de padrino externo.
+  private static readonly SPONSOR_ELIGIBLE_ROLES: UserRole[] = ['patient', 'sponsor'];
+
   async assignSponsor(dto: AssignSponsorDto): Promise<void> {
+    if (dto.patientId === dto.sponsorId) {
+      throw new BadRequestException('Un paciente no puede ser su propio padrino');
+    }
+
     // El DTO solo garantiza que son UUID bien formados. Un id válido pero equivocado
     // dejaba al paciente con un padrino inexistente o suspendido: la alerta de pánico
     // se crea igual y no la recibe nadie. Se valida antes de tocar la BD para que un
     // error no deje al paciente sin la asignación que ya tenía.
     await this.assertActiveUserWithRole(
       dto.patientId,
-      'patient',
+      ['patient'],
       'El paciente indicado no existe o no está activo',
     );
     await this.assertActiveUserWithRole(
       dto.sponsorId,
-      'sponsor',
-      'El padrino indicado no existe, no está activo o no tiene rol de padrino',
+      PanicService.SPONSOR_ELIGIBLE_ROLES,
+      'El padrino indicado no existe, no está activo, o no puede ser padrino',
     );
 
     await this.assignmentRepo.update(
@@ -106,11 +115,11 @@ export class PanicService {
 
   private async assertActiveUserWithRole(
     id: string,
-    role: UserRole,
+    roles: UserRole[],
     message: string,
   ): Promise<void> {
     const user = await this.userRepo.findOne({ where: { id } });
-    if (!user || user.role !== role || user.accountStatus !== 'active') {
+    if (!user || !roles.includes(user.role) || user.accountStatus !== 'active') {
       throw new BadRequestException(message);
     }
   }

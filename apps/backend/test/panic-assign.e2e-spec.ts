@@ -24,6 +24,7 @@ describe('POST /panic/assign (e2e)', () => {
 
   let patientId: string;
   let sponsorId: string;
+  let secondPatientId: string;
   let psychologistId: string;
   let coordinatorId: string;
   let suspendedSponsorId: string;
@@ -71,6 +72,19 @@ describe('POST /panic/assign (e2e)', () => {
     );
     sponsorId = sponsor.id;
 
+    // Padrino "estilo AA": otro paciente, no una cuenta dedicada de padrino.
+    const secondPatient = await userRepo.save(
+      userRepo.create({
+        email: `e2e-panic-patient2-${unique()}@stopbet.cl`,
+        passwordHash,
+        role: 'patient',
+        firstName: 'E2E',
+        lastName: 'SecondPatient',
+        accountStatus: 'active',
+      }),
+    );
+    secondPatientId = secondPatient.id;
+
     const psychologist = await userRepo.save(
       userRepo.create({
         email: `e2e-panic-psych-${unique()}@stopbet.cl`,
@@ -110,7 +124,7 @@ describe('POST /panic/assign (e2e)', () => {
 
   afterAll(async () => {
     await sponsorAssignmentRepo.delete({ patientId });
-    for (const id of [patientId, sponsorId, psychologistId, coordinatorId, suspendedSponsorId]) {
+    for (const id of [patientId, sponsorId, secondPatientId, psychologistId, coordinatorId, suspendedSponsorId]) {
       await refreshTokenRepo.delete({ userId: id });
       await userRepo.delete({ id });
     }
@@ -246,6 +260,23 @@ describe('POST /panic/assign (e2e)', () => {
         .post('/panic/assign')
         .set('Authorization', `Bearer ${psychToken}`)
         .send(validBody({ sponsorId: suspendedSponsorId }))
+        .expect(400);
+    });
+
+    // El caso real de AA: el padrino es otro paciente, no una cuenta dedicada.
+    it('sponsorId de otro paciente activo (estilo AA) → 204', async () => {
+      await request(app.getHttpServer())
+        .post('/panic/assign')
+        .set('Authorization', `Bearer ${psychToken}`)
+        .send(validBody({ sponsorId: secondPatientId }))
+        .expect(204);
+    });
+
+    it('patientId igual a sponsorId (auto-asignación) → 400', async () => {
+      await request(app.getHttpServer())
+        .post('/panic/assign')
+        .set('Authorization', `Bearer ${psychToken}`)
+        .send(validBody({ patientId, sponsorId: patientId }))
         .expect(400);
     });
   });
