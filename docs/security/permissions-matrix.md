@@ -128,7 +128,7 @@ Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, 
 |---|---|---|
 | `GET /achievements` | `patient` (dueño) | ⚠️ Scoped por dueño |
 | `POST /achievements/relapse` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /achievements/dev-set-days` | Ninguno — es una puerta trasera de desarrollo | ❌ **Abierto en el build de producción, sin flag de entorno** |
+| `POST /achievements/dev-set-days` | Ninguno — es una puerta trasera de desarrollo | ✅ Cerrado tras DEV_TOOLS_ENABLED |
 | `POST /achievements/badges/:milestone/share` | `patient` (dueño) | ⚠️ Scoped por dueño |
 
 ## `notifications` — `/notifications`
@@ -167,7 +167,6 @@ priorice:
 |---|---|---|
 | `GET /community/posts/:id/replies` | Contenido del foro clínico, sin identidad | `community` — Catalina Yáñez |
 | `POST /subscriptions` | Activar la cuenta de cualquier paciente (`userId` en el body) | `subscriptions` — sin dueño asignado este sprint |
-| `POST /achievements/dev-set-days` | Puerta trasera de desarrollo, sin flag de entorno | `achievements` — sin dueño asignado este sprint |
 
 `POST /panic/assign` salió de esta lista el 2026-09-09: cerrado con
 `@Roles('psychologist','coordinator')` y probado con 401/403/400 reales en
@@ -178,6 +177,12 @@ lo autorizó Matías Lara.
 `@Roles('psychologist','coordinator')` y el autor pasó a salir del token (`@CurrentUser()`),
 probado con 401/403/400 reales en `test/community-announcements.e2e-spec.ts`. La dueña del
 módulo (Catalina Yáñez) no estaba disponible; lo autorizó Matías Lara.
+
+`POST /achievements/dev-set-days` salió de esta lista el 2026-09-10: cerrado detrás de un flag
+de entorno propio, `DEV_TOOLS_ENABLED` (no `NODE_ENV`: Railway lo corre en `development` a
+propósito para que `synchronize` cree el esquema sin migraciones), probado en
+`test/achievements-dev-endpoint.e2e-spec.ts`. Sin dueño asignado este sprint; lo autorizó
+Matías Lara, mismo criterio que el resto de esta lista.
 
 **De los propios de José:** `GET /users/patients`, `GET /users/:id/progress` y
 `GET /panic/alerts/history` estaban en esta lista — los tres protegidos, y probados con 403

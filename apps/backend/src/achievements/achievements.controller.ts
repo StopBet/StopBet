@@ -7,10 +7,12 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { IsOptional, IsString } from 'class-validator';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AchievementsService } from './achievements.service';
+import { DevToolsGuard } from '../common/guards/dev-tools.guard';
 
 class RelapseBodyDto {
   @IsOptional()
@@ -49,9 +51,11 @@ export class AchievementsController {
   }
 
   @Post('dev-set-days')
+  @UseGuards(DevToolsGuard)
   @HttpCode(200)
   @ApiOperation({ summary: '[Dev] Sobreescribe los días de abstinencia del período actual' })
   @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario' })
+  @ApiResponse({ status: 403, description: 'Requiere DEV_TOOLS_ENABLED=true en el entorno' })
   devSetDays(
     @Headers('x-user-id') userId: string,
     @Body() body: DevSetDaysDto,

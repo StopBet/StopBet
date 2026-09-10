@@ -20,6 +20,36 @@ está.
 
 ---
 
+## 2026-09-10 — `POST /community/announcements` exige token, y `POST /achievements/dev-set-days` quedó detrás de un flag (rama `fix/cerrar-endpoints-sin-guard-matias-lara`, sin pushear todavía)
+
+**A quién le pega:** a **Catalina Yáñez** (dueña de `community/**`) — cuidado al rebasear si
+tienes este módulo abierto en tu rama. A quien tenga `achievements` abierto en una rama propia.
+Y a cualquiera que pruebe estos endpoints en Swagger o Postman.
+
+**Qué hacer:**
+- `POST /community/announcements` ahora necesita `Authorization: Bearer` de un psicólogo o
+  coordinador: sin token da 401, con token de paciente o padrino da 403. El autor del anuncio
+  ya no sale de `x-user-id`, sale del token. Los demás endpoints de `community` (los que usa
+  mobile) siguen igual, solo con `x-user-id`.
+- Para usar la herramienta "Días sin apostar" del panel de pruebas de mobile en local, agrega
+  `DEV_TOOLS_ENABLED=true` al `.env` del backend. Sin eso, ese botón responde 403.
+
+**Consecuencia visible que NO es un bug:** contra Railway, el botón "Días sin apostar" va a
+mostrar "Error al sincronizar con el servidor", porque allá esa variable no está definida a
+propósito. El contador local de la app (`devFlags`) sigue funcionando en pantalla; lo que ya no
+se sincroniza es el servidor. Arreglar el botón (esconderlo tras `__DEV__`) queda pendiente
+para el dueño de `ProfileScreen.tsx`.
+
+**Por qué:** ninguno de los dos endpoints pedía identidad verificable. `community/announcements`
+firmaba el anuncio con el `x-user-id` que mandara el cliente, sin verificar nada — cualquiera
+con la URL publicaba un anuncio oficial de sede como quien quisiera. `achievements/dev-set-days`
+es una puerta trasera de desarrollo que quedó viva en producción. Ninguno de los dueños
+(Catalina en `community`; `achievements` sin dueño este sprint) estaba disponible; lo cerró
+Matías Lara, autorizado como hallazgo de seguridad clínica (mismo criterio que
+`POST /panic/assign` el 2026-09-09).
+
+---
+
 ## 2026-09-09 — `POST /panic/assign` ya exige token de psicólogo o coordinador (rama `fix/panic-assign-guard`, sin pushear todavía)
 
 **A quién le pega:** a **Matías Barraza** (dueño de `panic/**`) — cuidado al rebasear si tienes
