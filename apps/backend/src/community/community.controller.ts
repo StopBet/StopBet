@@ -9,8 +9,10 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiHeader,
   ApiOperation,
   ApiParam,
@@ -18,13 +20,17 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { ReactionEmoji } from '@stopbet/shared-types';
+import { AuthUser, ReactionEmoji } from '@stopbet/shared-types';
 import { CommunityService } from './community.service';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
 import { ReportPostDto } from './dto/report-post.dto';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @ApiTags('community')
 @Controller('community')
@@ -45,16 +51,24 @@ export class CommunityController {
     return this.service.findAnnouncements(sede, userId);
   }
 
+  // Sin guard, cualquiera con la URL podía publicar un anuncio oficial de sede
+  // firmado como cualquier usuario: el autor salía de x-user-id, que nadie verifica.
+  // Ningún cliente lo consume (verificado con grep en web y mobile), así que el autor
+  // puede pasar a salir del token sin romper nada.
   @Post('announcements')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('psychologist', 'coordinator')
+  @ApiBearerAuth()
   @HttpCode(201)
-  @ApiOperation({ summary: 'Crea un anuncio (psicólogo o admin)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del autor' })
+  @ApiOperation({ summary: 'Crea un anuncio de sede (psicólogo o coordinador)' })
   @ApiResponse({ status: 201, description: 'Anuncio creado' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Rol sin permiso' })
   createAnnouncement(
-    @Headers('x-user-id') authorId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreateAnnouncementDto,
   ) {
-    return this.service.createAnnouncement(dto, authorId);
+    return this.service.createAnnouncement(dto, user.id);
   }
 
   @Post('announcements/:id/attend')
