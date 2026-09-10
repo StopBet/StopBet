@@ -50,7 +50,10 @@ Matías Lara, autorizado como hallazgo de seguridad clínica (mismo criterio que
 
 ---
 
-## 2026-09-09 — `POST /panic/assign` ya exige token de psicólogo o coordinador (rama `fix/panic-assign-guard`, sin pushear todavía)
+## 2026-09-09 — `POST /panic/assign` ya exige token de psicólogo o coordinador (rama `fix/cerrar-endpoints-sin-guard-matias-lara`, sin pushear todavía)
+
+> La rama se llamaba `fix/panic-assign-guard` cuando se escribió esta entrada. Se renombró el
+> 2026-09-10, al sumarle los otros dos endpoints — ver la entrada de arriba.
 
 **A quién le pega:** a **Matías Barraza** (dueño de `panic/**`) — cuidado al rebasear si tienes
 este módulo abierto en tu rama. Y a quien esté probando `/panic/assign` en Swagger o Postman.

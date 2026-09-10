@@ -301,6 +301,11 @@ SMTP_USER=...
 SMTP_PASSWORD=...
 MAIL_FROM=StopBet <no-reply@...>
 WEB_APP_URL=http://localhost:5173
+
+# Opcional, solo local — habilita POST /achievements/dev-set-days, que usa el panel
+# "Herramientas de prueba" de mobile. Sin ella ese endpoint responde 403.
+# Nunca definir en Railway: es una puerta trasera de desarrollo.
+DEV_TOOLS_ENABLED=true
 ```
 
 > Para probar el correo en local sin cuenta de ningún proveedor, hay un buzón falso

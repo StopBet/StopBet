@@ -112,6 +112,21 @@ GEMINI_API_KEY=tu_api_key_de_google_ai_studio
 
 > Obtén tu `GEMINI_API_KEY` gratis en [Google AI Studio](https://aistudio.google.com). Es **opcional**: si la dejas vacía el backend levanta igual y el chatbot responde con mensajes de fallback.
 
+> **`DEV_TOOLS_ENABLED` es opcional y solo para local.** Habilita
+> `POST /achievements/dev-set-days`, que es lo que usa el panel "Herramientas de prueba" de la
+> app para forzar los días sin apostar. Sin ella ese endpoint responde **403** y el botón
+> "Días sin apostar" muestra "Error al sincronizar con el servidor" — eso es lo esperado, no
+> un bug. Ponla en `true` solo si vas a usar esa herramienta:
+>
+> ```env
+> DEV_TOOLS_ENABLED=true
+> ```
+>
+> **Nunca se define en Railway**: es una puerta trasera de desarrollo y allá tiene que estar
+> cerrada. No se gatea con `NODE_ENV` porque el backend de Railway corre a propósito con
+> `NODE_ENV=development`, para que TypeORM cree el esquema con `synchronize` mientras no haya
+> migraciones.
+
 > **El correo es opcional.** Solo se usa para enviarle las credenciales a un psicólogo recién
 > creado (CA24.1). Sin configurar nada el backend arranca igual, no envía, y la pantalla de
 > Equipo avisa que hay que entregar la contraseña a mano.
