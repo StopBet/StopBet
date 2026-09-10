@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-10 — `POST /community/announcements` exige token, y `POST /achievements/dev-set-days` quedó detrás de un flag (rama `fix/cerrar-endpoints-sin-guard-matias-lara`, sin pushear todavía)
+## 2026-09-10 — `POST /community/announcements` exige token, y `POST /achievements/dev-set-days` quedó detrás de un flag (rama `fix/cerrar-endpoints-sin-guard-matias-lara`, pusheada y **sin PR todavía**)
 
 **A quién le pega:** a **Catalina Yáñez** (dueña de `community/**`) — cuidado al rebasear si
 tienes este módulo abierto en tu rama. A quien tenga `achievements` abierto en una rama propia.
@@ -50,7 +50,7 @@ Matías Lara, autorizado como hallazgo de seguridad clínica (mismo criterio que
 
 ---
 
-## 2026-09-09 — `POST /panic/assign` ya exige token de psicólogo o coordinador (rama `fix/cerrar-endpoints-sin-guard-matias-lara`, sin pushear todavía)
+## 2026-09-09 — `POST /panic/assign` ya exige token de psicólogo o coordinador (rama `fix/cerrar-endpoints-sin-guard-matias-lara`, pusheada y **sin PR todavía**)
 
 > La rama se llamaba `fix/panic-assign-guard` cuando se escribió esta entrada. Se renombró el
 > 2026-09-10, al sumarle los otros dos endpoints — ver la entrada de arriba.
