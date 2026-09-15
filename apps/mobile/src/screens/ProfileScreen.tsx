@@ -28,7 +28,7 @@ import {
   saveReminderChoice,
   type ThemePreference,
 } from '../services/offlineStore';
-import { AuthContext, useUserId } from '../context/AuthContext';
+import { AuthContext, useCurrentUser, useUserId } from '../context/AuthContext';
 import { Touchable } from '../components/Touchable';
 import { useDialog } from '../context/DialogContext';
 
@@ -47,6 +47,7 @@ export function ProfileScreen({ navigation }: Props) {
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const { preference, setPreference } = useTheme();
+  const user = useCurrentUser();
   const { signOut } = useContext(AuthContext);
   const [offline, setOffline] = useState(devFlags.simulateOffline);
   const [communityMuted, setCommunityMuted] = useState(false);
@@ -190,13 +191,22 @@ export function ProfileScreen({ navigation }: Props) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* El nombre y la inicial estaban escritos a mano: Perfil decía "Carlos" con
+            cualquier cuenta. Y "Paciente AJUTER" ponía al cliente donde va el dato del
+            paciente: su sede. */}
         <View style={styles.avatarCard}>
           <View style={styles.avatarCircle} importantForAccessibility="no-hide-descendants">
-            <Text style={styles.avatarLetter}>C</Text>
+            <Text style={styles.avatarLetter}>
+              {(user?.firstName ?? '?').charAt(0).toUpperCase()}
+            </Text>
           </View>
           <View style={styles.avatarText}>
-            <Text style={styles.userName}>Carlos</Text>
-            <Text style={styles.userSub}>Paciente AJUTER</Text>
+            <Text style={styles.userName}>
+              {[user?.firstName, user?.lastName].filter(Boolean).join(' ')}
+            </Text>
+            <Text style={styles.userSub}>
+              {user?.sedeId ? `Paciente · Sede ${user.sedeId}` : 'Paciente'}
+            </Text>
           </View>
         </View>
 
@@ -491,7 +501,7 @@ const THEME_OPTIONS: { id: ThemePreference; icon: IconName; label: string; hint:
 
 const UPCOMING_ITEMS: { icon: IconName; label: string; sub: string }[] = [
   { icon: 'user',     label: 'Datos personales', sub: 'Nombre, RUT y contacto' },
-  { icon: 'hospital', label: 'Mi sede AJUTER',   sub: 'Tu centro de tratamiento' },
+  { icon: 'hospital', label: 'Mi sede',         sub: 'Tu centro de tratamiento' },
   { icon: 'lock',     label: 'Privacidad',       sub: 'Tus datos y permisos' },
   // Va acá y no como algo usable a propósito: la pasarela la define el cliente y
   // todavía no hay reunión, y falta decidir si paga el propio paciente o el

@@ -410,7 +410,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                 <EmptyState
                   iconName="megaphone"
                   title="Sin anuncios"
-                  text="Aquí verás los avisos y eventos de tu sede AJUTER."
+                  text="Acá verás los avisos y eventos de tu sede."
                 />
               ) : (
                 announcements.map((a) => (

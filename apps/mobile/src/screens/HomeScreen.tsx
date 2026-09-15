@@ -136,7 +136,7 @@ export function HomeScreen({ navigation }: Props) {
         acknowledgePendingRelapse();
         showDialog({
           title: 'Recaída registrada por tu psicólogo',
-          message: 'Tu psicólogo registró una recaída en tu historial y el contador comenzó de nuevo. Tu equipo AJUTER está acá para acompañarte.',
+          message: 'Tu psicólogo registró una recaída en tu historial y el contador comenzó de nuevo. Tu equipo clínico está acá para acompañarte.',
           actions: [
             { label: 'Ver mis logros', onPress: () => navigation.navigate('Achievements') },
             { label: 'Cerrar', tone: 'cancel' },

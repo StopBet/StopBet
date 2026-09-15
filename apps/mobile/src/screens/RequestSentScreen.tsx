@@ -28,8 +28,8 @@ interface TimelineItem {
 
 const TIMELINE: TimelineItem[] = [
   { state: 'done',    title: 'Registro completado' },
-  { state: 'current', title: 'Revisión por psicólogo de AJUTER', meta: 'En revisión · Plazo estimado: 24-48 horas' },
-  { state: 'todo',    title: 'Pago de la mensualidad', meta: 'Lo coordinas con tu sede AJUTER' },
+  { state: 'current', title: 'Revisión de tu psicólogo', meta: 'En revisión · Plazo estimado: 24-48 horas' },
+  { state: 'todo',    title: 'Pago de la mensualidad', meta: 'Lo coordinas con tu sede' },
   { state: 'todo',    title: 'Acceso completo activado' },
 ];
 

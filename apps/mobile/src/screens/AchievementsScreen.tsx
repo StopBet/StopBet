@@ -148,7 +148,7 @@ export function AchievementsScreen({ navigation }: Props) {
         shownMilestones.clear();
         setIsExternalRelapse(true);
         setRelapseMessage(
-          'Tu contador ha sido reiniciado. Recuerda que cada ciclo es parte de tu recuperación — tu equipo AJUTER está aquí para apoyarte en este proceso.',
+          'Tu contador ha sido reiniciado. Recuerda que cada ciclo es parte de tu recuperación — tu equipo clínico está acá para apoyarte en este proceso.',
         );
         setRelapseModal(true);
       } else if (result.newestMilestone && !shownMilestones.has(result.newestMilestone)) {

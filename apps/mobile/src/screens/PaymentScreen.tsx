@@ -35,7 +35,7 @@ const PLAN_FEATURES = [
   'Asistente virtual IA 24/7',
   'Botón de pánico y red de padrinos',
   'Seguimiento de logros y progreso',
-  'Comunidad de tu sede AJUTER',
+  'Comunidad de tu sede',
   'Sesiones de seguimiento con psicólogo',
 ];
 
@@ -59,7 +59,7 @@ export function PaymentScreen({ navigation, route }: Props) {
       // por correo. Así que el paso siguiente honesto es el login.
       showDialog({
         title: 'Cuenta activada',
-        message: 'Entra con las credenciales que te enviará AJUTER por correo. El cobro del plan se coordina con tu sede.',
+        message: 'Entra con las credenciales que te enviará tu sede por correo. El cobro del plan se coordina con ella.',
         actions: [{ label: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') }],
       });
     } catch {
@@ -88,9 +88,9 @@ export function PaymentScreen({ navigation, route }: Props) {
         {/* Tarjeta del plan */}
         <View style={styles.planCard}>
           <View style={styles.planLogo}>
-            <Text style={styles.planLogoText}>AJUTER</Text>
+            <Text style={styles.planLogoText}>StopBet</Text>
           </View>
-          <Text style={styles.planName}>Plan mensual StopBet × AJUTER</Text>
+          <Text style={styles.planName}>Plan mensual StopBet</Text>
           <View style={styles.planPrice}>
             <Text style={styles.planAmt}>$30.000</Text>
             <Text style={styles.planPer}>/mes</Text>
@@ -103,7 +103,7 @@ export function PaymentScreen({ navigation, route }: Props) {
             </View>
           ))}
           <Text style={styles.planRenew}>
-            El cobro se renueva automáticamente cada mes. Puedes cancelar contactando a AJUTER.
+            El cobro se renueva automáticamente cada mes. Puedes cancelar contactando a tu sede.
           </Text>
         </View>
 
@@ -136,7 +136,7 @@ export function PaymentScreen({ navigation, route }: Props) {
         <View style={styles.secureNote}>
           <Icon name="lock" size={14} color={c.fg2} />
           <Text style={styles.secureText}>
-            La app no pide datos de tarjeta: el cobro se coordina con tu sede AJUTER.
+            La app no pide datos de tarjeta: el cobro se coordina con tu sede.
           </Text>
         </View>
       </ScrollView>

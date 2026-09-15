@@ -135,7 +135,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
               <Text style={styles.planTitle}>Antes de empezar</Text>
             </View>
             <Text style={styles.planBody}>
-              El plan de StopBet con AJUTER cuesta{' '}
+              El plan de StopBet cuesta{' '}
               <Text style={styles.planAmount}>$30.000 al mes</Text>. Primero un psicólogo revisa
               tu solicitud (24 a 48 horas) y el pago se coordina después con tu sede: registrarte
               no te cobra nada.
@@ -187,7 +187,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
               hint="Opcional. Sirve para sugerirte la sede más cercana." />
           </View>
           <FormInput
-            label="¿Cómo conociste AJUTER?"
+            label="¿Cómo nos conociste?"
             value={referralSource}
             onChangeText={setReferralSource}
             leadingIcon="search"
@@ -218,7 +218,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
         {/* accessible={false}: si no, TalkBack agrupa toda la hoja en un solo elemento y no llega a las opciones */}
         <Pressable style={styles.backdrop} onPress={() => setShowReferral(false)} accessible={false}>
           <Pressable style={styles.sheet} accessible={false}>
-            <Text style={styles.sheetTitle}>¿Cómo conociste AJUTER?</Text>
+            <Text style={styles.sheetTitle}>¿Cómo nos conociste?</Text>
             {REFERRAL_OPTIONS.map(opt => (
               <Touchable key={opt} style={styles.sheetRow} activeOpacity={0.7}
                 accessibilityRole="radio"
