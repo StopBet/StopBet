@@ -12,7 +12,7 @@
 |---|---|
 | Salud técnica (impeccable, auditoría nativa) | **6/20** · Pobre, requiere trabajo mayor |
 | Heurísticas de Nielsen (impeccable, crítica) | **21/40** · Aceptable, mejoras importantes |
-| Hallazgos | **73** · 3 P0 · 18 P1 · 39 P2 · 13 P3 |
+| Hallazgos | **75** · 3 P0 · 18 P1 · 41 P2 · 13 P3 _(SUS-07 y PAN-11 se sumaron el 15-09 al verificar los arreglos)_ |
 
 Gravedad: **P0** bloquea o pone en riesgo al paciente · **P1** arreglar antes de lanzar · **P2** próxima pasada · **P3** pulido.
 
@@ -68,6 +68,8 @@ Gravedad: **P0** bloquea o pone en riesgo al paciente · **P1** arreglar antes d
 ## Lista de arreglos
 
 Para ir marcando. El detalle de cada punto está en la sección siguiente, por pantalla.
+
+`[x]` resuelto · `[~]` mitigado en la app, pero queda una decisión o una validación fuera del código · `[ ]` pendiente.
 
 ### P0 · bloqueante (3)
 
@@ -128,15 +130,15 @@ Para ir marcando. El detalle de cada punto está en la sección siguiente, por p
   - La fila "Notificaciones" pasó a PER-04.
 
   Verificado en emulador.
-- [ ] **ACC-01** · «¿Olvidaste tu contraseña?» e «Iniciar con huella digital» no hacen nada. **Arreglo:** ocultarlos hasta que existan. _(auth · José Meza)_
-- [ ] **PAG-01** · Formulario de tarjeta que no se usa, en una pantalla a la que nadie llega. **Arreglo:** pasarela real con redirección (Webpay) o retirar la pantalla y el paso "Pago". _(billing · sin dueño en Sprint 1)_
-- [ ] **PAG-02** · Después de pagar, vuelve a la bienvenida sin sesión. **Arreglo:** entrar a la app. _(billing · sin dueño en Sprint 1)_
-- [ ] **SUS-01** · Un familiar inventado para todos. **Arreglo:** el familiar vinculado real (HdU11) o ninguno. _(billing · sin dueño en Sprint 1)_
-- [ ] **SUS-02** · Deuda inventada si falla la carga. **Arreglo:** estado de carga/error, nunca cifras de relleno. _(billing · sin dueño en Sprint 1)_
-- [ ] **SUS-03** · Se comparte un enlace de pago roto. **Arreglo:** bloquear "Compartir" hasta tener enlace real. _(billing · sin dueño en Sprint 1)_
-- [ ] **SUS-04** · «Pagar ahora» cobra sin confirmar y falla en silencio. **Arreglo:** confirmación con monto y método, y error visible. _(billing · sin dueño en Sprint 1)_
+- [x] **ACC-01** · «¿Olvidaste tu contraseña?» e «Iniciar con huella digital» no hacen nada. **Arreglo:** ocultarlos hasta que existan. _(auth · José Meza)_ — **Resuelto en local 15-09:** el botón de huella se quitó (no existe el acceso biométrico) y «¿Olvidaste tu contraseña?» abre el correo a `soporte@stopbet.cl`, que es la única vía real mientras no exista recuperación de clave. Verificado en emulador: ya no hay controles muertos en el login.
+- [~] **PAG-01** · Formulario de tarjeta que no se usa, en una pantalla a la que nadie llega. **Arreglo:** pasarela real con redirección (Webpay) o retirar la pantalla y el paso "Pago". _(billing · sin dueño en Sprint 1)_ — **Mitigado en local 15-09:** se quitaron los campos de tarjeta (número, vencimiento, CVV, nombre), que se pedían y nunca se enviaban a ninguna parte, y la nota «Pago seguro · TLS 1.2+» se reemplazó por la verdad: la app no pide datos de tarjeta y el cobro se coordina con la sede. **Queda pendiente la decisión de producto:** o pasarela real, o retirar la pantalla y el paso "Pago".
+- [x] **PAG-02** · Después de pagar, vuelve a la bienvenida sin sesión. **Arreglo:** entrar a la app. _(billing · sin dueño en Sprint 1)_ — **Resuelto en local 15-09:** el botón del aviso llama a `signIn()` de `AuthContext` en vez de `navigation.navigate('Welcome')`, y el texto ya no afirma que el pago se procesó. Sin verificar en dispositivo porque ningún flujo llega todavía a esta pantalla (ver REG y PAG-01).
+- [x] **SUS-01** · Un familiar inventado para todos. **Arreglo:** el familiar vinculado real (HdU11) o ninguno. _(billing · sin dueño en Sprint 1)_ — **Resuelto en local 15-09:** se quitó la fila «Patricia Soto · Madre · familiar de apoyo», que era la misma para cualquier paciente. La hoja muestra solo el enlace real. Verificado en emulador.
+- [x] **SUS-02** · Deuda inventada si falla la carga. **Arreglo:** estado de carga/error, nunca cifras de relleno. _(billing · sin dueño en Sprint 1)_ — **Resuelto en local 15-09:** fuera los `?? 3` y `?? 0`; la tarjeta tiene estado de carga, estado de error con «Reintentar», y el botón de pagar queda deshabilitado mientras no haya datos reales. Verificado en emulador con 3 facturas vencidas: muestra los meses reales y $90.000.
+- [x] **SUS-03** · Se comparte un enlace de pago roto. **Arreglo:** bloquear "Compartir" hasta tener enlace real. _(billing · sin dueño en Sprint 1)_ — **Resuelto en local 15-09:** si `GET /billing/family-link` falla ya no se rellena con `stopbet.cl/pago/...`; la hoja avisa que no se pudo generar y «Compartir enlace de pago» queda deshabilitado. Verificado en emulador con el enlace real.
+- [x] **SUS-04** · «Pagar ahora» cobra sin confirmar y falla en silencio. **Arreglo:** confirmación con monto y método, y error visible. _(billing · sin dueño en Sprint 1)_ — **Resuelto en local 15-09:** confirmación previa con el monto exacto («Vas a registrar el pago de $90.000…») y un error visible con `accessibilityLiveRegion` cuando falla. Verificado en emulador cortando el backend: sale «No pudimos registrar el pago. No se cobró nada; inténtalo de nuevo» donde antes no pasaba nada.
 
-### P2 · próxima pasada (39)
+### P2 · próxima pasada (41)
 
 - [ ] **AND-02** · Los diálogos del sistema no llevan la marca y se ponen oscuros. **Arreglo:** fijar `colorPrimary`/`colorAccent` de marca y un tema claro fijo (o soportar oscuro de verdad, ver SIS-07). _(Tech Leader · config nativa)_
 - [ ] **SIS-05** · Avisos de sistema para todo, incluso lo pasajero. **Arreglo:** snackbar o aviso en línea para lo pasajero; diálogo solo para decisiones. _(cada dueño en su pantalla)_
@@ -147,22 +149,23 @@ Para ir marcando. El detalle de cada punto está en la sección siguiente, por p
 - [ ] **SIS-10** · Sin respuesta táctil de Android. **Arreglo:** `Pressable` con `android_ripple` en un componente base compartido. _(cada dueño en su pantalla)_
 - [ ] **SIS-11** · Inicio y Logros consultan el servidor cada 5 segundos. **Arreglo:** recargar al enfocar y con un intervalo de minutos, o notificaciones push para lo urgente. _(cada dueño en su pantalla)_
 - [ ] **SIS-12** · El foro no está virtualizado. **Arreglo:** `FlatList` con paginación. _(cada dueño en su pantalla)_
-- [ ] **PAN-06** · «● Disponible» es texto fijo. **Arreglo:** quitarlo o alimentarlo con datos. _(HdU01 · Matías Barraza)_
-- [ ] **PAN-07** · La pantalla de respuesta se borra sola a los 30 segundos. **Arreglo:** que vuelva al inicio solo cuando el paciente lo decida. _(HdU01 · Matías Barraza)_
-- [ ] **PAN-08** · Esperando respuesta: sin salida clara. **Arreglo:** volver explícito que avise que la alerta sigue activa. _(HdU01 · Matías Barraza)_
-- [ ] **PAN-09** · «No fue posible enviar el aviso» sin haberlo intentado. **Arreglo:** "Sin conexión, la alerta no puede salir. Llama directo:". _(HdU01 · Matías Barraza)_
-- [ ] **ASI-04** · «Cerrar» abre «Cerrar sesión». **Arreglo:** "Terminar conversación". _(HdU02 · Matías Barraza · privacidad: PO)_
-- [ ] **ASI-05** · «Retomamos donde lo dejaste» suena a registro técnico. **Arreglo:** una frase humana: "La última vez hablamos de cansancio por el trabajo y probaste mindfulness". _(HdU02 · Matías Barraza · privacidad: PO)_
-- [ ] **ASI-06** · «Contactar a mi padrino» abre la pantalla de pánico. **Arreglo:** llamar directo al padrino, filas de 48 dp. _(HdU02 · Matías Barraza · privacidad: PO)_
-- [ ] **ASI-07** · Resumen de sesión con afirmaciones fijas y enlaces vacíos. **Arreglo:** etiqueta neutra ("Cómo te vas"), quitar el enlace, avisar antes del cierre. _(HdU02 · Matías Barraza · privacidad: PO)_
-- [ ] **INI-02** · El check-in no cabe en teléfonos angostos. **Arreglo:** cinco columnas flexibles. _(check-in HdU07 · Matías Barraza)_
-- [ ] **INI-03** · El check-in no dice quién ve la respuesta. **Arreglo:** "¿Cómo te sientes hoy?" + "Tu psicólogo verá cómo te sentiste". _(check-in HdU07 · Matías Barraza)_
-- [ ] **INI-04** · El aro del contador siempre se ve completo. **Arreglo:** aro de progreso real (react-native-svg ya está instalado) o un círculo neutro. _(check-in HdU07 · Matías Barraza)_
-- [ ] **INI-05** · «Ver todo» de notificaciones no hace nada. **Arreglo:** lista vertical de las no leídas y cada una lleva a su pantalla. _(check-in HdU07 · Matías Barraza)_
-- [ ] **INI-08** · Un error que no es de red deja «Cargando tu progreso…» para siempre. **Arreglo:** estado de error con reintento. _(check-in HdU07 · Matías Barraza)_
-- [ ] **INI-09** · El permiso de notificaciones aparece de golpe. **Arreglo:** una tarjeta previa que explique el recordatorio y un camino para reactivarlo desde Perfil. _(check-in HdU07 · Matías Barraza)_
+- [x] **PAN-06** · «● Disponible» es texto fijo. **Arreglo:** quitarlo o alimentarlo con datos. _(HdU01 · Matías Barraza)_ — **Resuelto en local 15-09:** se fueron el texto y el punto verde; en su lugar va «Recibirá tu alerta al instante», que sí es verdad. Nadie sabe si el padrino está disponible, y prometerlo en una crisis es peor que callarlo. Verificado en emulador.
+- [x] **PAN-07** · La pantalla de respuesta se borra sola a los 30 segundos. **Arreglo:** que vuelva al inicio solo cuando el paciente lo decida. _(HdU01 · Matías Barraza)_ — **Resuelto en local 15-09:** fuera el temporizador `AUTO_RESET_MS`; ahora cierra el paciente con «Estoy mejor, volver al inicio» o con la flecha. **Efecto secundario que también se corrige:** ese temporizador llamaba a `cancelPanicAlert`, así que una alerta *respondida* quedaba registrada como *cancelada* en el historial del psicólogo. Verificado en emulador: a los 40 s la pantalla sigue ahí y la alerta sigue en `responded`; al cerrarla pasa a `cancelled` y el botón queda listo para una alerta nueva.
+- [x] **PAN-08** · Esperando respuesta: sin salida clara. **Arreglo:** volver explícito que avise que la alerta sigue activa. _(HdU01 · Matías Barraza)_ — **Resuelto en local 15-09:** flecha de volver que confirma «Tu alerta sigue activa · la alerta ya enviada sigue en pie y tu padrino puede responderla». Verificado en emulador: al volver a entrar, la cuenta regresiva se reanuda en el tiempo real que queda (salí en 1:41 y volví en 0:34), no reiniciada.
+- [x] **PAN-09** · «No fue posible enviar el aviso» sin haberlo intentado. **Arreglo:** "Sin conexión, la alerta no puede salir. Llama directo:". _(HdU01 · Matías Barraza)_ — **Resuelto en local 15-09:** ese texto exacto como bajada, y la tarjeta pasó a «El botón de pánico necesita conexión · llamar es la vía más rápida y no depende de internet». Verificado en emulador con «Simular sin conexión».
+- [x] **PAN-11** · «Daniela está siendo notificado»: concordancia de género imposible de acertar. **Arreglo:** fórmula sin género. _(HdU01 · Matías Barraza)_ — **Hallazgo nuevo del 15-09**, visto al verificar el bloque. Resuelto: «Avisando a {nombre}».
+- [x] **ASI-04** · «Cerrar» abre «Cerrar sesión». **Arreglo:** "Terminar conversación". _(HdU02 · Matías Barraza · privacidad: PO)_ — **Resuelto en local 15-09:** el botón dice «Terminar» y el diálogo «Terminar conversación · ¿Quieres terminar? Se guardará un resumen de lo que conversaste», con «Seguir conversando» como salida. Verificado en emulador.
+- [x] **ASI-05** · «Retomamos donde lo dejaste» suena a registro técnico. **Arreglo:** una frase humana: "La última vez hablamos de cansancio por el trabajo y probaste mindfulness". _(HdU02 · Matías Barraza · privacidad: PO)_ — **Resuelto en local 15-09:** el texto se arma en el backend (`buildPreviousContext` en `ai-assistant.service.ts`) y ya no es `Última sesión: estado "Cansancio", técnica "Mindfulness"…`, sino «La última vez hablamos de cansancio, que apareció con el trabajo y probaste mindfulness». Los campos vacíos no aparecen. Probado el armado con las seis combinaciones posibles; **no verificado en emulador** porque sin `GEMINI_API_KEY` local no se genera un resumen con datos y la tarjeta no llega a mostrarse.
+- [x] **ASI-06** · «Contactar a mi padrino» abre la pantalla de pánico. **Arreglo:** llamar directo al padrino, filas de 48 dp. _(HdU02 · Matías Barraza · privacidad: PO)_ — **Resuelto en local 15-09:** `CrisisCard` recibe el padrino guardado en el dispositivo: si hay teléfono, la fila dice «Llamar a {nombre}» y marca; si no, dice «Ver mi red de apoyo» y ahí sí navega. Verificado en emulador escribiendo un mensaje de riesgo: sale «Llamar a Daniela» en filas de 48 dp.
+- [x] **ASI-07** · Resumen de sesión con afirmaciones fijas y enlaces vacíos. **Arreglo:** etiqueta neutra ("Cómo te vas"), quitar el enlace, avisar antes del cierre. _(HdU02 · Matías Barraza · privacidad: PO)_ — **Resuelto en local 15-09:** «Hoy fue intenso» pasó a «Cómo te vas», se quitó «Ver historial de sesiones» (no existe esa pantalla) y el cierre por inactividad avisa un minuto antes con «Si no escribes en un minuto, cerramos la conversación y guardamos el resumen» + «Sigo acá». Verificado en emulador bajando temporalmente el temporizador.
+- [x] **INI-02** · El check-in no cabe en teléfonos angostos. **Arreglo:** cinco columnas flexibles. _(check-in HdU07 · Matías Barraza)_ — **Resuelto en local 15-09:** la fila desplazable con tarjetas de 64 dp fijos pasó a cinco columnas `flex: 1`. Verificado en emulador a 393 dp y forzando 360 dp (`wm density 480`): las cinco opciones caben y «Bien» ya no queda fuera de la vista.
+- [x] **INI-03** · El check-in no dice quién ve la respuesta. **Arreglo:** "¿Cómo te sientes hoy?" + "Tu psicólogo verá cómo te sentiste". _(check-in HdU07 · Matías Barraza)_ — **Resuelto en local 15-09:** exactamente ese texto. Se fue el anglicismo «Check emocional diario» y ahora el paciente sabe que su psicólogo lo lee antes de responder.
+- [x] **INI-04** · El aro del contador siempre se ve completo. **Arreglo:** aro de progreso real (react-native-svg ya está instalado) o un círculo neutro. _(check-in HdU07 · Matías Barraza)_ — **Resuelto en local 15-09:** aro real con `react-native-svg` (`strokeDasharray` sobre el perímetro). Verificado en emulador: con 46 de 60 días el aro se dibuja al 77 %, igual que la barra de abajo, en vez de verse cerrado como hito cumplido.
+- [~] **INI-05** · «Ver todo» de notificaciones no hace nada. **Arreglo:** lista vertical de las no leídas y cada una lleva a su pantalla. _(check-in HdU07 · Matías Barraza)_ — **Mitigado en local 15-09:** el carrusel con puntitos pasó a lista vertical —las notificaciones 2 y 3 ya no quedan escondidas— y «Ver todo», que no llevaba a ninguna parte, se reemplazó por el contador «N sin leer». **Falta que cada una lleve a su pantalla:** `Notification` solo trae `type` (`info`/`danger`/…), sin destino, así que enrutarlas necesita un campo nuevo en el backend. Inventar el destino a partir del tipo sería adivinar.
+- [x] **INI-08** · Un error que no es de red deja «Cargando tu progreso…» para siempre. **Arreglo:** estado de error con reintento. _(check-in HdU07 · Matías Barraza)_ — **Resuelto en local 15-09:** estado `loadFailed` con «No pudimos cargar tu progreso. Tus días no se perdieron.» y botón «Reintentar». Verificado en emulador desviando el túnel a un servidor que responde 500: antes quedaba «Cargando tu progreso…» para siempre.
+- [x] **INI-09** · El permiso de notificaciones aparece de golpe. **Arreglo:** una tarjeta previa que explique el recordatorio y un camino para reactivarlo desde Perfil. _(check-in HdU07 · Matías Barraza)_ — **Resuelto en local 15-09:** Inicio pregunta primero con una tarjeta («Recordatorio de las 20:00 · Activar recordatorio / Ahora no») y solo entonces aparece el diálogo de Android; la decisión se guarda en `AsyncStorage` (`saveReminderChoice`) para no volver a preguntar, y Perfil tiene el interruptor «Recordatorio diario de las 20:00» para activarlo o apagarlo después. Si Android niega el permiso, se ofrece abrir los ajustes. Verificado en emulador, incluida la persistencia tras reiniciar la app.
 - [ ] **COM-01** · Eventos pasados siguen pidiendo confirmar asistencia. **Arreglo:** ocultar o marcar "Finalizado" los eventos con fecha pasada. _(HdU05 · Catalina Yáñez)_
-- [ ] **COM-02** · El menú «···» borra sin mostrar menú. **Arreglo:** menú real (hoja inferior) con las opciones escritas. _(HdU05 · Catalina Yáñez)_
+- [x] **COM-02** · El menú «···» borra sin mostrar menú. **Arreglo:** menú real (hoja inferior) con las opciones escritas. _(HdU05 · Catalina Yáñez)_ — **Resuelto en local 15-09:** el «···» abre una hoja inferior con las opciones escritas: «Eliminar mi publicación» en los posts propios, «Reportar publicación» en los ajenos, y «Cancelar» siempre. Verificado en emulador en ambos casos, incluido el paso a la hoja de motivo del reporte.
 - [ ] **COM-03** · Reacciones que no se entienden ni se escuchan. **Arreglo:** etiqueta "Dar fuerza, 2" y estado de reaccionado. _(HdU05 · Catalina Yáñez)_
 - [ ] **LOG-01** · «Reportar recaída» en rojo alarma, bajo el contador. **Arreglo:** botón neutro más abajo, "Registrar una recaída", con el mismo tono del modal. _(HdU03 · sin dueño en Sprint 1)_
 - [ ] **LOG-02** · Las insignias no dicen si están ganadas. **Arreglo:** "Dos meses, bloqueada, faltan 15 días". _(HdU03 · sin dueño en Sprint 1)_
@@ -173,14 +176,15 @@ Para ir marcando. El detalle de cada punto está en la sección siguiente, por p
   - Con eso se cierra también el interruptor de 46×27 dp que había quedado pendiente de SIS-02.
 
   Verificado en emulador.
-- [ ] **REG-01** · Un paso para elegir entre una sola institución. **Arreglo:** saltar el paso mientras haya una sola. _(HdU06 · Matías Lara)_
-- [ ] **REG-02** · Dirección obligatoria sin decir para qué. **Arreglo:** opcional, o explicar el uso junto al campo. _(HdU06 · Matías Lara)_
-- [ ] **REG-03** · Los errores de arriba quedan fuera de la vista. **Arreglo:** desplazar y enfocar el primer campo con error. _(HdU06 · Matías Lara)_
-- [ ] **REG-04** · «12 compañeros activos» cuenta grupos. **Arreglo:** "12 grupos activos". _(HdU06 · Matías Lara)_
-- [ ] **REG-05** · El costo aparece después de entregar los datos. **Arreglo:** precio y condiciones antes de pedir datos, en tamaño normal. _(HdU06 · Matías Lara)_
-- [ ] **REG-06** · Callejones sin salida en el paso de sede. **Arreglo:** Ver detalle. _(HdU06 · Matías Lara)_
-- [ ] **REG-08** · El indicador promete un paso 3 «Pago» que no existe. **Arreglo:** Ver detalle. _(HdU06 · Matías Lara)_
-- [ ] **SUS-05** · Tono de cobranza para alguien en tratamiento. **Arreglo:** texto revisado con AJUTER y decidir si el asistente sigue disponible. _(billing · sin dueño en Sprint 1)_
+- [x] **REG-01** · Un paso para elegir entre una sola institución. **Arreglo:** saltar el paso mientras haya una sola. _(HdU06 · Matías Lara)_ — **Resuelto en local 15-09:** «Comenzar registro» va directo a los datos con `institutionId: 'AJUTER'`. La pantalla queda en el stack para cuando haya más instituciones. Verificado en emulador.
+- [x] **REG-02** · Dirección obligatoria sin decir para qué. **Arreglo:** opcional, o explicar el uso junto al campo. _(HdU06 · Matías Lara)_ — **Resuelto en local 15-09:** las dos cosas. Es opcional —el backend siempre la tuvo así (`address?` en `submit-registration.dto.ts`), la obligación la ponía solo la app— y ahora dice «Opcional. Sirve para sugerirte la sede más cercana». Verificado en emulador.
+- [x] **REG-03** · Los errores de arriba quedan fuera de la vista. **Arreglo:** desplazar y enfocar el primer campo con error. _(HdU06 · Matías Lara)_ — **Resuelto en local 15-09:** cada campo registra su posición con `onLayout` y al tocar Continuar la pantalla se desplaza al primero con error. Verificado en emulador desde el final del formulario: vuelve arriba y «El nombre es obligatorio» queda a la vista.
+- [x] **REG-04** · «12 compañeros activos» cuenta grupos. **Arreglo:** "12 grupos activos". _(HdU06 · Matías Lara)_ — **Resuelto en local 15-09:** «12 grupos activos», con singular correcto. Verificado en emulador en las cuatro sedes.
+- [x] **REG-05** · El costo aparece después de entregar los datos. **Arreglo:** precio y condiciones antes de pedir datos, en tamaño normal. _(HdU06 · Matías Lara)_ — **Resuelto en local 15-09:** una tarjeta «Antes de empezar» encabeza el formulario con el precio, el plazo de revisión y que registrarse no cobra nada, en cuerpo de 13,5 px (antes eran 11 px en itálica, y recién después de entregar RUT y correo). Verificado en emulador.
+- [x] **REG-06** · Callejones sin salida en el paso de sede. **Arreglo:** Ver detalle. _(HdU06 · Matías Lara)_ — **Resuelto en local 15-09:** si fallan las sedes ya no queda una lista vacía: sale el error con «Reintentar» (verificado en emulador deteniendo el backend y recuperándolo). Y si el correo ya tiene cuenta, el aviso ofrece «Corregir mi correo» —que vuelve al paso anterior con los datos puestos— o «Iniciar sesión»; esa rama quedó **sin verificar en dispositivo**, solo con type-check.
+- [x] **REG-08** · El indicador promete un paso 3 «Pago» que no existe. **Arreglo:** Ver detalle. _(HdU06 · Matías Lara)_ — **Resuelto en local 15-09:** `StepperHeader` ahora toma los pasos como dato; el registro muestra dos (Datos · Sede), que es donde realmente termina, y `PaymentScreen` conserva los tres para cuando exista la pasarela. También se quitó «Paso 1 de 3» del encabezado, que repetía lo que ya dice el indicador. Verificado en emulador.
+- [~] **SUS-05** · Tono de cobranza para alguien en tratamiento. **Arreglo:** texto revisado con AJUTER y decidir si el asistente sigue disponible. _(billing · sin dueño en Sprint 1)_ — **Mitigado en local 15-09:** «Cuenta suspendida · 3 meses de mora» y «Llevas 3 meses sin pagar» salieron; ahora dice «Para volver a usar la app hay que ponerse al día con el plan. Tu proceso te sigue esperando», «mensualidades pendientes» en vez de «vencidas» y la fecha deja de ir en rojo de alarma. También se cambió «Tu padrino siempre estará disponible» —que la app no puede garantizar— por «El botón de pánico y la línea *4141 siguen disponibles». **Falta la validación del texto con AJUTER.**
+- [x] **SUS-07** · «Ir a mi inicio» se sale de su propio botón. **Arreglo:** `flexDirection: 'row'` y `alignSelf: 'stretch'` en `btnPrimary`. _(billing · sin dueño en Sprint 1)_ — **Hallazgo nuevo del 15-09**, encontrado al verificar el pago real: en la pantalla de cuenta reactivada el botón se encogía al ancho del ícono y el texto salía cortado por los dos lados. Resuelto y verificado en emulador.
 
 ### P3 · pulido (13)
 
@@ -188,14 +192,14 @@ Para ir marcando. El detalle de cada punto está en la sección siguiente, por p
 - [ ] **PAN-10** · Tres botones de pánico distintos. **Arreglo:** un solo componente. _(HdU01 · Matías Barraza)_
 - [ ] **ASI-08** · Detalles de acabado del chat. **Arreglo:** Ver detalle. _(HdU02 · Matías Barraza · privacidad: PO)_
 - [ ] **INI-06** · Accesos rápidos que repiten la barra inferior. **Arreglo:** usar ese espacio para algo propio del día (próxima sesión grupal, respuestas nuevas). _(check-in HdU07 · Matías Barraza)_
-- [ ] **INI-07** · El avatar «C» parece un botón. **Arreglo:** que lleve a Perfil. _(check-in HdU07 · Matías Barraza)_
+- [x] **INI-07** · El avatar «C» parece un botón. **Arreglo:** que lleve a Perfil. _(check-in HdU07 · Matías Barraza)_ — **Resuelto en local 15-09:** ahora es un `Pressable` con nombre accesible «Mi perfil» que navega a Perfil. Verificado en emulador.
 - [ ] **COM-04** · El coordinador aparece como «Admin». **Arreglo:** Ver detalle. _(HdU05 · Catalina Yáñez)_
 - [ ] **COM-05** · Pestañas Anuncios/Foro de 45 dp y sin estado. **Arreglo:** 48 dp, `accessibilityRole="tab"` y `selected`. _(HdU05 · Catalina Yáñez)_
 - [ ] **LOG-04** · La misma frase en cada ciclo histórico. **Arreglo:** un dato propio del ciclo (duración, insignias). _(HdU03 · sin dueño en Sprint 1)_
 - [ ] **LOG-05** · El mismo número con dos estilos. **Arreglo:** Ver detalle. _(HdU03 · sin dueño en Sprint 1)_
 - [x] **PER-05** · Tarjeta de avatar grande sin contenido útil. **Arreglo:** Ver detalle. _(Alex Domínguez)_ — **Resuelto en local 14-09:** la tarjeta ahora es compacta y en fila: avatar de 52 dp (antes de 80 y centrado), así que lo que sí se usa sube en la pantalla. El nombre sigue fijo ("Carlos") hasta que mobile tenga auth real. Verificado en emulador.
 - [ ] **ACC-02** · Detalles del formulario de acceso. **Arreglo:** Ver detalle. _(auth · José Meza)_
-- [ ] **REG-07** · Detalles del registro. **Arreglo:** Ver detalle. _(HdU06 · Matías Lara)_
+- [~] **REG-07** · Detalles del registro. **Arreglo:** Ver detalle. _(HdU06 · Matías Lara)_ — **Parcial en local 15-09:** el correo de contacto de «Solicitud enviada» ahora es tocable y abre el correo; se quitó «Powered by StopBet» (estando dentro de StopBet); el ícono de compartir de «Enviar solicitud» pasó a un avión de papel; y el paso «Pago de la mensualidad» aclara que se coordina con la sede. El «3 sedes · Chile» (son 4) y el «AJUTER, AJUTER» de TalkBack quedan en `SelectInstitutionScreen`, que ya no está en el camino del paciente (REG-01): hay que arreglarlos cuando se sume una segunda institución.
 - [ ] **SUS-06** · Correos de soporte distintos y no tocables. **Arreglo:** Ver detalle. _(billing · sin dueño en Sprint 1)_
 
 ## Detalle por pantalla
@@ -346,6 +350,13 @@ Dueño: HdU01 · Matías Barraza
 - **Dónde:** `PanicScreen.tsx:377-383`
 - **Qué pasa:** Al abrir la pantalla sin conexión ya dice que falló un envío que nunca ocurrió.
 - **Qué arreglar:** "Sin conexión, la alerta no puede salir. Llama directo:".
+
+#### [P2] PAN-11 · «Daniela está siendo notificado» _(hallazgo nuevo, 15-09)_
+
+- **Dónde:** `PanicScreen.tsx` · tarjeta del padrino en el estado "esperando"
+- **Qué pasa:** La frase concuerda en masculino con cualquier nombre, y el género del padrino no se conoce. Con la padrino de prueba el paciente en crisis lee "Daniela está siendo notificado".
+- **Qué arreglar:** una fórmula sin género.
+- **Resuelto en local 15-09:** «Avisando a Daniela». Verificado en emulador.
 
 #### [P3] PAN-10 · Tres botones de pánico distintos
 
@@ -672,6 +683,13 @@ Dueño: billing · sin dueño en Sprint 1
 
 - **Dónde:** `SuspendedAccountScreen.tsx:297` · `RequestSentScreen.tsx:100`
 - **Qué pasa:** `soporte@stopbet.cl` aquí, `contacto@ajuter.cl` en el registro; ninguno abre el correo.
+
+#### [P2] SUS-07 · «Ir a mi inicio» se sale de su propio botón _(hallazgo nuevo, 15-09)_
+
+- **Dónde:** `SuspendedAccountScreen.tsx:198` · estilo `btnPrimary`
+- **Qué pasa:** En la pantalla de cuenta reactivada el botón se encogía al ancho del ícono y el texto salía cortado por los dos lados. No se veía antes porque a esa pantalla solo se llega después de pagar.
+- **Qué arreglar:** `flexDirection: 'row'` y `alignSelf: 'stretch'` en `btnPrimary`, para que el ícono y el texto vayan en línea y el botón ocupe el ancho disponible.
+- **Resuelto en local 15-09.** Verificado en emulador después de un pago real contra el backend local.
 
 ## Lo que funciona (mantener y copiar)
 
