@@ -92,6 +92,7 @@ export function RequestSentScreen({ navigation, route }: Props) {
           activeOpacity={0.85}
           style={styles.btnOutline}
           onPress={() => navigation.navigate('Welcome')}
+          accessibilityRole="button"
         >
           <Text style={styles.btnOutlineText}>Volver al inicio</Text>
         </TouchableOpacity>
@@ -130,7 +131,7 @@ const styles = StyleSheet.create({
     marginBottom: 22,
   },
   title: { fontFamily: Fonts.headingBold, fontSize: 28, color: Colors.ink900, letterSpacing: -0.3, textAlign: 'center' },
-  subtitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.sage500, marginTop: 12, textAlign: 'center' },
+  subtitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.greenText, marginTop: 12, textAlign: 'center' },
 
   card: {
     backgroundColor: Colors.surface,

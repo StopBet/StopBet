@@ -42,6 +42,8 @@ export function SelectInstitutionScreen({ navigation }: Props) {
         <TouchableOpacity
           activeOpacity={0.85}
           onPress={() => setSelected(INSTITUTION_ID)}
+          accessibilityRole="radio"
+          accessibilityState={{ checked: selected === INSTITUTION_ID }}
           style={[styles.card, selected === INSTITUTION_ID && styles.cardSelected]}
         >
           <View style={[styles.logo, selected === INSTITUTION_ID && styles.logoSelected]}>
@@ -84,6 +86,7 @@ export function SelectInstitutionScreen({ navigation }: Props) {
             selected && navigation.navigate('RegisterStep1', { institutionId: selected })
           }
           disabled={!selected}
+          accessibilityRole="button"
         >
           <Text style={styles.btnText}>Continuar</Text>
           <Icon name="arrow-right" size={18} color={Colors.white} />
@@ -152,7 +155,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   metaSoon: { backgroundColor: Colors.bg },
-  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.sage500 },
+  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.greenText },
   metaTextSoon: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.fg2 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },

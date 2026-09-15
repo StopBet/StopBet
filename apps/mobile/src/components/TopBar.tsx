@@ -14,13 +14,20 @@ export function TopBar({ title, stepLabel, onBack }: Props) {
   return (
     <View style={styles.bar}>
       {onBack ? (
-        <TouchableOpacity onPress={onBack} activeOpacity={0.7} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={onBack}
+          activeOpacity={0.7}
+          style={styles.backBtn}
+          hitSlop={5}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Icon name="arrow-left" size={18} color={Colors.fg1} />
         </TouchableOpacity>
       ) : (
         <View style={styles.backBtn} />
       )}
-      <Text style={styles.title}>{title}</Text>
+      <Text style={styles.title} accessibilityRole="header">{title}</Text>
       {stepLabel ? (
         <Text style={styles.stepLabel}>{stepLabel}</Text>
       ) : (

@@ -21,8 +21,8 @@ const TYPE_STYLES: Record<string, { bg: string; border: string; iconColor: strin
   warning: {
     bg: Colors.amber50,
     border: '#F3CDB9',
-    iconColor: Colors.accent,
-    titleColor: Colors.accent,
+    iconColor: Colors.primary,
+    titleColor: Colors.primary,
     icon: 'triangle-alert',
   },
   info: {
@@ -35,8 +35,8 @@ const TYPE_STYLES: Record<string, { bg: string; border: string; iconColor: strin
   success: {
     bg: Colors.sage50,
     border: '#BDD6C7',
-    iconColor: Colors.sage500,
-    titleColor: Colors.sage500,
+    iconColor: Colors.greenText,
+    titleColor: Colors.greenText,
     icon: 'circle-check',
   },
   danger: {
@@ -80,9 +80,14 @@ export function NotificationSection({ notifications, onViewAll, onMarkRead }: Pr
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <Icon name="bell" size={16} color={Colors.ink900} />
-          <Text style={styles.title}>Notificaciones</Text>
+          <Text style={styles.title} accessibilityRole="header">Notificaciones</Text>
         </View>
-        <TouchableOpacity onPress={onViewAll}>
+        <TouchableOpacity
+          onPress={onViewAll}
+          hitSlop={{ top: 16, bottom: 16, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Ver todas las notificaciones"
+        >
           <Text style={styles.viewAll}>Ver todo</Text>
         </TouchableOpacity>
       </View>
@@ -104,6 +109,8 @@ export function NotificationSection({ notifications, onViewAll, onMarkRead }: Pr
               key={n.id}
               activeOpacity={0.85}
               onPress={() => onMarkRead(n.id)}
+              accessibilityRole="button"
+              accessibilityHint="Marca la notificación como leída"
               style={[styles.card, { width: CARD_WIDTH, backgroundColor: s.bg, borderColor: s.border }]}
             >
               <View style={styles.iconWrap}>

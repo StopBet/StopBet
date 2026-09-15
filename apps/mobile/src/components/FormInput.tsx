@@ -87,6 +87,10 @@ export function FormInput({
             style={styles.input}
             value={value}
             onChangeText={onChangeText}
+            accessibilityLabel={required ? `${label}, obligatorio` : label}
+            accessibilityHint={error ?? hint}
+            // si el campo es un selector, TalkBack debe llegar al botón de encima y no a este input
+            importantForAccessibility={onPress ? 'no' : 'auto'}
             placeholder={placeholder}
             placeholderTextColor={Colors.fg2}
             onFocus={() => setFocused(true)}
@@ -101,7 +105,13 @@ export function FormInput({
             importantForAutofill={autoCorrect ? undefined : 'no'}
           />
           {secureTextEntry && (
-            <TouchableOpacity onPress={() => setSecure((v) => !v)} style={styles.eyeBtn}>
+            <TouchableOpacity
+              onPress={() => setSecure((v) => !v)}
+              style={styles.eyeBtn}
+              hitSlop={11}
+              accessibilityRole="button"
+              accessibilityLabel={secure ? 'Mostrar contraseña' : 'Ocultar contraseña'}
+            >
               <Icon name={secure ? 'eye' : 'eye-off'} size={18} color={Colors.fg2} />
             </TouchableOpacity>
           )}
@@ -112,11 +122,19 @@ export function FormInput({
           )}
         </View>
         <View pointerEvents="none" style={[styles.focusRing, { borderColor: ringColor }]} />
-        {onPress && <Pressable style={StyleSheet.absoluteFill} onPress={onPress} />}
+        {onPress && (
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={onPress}
+            accessibilityRole="button"
+            accessibilityLabel={`${label}${required ? ', obligatorio' : ''}: ${value || 'sin elegir'}`}
+            accessibilityHint={error ?? hint}
+          />
+        )}
       </View>
 
       {error && (
-        <View style={styles.errorRow}>
+        <View style={styles.errorRow} accessibilityLiveRegion="polite">
           <Icon name="triangle-alert" size={13} color={Colors.danger} />
           <Text style={styles.error}>{error}</Text>
         </View>
@@ -139,7 +157,7 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   req: {
-    color: Colors.accent,
+    color: Colors.primary,
   },
   inputWrap: {
     position: 'relative',
@@ -177,6 +195,9 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.ink900,
     padding: 0,
+    // todo el alto de la caja es tocable, no solo la línea de texto
+    alignSelf: 'stretch',
+    textAlignVertical: 'center',
   },
   eyeBtn: {
     padding: 4,

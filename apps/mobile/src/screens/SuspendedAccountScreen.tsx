@@ -179,7 +179,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             </View>
           )}
 
-          <TouchableOpacity style={styles.btnPrimary} onPress={handleGoHome} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.btnPrimary} onPress={handleGoHome} activeOpacity={0.85} accessibilityRole="button">
             <Icon name="house" size={17} color={Colors.white} />
             <Text style={styles.btnPrimaryText}>Ir a mi inicio</Text>
           </TouchableOpacity>
@@ -270,6 +270,8 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             onPress={handlePay}
             activeOpacity={0.85}
             disabled={paying}
+            accessibilityRole="button"
+            accessibilityState={{ busy: paying }}
           >
             {paying ? (
               <Text style={styles.btnPrimaryText}>Procesando...</Text>
@@ -285,6 +287,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             style={styles.btnOutline}
             onPress={handleOpenFamilySheet}
             activeOpacity={0.8}
+            accessibilityRole="button"
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Icon name="users" size={17} color={Colors.primary} />
@@ -341,8 +344,10 @@ export function SuspendedAccountScreen({ navigation }: Props) {
           style={styles.sheetOverlay}
           activeOpacity={1}
           onPress={() => setFamilySheetOpen(false)}
+          // accessible={false}: si no, TalkBack agrupa toda la hoja en un solo elemento y no llega a sus botones
+          accessible={false}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.sheet}>
+          <TouchableOpacity activeOpacity={1} style={styles.sheet} accessible={false}>
             <View style={styles.sheetGrip} />
             <Text style={styles.sheetTitle}>Avisar a un familiar</Text>
             <Text style={styles.sheetSub}>
@@ -376,6 +381,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
                 style={styles.btnPrimary}
                 onPress={handleShareFamilyLink}
                 activeOpacity={0.85}
+                accessibilityRole="button"
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <Icon name="share" size={17} color={Colors.white} />
@@ -386,6 +392,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
                 style={styles.btnOutline}
                 onPress={() => setFamilySheetOpen(false)}
                 activeOpacity={0.8}
+                accessibilityRole="button"
               >
                 <Text style={styles.btnOutlineText}>Cancelar</Text>
               </TouchableOpacity>
@@ -414,7 +421,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
   },
-  suspBannerText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.accent },
+  suspBannerText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.primary },
 
   scroll: { flex: 1, backgroundColor: Colors.bg },
   scrollContent: { padding: 22, paddingBottom: 48, gap: 22 },
@@ -461,7 +468,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  overdueCardTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.accent },
+  overdueCardTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.primary },
   overdueMonths: { marginTop: 10, gap: 0 },
   monthRow: {
     flexDirection: 'row',

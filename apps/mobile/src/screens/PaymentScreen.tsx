@@ -117,6 +117,8 @@ export function PaymentScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => setMethod(m.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: sel }}
                 style={[styles.methodCard, sel && styles.methodCardSel]}
               >
                 <View style={[styles.methodIcon, sel && styles.methodIconSel]}>
@@ -163,6 +165,8 @@ export function PaymentScreen({ navigation, route }: Props) {
           style={[styles.btn, paying && styles.btnDisabled]}
           onPress={handlePay}
           disabled={paying}
+          accessibilityRole="button"
+          accessibilityState={{ busy: paying }}
         >
           {paying ? (
             <ActivityIndicator color={Colors.white} />

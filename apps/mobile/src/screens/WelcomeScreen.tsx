@@ -49,6 +49,7 @@ export function WelcomeScreen({ navigation }: Props) {
           activeOpacity={0.85}
           style={styles.btnPrimary}
           onPress={() => navigation.navigate('SelectInstitution')}
+          accessibilityRole="button"
         >
           <Text style={styles.btnPrimaryText}>Comenzar registro</Text>
         </TouchableOpacity>
@@ -57,6 +58,7 @@ export function WelcomeScreen({ navigation }: Props) {
           activeOpacity={0.75}
           style={styles.btnLink}
           onPress={() => navigation.navigate('Login')}
+          accessibilityRole="button"
         >
           <Text style={styles.btnLinkText}>Ya tengo cuenta · Iniciar sesión</Text>
         </TouchableOpacity>
@@ -156,6 +158,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
+    minHeight: 48,
   },
   btnLinkText: {
     fontFamily: Fonts.bodyBold,

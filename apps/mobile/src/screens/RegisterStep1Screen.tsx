@@ -144,7 +144,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
       </KeyboardAvoidingView>
 
       <View style={styles.footer}>
-        <TouchableOpacity activeOpacity={0.85} style={styles.btn} onPress={handleContinue}>
+        <TouchableOpacity activeOpacity={0.85} style={styles.btn} onPress={handleContinue} accessibilityRole="button">
           <Text style={styles.btnText}>Continuar</Text>
           <Icon name="arrow-right" size={18} color={Colors.white} />
         </TouchableOpacity>
@@ -159,11 +159,14 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
 
       <Modal visible={showReferral} transparent animationType="fade"
         onRequestClose={() => setShowReferral(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setShowReferral(false)}>
-          <Pressable style={styles.sheet}>
+        {/* accessible={false}: si no, TalkBack agrupa toda la hoja en un solo elemento y no llega a las opciones */}
+        <Pressable style={styles.backdrop} onPress={() => setShowReferral(false)} accessible={false}>
+          <Pressable style={styles.sheet} accessible={false}>
             <Text style={styles.sheetTitle}>¿Cómo conociste AJUTER?</Text>
             {REFERRAL_OPTIONS.map(opt => (
               <TouchableOpacity key={opt} style={styles.sheetRow} activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: referralSource === opt }}
                 onPress={() => { setReferralSource(opt); setShowReferral(false); }}>
                 <Text style={styles.sheetText}>{opt}</Text>
                 {referralSource === opt && (

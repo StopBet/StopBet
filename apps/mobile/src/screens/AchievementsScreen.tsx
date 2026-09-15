@@ -320,7 +320,7 @@ export function AchievementsScreen({ navigation }: Props) {
               </View>
             )}
 
-            <TouchableOpacity style={styles.relapseBtn} onPress={handleRelapse} activeOpacity={0.8}>
+            <TouchableOpacity style={styles.relapseBtn} onPress={handleRelapse} activeOpacity={0.8} accessibilityRole="button" hitSlop={{ top: 5, bottom: 5 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <Icon name="heart" size={14} color={Colors.danger} />
                 <Text style={styles.relapseBtnText}>Reportar recaída</Text>
@@ -343,6 +343,9 @@ export function AchievementsScreen({ navigation }: Props) {
                   style={styles.badgeItem}
                   activeOpacity={earned ? 0.75 : 1}
                   onPress={earned ? () => setShareMilestone(milestone) : undefined}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !earned }}
+                  accessibilityHint={earned ? 'Compartir con la comunidad' : 'Insignia aún no obtenida'}
                 >
                   {isNewest && (
                     <View style={styles.newChip}>
@@ -410,6 +413,7 @@ export function AchievementsScreen({ navigation }: Props) {
                 navigation.navigate('Assistant');
               }}
               activeOpacity={0.85}
+              accessibilityRole="button"
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Icon name="message-circle" size={18} color={Colors.white} />
@@ -419,6 +423,7 @@ export function AchievementsScreen({ navigation }: Props) {
             <TouchableOpacity
               onPress={() => { setRelapseModal(false); setIsExternalRelapse(false); }}
               style={styles.btnLink}
+              accessibilityRole="button"
             >
               <Text style={styles.btnLinkText}>Cerrar</Text>
             </TouchableOpacity>
@@ -489,7 +494,7 @@ const styles = StyleSheet.create({
   },
   headerText: { flex: 1 },
   headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white, lineHeight: 26 },
-  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.teal400, marginTop: 3 },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onPrimaryMuted, marginTop: 3 },
   trophyCircle: {
     width: 44,
     height: 44,
@@ -567,7 +572,7 @@ const styles = StyleSheet.create({
   progressLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.gold,
+    color: Colors.greenText,
     textAlign: 'center',
   },
 
@@ -678,7 +683,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  cycleChipText: { fontFamily: Fonts.bodyBold, color: Colors.sage500, fontSize: 11 },
+  cycleChipText: { fontFamily: Fonts.bodyBold, color: Colors.greenText, fontSize: 11 },
   cycleDates: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
   cycleProgress: {
     fontFamily: Fonts.bodyBold,
@@ -759,6 +764,6 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
-  btnLink: { marginTop: 14, padding: 4 },
+  btnLink: { marginTop: 14, minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
   btnLinkText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 14 },
 });

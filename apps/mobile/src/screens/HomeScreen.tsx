@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontFamily: Fonts.body,
     fontSize: 14,
-    color: Colors.teal400,
+    color: Colors.onPrimaryMuted,
     marginTop: 2,
   },
   avatar: {

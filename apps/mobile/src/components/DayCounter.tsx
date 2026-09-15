@@ -35,7 +35,7 @@ export function DayCounter({ days, milestone }: Props) {
         <Text style={styles.daysLeftText}>
           {daysLeft} días para tu próxima insignia
         </Text>
-        <Icon name="medal" size={15} color={Colors.gold} />
+        <Icon name="medal" size={15} color={Colors.greenText} />
       </View>
     </View>
   );
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   milestonePercent: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.sage500,
+    color: Colors.greenText,
   },
   progressBg: {
     height: 8,
