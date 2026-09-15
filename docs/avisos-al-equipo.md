@@ -20,6 +20,52 @@ está.
 
 ---
 
+## 2026-09-15 — Ahora se cambia de sección deslizando: `pnpm install` y recompilar
+
+**A quién le pega:** a todo el que corra la app mobile. Y si tocas navegación —**Matías
+Barraza** (Inicio, Pánico, Asistente), **Catalina Yáñez** (Comunidad), **HdU03** (Logros)—
+léete lo de abajo antes de escribir un `navigate`.
+
+**Qué tienes que hacer, en este orden:**
+
+1. `pnpm install` en la raíz. Hay dos dependencias nuevas: **`react-native-pager-view`**
+   (nativa) y `@react-navigation/material-top-tabs`. De paso `@react-navigation/native`
+   subió a `^7.4.1`, que es lo que pide la de pestañas.
+2. **Recompilar**: `pnpm run android` (o `android:device`). Con solo recargar Metro la app
+   arranca en blanco con `Cannot read property 'ScreenStack' of undefined` o similar,
+   porque falta el módulo nativo.
+
+**Qué cambió.** Las cuatro secciones de la barra inferior (Inicio, Comunidad, Logros,
+Perfil) dejaron de ser pantallas sueltas del stack y ahora son un **navegador de pestañas**,
+así que se puede cambiar de sección **deslizando**, no solo tocando. El pánico, el asistente
+y la cuenta suspendida siguen siendo pantallas del stack, por encima de las pestañas.
+
+**Lo que te pega si escribes código:**
+
+- **`AppStackParamList` cambió.** Home, Community, Achievements y Profile ya no están ahí:
+  viven en `MainTabsParamList`, y el stack expone una sola ruta `MainTabs`.
+- **Desde una pantalla que NO es pestaña** (pánico, asistente, cuenta suspendida) hay que
+  navegar a la sección anidada:
+  ```ts
+  navigation.navigate('MainTabs', { screen: 'Community', params: { initialTab: 'forum' } });
+  ```
+  Desde una pestaña hacia otra, `navigation.navigate('Community')` sigue funcionando igual.
+- **Las pantallas de pestaña usan `CompositeScreenProps`**, porque navegan tanto entre
+  pestañas como al stack de arriba. Copia el patrón de `HomeScreen.tsx` si agregas una.
+- **`BottomNav` ya no se dibuja dentro de cada pantalla.** La pinta el navegador una sola
+  vez, en `src/navigation/MainTabs.tsx`. Si la vuelves a poner en una pantalla van a salir
+  dos barras. Con eso se fueron los cuatro `handleTabPress` duplicados.
+
+**Dos decisiones, por si te llama la atención:**
+
+- **El botón de pánico quedó fuera del gesto**: el orden de deslizamiento es Inicio →
+  Comunidad → Logros → Perfil. A la pantalla de crisis se entra apretando, nunca por un
+  deslizamiento accidental.
+- **Dentro de Comunidad, deslizar cambia de sección, no de pestaña.** Anuncios y Foro se
+  siguen cambiando tocando: un gesto, un significado en toda la app.
+
+---
+
 ## 2026-09-15 — Auditoría UX de mobile, segunda tanda: hay que recompilar (PR #96)
 
 **A quién le pega:** a todo el que corra la app en su teléfono o emulador, y en particular a

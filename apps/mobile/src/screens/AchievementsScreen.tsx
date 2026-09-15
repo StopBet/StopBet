@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
   AbstinencePeriod,
@@ -19,9 +21,8 @@ import type {
   BadgeMilestone,
   EarnedBadge,
 } from '@stopbet/shared-types';
-import type { AppStackParamList } from '../navigation/types';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
-import { BottomNav, NavTab } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
@@ -106,7 +107,12 @@ function sameAchievements(a: AchievementsData, b: AchievementsData): boolean {
   );
 }
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Achievements'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Achievements'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
 
 export function AchievementsScreen({ navigation }: Props) {
   const [data, setData] = useState<AchievementsData>(EMPTY_DATA);
@@ -114,7 +120,6 @@ export function AchievementsScreen({ navigation }: Props) {
   // "0 días" y se leería como un contador reiniciado, no como una carga.
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
-  const [activeTab, setActiveTab] = useState<NavTab>('achievements');
   const [relapseModal, setRelapseModal] = useState(false);
   const [relapseMessage, setRelapseMessage] = useState('');
   const [shareMilestone, setShareMilestone] = useState<BadgeMilestone | null>(null);
@@ -224,13 +229,6 @@ export function AchievementsScreen({ navigation }: Props) {
     } catch {
       Alert.alert('Error', 'No se pudo compartir la insignia.');
     }
-  };
-
-  const handleTabPress = (tab: NavTab) => {
-    setActiveTab(tab);
-    if (tab === 'home') navigation.navigate('Home');
-    else if (tab === 'community') navigation.navigate('Community');
-    else if (tab === 'profile') navigation.navigate('Profile');
   };
 
   const currentPeriod = data.currentPeriod;
@@ -437,11 +435,6 @@ export function AchievementsScreen({ navigation }: Props) {
         </View>
       </Modal>
 
-      <BottomNav
-        active={activeTab}
-        onTabPress={handleTabPress}
-        onPanicPress={() => navigation.navigate('Panic')}
-      />
 
       {/* ── Modal: Recaída reportada ── */}
       <Modal

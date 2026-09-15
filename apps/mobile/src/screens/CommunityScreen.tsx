@@ -16,6 +16,8 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
   CommunityPost,
@@ -24,8 +26,7 @@ import type {
   ReactionSummary,
   UserRole,
 } from '@stopbet/shared-types';
-import type { AppStackParamList } from '../navigation/types';
-import { BottomNav } from '../components/BottomNav';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
@@ -72,7 +73,12 @@ const offlineCache: { announcements: CommunityPost[]; posts: CommunityPost[] } =
 
 type Tab = 'announcements' | 'forum';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Community'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Community'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
 
 export function CommunityScreen({ navigation, route }: Props) {
   const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'announcements');
@@ -306,12 +312,6 @@ export function CommunityScreen({ navigation, route }: Props) {
   // dos acciones distintas y ninguna escrita. Ahora abre un menú con las opciones a la vista.
   const handleMenuPress = (post: CommunityPost) => {
     setMenuPost(post);
-  };
-
-  const handleTabPress = (navTab: 'home' | 'community' | 'achievements' | 'profile') => {
-    if (navTab === 'home') navigation.navigate('Home');
-    else if (navTab === 'achievements') navigation.navigate('Achievements');
-    else if (navTab === 'profile') navigation.navigate('Profile');
   };
 
   return (
@@ -599,7 +599,6 @@ export function CommunityScreen({ navigation, route }: Props) {
         </View>
       </Modal>
 
-      <BottomNav active="community" onTabPress={handleTabPress} onPanicPress={() => navigation.navigate('Panic')} />
     </SafeAreaView>
   );
 }

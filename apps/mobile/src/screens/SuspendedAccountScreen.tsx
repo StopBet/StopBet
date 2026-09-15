@@ -157,7 +157,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   };
 
   const handleGoHome = () => {
-    navigation.replace('Home');
+    navigation.replace('MainTabs', { screen: 'Home' });
   };
 
   const handlePanic = () => {

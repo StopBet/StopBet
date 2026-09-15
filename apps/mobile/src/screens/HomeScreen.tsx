@@ -12,13 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { EmotionType, Notification, PatientProgress } from '@stopbet/shared-types';
-import type { AppStackParamList } from '../navigation/types';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { DayCounter } from '../components/DayCounter';
 import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
-import { BottomNav, NavTab } from '../components/BottomNav';
 import { NotificationSection } from '../components/NotificationSection';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
@@ -44,7 +45,12 @@ const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
 const REFRESH_MS = 3 * 60 * 1000;
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Home'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
 
 export function HomeScreen({ navigation }: Props) {
   const [progress, setProgress] = useState<PatientProgress | null>(null);
@@ -57,7 +63,6 @@ export function HomeScreen({ navigation }: Props) {
   const [askReminder, setAskReminder] = useState(false);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
-  const [activeTab, setActiveTab] = useState<NavTab>('home');
 
   const load = useCallback(async () => {
     setLoadFailed(false);
@@ -244,19 +249,6 @@ export function HomeScreen({ navigation }: Props) {
     }
   };
 
-  const handleTabPress = (tab: NavTab) => {
-    setActiveTab(tab);
-    if (tab !== 'home') {
-      navigation.navigate(
-        tab === 'community'
-          ? 'Community'
-          : tab === 'achievements'
-          ? 'Achievements'
-          : 'Profile',
-      );
-    }
-  };
-
   const handlePanicPress = () => {
     navigation.navigate('Panic');
   };
@@ -385,11 +377,6 @@ export function HomeScreen({ navigation }: Props) {
         </ScrollView>
       )}
 
-      <BottomNav
-        active={activeTab}
-        onTabPress={handleTabPress}
-        onPanicPress={handlePanicPress}
-      />
     </SafeAreaView>
   );
 }

@@ -14,13 +14,10 @@ import { RequestSentScreen } from './src/screens/RequestSentScreen';
 import { PaymentScreen } from './src/screens/PaymentScreen';
 
 // App screens
-import { HomeScreen } from './src/screens/HomeScreen';
 import { AssistantScreen } from './src/screens/AssistantScreen';
-import { AchievementsScreen } from './src/screens/AchievementsScreen';
+import { MainTabs } from './src/navigation/MainTabs';
 import { PanicScreen } from './src/screens/PanicScreen';
 import { SuspendedAccountScreen } from './src/screens/SuspendedAccountScreen';
-import { CommunityScreen } from './src/screens/CommunityScreen';
-import { ProfileScreen } from './src/screens/ProfileScreen';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
@@ -50,11 +47,11 @@ function AppNavigator() {
       animation: 'fade',
       animationDuration: 220,
     }}>
-      <AppStack.Screen name="Home" component={HomeScreen} />
+      {/* Las cuatro secciones de la barra viven acá dentro para poder cambiarse
+          deslizando; el asistente, el pánico y la cuenta suspendida siguen siendo
+          pantallas del stack, encima de las pestañas. */}
+      <AppStack.Screen name="MainTabs" component={MainTabs} />
       <AppStack.Screen name="Assistant" component={AssistantScreen} />
-      <AppStack.Screen name="Community" component={CommunityScreen} />
-      <AppStack.Screen name="Achievements" component={AchievementsScreen} />
-      <AppStack.Screen name="Profile" component={ProfileScreen} />
       <AppStack.Screen name="Panic" component={PanicScreen} options={{ animation: 'slide_from_bottom', animationDuration: 320 }} />
       <AppStack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
     </AppStack.Navigator>

@@ -13,9 +13,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AppStackParamList } from '../navigation/types';
-import { BottomNav } from '../components/BottomNav';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
@@ -28,7 +29,12 @@ import { AuthContext } from '../context/AuthContext';
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Profile'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
 
 export function ProfileScreen({ navigation }: Props) {
   const { signOut } = useContext(AuthContext);
@@ -426,15 +432,6 @@ export function ProfileScreen({ navigation }: Props) {
         </TouchableOpacity>
       </ScrollView>
 
-      <BottomNav
-        active="profile"
-        onTabPress={(tab) => {
-          if (tab === 'home') navigation.navigate('Home');
-          else if (tab === 'community') navigation.navigate('Community');
-          else if (tab === 'achievements') navigation.navigate('Achievements');
-        }}
-        onPanicPress={() => navigation.navigate('Panic')}
-      />
     </SafeAreaView>
   );
 }
