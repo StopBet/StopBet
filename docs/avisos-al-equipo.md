@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-14 — Auditoría UX mobile: hay que recompilar Android y agregar `ENABLE_DEV_TOOLS` al backend (PR pendiente)
+## 2026-09-14 — Auditoría UX mobile: hay que recompilar Android y agregar `ENABLE_DEV_TOOLS` al backend (PR #90 a #94)
 
 **A quién le pega:** a todos los que corren la app mobile, y a quien use las herramientas de
 prueba de Perfil en la demo. Los cambios tocan pantallas de varios dueños: Pánico, Asistente,
@@ -29,10 +29,10 @@ Comunidad, Registro, Login, Logros, Pago y Perfil. El detalle de cada una está 
 
 **Qué hacer:**
 
-1. **Recompilar la app.** Recargar Metro no alcanza, porque cambiaron `MainActivity.kt` y el
+1. **Recompilar la app** (PR #94). Recargar Metro no alcanza, porque cambiaron `MainActivity.kt` y el
    ícono adaptativo. En un teléfono: `pnpm run android:device`. En el emulador:
    `npx react-native run-android --active-arch-only`.
-2. **Agregar `ENABLE_DEV_TOOLS=true` a `apps/backend/.env`** (ya está en `.env.example`) y
+2. **Agregar `ENABLE_DEV_TOOLS=true` a `apps/backend/.env`** (PR #93; ya está en `.env.example`) y
    reiniciar el backend. Sin esa línea, "Días sin apostar" de Perfil muestra "Error al
    sincronizar con el servidor", porque `POST /achievements/dev-set-days` responde 404.
    **En Railway no hay que ponerla.** Allá `NODE_ENV` es `development` y no distingue
