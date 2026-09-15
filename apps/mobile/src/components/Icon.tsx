@@ -9,7 +9,7 @@ import {
   Mail, MapPin, Search, CreditCard, Smartphone, Landmark, Lock, Link,
   Share2, Phone, Handshake, HandHeart, Settings, Hospital, Clock,
   Hourglass, Megaphone, Send, ThumbsUp, Flame, Target, Star, Crown,
-  Sprout, Sunrise, Ellipsis, LogOut,
+  Sprout, Sunrise, Ellipsis, LogOut, Trash2, Flag,
   type LucideProps,
 } from 'lucide-react-native';
 import { Colors } from '../constants/colors';
@@ -82,6 +82,8 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'sunrise': Sunrise,
   'ellipsis': Ellipsis,
   'log-out': LogOut,
+  'trash-2': Trash2,
+  'flag': Flag,
 };
 
 export type IconName = keyof typeof ICON_MAP;

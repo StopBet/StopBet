@@ -88,6 +88,9 @@ export function CommunityScreen({ navigation, route }: Props) {
   const [reportReason, setReportReason] = useState('');
   const [reportSending, setReportSending] = useState(false);
 
+  // Menú de cada publicación (hoja inferior)
+  const [menuPost, setMenuPost] = useState<CommunityPost | null>(null);
+
   // Respuestas: expansión y cache por post
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [repliesByPost, setRepliesByPost] = useState<Record<string, CommunityReply[]>>({});
@@ -297,9 +300,10 @@ export function CommunityScreen({ navigation, route }: Props) {
     );
   };
 
+  // El "···" disparaba directo Eliminar o Reportar según de quién fuera el post: mismo ícono,
+  // dos acciones distintas y ninguna escrita. Ahora abre un menú con las opciones a la vista.
   const handleMenuPress = (post: CommunityPost) => {
-    if (post.authorId === TEMP_USER_ID) handleDelete(post.id);
-    else handleReport(post.id);
+    setMenuPost(post);
   };
 
   const handleTabPress = (navTab: 'home' | 'community' | 'achievements' | 'profile') => {
@@ -479,6 +483,62 @@ export function CommunityScreen({ navigation, route }: Props) {
           )}
         </KeyboardAvoidingView>
       )}
+
+      {/* Menú de la publicación: las opciones se leen antes de tocarlas */}
+      <Modal
+        visible={menuPost !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuPost(null)}
+      >
+        <TouchableOpacity
+          style={styles.sheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setMenuPost(null)}
+          accessible={false}
+        >
+          <View style={styles.sheetCard}>
+            <Text style={styles.sheetTitle}>Opciones de la publicación</Text>
+            {menuPost?.authorId === TEMP_USER_ID ? (
+              <TouchableOpacity
+                style={styles.sheetItem}
+                accessibilityRole="button"
+                onPress={() => {
+                  const id = menuPost.id;
+                  setMenuPost(null);
+                  handleDelete(id);
+                }}
+              >
+                <Icon name="trash-2" size={18} color={Colors.danger} />
+                <Text style={[styles.sheetItemText, { color: Colors.danger }]}>
+                  Eliminar mi publicación
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.sheetItem}
+                accessibilityRole="button"
+                onPress={() => {
+                  const id = menuPost!.id;
+                  setMenuPost(null);
+                  handleReport(id);
+                }}
+              >
+                <Icon name="flag" size={18} color={Colors.fg1} />
+                <Text style={styles.sheetItemText}>Reportar publicación</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.sheetItem}
+              accessibilityRole="button"
+              onPress={() => setMenuPost(null)}
+            >
+              <Icon name="x" size={18} color={Colors.fg2} />
+              <Text style={[styles.sheetItemText, { color: Colors.fg2 }]}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* CA5.3: motivo del reporte */}
       <Modal
@@ -1086,6 +1146,20 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2 },
+
+  // Menú de la publicación
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheetCard: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 26,
+  },
+  sheetTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.ink900, marginBottom: 6 },
+  sheetItem: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 8 },
+  sheetItemText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
 
   // Modal de reporte (CA5.3)
   modalBackdrop: {
