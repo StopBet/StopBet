@@ -24,6 +24,7 @@ import { Fonts } from '../constants/typography';
 import { Icon } from '../components/Icon';
 import { api } from '../services/api';
 import { conReintento } from '../services/reintentoEscritura';
+import { readSponsor, saveSponsor } from '../services/offlineStore';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Constantes
@@ -35,12 +36,17 @@ const ESCALATION_SECONDS = 120; // CA1.3: debe coincidir con ESCALATION_MS del b
 const CRISIS_LINE = '*4141';
 const AUTO_RESET_MS = 30_000; // 30 s tras respuesta/comunidad/escalada
 
+function formatPhone(phone: string): string {
+  const m = /^\+569(\d{4})(\d{4})$/.exec(phone.replace(/\s/g, ''));
+  return m ? `+56 9 ${m[1]} ${m[2]}` : phone;
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Tipos internos
 
 type ScreenState =
   | { kind: 'loading' }
-  | { kind: 'offline' }
+  | { kind: 'offline'; sponsor: SponsorInfo | null }
   | { kind: 'idle'; sponsor: SponsorInfo | null }
   | { kind: 'waiting'; alert: PanicAlertDto; sponsor: SponsorInfo | null }
   | { kind: 'responded'; alert: PanicAlertDto; sponsor: SponsorInfo | null }
@@ -74,9 +80,15 @@ export function PanicScreen({ navigation }: Props) {
   // Load inicial
 
   const load = useCallback(async () => {
+    // El botón no espera al servidor: aparece de inmediato con el último padrino conocido
+    const cached = await readSponsor();
+    setState((prev) => (prev.kind === 'loading' ? { kind: 'idle', sponsor: cached } : prev));
     try {
-      const sponsorInfo = await api.getSponsorInfo(TEMP_USER_ID);
-      const activeResp = await api.getPanicActiveAlert(TEMP_USER_ID);
+      const [sponsorInfo, activeResp] = await Promise.all([
+        api.getSponsorInfo(TEMP_USER_ID),
+        api.getPanicActiveAlert(TEMP_USER_ID),
+      ]);
+      void saveSponsor(sponsorInfo);
 
       if (activeResp.alert) {
         const { alert, sponsor } = activeResp;
@@ -101,7 +113,7 @@ export function PanicScreen({ navigation }: Props) {
     } catch (err) {
       const isNetworkError = (err as Error).message?.includes('Network request failed') ||
         (err as Error).message?.includes('Failed to fetch');
-      setState(isNetworkError ? { kind: 'offline' } : { kind: 'idle', sponsor: null });
+      setState(isNetworkError ? { kind: 'offline', sponsor: await readSponsor() } : { kind: 'idle', sponsor: null });
     }
   }, []);
 
@@ -249,7 +261,7 @@ export function PanicScreen({ navigation }: Props) {
     } catch (err) {
       const isNetworkError = (err as Error).message?.includes('Network request failed') ||
         (err as Error).message?.includes('Failed to fetch');
-      if (isNetworkError) setState({ kind: 'offline' });
+      if (isNetworkError) setState({ kind: 'offline', sponsor: await readSponsor() });
     } finally {
       isActivating.current = false;
       holdProgress.setValue(0);
@@ -349,7 +361,7 @@ export function PanicScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor={Colors.danger} />
-        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
         </Pressable>
         <View style={styles.offlineBanner}>
@@ -382,18 +394,20 @@ export function PanicScreen({ navigation }: Props) {
             <Text style={styles.warnCardBody}>Conéctate a internet e inténtalo nuevamente.</Text>
           </View>
 
-          <Pressable
-            style={styles.callRow}
-            onPress={() => Linking.openURL('tel:+56987654321')}
-            accessibilityLabel="Llamar directamente al padrino"
-          >
-            <View style={styles.callIcon}><Icon name="phone" size={20} color={Colors.primary} /></View>
-            <View style={styles.callMeta}>
-              <Text style={styles.callLabel}>Llama directamente a tu padrino</Text>
-              <Text style={styles.callNumber}>+56 9 8765 4321</Text>
-            </View>
-            <Icon name="chevron-right" size={20} color={Colors.fg2} />
-          </Pressable>
+          {state.sponsor?.phone && (
+            <Pressable
+              style={styles.callRow}
+              onPress={() => Linking.openURL(`tel:${state.sponsor?.phone ?? ''}`)}
+              accessibilityLabel={`Llamar a tu padrino, ${state.sponsor.firstName}`}
+            >
+              <View style={styles.callIcon}><Icon name="phone" size={20} color={Colors.primary} /></View>
+              <View style={styles.callMeta}>
+                <Text style={styles.callLabel}>Llama directamente a {state.sponsor.firstName}, tu padrino</Text>
+                <Text style={styles.callNumber}>{formatPhone(state.sponsor.phone)}</Text>
+              </View>
+              <Icon name="chevron-right" size={20} color={Colors.fg2} />
+            </Pressable>
+          )}
 
           <Pressable
             style={[styles.callRow, styles.callRowDanger]}
@@ -423,7 +437,7 @@ export function PanicScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F0FAF5' }]} edges={['top', 'bottom']}>
         <StatusBar barStyle="dark-content" backgroundColor="#F0FAF5" />
-        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
         </Pressable>
         <ScrollView
@@ -436,12 +450,12 @@ export function PanicScreen({ navigation }: Props) {
             </View>
             <Text style={styles.respondedTitle}>
               {state.kind === 'responded' && sponsor
-                ? `${sponsor.firstName} está en camino`
+                ? `${sponsor.firstName} respondió a tu alerta`
                 : 'Asistente IA listo'}
             </Text>
             <Text style={styles.respondedSub}>
               {state.kind === 'responded'
-                ? 'Tu padrino respondió hace un momento'
+                ? 'Ya sabe que necesitas apoyo'
                 : 'La alerta fue escalada al asistente'}
             </Text>
           </View>
@@ -453,11 +467,10 @@ export function PanicScreen({ navigation }: Props) {
                   <Text style={styles.avatarLetter}>
                     {sponsor.firstName.charAt(0)}
                   </Text>
-                  <View style={styles.onlineDot} />
                 </View>
                 <View style={styles.sponsorMeta}>
                   <Text style={styles.sponsorName}>{sponsor.firstName} {sponsor.lastName}</Text>
-                  <Text style={styles.sponsorStatus}>Respondió · disponible</Text>
+                  <Text style={styles.sponsorStatus}>Tu padrino</Text>
                 </View>
                 <Icon name="handshake" size={24} color={Colors.sage500} />
               </View>
@@ -465,18 +478,23 @@ export function PanicScreen({ navigation }: Props) {
           )}
 
           <View style={styles.actions}>
-            {state.kind === 'responded' && (
-              <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => navigation.navigate('Assistant')}>
+            {state.kind === 'responded' && sponsor?.phone && (
+              <Pressable
+                style={[styles.btn, styles.btnPrimary]}
+                onPress={() => Linking.openURL(`tel:${sponsor.phone}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Llamar a ${sponsor.firstName}`}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Icon name="message-circle" size={18} color="#fff" />
-                  <Text style={styles.btnTextLight}>Iniciar chat con {sponsor?.firstName ?? 'padrino'}</Text>
+                  <Icon name="phone" size={18} color="#fff" />
+                  <Text style={styles.btnTextLight}>Llamar a {sponsor.firstName}</Text>
                 </View>
               </Pressable>
             )}
             <Pressable style={[styles.btn, styles.btnOutlineTeal]} onPress={() => navigation.navigate('Assistant')}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Icon name="sparkles" size={18} color={Colors.primary} />
-                <Text style={styles.btnTextPrimary}>Hablar con asistente IA</Text>
+                <Text style={styles.btnTextPrimary}>Hablar con el asistente</Text>
               </View>
             </Pressable>
           </View>
@@ -596,7 +614,7 @@ export function PanicScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
-      <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+      <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
         <Icon name="arrow-left" size={20} color={Colors.fg1} />
       </Pressable>
       <View style={styles.content}>
@@ -623,8 +641,13 @@ export function PanicScreen({ navigation }: Props) {
                 onPressIn={onPressIn}
                 onPressOut={onPressOut}
                 android_ripple={null}
-                accessibilityLabel="Botón de pánico. Mantén presionado 2 segundos para activar"
+                accessibilityLabel="Botón de pánico"
+                accessibilityHint="Avisa a tu padrino. Mantén presionado 2 segundos o, con TalkBack, toca dos veces."
                 accessibilityRole="button"
+                accessibilityActions={[{ name: 'activate', label: 'Enviar alerta de pánico' }]}
+                onAccessibilityAction={(e) => {
+                  if (e.nativeEvent.actionName === 'activate') handleActivate();
+                }}
               >
                 <Icon name="hand" size={40} color="#fff" />
                 <Text style={styles.panicBtnLabel}>PÁNICO</Text>
@@ -942,13 +965,13 @@ const styles = StyleSheet.create({
   sponsorStatus: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.sage500,
+    color: Colors.greenText,
     marginTop: 2,
   },
   sponsorOnline: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.sage500,
+    color: Colors.greenText,
     marginTop: 2,
   },
   noSponsorText: {
@@ -1064,7 +1087,7 @@ const styles = StyleSheet.create({
   iaBannerTitle: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
-    color: Colors.accent,
+    color: Colors.primary,
   },
   iaBannerBody: {
     fontFamily: Fonts.body,

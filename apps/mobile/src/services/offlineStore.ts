@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { AchievementsData, CommunityPost } from '@stopbet/shared-types';
+import type { AchievementsData, CommunityPost, SponsorInfo } from '@stopbet/shared-types';
 
 // Sin red, la pantalla de inicio mostraba "0 días sin apostar": el estado parte
 // vacío y la carga falla, así que el contador caía a cero. A un paciente eso le
@@ -80,6 +80,28 @@ export async function readCommunity(): Promise<CachedCommunity | null> {
   try {
     const raw = await AsyncStorage.getItem(COMMUNITY_KEY);
     return raw ? (JSON.parse(raw) as CachedCommunity) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Sin red, la pantalla de pánico ofrecía llamar a un número fijo (el padrino del
+// seed) a cualquier paciente. Se guarda el padrino real de la última carga.
+const SPONSOR_KEY = '@stopbet/last-sponsor';
+
+export async function saveSponsor(sponsor: SponsorInfo | null): Promise<void> {
+  try {
+    if (sponsor) await AsyncStorage.setItem(SPONSOR_KEY, JSON.stringify(sponsor));
+    else await AsyncStorage.removeItem(SPONSOR_KEY);
+  } catch {
+    // Ver saveProgress: el caché es una mejora, no un requisito.
+  }
+}
+
+export async function readSponsor(): Promise<SponsorInfo | null> {
+  try {
+    const raw = await AsyncStorage.getItem(SPONSOR_KEY);
+    return raw ? (JSON.parse(raw) as SponsorInfo) : null;
   } catch {
     return null;
   }
