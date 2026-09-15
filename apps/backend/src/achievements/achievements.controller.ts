@@ -4,10 +4,12 @@ import {
   Get,
   Headers,
   HttpCode,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Post,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { IsOptional, IsString } from 'class-validator';
 import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AchievementsService } from './achievements.service';
@@ -26,7 +28,16 @@ class DevSetDaysDto {
 @ApiTags('achievements')
 @Controller('achievements')
 export class AchievementsController {
-  constructor(private readonly achievementsService: AchievementsService) {}
+  constructor(
+    private readonly achievementsService: AchievementsService,
+    private readonly config: ConfigService,
+  ) {}
+
+  // Railway corre con NODE_ENV=development (ver CLAUDE.md), así que NODE_ENV no distingue
+  // producción: las herramientas de demo se encienden solo con una variable explícita.
+  private devToolsEnabled(): boolean {
+    return this.config.get<string>('ENABLE_DEV_TOOLS') === 'true';
+  }
 
   @Get()
   @ApiOperation({ summary: 'Obtiene logros, insignias y ciclos históricos del paciente' })
@@ -45,17 +56,20 @@ export class AchievementsController {
     @Headers('x-user-id') userId: string,
     @Body() body: RelapseBodyDto,
   ) {
-    return this.achievementsService.reportRelapse(userId, body?.devStartDate);
+    const devStartDate = this.devToolsEnabled() ? body?.devStartDate : undefined;
+    return this.achievementsService.reportRelapse(userId, devStartDate);
   }
 
   @Post('dev-set-days')
   @HttpCode(200)
   @ApiOperation({ summary: '[Dev] Sobreescribe los días de abstinencia del período actual' })
   @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario' })
+  @ApiResponse({ status: 404, description: 'Deshabilitado si ENABLE_DEV_TOOLS no es "true"' })
   devSetDays(
     @Headers('x-user-id') userId: string,
     @Body() body: DevSetDaysDto,
   ) {
+    if (!this.devToolsEnabled()) throw new NotFoundException();
     return this.achievementsService.devSetDays(userId, body.days);
   }
 
