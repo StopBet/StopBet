@@ -120,15 +120,15 @@ export function SessionSummaryModal({
           <View style={styles.noteRow}>
             <Icon name="lock" size={14} color={Colors.fg2} />
             <Text style={styles.note}>
-              Solo se guarda este resumen general; el contenido de la conversación es privado y no se almacena. Tu psicólogo ve tu evolución para acompañarte mejor.
+              Este resumen ayuda al asistente a retomar la próxima vez. La conversación queda guardada en tu cuenta y tu psicólogo no la lee.
             </Text>
           </View>
 
-          <TouchableOpacity activeOpacity={0.85} onPress={onContinue} style={styles.btn}>
+          <TouchableOpacity activeOpacity={0.85} onPress={onContinue} style={styles.btn} accessibilityRole="button">
             <Text style={styles.btnText}>Continuar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onViewHistory} style={styles.linkBtn}>
+          <TouchableOpacity onPress={onViewHistory} style={styles.linkBtn} accessibilityRole="button">
             <Text style={styles.linkText}>Ver historial de sesiones</Text>
           </TouchableOpacity>
         </View>
@@ -231,6 +231,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
-  linkBtn: { marginTop: 12, padding: 4 },
+  linkBtn: { marginTop: 12, minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
   linkText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
 });
