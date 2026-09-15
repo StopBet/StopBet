@@ -1,9 +1,10 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { EmotionType } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
+import { Touchable } from './Touchable';
 
 const EMOTIONS: { type: EmotionType; emoji: string; label: string }[] = [
   { type: 'tired',   emoji: '😴', label: 'Cansado' },
@@ -42,7 +43,7 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
           const isSelected = done && selected === o.type;
           const dimmed = done && !isSelected;
           return (
-            <TouchableOpacity
+            <Touchable
               key={o.type}
               activeOpacity={0.8}
               disabled={done}
@@ -61,7 +62,7 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
               <Text style={[styles.label, isSelected && styles.labelSelected]}>
                 {o.label}
               </Text>
-            </TouchableOpacity>
+            </Touchable>
           );
         })}
       </View>

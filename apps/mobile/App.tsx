@@ -1,8 +1,10 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AppStackParamList, AuthStackParamList } from './src/navigation/types';
 import { AuthContext } from './src/context/AuthContext';
+import { ToastProvider } from './src/context/ToastContext';
 
 // Auth screens
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
@@ -14,13 +16,10 @@ import { RequestSentScreen } from './src/screens/RequestSentScreen';
 import { PaymentScreen } from './src/screens/PaymentScreen';
 
 // App screens
-import { HomeScreen } from './src/screens/HomeScreen';
 import { AssistantScreen } from './src/screens/AssistantScreen';
-import { AchievementsScreen } from './src/screens/AchievementsScreen';
+import { MainTabs } from './src/navigation/MainTabs';
 import { PanicScreen } from './src/screens/PanicScreen';
 import { SuspendedAccountScreen } from './src/screens/SuspendedAccountScreen';
-import { CommunityScreen } from './src/screens/CommunityScreen';
-import { ProfileScreen } from './src/screens/ProfileScreen';
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
@@ -50,11 +49,11 @@ function AppNavigator() {
       animation: 'fade',
       animationDuration: 220,
     }}>
-      <AppStack.Screen name="Home" component={HomeScreen} />
+      {/* Las cuatro secciones de la barra viven acá dentro para poder cambiarse
+          deslizando; el asistente, el pánico y la cuenta suspendida siguen siendo
+          pantallas del stack, encima de las pestañas. */}
+      <AppStack.Screen name="MainTabs" component={MainTabs} />
       <AppStack.Screen name="Assistant" component={AssistantScreen} />
-      <AppStack.Screen name="Community" component={CommunityScreen} />
-      <AppStack.Screen name="Achievements" component={AchievementsScreen} />
-      <AppStack.Screen name="Profile" component={ProfileScreen} />
       <AppStack.Screen name="Panic" component={PanicScreen} options={{ animation: 'slide_from_bottom', animationDuration: 320 }} />
       <AppStack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
     </AppStack.Navigator>
@@ -70,13 +69,20 @@ export default function App() {
   const [isSignedIn, setIsSignedIn] = React.useState(false);
 
   return (
-    <AuthContext.Provider value={{
-      signIn: () => setIsSignedIn(true),
-      signOut: () => setIsSignedIn(false),
-    }}>
-      <NavigationContainer>
-        {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
-      </NavigationContainer>
-    </AuthContext.Provider>
+    // Hasta ahora no había SafeAreaProvider propio: los insets venían del que monta
+    // React Navigation dentro de cada navegador. El aviso pasajero vive por fuera, así
+    // que necesita uno en la raíz.
+    <SafeAreaProvider>
+      <AuthContext.Provider value={{
+        signIn: () => setIsSignedIn(true),
+        signOut: () => setIsSignedIn(false),
+      }}>
+        <ToastProvider>
+          <NavigationContainer>
+            {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
+          </NavigationContainer>
+        </ToastProvider>
+      </AuthContext.Provider>
+    </SafeAreaProvider>
   );
 }

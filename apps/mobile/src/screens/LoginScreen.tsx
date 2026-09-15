@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -31,6 +31,9 @@ export function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formState, setFormState] = useState<FormState>('idle');
+  // El teclado no pasaba del correo a la contraseña ni enviaba: había que salir del
+  // teclado y tocar el botón para cada paso.
+  const passwordRef = useRef<TextInput>(null);
 
   const canSubmit = email.trim().length > 0 && password.length > 0;
 
@@ -92,12 +95,16 @@ export function LoginScreen({ navigation }: Props) {
                   value={email}
                   onChangeText={setEmail}
                   accessibilityLabel="Correo electrónico"
-                  placeholder="tucorreo@ajuter.cl"
+                  // "tucorreo@ajuter.cl" hacía creer que el paciente tiene correo de AJUTER
+                  placeholder="tu@correo.cl"
                   placeholderTextColor={Colors.fg2}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
                   editable={!isLoading}
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  submitBehavior="submit"
                 />
               </View>
             </View>
@@ -113,10 +120,13 @@ export function LoginScreen({ navigation }: Props) {
                   accessibilityLabel="Contraseña"
                   placeholder="Tu contraseña"
                   placeholderTextColor={Colors.fg2}
+                  ref={passwordRef}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoComplete="password"
                   editable={!isLoading}
+                  returnKeyType="go"
+                  onSubmitEditing={handleLogin}
                 />
                 <Pressable
                   onPress={() => setShowPassword(s => !s)}

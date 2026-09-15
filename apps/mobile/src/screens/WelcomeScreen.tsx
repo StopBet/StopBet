@@ -4,7 +4,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,6 +11,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
+import { Touchable } from '../components/Touchable';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
@@ -45,7 +45,8 @@ export function WelcomeScreen({ navigation }: Props) {
 
       {/* Footer con CTAs */}
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
           activeOpacity={0.85}
           style={styles.btnPrimary}
           // Mientras AJUTER sea la única institución, ese paso solo pedía confirmar lo
@@ -54,16 +55,16 @@ export function WelcomeScreen({ navigation }: Props) {
           accessibilityRole="button"
         >
           <Text style={styles.btnPrimaryText}>Comenzar registro</Text>
-        </TouchableOpacity>
+        </Touchable>
 
-        <TouchableOpacity
+        <Touchable
           activeOpacity={0.75}
           style={styles.btnLink}
           onPress={() => navigation.navigate('Login')}
           accessibilityRole="button"
         >
           <Text style={styles.btnLinkText}>Ya tengo cuenta · Iniciar sesión</Text>
-        </TouchableOpacity>
+        </Touchable>
       </View>
     </SafeAreaView>
   );

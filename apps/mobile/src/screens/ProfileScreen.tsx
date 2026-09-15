@@ -9,28 +9,36 @@ import {
   Switch,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AppStackParamList } from '../navigation/types';
-import { BottomNav } from '../components/BottomNav';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { devFlags } from '../store/devFlags';
 import { api } from '../services/api';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
+import { useToast } from '../context/ToastContext';
 import { readReminderChoice, saveReminderChoice } from '../services/offlineStore';
 import { AuthContext } from '../context/AuthContext';
+import { Touchable } from '../components/Touchable';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Profile'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Profile'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
 
 export function ProfileScreen({ navigation }: Props) {
+  const { showToast } = useToast();
   const { signOut } = useContext(AuthContext);
   const [offline, setOffline] = useState(devFlags.simulateOffline);
   const [communityMuted, setCommunityMuted] = useState(false);
@@ -91,7 +99,7 @@ export function ProfileScreen({ navigation }: Props) {
         : await api.unmuteCommunity(TEMP_USER_ID);
       setCommunityMuted(muted);
     } catch {
-      Alert.alert('Sin conexión', 'No se pudo actualizar tu preferencia de notificaciones.');
+      showToast('Sin conexión: no pudimos guardar tu preferencia.', 'error');
     } finally {
       setMuteLoading(false);
     }
@@ -124,7 +132,7 @@ export function ProfileScreen({ navigation }: Props) {
         setTimeout(() => setPanicResetStatus('idle'), 2500);
       } else {
         setPanicResetStatus('idle');
-        Alert.alert('Sin alerta', 'No había ninguna alerta de pánico activa.');
+        showToast('No había ninguna alerta de pánico activa.');
       }
     } catch {
       setPanicResetStatus('error');
@@ -141,7 +149,7 @@ export function ProfileScreen({ navigation }: Props) {
         setTimeout(() => setCheckInResetStatus('idle'), 2500);
       } else {
         setCheckInResetStatus('idle');
-        Alert.alert('Sin check-in', 'No había check-in registrado hoy.');
+        showToast('No había check-in registrado hoy.');
       }
     } catch {
       setCheckInResetStatus('error');
@@ -316,13 +324,14 @@ export function ProfileScreen({ navigation }: Props) {
                   returnKeyType="done"
                   onSubmitEditing={applyDays}
                 />
-                <TouchableOpacity style={styles.devApplyBtn} onPress={applyDays}>
+                <Touchable
+      rippleColor="rgba(255,255,255,0.28)" style={styles.devApplyBtn} onPress={applyDays}>
                   <Text style={styles.devApplyText}>OK</Text>
-                </TouchableOpacity>
+                </Touchable>
                 {devFlags.overrideDays !== null && (
-                  <TouchableOpacity style={styles.devClearBtn} onPress={clearDays}>
+                  <Touchable style={styles.devClearBtn} onPress={clearDays}>
                     <Icon name="x" size={14} color={Colors.fg2} />
-                  </TouchableOpacity>
+                  </Touchable>
                 )}
               </View>
             </View>
@@ -352,7 +361,8 @@ export function ProfileScreen({ navigation }: Props) {
                 <Text style={styles.devLabel}>Check-in emocional</Text>
                 <Text style={styles.devSub}>Reinicia el check-in de hoy para volver a registrarlo</Text>
               </View>
-              <TouchableOpacity
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.devApplyBtn, checkInResetStatus === 'loading' && { opacity: 0.5 }]}
                 onPress={resetCheckIn}
                 disabled={checkInResetStatus === 'loading'}
@@ -360,7 +370,7 @@ export function ProfileScreen({ navigation }: Props) {
                 <Text style={styles.devApplyText}>
                   {checkInResetStatus === 'loading' ? '…' : 'Reset'}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
             {checkInResetStatus === 'ok' && (
               <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
@@ -386,7 +396,8 @@ export function ProfileScreen({ navigation }: Props) {
                 <Text style={styles.devLabel}>Alerta de pánico</Text>
                 <Text style={styles.devSub}>Cancela la alerta activa para volver al botón idle</Text>
               </View>
-              <TouchableOpacity
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.devApplyBtn, panicResetStatus === 'loading' && { opacity: 0.5 }]}
                 onPress={resetPanicAlert}
                 disabled={panicResetStatus === 'loading'}
@@ -394,7 +405,7 @@ export function ProfileScreen({ navigation }: Props) {
                 <Text style={styles.devApplyText}>
                   {panicResetStatus === 'loading' ? '…' : 'Reset'}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
             {panicResetStatus === 'ok' && (
               <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
@@ -415,7 +426,7 @@ export function ProfileScreen({ navigation }: Props) {
           </View>
         )}
 
-        <TouchableOpacity
+        <Touchable
           style={styles.signOutBtn}
           onPress={confirmSignOut}
           accessibilityRole="button"
@@ -423,18 +434,9 @@ export function ProfileScreen({ navigation }: Props) {
         >
           <Icon name="log-out" size={18} color={Colors.fg1} />
           <Text style={styles.signOutText}>Cerrar sesión</Text>
-        </TouchableOpacity>
+        </Touchable>
       </ScrollView>
 
-      <BottomNav
-        active="profile"
-        onTabPress={(tab) => {
-          if (tab === 'home') navigation.navigate('Home');
-          else if (tab === 'community') navigation.navigate('Community');
-          else if (tab === 'achievements') navigation.navigate('Achievements');
-        }}
-        onPanicPress={() => navigation.navigate('Panic')}
-      />
     </SafeAreaView>
   );
 }
@@ -443,6 +445,10 @@ const UPCOMING_ITEMS: { icon: IconName; label: string; sub: string }[] = [
   { icon: 'user',     label: 'Datos personales', sub: 'Nombre, RUT y contacto' },
   { icon: 'hospital', label: 'Mi sede AJUTER',   sub: 'Tu centro de tratamiento' },
   { icon: 'lock',     label: 'Privacidad',       sub: 'Tus datos y permisos' },
+  // Va acá y no como algo usable a propósito: la pasarela la define el cliente y
+  // todavía no hay reunión, y falta decidir si paga el propio paciente o el
+  // familiar que asignó. Anunciarlo sin poder cobrar sería otra promesa vacía.
+  { icon: 'credit-card', label: 'Portal de pago', sub: 'Pagar tu plan desde la app, tú o tu familiar' },
 ];
 
 const styles = StyleSheet.create({

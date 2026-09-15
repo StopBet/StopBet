@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Linking,
   Animated,
   Easing,
   Modal,
@@ -8,7 +9,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +21,7 @@ import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
 import { useReduceMotion } from '../hooks/useReduceMotion';
+import { Touchable } from '../components/Touchable';
 
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
@@ -157,7 +158,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   };
 
   const handleGoHome = () => {
-    navigation.replace('Home');
+    navigation.replace('MainTabs', { screen: 'Home' });
   };
 
   const handlePanic = () => {
@@ -199,10 +200,11 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             </View>
           )}
 
-          <TouchableOpacity style={styles.btnPrimary} onPress={handleGoHome} activeOpacity={0.85} accessibilityRole="button">
+          <Touchable
+      rippleColor="rgba(255,255,255,0.28)" style={styles.btnPrimary} onPress={handleGoHome} activeOpacity={0.85} accessibilityRole="button">
             <Icon name="house" size={17} color={Colors.white} />
             <Text style={styles.btnPrimaryText}>Ir a mi inicio</Text>
-          </TouchableOpacity>
+          </Touchable>
         </View>
       </SafeAreaView>
     );
@@ -252,9 +254,9 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               No pudimos cargar tu estado de cuenta, así que tampoco podemos mostrarte cuánto
               falta. Revisa tu conexión e inténtalo de nuevo.
             </Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={load} accessibilityRole="button">
+            <Touchable style={styles.retryBtn} onPress={load} accessibilityRole="button">
               <Text style={styles.retryText}>Reintentar</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         ) : (
           <View style={styles.overdueCard}>
@@ -304,7 +306,8 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               <Text style={styles.payErrorText}>{payError}</Text>
             </View>
           )}
-          <TouchableOpacity
+          <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
             style={[styles.btnPrimary, (paying || loadState !== 'ready') && styles.btnDisabled]}
             onPress={() => setConfirmPayOpen(true)}
             activeOpacity={0.85}
@@ -320,9 +323,9 @@ export function SuspendedAccountScreen({ navigation }: Props) {
                 <Text style={styles.btnPrimaryText}>Pagar ahora y reactivar</Text>
               </View>
             )}
-          </TouchableOpacity>
+          </Touchable>
 
-          <TouchableOpacity
+          <Touchable
             style={styles.btnOutline}
             onPress={handleOpenFamilySheet}
             activeOpacity={0.8}
@@ -332,12 +335,22 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               <Icon name="users" size={17} color={Colors.primary} />
               <Text style={styles.btnOutlineText}>Avisar a mi familiar</Text>
             </View>
-          </TouchableOpacity>
+          </Touchable>
 
-          <Text style={styles.helpLink}>
-            ¿Tienes problemas para pagar?{' '}
-            <Text style={styles.helpLinkBold}>soporte@stopbet.cl</Text>
-          </Text>
+          {/* Antes decía soporte@stopbet.cl acá y contacto@ajuter.cl en el registro, y
+              ninguno abría el correo. El pago se coordina con la sede, así que el
+              contacto es el mismo del registro. */}
+          <Touchable
+            style={styles.helpLinkBtn}
+            onPress={() => Linking.openURL('mailto:contacto@ajuter.cl?subject=Problemas%20para%20pagar%20mi%20plan')}
+            accessibilityRole="button"
+            accessibilityLabel="Escribir a contacto@ajuter.cl"
+          >
+            <Text style={styles.helpLink}>
+              ¿Tienes problemas para pagar?{' '}
+              <Text style={styles.helpLinkBold}>contacto@ajuter.cl</Text>
+            </Text>
+          </Touchable>
         </View>
 
         {/* Divisor de emergencia */}
@@ -355,7 +368,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
           <Text style={styles.panicCardLead}>
             Aunque tu cuenta esté suspendida, siempre puedes usar:
           </Text>
-          <TouchableOpacity
+          <Touchable
             style={styles.panicButton}
             onPress={handlePanic}
             activeOpacity={0.85}
@@ -363,7 +376,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             accessibilityRole="button"
           >
             <Icon name="siren" size={30} color={Colors.white} />
-          </TouchableOpacity>
+          </Touchable>
           <Text style={styles.panicButtonLabel}>BOTÓN DE PÁNICO</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="heart" size={13} color={Colors.danger} />
@@ -390,16 +403,17 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               Esta acción no cobra ninguna tarjeta: deja el pago registrado y te devuelve el acceso.
             </Text>
             <View style={styles.sheetActions}>
-              <TouchableOpacity style={styles.btnPrimary} onPress={handlePay} accessibilityRole="button">
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)" style={styles.btnPrimary} onPress={handlePay} accessibilityRole="button">
                 <Text style={styles.btnPrimaryText}>Confirmar y reactivar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Touchable>
+              <Touchable
                 style={styles.btnOutline}
                 onPress={() => setConfirmPayOpen(false)}
                 accessibilityRole="button"
               >
                 <Text style={styles.btnOutlineText}>Cancelar</Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
           </View>
         </View>
@@ -412,14 +426,14 @@ export function SuspendedAccountScreen({ navigation }: Props) {
         animationType="slide"
         onRequestClose={() => setFamilySheetOpen(false)}
       >
-        <TouchableOpacity
+        <Touchable
           style={styles.sheetOverlay}
           activeOpacity={1}
           onPress={() => setFamilySheetOpen(false)}
           // accessible={false}: si no, TalkBack agrupa toda la hoja en un solo elemento y no llega a sus botones
           accessible={false}
         >
-          <TouchableOpacity activeOpacity={1} style={styles.sheet} accessible={false}>
+          <Touchable activeOpacity={1} style={styles.sheet} accessible={false}>
             <View style={styles.sheetGrip} />
             <Text style={styles.sheetTitle}>Avisar a un familiar</Text>
             <Text style={styles.sheetSub}>
@@ -443,7 +457,8 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             )}
 
             <View style={styles.sheetActions}>
-              <TouchableOpacity
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.btnPrimary, !familyLink && styles.btnDisabled]}
                 onPress={handleShareFamilyLink}
                 activeOpacity={0.85}
@@ -454,18 +469,18 @@ export function SuspendedAccountScreen({ navigation }: Props) {
                   <Icon name="share" size={17} color={Colors.white} />
                   <Text style={styles.btnPrimaryText}>Compartir enlace de pago</Text>
                 </View>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Touchable>
+              <Touchable
                 style={styles.btnOutline}
                 onPress={() => setFamilySheetOpen(false)}
                 activeOpacity={0.8}
                 accessibilityRole="button"
               >
                 <Text style={styles.btnOutlineText}>Cancelar</Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
-          </TouchableOpacity>
-        </TouchableOpacity>
+          </Touchable>
+        </Touchable>
       </Modal>
     </SafeAreaView>
   );
@@ -554,6 +569,7 @@ const styles = StyleSheet.create({
 
   /* Actions */
   actions: { gap: 12 },
+  helpLinkBtn: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
   helpLink: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, textAlign: 'center' },
   helpLinkBold: { fontFamily: Fonts.bodyBold, color: Colors.primary },
 

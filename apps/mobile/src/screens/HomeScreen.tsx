@@ -12,13 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { EmotionType, Notification, PatientProgress } from '@stopbet/shared-types';
-import type { AppStackParamList } from '../navigation/types';
+import type { CommunityPost, EmotionType, Notification, PatientProgress } from '@stopbet/shared-types';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { DayCounter } from '../components/DayCounter';
 import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
-import { BottomNav, NavTab } from '../components/BottomNav';
 import { NotificationSection } from '../components/NotificationSection';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
@@ -38,15 +39,36 @@ import {
   saveReminderChoice,
 } from '../services/offlineStore';
 import { conReintento } from '../services/reintentoEscritura';
+import { useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
+const TEMP_SEDE = 'Santiago';
 const REFRESH_MS = 3 * 60 * 1000;
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Home'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
+
+function formatEventDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-CL', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export function HomeScreen({ navigation }: Props) {
+  const { showToast } = useToast();
   const [progress, setProgress] = useState<PatientProgress | null>(null);
   const [todayEmotion, setTodayEmotion] = useState<EmotionType | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
@@ -57,7 +79,9 @@ export function HomeScreen({ navigation }: Props) {
   const [askReminder, setAskReminder] = useState(false);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
-  const [activeTab, setActiveTab] = useState<NavTab>('home');
+  // Los accesos rápidos repetían la barra de abajo. En su lugar va lo del día que el
+  // paciente no tiene en ninguna otra parte de Inicio: la próxima sesión de su sede.
+  const [nextEvent, setNextEvent] = useState<CommunityPost | null>(null);
 
   const load = useCallback(async () => {
     setLoadFailed(false);
@@ -69,11 +93,19 @@ export function HomeScreen({ navigation }: Props) {
         return;
       }
 
-      const [achData, checkIn, notifs] = await Promise.all([
+      const [achData, checkIn, notifs, anns] = await Promise.all([
         api.getAchievements(TEMP_USER_ID),
         api.getTodayCheckIn(TEMP_USER_ID),
         api.getNotifications(TEMP_USER_ID),
+        api.getAnnouncements(TEMP_USER_ID, TEMP_SEDE),
       ]);
+
+      // Solo eventos que todavía no ocurren; si no hay ninguno, no se muestra nada
+      const ahora = Date.now();
+      const proximo = anns
+        .filter((a) => a.eventDate && new Date(a.eventDate).getTime() > ahora)
+        .sort((a, b) => new Date(a.eventDate!).getTime() - new Date(b.eventDate!).getTime())[0];
+      setNextEvent(proximo ?? null);
 
       const days = achData.currentPeriod.daysAchieved;
       const HOME_MILESTONES = [30, 60, 90, 180, 365];
@@ -218,7 +250,7 @@ export function HomeScreen({ navigation }: Props) {
       setCheckInDone(true);
     } catch (err) {
       if (!isNetworkError(err)) {
-        Alert.alert('Error', 'No se pudo guardar el check-in. Inténtalo de nuevo.');
+        showToast('No pudimos guardar tu check-in. Inténtalo de nuevo.', 'error');
         return;
       }
       // CA7.3: sin conexión el ánimo no se descarta — queda en cola y se
@@ -226,10 +258,7 @@ export function HomeScreen({ navigation }: Props) {
       await savePending(TEMP_USER_ID, emotion);
       setTodayEmotion(emotion);
       setCheckInDone(true);
-      Alert.alert(
-        'Sin conexión',
-        'Guardamos tu check-in en el teléfono y lo enviaremos solo cuando vuelvas a tener internet.',
-      );
+      showToast('Sin conexión: guardamos tu check-in y lo enviaremos cuando vuelvas a tener internet.');
     }
   };
 
@@ -241,19 +270,6 @@ export function HomeScreen({ navigation }: Props) {
       );
     } catch {
       // Fallo silencioso: el leído es cosmético
-    }
-  };
-
-  const handleTabPress = (tab: NavTab) => {
-    setActiveTab(tab);
-    if (tab !== 'home') {
-      navigation.navigate(
-        tab === 'community'
-          ? 'Community'
-          : tab === 'achievements'
-          ? 'Achievements'
-          : 'Profile',
-      );
     }
   };
 
@@ -377,19 +393,29 @@ export function HomeScreen({ navigation }: Props) {
             onPick={handlePickEmotion}
           />
 
-          <QuickAccess
-            onPressAssistant={() => navigation.navigate('Assistant')}
-            onPressCommunity={() => navigation.navigate('Community')}
-            onPressAchievements={() => navigation.navigate('Achievements')}
-          />
+          <QuickAccess onPressAssistant={() => navigation.navigate('Assistant')} />
+
+          {nextEvent && (
+            <Touchable
+              style={styles.eventCard}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('Community', { initialTab: 'announcements' })}
+              accessibilityRole="button"
+              accessibilityLabel={`Próxima sesión de tu sede: ${formatEventDate(nextEvent.eventDate!)}. Ver en Anuncios`}
+            >
+              <View style={styles.eventIcon}>
+                <Icon name="calendar" size={20} color={Colors.primary} />
+              </View>
+              <View style={styles.eventText}>
+                <Text style={styles.eventLabel}>Próxima sesión de tu sede</Text>
+                <Text style={styles.eventWhen}>{formatEventDate(nextEvent.eventDate!)}</Text>
+              </View>
+              <Icon name="chevron-right" size={20} color={Colors.fg2} />
+            </Touchable>
+          )}
         </ScrollView>
       )}
 
-      <BottomNav
-        active={activeTab}
-        onTabPress={handleTabPress}
-        onPanicPress={handlePanicPress}
-      />
     </SafeAreaView>
   );
 }
@@ -527,5 +553,26 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
+
+  eventCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginHorizontal: 16,
+    marginTop: 14,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  eventIcon: {
+    width: 42, height: 42, borderRadius: 12,
+    backgroundColor: Colors.infoSurface,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  eventText: { flex: 1 },
+  eventLabel: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2 },
+  eventWhen: { fontFamily: Fonts.bodyBold, fontSize: 14.5, color: Colors.ink900, marginTop: 2 },
 
 });

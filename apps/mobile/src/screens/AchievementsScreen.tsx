@@ -7,11 +7,12 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
   AbstinencePeriod,
@@ -19,9 +20,8 @@ import type {
   BadgeMilestone,
   EarnedBadge,
 } from '@stopbet/shared-types';
-import type { AppStackParamList } from '../navigation/types';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
-import { BottomNav, NavTab } from '../components/BottomNav';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
@@ -31,9 +31,11 @@ import {
   acknowledgePendingRelapse,
   suppressNextExternalRelapseDetection,
 } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import { devFlags } from '../store/devFlags';
 import { isNetworkError } from '../services/checkInQueue';
 import { readAchievements, saveAchievements } from '../services/offlineStore';
+import { Touchable } from '../components/Touchable';
 
 // Ajustar cuando se conecte autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -106,15 +108,20 @@ function sameAchievements(a: AchievementsData, b: AchievementsData): boolean {
   );
 }
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Achievements'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Achievements'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
 
 export function AchievementsScreen({ navigation }: Props) {
+  const { showToast } = useToast();
   const [data, setData] = useState<AchievementsData>(EMPTY_DATA);
   // Arranca en true: hasta que llegue la primera respuesta, EMPTY_DATA diría
   // "0 días" y se leería como un contador reiniciado, no como una carga.
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
-  const [activeTab, setActiveTab] = useState<NavTab>('achievements');
   const [relapseModal, setRelapseModal] = useState(false);
   const [relapseMessage, setRelapseMessage] = useState('');
   const [shareMilestone, setShareMilestone] = useState<BadgeMilestone | null>(null);
@@ -195,7 +202,7 @@ export function AchievementsScreen({ navigation }: Props) {
               setRelapseMessage(message);
               setRelapseModal(true);
             } catch (err) {
-              Alert.alert('Error', 'No se pudo registrar la recaída. Inténtalo de nuevo.');
+              showToast('No pudimos registrar la recaída. Inténtalo de nuevo.', 'error');
             }
           },
         },
@@ -222,15 +229,8 @@ export function AchievementsScreen({ navigation }: Props) {
       // mismo, así que veía su logro dos veces: el anuncio publicado y el borrador.
       navigation.navigate('Community', { initialTab: 'forum' });
     } catch {
-      Alert.alert('Error', 'No se pudo compartir la insignia.');
+      showToast('No pudimos compartir tu insignia. Inténtalo de nuevo.', 'error');
     }
-  };
-
-  const handleTabPress = (tab: NavTab) => {
-    setActiveTab(tab);
-    if (tab === 'home') navigation.navigate('Home');
-    else if (tab === 'community') navigation.navigate('Community');
-    else if (tab === 'profile') navigation.navigate('Profile');
   };
 
   const currentPeriod = data.currentPeriod;
@@ -328,7 +328,7 @@ export function AchievementsScreen({ navigation }: Props) {
 
             {/* Iba en el rojo reservado al pánico y en el centro de la tarjeta del logro:
                 se leía como castigo. El modal que viene después ya tiene el tono correcto. */}
-            <TouchableOpacity
+            <Touchable
               style={styles.relapseBtn}
               onPress={handleRelapse}
               activeOpacity={0.8}
@@ -340,7 +340,7 @@ export function AchievementsScreen({ navigation }: Props) {
                 <Icon name="hand-heart" size={15} color={Colors.fg2} />
                 <Text style={styles.relapseBtnText}>Registrar una recaída</Text>
               </View>
-            </TouchableOpacity>
+            </Touchable>
           </View>
           )}
 
@@ -353,7 +353,7 @@ export function AchievementsScreen({ navigation }: Props) {
               const isNewest = milestone === newestEarnedMilestone;
               const cfg = BADGE_CONFIG[milestone];
               return (
-                <TouchableOpacity
+                <Touchable
                   key={milestone}
                   style={styles.badgeItem}
                   activeOpacity={earned ? 0.75 : 1}
@@ -391,7 +391,7 @@ export function AchievementsScreen({ navigation }: Props) {
                     {cfg.label}
                   </Text>
                   <Text style={styles.badgeDays}>{cfg.daysLabel}</Text>
-                </TouchableOpacity>
+                </Touchable>
               );
             })}
           </View>
@@ -426,22 +426,18 @@ export function AchievementsScreen({ navigation }: Props) {
                 ? `Se consigue a los ${BADGE_CONFIG[lockedInfo].daysLabel}. Te faltan ${lockedInfo - days} día${lockedInfo - days !== 1 ? 's' : ''}.`
                 : 'Todavía no la consigues. Va a aparecer acá cuando la ganes.'}
             </Text>
-            <TouchableOpacity
+            <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
               style={styles.lockedBtn}
               onPress={() => setLockedInfo(null)}
               accessibilityRole="button"
             >
               <Text style={styles.lockedBtnText}>Entendido</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         </View>
       </Modal>
 
-      <BottomNav
-        active={activeTab}
-        onTabPress={handleTabPress}
-        onPanicPress={() => navigation.navigate('Panic')}
-      />
 
       {/* ── Modal: Recaída reportada ── */}
       <Modal
@@ -460,7 +456,8 @@ export function AchievementsScreen({ navigation }: Props) {
               {isExternalRelapse ? 'Tu psicólogo registró una recaída' : 'No estás solo en esto'}
             </Text>
             <Text style={styles.modalText}>{relapseMessage}</Text>
-            <TouchableOpacity
+            <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
               style={styles.btnPrimary}
               onPress={() => {
                 setRelapseModal(false);
@@ -474,14 +471,14 @@ export function AchievementsScreen({ navigation }: Props) {
                 <Icon name="message-circle" size={18} color={Colors.white} />
                 <Text style={styles.btnPrimaryText}>Hablar con el asistente ahora</Text>
               </View>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Touchable>
+            <Touchable
               onPress={() => { setRelapseModal(false); setIsExternalRelapse(false); }}
               style={styles.btnLink}
               accessibilityRole="button"
             >
               <Text style={styles.btnLinkText}>Cerrar</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         </View>
       </Modal>
@@ -496,6 +493,27 @@ export function AchievementsScreen({ navigation }: Props) {
       />
     </SafeAreaView>
   );
+}
+
+/**
+ * La tarjeta de cada ciclo cerraba con "Cada intento cuenta. Aprendiste algo valioso."
+ * palabra por palabra, en todos: leído en fila suena a plantilla. Ahora dice algo que
+ * solo se puede decir de ese ciclo.
+ */
+function cycleNote(period: AbstinencePeriod): string {
+  const dias = period.daysAchieved;
+  const insignias = period.earnedBadges.length;
+
+  if (insignias > 0) {
+    return `Ganaste ${insignias} insignia${insignias === 1 ? '' : 's'} en ${dias} día${dias === 1 ? '' : 's'}. Eso no se borra.`;
+  }
+  if (dias >= 7) {
+    return `Aguantaste ${dias} días. La próxima parte desde más arriba.`;
+  }
+  if (dias >= 1) {
+    return `${dias} día${dias === 1 ? '' : 's'} también cuentan: volviste a empezar.`;
+  }
+  return 'Volver a empezar ya es parte del proceso.';
 }
 
 /* ── CycleCard ─────────────────────────────────────────────────────────── */
@@ -527,7 +545,8 @@ function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attempt
       <View style={styles.cycleNote}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
           <Icon name="leaf" size={12} color={Colors.fg2} />
-          <Text style={styles.cycleNoteText}>Cada intento cuenta. Aprendiste algo valioso.</Text>
+          {/* La misma frase palabra por palabra en cada ciclo sonaba a plantilla */}
+          <Text style={styles.cycleNoteText}>{cycleNote(period)}</Text>
         </View>
       </View>
     </View>
@@ -604,7 +623,9 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   counterNum: {
-    fontFamily: Fonts.bodyBold,
+    // El manual reserva Chillax para los números grandes; Inicio ya lo usaba y acá
+    // el mismo dato salía en Satoshi
+    fontFamily: Fonts.headingBold,
     fontSize: 72,
     color: Colors.primary,
     letterSpacing: -1,

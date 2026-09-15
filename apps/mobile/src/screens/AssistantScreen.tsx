@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,8 +33,11 @@ import { TechniqueCard } from '../components/TechniqueCard';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
 import { Icon } from '../components/Icon';
+import { PanicHeaderButton } from '../components/PanicHeaderButton';
 import type { AppStackParamList } from '../navigation/types';
 import { readSponsor } from '../services/offlineStore';
+import { useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
 
 const PLACEHOLDER_USER_ID = '11111111-1111-1111-1111-111111111111'; // TODO: reemplazar con ID real del contexto de auth
 const INACTIVITY_MS = 10 * 60 * 1000;
@@ -52,6 +54,7 @@ interface ListItem {
 }
 
 export function AssistantScreen() {
+  const { showToast } = useToast();
   const navigation = useNavigation<Nav>();
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -241,7 +244,7 @@ export function AssistantScreen() {
               setSummary(result);
               setSummaryVisible(true);
             } catch {
-              Alert.alert('Error', 'No se pudo cerrar la sesión correctamente.');
+              showToast('No pudimos guardar el resumen de la conversación.', 'error');
             }
           },
         },
@@ -316,7 +319,7 @@ export function AssistantScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <Touchable
           onPress={() => navigation.goBack()}
           style={styles.backBtn}
           hitSlop={8}
@@ -324,34 +327,34 @@ export function AssistantScreen() {
           accessibilityLabel="Volver"
         >
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
-        </TouchableOpacity>
+        </Touchable>
 
         <View style={styles.headerCenter}>
-          <View style={styles.avatarDot} />
-          <View>
-            <Text style={styles.headerTitle}>Asistente StopBet</Text>
-            <Text style={styles.headerSub}>AJUTER · Privado y seguro</Text>
+          <View style={styles.avatarDot}>
+            {/* Era un círculo azul vacío */}
+            <Icon name="sparkles" size={20} color={Colors.white} />
+          </View>
+          {/* Sin `flex: 1` y sin truncar, el título se metía debajo de los botones
+              cuando el de pánico creció al tamaño compartido */}
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle} numberOfLines={1}>Asistente</Text>
+            <Text style={styles.headerSub} numberOfLines={1}>Privado y seguro</Text>
           </View>
         </View>
 
         <View style={styles.headerActions}>
           {sessionId && (
-            <TouchableOpacity
+            <Touchable
               onPress={handleManualClose}
               style={styles.closeBtn}
               accessibilityRole="button"
               accessibilityLabel="Terminar conversación"
+              accessibilityHint="Guarda un resumen y cierra el chat"
             >
-              <Text style={styles.closeBtnText}>Terminar</Text>
-            </TouchableOpacity>
+              <Icon name="x" size={20} color={Colors.fg2} />
+            </Touchable>
           )}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Panic')}
-            style={styles.panicBtn}
-            accessibilityLabel="Botón de pánico"
-          >
-            <Icon name="siren" size={20} color={Colors.danger} />
-          </TouchableOpacity>
+          <PanicHeaderButton onPress={() => navigation.navigate('Panic')} />
         </View>
       </View>
 
@@ -386,16 +389,17 @@ export function AssistantScreen() {
               Revisa tu conexión y vuelve a intentarlo. Si necesitas ayuda ahora, usa el botón de pánico o llama al *4141.
             </Text>
             <View style={styles.initErrorActions}>
-              <TouchableOpacity style={styles.retryBtn} onPress={initSession} accessibilityRole="button">
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)" style={styles.retryBtn} onPress={initSession} accessibilityRole="button">
                 <Text style={styles.retryText}>Reintentar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Touchable>
+              <Touchable
                 style={styles.panicLink}
                 onPress={() => navigation.navigate('Panic')}
                 accessibilityRole="button"
               >
                 <Text style={styles.panicLinkText}>Ir al botón de pánico</Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
           </View>
         )}
@@ -407,13 +411,13 @@ export function AssistantScreen() {
             <Text style={styles.idleText}>
               Si no escribes en un minuto, cerramos la conversación y guardamos el resumen.
             </Text>
-            <TouchableOpacity
+            <Touchable
               onPress={resetInactivityTimer}
               style={styles.idleBtn}
               accessibilityRole="button"
             >
               <Text style={styles.idleBtnText}>Sigo acá</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         )}
 
@@ -424,7 +428,7 @@ export function AssistantScreen() {
             value={inputText}
             onChangeText={setInputText}
             accessibilityLabel="Mensaje para el asistente"
-            placeholder={sessionId ? 'Escribe aquí…' : initError ? 'Sin conexión con el asistente' : 'Conectando…'}
+            placeholder={sessionId ? 'Cuéntame cómo estás…' : initError ? 'Sin conexión con el asistente' : 'Conectando…'}
             placeholderTextColor={Colors.fg2}
             editable={!!sessionId}
             multiline
@@ -432,7 +436,8 @@ export function AssistantScreen() {
             returnKeyType="send"
             onSubmitEditing={handleSend}
           />
-          <TouchableOpacity
+          <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
             onPress={handleSend}
             disabled={!sessionId || !inputText.trim() || isSending}
             accessibilityRole="button"
@@ -443,7 +448,7 @@ export function AssistantScreen() {
             ]}
           >
             <Icon name="arrow-up" size={20} color={Colors.white} />
-          </TouchableOpacity>
+          </Touchable>
         </View>
       </KeyboardAvoidingView>
 
@@ -473,32 +478,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backBtn: { padding: 6, marginRight: 6 },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: 2 },
+  headerCenter: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerTitleWrap: { flex: 1, minWidth: 0 },
   avatarDot: {
     width: 38,
     height: 38,
     borderRadius: 19,
     backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
   headerSub: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 1 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   closeBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    // Con el botón de pánico compartido, la palabra "Terminar" dejaba al título en
+    // "Asistente Sto…". El nombre accesible lo sigue diciendo completo.
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 9999,
-  },
-  closeBtnText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
-  panicBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.dangerSurface,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   listContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 10 },
 

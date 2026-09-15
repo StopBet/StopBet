@@ -1,9 +1,10 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Notification } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 const TYPE_STYLES: Record<string, { bg: string; border: string; iconColor: string; titleColor: string; icon: IconName }> = {
   warning: {
@@ -73,7 +74,7 @@ export function NotificationSection({ notifications, onMarkRead }: Props) {
         {notifications.map((n) => {
           const s = TYPE_STYLES[n.type] ?? TYPE_STYLES.info;
           return (
-            <TouchableOpacity
+            <Touchable
               key={n.id}
               activeOpacity={0.85}
               onPress={() => onMarkRead(n.id)}
@@ -92,7 +93,7 @@ export function NotificationSection({ notifications, onMarkRead }: Props) {
                 </View>
                 <Text style={styles.body}>{n.body}</Text>
               </View>
-            </TouchableOpacity>
+            </Touchable>
           );
         })}
       </View>

@@ -2,13 +2,13 @@ import React from 'react';
 import {
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 export type NavTab = 'home' | 'community' | 'achievements' | 'profile';
 
@@ -32,7 +32,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
   const renderTab = (tab: { id: NavTab; icon: IconName; label: string }) => {
     const isActive = active === tab.id;
     return (
-      <TouchableOpacity
+      <Touchable
         key={tab.id}
         onPress={() => onTabPress(tab.id)}
         style={styles.tab}
@@ -45,7 +45,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
         <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
           {tab.label}
         </Text>
-      </TouchableOpacity>
+      </Touchable>
     );
   };
 
@@ -53,7 +53,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
     <View style={[styles.bar, { paddingBottom: Math.max(bottom, 12) }]} accessibilityRole="tablist">
       {LEFT_TABS.map(renderTab)}
 
-      <TouchableOpacity
+      <Touchable
         onPress={onPanicPress}
         activeOpacity={0.85}
         accessible
@@ -65,7 +65,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
           <Icon name="siren" size={20} color={Colors.white} />
           <Text style={styles.panicLabel}>SOS</Text>
         </View>
-      </TouchableOpacity>
+      </Touchable>
 
       {RIGHT_TABS.map(renderTab)}
     </View>

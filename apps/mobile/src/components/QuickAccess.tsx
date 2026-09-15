@@ -1,20 +1,19 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
+import { Touchable } from './Touchable';
 
 interface Props {
   onPressAssistant: () => void;
-  onPressCommunity: () => void;
-  onPressAchievements: () => void;
 }
 
-export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchievements }: Props) {
+export function QuickAccess({ onPressAssistant }: Props) {
   return (
     <View style={styles.wrapper}>
       {/* CTA principal — Hablar con el asistente IA */}
-      <TouchableOpacity
+      <Touchable
         activeOpacity={0.85}
         onPress={onPressAssistant}
         style={styles.primaryButton}
@@ -28,34 +27,11 @@ export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchieve
           <Text style={styles.primarySubtitle}>Apoyo inmediato · disponible ahora</Text>
         </View>
         <Icon name="chevron-right" size={22} color={Colors.overlayWhite72} />
-      </TouchableOpacity>
+      </Touchable>
 
-      {/* Grid secundario */}
-      <View style={styles.grid}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={onPressCommunity}
-          style={styles.secondaryButton}
-          accessibilityRole="button"
-        >
-          <View style={[styles.secondaryIcon, { backgroundColor: Colors.infoSurface }]}>
-            <Icon name="users" size={20} color={Colors.primary} />
-          </View>
-          <Text style={styles.secondaryLabel}>Comunidad</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={onPressAchievements}
-          style={styles.secondaryButton}
-          accessibilityRole="button"
-        >
-          <View style={[styles.secondaryIcon, { backgroundColor: Colors.gold50 }]}>
-            <Icon name="trophy" size={20} color={Colors.greenText} />
-          </View>
-          <Text style={styles.secondaryLabel}>Mis logros</Text>
-        </TouchableOpacity>
-      </View>
+      {/* "Comunidad" y "Mis logros" eran las mismas pestañas de la barra de abajo, a dos
+          toques de distancia una de otra. Se quitaron: el acceso rápido queda para lo que
+          no está en la barra. */}
     </View>
   );
 }

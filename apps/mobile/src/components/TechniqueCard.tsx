@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import type { TechniqueType } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 interface TechniqueStep {
   label: string;
@@ -114,26 +115,28 @@ export function TechniqueCard({ type }: Props) {
 
       <View style={styles.actions}>
         {step === null && (
-          <TouchableOpacity activeOpacity={0.85} onPress={next} style={styles.cta} accessibilityRole="button">
+          <Touchable
+      rippleColor="rgba(255,255,255,0.28)" activeOpacity={0.85} onPress={next} style={styles.cta} accessibilityRole="button">
             <Icon name={t.icon} size={15} color={Colors.white} />
             <Text style={styles.ctaText}>Iniciar guía</Text>
-          </TouchableOpacity>
+          </Touchable>
         )}
         {current && !current.secs && (
-          <TouchableOpacity activeOpacity={0.85} onPress={next} style={styles.cta} accessibilityRole="button">
+          <Touchable
+      rippleColor="rgba(255,255,255,0.28)" activeOpacity={0.85} onPress={next} style={styles.cta} accessibilityRole="button">
             <Text style={styles.ctaText}>{step === t.steps.length - 1 ? 'Terminar' : 'Siguiente'}</Text>
             <Icon name="arrow-right" size={15} color={Colors.white} />
-          </TouchableOpacity>
+          </Touchable>
         )}
         {current && current.secs && (
-          <TouchableOpacity activeOpacity={0.85} onPress={() => setStep(null)} style={styles.ctaGhost} accessibilityRole="button">
+          <Touchable activeOpacity={0.85} onPress={() => setStep(null)} style={styles.ctaGhost} accessibilityRole="button">
             <Text style={styles.ctaGhostText}>Detener</Text>
-          </TouchableOpacity>
+          </Touchable>
         )}
         {finished && (
-          <TouchableOpacity activeOpacity={0.85} onPress={() => setStep(0)} style={styles.ctaGhost} accessibilityRole="button">
+          <Touchable activeOpacity={0.85} onPress={() => setStep(0)} style={styles.ctaGhost} accessibilityRole="button">
             <Text style={styles.ctaGhostText}>Repetir</Text>
-          </TouchableOpacity>
+          </Touchable>
         )}
       </View>
     </View>

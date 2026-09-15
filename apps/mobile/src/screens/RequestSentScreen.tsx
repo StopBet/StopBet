@@ -5,7 +5,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +13,7 @@ import type { AuthStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
+import { Touchable } from '../components/Touchable';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RequestSent'>;
 
@@ -89,16 +89,16 @@ export function RequestSentScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Touchable
           activeOpacity={0.85}
           style={styles.btnOutline}
           onPress={() => navigation.navigate('Welcome')}
           accessibilityRole="button"
         >
           <Text style={styles.btnOutlineText}>Volver al inicio</Text>
-        </TouchableOpacity>
+        </Touchable>
         {/* El correo no era tocable, y "Powered by StopBet" dentro de StopBet no dice nada */}
-        <TouchableOpacity
+        <Touchable
           onPress={() => Linking.openURL('mailto:contacto@ajuter.cl?subject=Solicitud%20de%20registro')}
           style={styles.contactBtn}
           accessibilityRole="button"
@@ -108,7 +108,7 @@ export function RequestSentScreen({ navigation, route }: Props) {
             ¿Preguntas? Escríbenos a{' '}
             <Text style={styles.contactLink}>contacto@ajuter.cl</Text>
           </Text>
-        </TouchableOpacity>
+        </Touchable>
       </View>
     </SafeAreaView>
   );

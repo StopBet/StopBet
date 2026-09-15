@@ -193,7 +193,7 @@ export function PanicScreen({ navigation }: Props) {
   // había sido respondida. Ahora la cierra el paciente cuando quiere.
   const handleCloseResponded = useCallback(async (alertId: string, sponsorForIdle: SponsorInfo | null) => {
     setState({ kind: 'idle', sponsor: sponsorForIdle });
-    navigation.navigate('Home');
+    navigation.navigate('MainTabs', { screen: 'Home' });
     try {
       await api.cancelPanicAlert(TEMP_USER_ID, alertId);
     } catch {
@@ -283,7 +283,7 @@ export function PanicScreen({ navigation }: Props) {
       'Si vuelves al inicio, la alerta ya enviada sigue en pie y tu padrino puede responderla. Puedes volver a esta pantalla cuando quieras.',
       [
         { text: 'Seguir esperando', style: 'cancel' },
-        { text: 'Ir al inicio', onPress: () => navigation.navigate('Home') },
+        { text: 'Ir al inicio', onPress: () => navigation.navigate('MainTabs', { screen: 'Home' }) },
       ],
     );
   }, [navigation]);
@@ -308,7 +308,10 @@ export function PanicScreen({ navigation }: Props) {
       // Silencioso — navegar igual
     }
     const draft = 'Hola 🚨 no me encuentro muy bien, ¿alguien podría ayudarme conversando?';
-    navigation.navigate('Community', { initialTab: 'forum', draft });
+    navigation.navigate('MainTabs', {
+      screen: 'Community',
+      params: { initialTab: 'forum', draft },
+    });
   }, [state, navigation]);
 
   const handleEscalateToAI = useCallback(async () => {
@@ -363,7 +366,7 @@ export function PanicScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor={Colors.danger} />
-        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
+        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
         </Pressable>
         <View style={styles.offlineBanner}>
@@ -644,7 +647,7 @@ export function PanicScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
-      <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
+      <Pressable style={styles.backBtn} onPress={() => navigation.navigate('MainTabs', { screen: 'Home' })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
         <Icon name="arrow-left" size={20} color={Colors.fg1} />
       </Pressable>
       <View style={styles.content}>

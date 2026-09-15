@@ -5,7 +5,6 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import type { BadgeMilestone } from '@stopbet/shared-types';
@@ -13,6 +12,7 @@ import { Colors } from '../constants/colors';
 import { useReduceMotion } from '../hooks/useReduceMotion';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 interface BadgeDef {
   label: string;
@@ -247,17 +247,18 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
 
           {/* Buttons */}
           <Animated.View style={{ opacity: btnsOp, width: '100%', alignItems: 'center', marginTop: 4 }}>
-            <TouchableOpacity style={styles.btnPrimary} onPress={onShare} activeOpacity={0.85} accessibilityRole="button">
+            <Touchable
+      rippleColor="rgba(255,255,255,0.28)" style={styles.btnPrimary} onPress={onShare} activeOpacity={0.85} accessibilityRole="button">
               <Icon name="users" size={18} color={Colors.white} />
               <Text style={styles.btnPrimaryText}>Compartir con la comunidad</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Touchable>
+            <Touchable
               onPress={onClose}
               style={styles.btnLink}
               accessibilityRole="button"
             >
               <Text style={styles.btnLinkText}>Ahora no</Text>
-            </TouchableOpacity>
+            </Touchable>
           </Animated.View>
         </Animated.View>
       </Animated.View>

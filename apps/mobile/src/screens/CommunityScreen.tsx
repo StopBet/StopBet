@@ -11,11 +11,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
   CommunityPost,
@@ -24,8 +25,7 @@ import type {
   ReactionSummary,
   UserRole,
 } from '@stopbet/shared-types';
-import type { AppStackParamList } from '../navigation/types';
-import { BottomNav } from '../components/BottomNav';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
@@ -33,6 +33,8 @@ import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
 import { readCommunity, saveCommunity } from '../services/offlineStore';
 import { devFlags } from '../store/devFlags';
+import { toast, useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -72,9 +74,15 @@ const offlineCache: { announcements: CommunityPost[]; posts: CommunityPost[] } =
 
 type Tab = 'announcements' | 'forum';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Community'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Community'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
 
 export function CommunityScreen({ navigation, route }: Props) {
+  const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'announcements');
   const [announcements, setAnnouncements] = useState<CommunityPost[]>([]);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -271,7 +279,7 @@ export function CommunityScreen({ navigation, route }: Props) {
       setPosts((prev) => prev.filter((p) => p.id !== reportPostId));
       setAnnouncements((prev) => prev.filter((p) => p.id !== reportPostId));
       setReportPostId(null);
-      Alert.alert('Gracias', 'El equipo clínico revisará esta publicación.');
+      showToast('Gracias. El equipo clínico revisará esta publicación.');
     } catch (err) {
       alertFailure('enviar el reporte', err);
     } finally {
@@ -308,12 +316,6 @@ export function CommunityScreen({ navigation, route }: Props) {
     setMenuPost(post);
   };
 
-  const handleTabPress = (navTab: 'home' | 'community' | 'achievements' | 'profile') => {
-    if (navTab === 'home') navigation.navigate('Home');
-    else if (navTab === 'achievements') navigation.navigate('Achievements');
-    else if (navTab === 'profile') navigation.navigate('Profile');
-  };
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
@@ -324,24 +326,13 @@ export function CommunityScreen({ navigation, route }: Props) {
           <Text style={styles.headerTitle}>Comunidad</Text>
           <Text style={styles.headerSub}>Sede {TEMP_SEDE}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.panicBtn}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('Panic')}
-          accessibilityRole="button"
-          accessibilityLabel="Botón de pánico"
-          hitSlop={{ top: 8, bottom: 8 }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Icon name="siren" size={14} color={Colors.white} />
-            <Text style={styles.panicBtnText}>Pánico</Text>
-          </View>
-        </TouchableOpacity>
+        {/* Acá había una segunda entrada al pánico: el SOS de la barra de abajo está
+            en esta misma pantalla, más grande y en el mismo lugar de siempre. */}
       </View>
 
       {/* Tabs */}
       <View style={styles.tabs} accessibilityRole="tablist">
-        <TouchableOpacity
+        <Touchable
           style={styles.tab}
           onPress={() => setTab('announcements')}
           activeOpacity={0.7}
@@ -352,8 +343,8 @@ export function CommunityScreen({ navigation, route }: Props) {
             Anuncios
           </Text>
           {tab === 'announcements' && <View style={styles.tabUnderline} />}
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Touchable>
+        <Touchable
           style={styles.tab}
           onPress={() => setTab('forum')}
           activeOpacity={0.7}
@@ -362,7 +353,7 @@ export function CommunityScreen({ navigation, route }: Props) {
         >
           <Text style={[styles.tabText, tab === 'forum' && styles.tabTextActive]}>Foro</Text>
           {tab === 'forum' && <View style={styles.tabUnderline} />}
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       {/* El modo simulado producía un banner idéntico al de una caída real, así que
@@ -472,7 +463,8 @@ export function CommunityScreen({ navigation, route }: Props) {
                   editable={!offline}
                   multiline
                 />
-                <TouchableOpacity
+                <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                   style={[styles.sendBtn, (offline || !draft.trim()) && styles.sendBtnDisabled]}
                   onPress={handlePost}
                   disabled={offline || !draft.trim() || posting}
@@ -486,7 +478,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                   ) : (
                     <Icon name="send" size={18} color={Colors.white} />
                   )}
-                </TouchableOpacity>
+                </Touchable>
               </View>
             </>
           )}
@@ -500,7 +492,7 @@ export function CommunityScreen({ navigation, route }: Props) {
         animationType="fade"
         onRequestClose={() => setMenuPost(null)}
       >
-        <TouchableOpacity
+        <Touchable
           style={styles.sheetBackdrop}
           activeOpacity={1}
           onPress={() => setMenuPost(null)}
@@ -509,7 +501,7 @@ export function CommunityScreen({ navigation, route }: Props) {
           <View style={styles.sheetCard}>
             <Text style={styles.sheetTitle}>Opciones de la publicación</Text>
             {menuPost?.authorId === TEMP_USER_ID ? (
-              <TouchableOpacity
+              <Touchable
                 style={styles.sheetItem}
                 accessibilityRole="button"
                 onPress={() => {
@@ -522,9 +514,9 @@ export function CommunityScreen({ navigation, route }: Props) {
                 <Text style={[styles.sheetItemText, { color: Colors.danger }]}>
                   Eliminar mi publicación
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             ) : (
-              <TouchableOpacity
+              <Touchable
                 style={styles.sheetItem}
                 accessibilityRole="button"
                 onPress={() => {
@@ -535,18 +527,18 @@ export function CommunityScreen({ navigation, route }: Props) {
               >
                 <Icon name="flag" size={18} color={Colors.fg1} />
                 <Text style={styles.sheetItemText}>Reportar publicación</Text>
-              </TouchableOpacity>
+              </Touchable>
             )}
-            <TouchableOpacity
+            <Touchable
               style={styles.sheetItem}
               accessibilityRole="button"
               onPress={() => setMenuPost(null)}
             >
               <Icon name="x" size={18} color={Colors.fg2} />
               <Text style={[styles.sheetItemText, { color: Colors.fg2 }]}>Cancelar</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
-        </TouchableOpacity>
+        </Touchable>
       </Modal>
 
       {/* CA5.3: motivo del reporte */}
@@ -574,15 +566,16 @@ export function CommunityScreen({ navigation, route }: Props) {
               autoFocus
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity
+              <Touchable
                 style={styles.modalCancel}
                 onPress={() => setReportPostId(null)}
                 accessibilityRole="button"
                 disabled={reportSending}
               >
                 <Text style={styles.modalCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Touchable>
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.modalSubmit, (!reportReason.trim() || reportSending) && styles.modalSubmitDisabled]}
                 onPress={submitReport}
                 disabled={!reportReason.trim() || reportSending}
@@ -593,13 +586,12 @@ export function CommunityScreen({ navigation, route }: Props) {
                 {reportSending
                   ? <ActivityIndicator size="small" color={Colors.white} />
                   : <Text style={styles.modalSubmitText}>Reportar</Text>}
-              </TouchableOpacity>
+              </Touchable>
             </View>
           </View>
         </View>
       </Modal>
 
-      <BottomNav active="community" onTabPress={handleTabPress} onPanicPress={() => navigation.navigate('Panic')} />
     </SafeAreaView>
   );
 }
@@ -667,7 +659,8 @@ function AnnouncementCard({
               </Text>
             </View>
           ) : (
-            <TouchableOpacity
+            <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
               style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
               onPress={onToggleAttendance}
               disabled={disabled}
@@ -684,7 +677,7 @@ function AnnouncementCard({
               ) : (
                 <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
               )}
-            </TouchableOpacity>
+            </Touchable>
           )}
         </View>
       )}
@@ -728,14 +721,14 @@ function PostCard({
           <Text style={styles.authorName}>{post.authorName}</Text>
           <Text style={styles.authorMeta}>{timeAgo(post.createdAt)}</Text>
         </View>
-        <TouchableOpacity
+        <Touchable
           onPress={onMenuPress}
           hitSlop={14}
           accessibilityRole="button"
           accessibilityLabel="Opciones del mensaje"
         >
           <Icon name="ellipsis" size={20} color={Colors.fg2} />
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       <Text style={styles.msgBody}>{post.body}</Text>
@@ -745,7 +738,7 @@ function PostCard({
         {REACTION_EMOJIS.map((emoji) => {
           const s = summaryFor(emoji);
           return (
-            <TouchableOpacity
+            <Touchable
               key={emoji}
               style={[styles.reactChip, s.userReacted && styles.reactChipOn]}
               onPress={() => onReact(emoji)}
@@ -758,11 +751,11 @@ function PostCard({
             >
               <Icon name={REACTION_ICON_MAP[emoji]} size={14} color={s.userReacted ? Colors.primary : Colors.fg2} />
               {s.count > 0 && <Text style={styles.reactCount}>{s.count}</Text>}
-            </TouchableOpacity>
+            </Touchable>
           );
         })}
         <View style={styles.flex} />
-        <TouchableOpacity
+        <Touchable
           onPress={onToggleReplies}
           activeOpacity={0.7}
           hitSlop={{ top: 14, bottom: 14, left: 6, right: 6 }}
@@ -772,7 +765,7 @@ function PostCard({
           <Text style={styles.replyLink}>
             {post.replyCount > 0 ? `${post.replyCount} respuestas` : 'Responder'}
           </Text>
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       {/* Respuestas */}
@@ -806,7 +799,8 @@ function PostCard({
                 onChangeText={onChangeReplyDraft}
                 multiline
               />
-              <TouchableOpacity
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.replySendBtn, !replyDraft.trim() && styles.sendBtnDisabled]}
                 onPress={onSendReply}
                 disabled={!replyDraft.trim()}
@@ -814,7 +808,7 @@ function PostCard({
                 activeOpacity={0.85}
               >
                 <Text style={styles.replySendText}>Enviar</Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
           )}
         </View>
@@ -868,26 +862,25 @@ function alertFailure(action: string, err: unknown) {
   console.warn(`[Comunidad] falló ${action}:`, err);
 
   if (devFlags.simulateOffline) {
-    Alert.alert(
-      'Modo sin conexión simulado',
-      `No se intentó ${action}: tienes activado "Simular sin conexión" en Perfil → ` +
-        'Herramientas de prueba. Apágalo para volver a la normalidad.',
+    toast(
+      `No se intentó ${action}: tienes "Simular sin conexión" activado en Perfil.`,
+      'error',
     );
     return;
   }
 
   if (isNetworkError(err)) {
-    Alert.alert('Sin conexión', `No se pudo ${action}. Revisa tu conexión e inténtalo de nuevo.`);
+    toast(`Sin conexión: no se pudo ${action}. Inténtalo de nuevo.`, 'error');
     return;
   }
 
   // `request()` lanza "<status> <cuerpo>" ante una respuesta no OK.
   const status = parseInt((err as Error)?.message ?? '', 10);
-  Alert.alert(
-    'No se pudo completar',
+  toast(
     Number.isFinite(status)
       ? `No se pudo ${action}. El servidor respondió ${status}.`
       : `No se pudo ${action}. Inténtalo de nuevo.`,
+    'error',
   );
 }
 
@@ -939,13 +932,6 @@ const styles = StyleSheet.create({
   headerMeta: { flex: 1, minWidth: 0 },
   headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
   headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onPrimaryMuted, marginTop: 3 },
-  panicBtn: {
-    backgroundColor: Colors.danger,
-    borderRadius: 9999,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-  },
-  panicBtnText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
 
   tabs: {
     flexDirection: 'row',
