@@ -17,6 +17,7 @@ import type {
   AIMessage,
   AiSessionSummary,
   CrisisSignal,
+  SponsorInfo,
   SendMessageWithRiskResponse,
   TechniqueType,
 } from '@stopbet/shared-types';
@@ -34,9 +35,11 @@ import { TypingIndicator } from '../components/TypingIndicator';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
 import { Icon } from '../components/Icon';
 import type { AppStackParamList } from '../navigation/types';
+import { readSponsor } from '../services/offlineStore';
 
 const PLACEHOLDER_USER_ID = '11111111-1111-1111-1111-111111111111'; // TODO: reemplazar con ID real del contexto de auth
 const INACTIVITY_MS = 10 * 60 * 1000;
+const IDLE_WARNING_MS = 60 * 1000; // el aviso sale 1 minuto antes de cerrar
 
 type Nav = NativeStackNavigationProp<AppStackParamList, 'Assistant'>;
 
@@ -58,10 +61,13 @@ export function AssistantScreen() {
   const [crisis, setCrisis] = useState<CrisisSignal | null>(null);
   const [summary, setSummary] = useState<AiSessionSummary | null>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
+  const [idleWarning, setIdleWarning] = useState(false);
+  const [sponsor, setSponsor] = useState<SponsorInfo | null>(null);
   const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
 
   const listRef = useRef<FlatList>(null);
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inactivityWarning = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleAutoClose = useCallback(async () => {
     if (!sessionId) return;
@@ -74,12 +80,25 @@ export function AssistantScreen() {
     }
   }, [sessionId]);
 
+  // El cierre por inactividad abría el resumen de golpe, sin decir que iba a pasar
   const resetInactivityTimer = useCallback(() => {
     if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    if (inactivityWarning.current) clearTimeout(inactivityWarning.current);
+    setIdleWarning(false);
+    inactivityWarning.current = setTimeout(() => {
+      setIdleWarning(true);
+    }, INACTIVITY_MS - IDLE_WARNING_MS);
     inactivityTimer.current = setTimeout(() => {
+      setIdleWarning(false);
       handleAutoClose();
     }, INACTIVITY_MS);
   }, [handleAutoClose]);
+
+  // La tarjeta de crisis ofrecía "Contactar a mi padrino" y abría otra pantalla.
+  // Con el teléfono guardado se puede llamar de verdad desde acá.
+  useEffect(() => {
+    readSponsor().then(setSponsor).catch(() => {});
+  }, []);
 
   const addTypingIndicator = () => {
     setItems((prev) => [...prev, { type: 'typing', id: '__typing__' }]);
@@ -107,62 +126,65 @@ export function AssistantScreen() {
     setItems((prev) => [...prev, ...newItems]);
   };
 
-  useEffect(() => {
-    let cancelled = false;
+  const [initError, setInitError] = useState(false);
+  const cancelledRef = useRef(false);
 
-    async function init() {
-      try {
-        const existing = await api.getActiveAiSession(PLACEHOLDER_USER_ID);
+  const initSession = useCallback(async () => {
+    setInitError(false);
+    try {
+      const existing = await api.getActiveAiSession(PLACEHOLDER_USER_ID);
 
-        if (cancelled) return;
+      if (cancelledRef.current) return;
 
-        if (existing) {
-          setSessionId(existing.session.id);
-          setSessionStartedAt(new Date(existing.session.startedAt));
+      if (existing) {
+        setSessionId(existing.session.id);
+        setSessionStartedAt(new Date(existing.session.startedAt));
 
-          const initial: ListItem[] = [{ type: 'privacy', id: '__privacy__' }];
-          if (existing.previousContext) {
-            initial.push({
-              type: 'recall',
-              id: '__recall__',
-              context: existing.previousContext,
-            });
-          }
-          setItems(initial);
-          appendMessages(existing.messages);
-          resetInactivityTimer();
-        } else {
-          const started = await api.startAiSession(PLACEHOLDER_USER_ID);
-          if (cancelled) return;
-
-          setSessionId(started.session.id);
-          setSessionStartedAt(new Date(started.session.startedAt));
-
-          const initial: ListItem[] = [{ type: 'privacy', id: '__privacy__' }];
-          if (started.previousContext) {
-            initial.push({
-              type: 'recall',
-              id: '__recall__',
-              context: started.previousContext,
-            });
-          }
-          setItems(initial);
-          appendMessages(started.messages);
-          resetInactivityTimer();
+        const initial: ListItem[] = [{ type: 'privacy', id: '__privacy__' }];
+        if (existing.previousContext) {
+          initial.push({
+            type: 'recall',
+            id: '__recall__',
+            context: existing.previousContext,
+          });
         }
-      } catch (e) {
-        if (!cancelled) {
-          Alert.alert('Error', 'No se pudo conectar con el asistente. Intenta de nuevo.');
+        setItems(initial);
+        appendMessages(existing.messages);
+        resetInactivityTimer();
+      } else {
+        const started = await api.startAiSession(PLACEHOLDER_USER_ID);
+        if (cancelledRef.current) return;
+
+        setSessionId(started.session.id);
+        setSessionStartedAt(new Date(started.session.startedAt));
+
+        const initial: ListItem[] = [{ type: 'privacy', id: '__privacy__' }];
+        if (started.previousContext) {
+          initial.push({
+            type: 'recall',
+            id: '__recall__',
+            context: started.previousContext,
+          });
         }
+        setItems(initial);
+        appendMessages(started.messages);
+        resetInactivityTimer();
       }
+    } catch {
+      // Sin sesión el envío no puede funcionar: se avisa con reintento en vez de dejar el chat mudo
+      if (!cancelledRef.current) setInitError(true);
     }
+  }, [appendMessages, resetInactivityTimer]);
 
-    init();
+  useEffect(() => {
+    cancelledRef.current = false;
+    initSession();
     return () => {
-      cancelled = true;
+      cancelledRef.current = true;
       if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+      if (inactivityWarning.current) clearTimeout(inactivityWarning.current);
     };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
@@ -205,12 +227,13 @@ export function AssistantScreen() {
   const handleManualClose = useCallback(async () => {
     if (!sessionId) return;
     Alert.alert(
-      'Cerrar sesión',
-      '¿Quieres cerrar la sesión? Se generará un resumen de tu conversación.',
+      // "Cerrar sesión" son las mismas palabras que salir de la cuenta, en Perfil
+      'Terminar conversación',
+      '¿Quieres terminar? Se guardará un resumen de lo que conversaste.',
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Seguir conversando', style: 'cancel' },
         {
-          text: 'Cerrar',
+          text: 'Terminar',
           onPress: async () => {
             try {
               if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
@@ -263,16 +286,8 @@ export function AssistantScreen() {
 
     if (item.type === 'technique' && item.techniqueType) {
       return (
-        <View style={styles.bubbleWrapLeft}>
-          <TechniqueCard
-            type={item.techniqueType}
-            onStart={() =>
-              Alert.alert(
-                'Guía de técnica',
-                'Próximamente podrás seguir la guía interactiva paso a paso.',
-              )
-            }
-          />
+        <View style={styles.techniqueWrap}>
+          <TechniqueCard type={item.techniqueType} />
         </View>
       );
     }
@@ -301,7 +316,13 @@ export function AssistantScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backBtn}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+        >
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
         </TouchableOpacity>
 
@@ -315,8 +336,13 @@ export function AssistantScreen() {
 
         <View style={styles.headerActions}>
           {sessionId && (
-            <TouchableOpacity onPress={handleManualClose} style={styles.closeBtn}>
-              <Text style={styles.closeBtnText}>Cerrar</Text>
+            <TouchableOpacity
+              onPress={handleManualClose}
+              style={styles.closeBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Terminar conversación"
+            >
+              <Text style={styles.closeBtnText}>Terminar</Text>
             </TouchableOpacity>
           )}
           <TouchableOpacity
@@ -347,9 +373,48 @@ export function AssistantScreen() {
         {crisis && (
           <CrisisCard
             crisis={crisis}
+            sponsor={sponsor}
             onPanic={() => navigation.navigate('Panic')}
-            onContactSponsor={() => navigation.navigate('Panic')}
+            onOpenSupportNetwork={() => navigation.navigate('Panic')}
           />
+        )}
+
+        {initError && (
+          <View style={styles.initError} accessibilityLiveRegion="polite">
+            <Text style={styles.initErrorTitle}>No pudimos conectar con el asistente</Text>
+            <Text style={styles.initErrorBody}>
+              Revisa tu conexión y vuelve a intentarlo. Si necesitas ayuda ahora, usa el botón de pánico o llama al *4141.
+            </Text>
+            <View style={styles.initErrorActions}>
+              <TouchableOpacity style={styles.retryBtn} onPress={initSession} accessibilityRole="button">
+                <Text style={styles.retryText}>Reintentar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.panicLink}
+                onPress={() => navigation.navigate('Panic')}
+                accessibilityRole="button"
+              >
+                <Text style={styles.panicLinkText}>Ir al botón de pánico</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* El resumen aparecía de golpe a los 10 minutos sin avisar */}
+        {idleWarning && (
+          <View style={styles.idleBanner} accessibilityLiveRegion="polite">
+            <Icon name="hourglass" size={15} color={Colors.fg1} />
+            <Text style={styles.idleText}>
+              Si no escribes en un minuto, cerramos la conversación y guardamos el resumen.
+            </Text>
+            <TouchableOpacity
+              onPress={resetInactivityTimer}
+              style={styles.idleBtn}
+              accessibilityRole="button"
+            >
+              <Text style={styles.idleBtnText}>Sigo acá</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Input */}
@@ -358,8 +423,10 @@ export function AssistantScreen() {
             style={styles.input}
             value={inputText}
             onChangeText={setInputText}
-            placeholder="Escribe aquí…"
+            accessibilityLabel="Mensaje para el asistente"
+            placeholder={sessionId ? 'Escribe aquí…' : initError ? 'Sin conexión con el asistente' : 'Conectando…'}
             placeholderTextColor={Colors.fg2}
+            editable={!!sessionId}
             multiline
             maxLength={1000}
             returnKeyType="send"
@@ -367,10 +434,12 @@ export function AssistantScreen() {
           />
           <TouchableOpacity
             onPress={handleSend}
-            disabled={!inputText.trim() || isSending}
+            disabled={!sessionId || !inputText.trim() || isSending}
+            accessibilityRole="button"
+            accessibilityLabel="Enviar mensaje"
             style={[
               styles.sendBtn,
-              (!inputText.trim() || isSending) && styles.sendBtnDisabled,
+              (!sessionId || !inputText.trim() || isSending) && styles.sendBtnDisabled,
             ]}
           >
             <Icon name="arrow-up" size={20} color={Colors.white} />
@@ -384,11 +453,6 @@ export function AssistantScreen() {
         durationMinutes={durationMinutes}
         onContinue={() => {
           setSummaryVisible(false);
-          navigation.goBack();
-        }}
-        onViewHistory={() => {
-          setSummaryVisible(false);
-          // Navegar a historial cuando esté disponible
           navigation.goBack();
         }}
       />
@@ -432,7 +496,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.dangerSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -450,12 +514,14 @@ const styles = StyleSheet.create({
   },
   recallIcon: { marginTop: 1 },
   recallText: { flex: 1 },
-  recallTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.sage500 },
+  recallTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.greenText },
   recallBody: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2, lineHeight: 17, marginTop: 3 },
 
   bubbleWrap: { maxWidth: '80%' },
   bubbleWrapLeft: { alignSelf: 'flex-start' },
   bubbleWrapRight: { alignSelf: 'flex-end' },
+  // ancho fijo: si la guía se ajusta a su contenido, cambia de tamaño en cada paso y los textos se montan
+  techniqueWrap: { width: '88%', alignSelf: 'flex-start' },
   bubble: {
     borderRadius: 18,
     paddingHorizontal: 14,
@@ -474,8 +540,8 @@ const styles = StyleSheet.create({
   bubbleText: { fontFamily: Fonts.body, fontSize: 15, lineHeight: 21 },
   bubbleTextUser: { color: Colors.white },
   bubbleTextAI: { color: Colors.ink900 },
-  bubbleTime: { fontFamily: Fonts.body, fontSize: 10, color: Colors.fg2, marginTop: 4, alignSelf: 'flex-end' },
-  bubbleTimeUser: { color: Colors.overlayWhite72 },
+  bubbleTime: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 4, alignSelf: 'flex-end' },
+  bubbleTimeUser: { color: Colors.onPrimaryMuted },
 
   inputBar: {
     flexDirection: 'row',
@@ -508,4 +574,52 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: Colors.border },
+
+  initError: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 14,
+    padding: 14,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    gap: 6,
+  },
+  initErrorTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
+  initErrorBody: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg1, lineHeight: 20 },
+  initErrorActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  retryBtn: {
+    backgroundColor: Colors.primary,
+    borderRadius: 9999,
+    paddingHorizontal: 18,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
+  panicLink: {
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: Colors.danger,
+    paddingHorizontal: 18,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  panicLinkText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.danger },
+  idleBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  idleText: { fontFamily: Fonts.body, flex: 1, fontSize: 12.5, color: Colors.fg1, lineHeight: 18 },
+  idleBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 10 },
+  idleBtnText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.primary },
+
 });

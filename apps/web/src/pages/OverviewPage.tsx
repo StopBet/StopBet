@@ -8,6 +8,10 @@ import { generatePatientPDF } from '../utils/generatePatientPDF'
 import { api } from '../services/api'
 import type { PatientListItem, AlertHistoryItem } from '../services/api'
 import { useAlertsRealtime } from '../hooks/useAlertsRealtime'
+import { AlertStatusBadge } from '../components/AlertStatusBadge'
+import { isToday, needsAttention } from '../utils/alertStatus'
+import { useDialog } from '../hooks/useDialog'
+import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 
 /* ── Data helpers ────────────────────────────────────── */
@@ -67,7 +71,7 @@ function toPatient(
 ): Patient {
   const patientAlerts = alertsByPatient[p.id] ?? []
   const lastAlert = patientAlerts[0]
-  const hasActiveAlert = patientAlerts.some(a => a.status === 'pending')
+  const hasActiveAlert = patientAlerts.some(a => needsAttention(a.status))
 
   return {
     id: p.id,
@@ -76,7 +80,7 @@ function toPatient(
     email: p.email,
     sede: shortSedeName(sedeMap[p.sedeId ?? ''] ?? p.sedeId ?? '-'),
     days: p.daysStreak,
-    status: hasActiveAlert || patientAlerts.some(a => a.status === 'pending') ? 'riesgo' : 'normal',
+    status: hasActiveAlert ? 'riesgo' : 'normal',
     mood: p.lastCheckIn ? (EMOTION_EMOJI[p.lastCheckIn.emotion] ?? '😊') : '-',
     lastAlert: lastAlert ? relTime(lastAlert.createdAt) : 'Nunca',
     lastAlertTone: hasActiveAlert ? 'danger' : (lastAlert ? 'muted' : 'muted'),
@@ -89,7 +93,7 @@ function toPatient(
         day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
       }),
       rel: relTime(a.createdAt),
-      resolved: a.status !== 'pending',
+      status: a.status,
     })),
     sessions: [],
   }
@@ -98,7 +102,7 @@ function toPatient(
 /* ── Helpers ─────────────────────────────────────────── */
 function StatusBadge({ status }: { status: 'normal' | 'riesgo' }) {
   const map = {
-    normal: { bg: 'var(--sage-50)', fg: 'var(--sage-500)', label: 'Normal' },
+    normal: { bg: 'var(--sage-50)', fg: 'var(--secondary-text)', label: 'Normal' },
     riesgo: { bg: 'var(--red-50)',  fg: 'var(--danger)',   label: 'En riesgo' },
   }
   const s = map[status]
@@ -120,7 +124,8 @@ function ProgressBar({ value, max = 90, color = 'var(--primary)' }: { value: num
 
 /* ── Patient Drawer ──────────────────────────────────── */
 function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => void }) {
-  const [tab, setTab] = useState<'evolucion' | 'alertas' | 'sesiones' | 'editar'>('evolucion')
+  const [tab, setTab] = useState<'evolucion' | 'alertas' | 'sesiones' | 'datos'>('evolucion')
+  const dialogRef = useDialog<HTMLDivElement>(onClose)
   const [relapseStep, setRelapseStep] = useState<'idle' | 'confirm' | 'done' | 'error'>('idle')
   const queryClient = useQueryClient()
 
@@ -147,7 +152,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
     { id: 'evolucion' as const, label: 'Evolución' },
     { id: 'alertas' as const,   label: 'Alertas' },
     { id: 'sesiones' as const,  label: 'Sesiones IA' },
-    { id: 'editar' as const,    label: 'Editar' },
+    { id: 'datos' as const,     label: 'Datos' },
   ]
 
   const StatRow = ({ icon, label, value, color }: { icon: string; label: string; value: string | number; color?: string }) => (
@@ -166,7 +171,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
         onClick={onClose}
         style={{ position: 'fixed', inset: 0, background: 'rgba(45,90,158,0.32)', zIndex: 40, animation: 'sb-scrim-in 0.24s ease' }}
       />
-      <div style={{
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-ficha-titulo" tabIndex={-1} style={{
         position: 'fixed', top: 0, right: 0, height: '100vh', width: 480,
         maxWidth: '92vw', background: 'var(--surface)', boxShadow: 'var(--shadow-strong)',
         zIndex: 41, display: 'flex', flexDirection: 'column',
@@ -179,21 +184,21 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
               {patient.initials}
             </div>
             <div style={{ flex: 1, paddingTop: 4 }}>
-              <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 22, color: 'var(--fg1)', lineHeight: 1.15 }}>{patient.name}</div>
+              <h2 id="sb-ficha-titulo" style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 22, color: 'var(--fg1)', lineHeight: 1.15 }}>{patient.name}</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 9999, padding: '3px 11px', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>{patient.days} días</span>
                 <span style={{ fontSize: 12.5, color: 'var(--fg2)' }}>{patient.email}</span>
               </div>
             </div>
-            <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <button onClick={onClose} aria-label="Cerrar ficha" style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <WIcon name="x" size={18} />
             </button>
           </div>
 
           {/* Tabs */}
-          <div style={{ display: 'flex', gap: 4, marginTop: 20, borderBottom: '1px solid var(--border)' }}>
+          <div role="tablist" style={{ display: 'flex', gap: 4, marginTop: 20, borderBottom: '1px solid var(--border)' }}>
             {tabs.map(t => (
-              <button key={t.id} onClick={() => setTab(t.id)} style={{
+              <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} style={{
                 background: 'none', border: 'none', padding: '10px 12px', cursor: 'pointer',
                 fontSize: 13.5, fontWeight: tab === t.id ? 700 : 500,
                 fontFamily: 'var(--font-body)',
@@ -240,12 +245,12 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
               <StatRow icon="clock" label="Último check emocional" value={patient.lastCheck} />
               <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {relapseStep === 'confirm' && (
-                  <div style={{ background: 'var(--red-50)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--danger)', fontWeight: 600, lineHeight: 1.5 }}>
+                  <div style={{ background: 'var(--surface-alt)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--fg1)', fontWeight: 600, lineHeight: 1.5 }}>
                     ¿Confirmar recaída? Esta acción reiniciará el contador de abstinencia del paciente.
                   </div>
                 )}
                 {relapseStep === 'done' && (
-                  <div style={{ background: 'var(--sage-50)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--sage-500)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ background: 'var(--sage-50)', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: 'var(--secondary-text)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <WIcon name="circle-check" size={15} /> Recaída registrada. El contador fue reiniciado.
                   </div>
                 )}
@@ -265,7 +270,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
                       </button>
                       <button
                         onClick={() => { setRelapseStep('idle'); relapseMutation.mutate() }}
-                        style={{ flex: 1, height: 44, borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'var(--font-heading)' }}
+                        style={{ flex: 1, height: 44, borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: 'pointer', fontFamily: 'var(--font-heading)' }}
                       >
                         Confirmar recaída
                       </button>
@@ -274,7 +279,7 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
                     <button
                       onClick={() => setRelapseStep('confirm')}
                       disabled={relapseMutation.isPending || relapseStep === 'done'}
-                      style={{ flex: 1, height: 44, borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontWeight: 700, fontSize: 13.5, cursor: relapseMutation.isPending || relapseStep === 'done' ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-heading)', opacity: relapseMutation.isPending ? 0.6 : 1 }}
+                      style={{ flex: 1, height: 44, borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg1)', fontWeight: 700, fontSize: 13.5, cursor: relapseMutation.isPending || relapseStep === 'done' ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-heading)', opacity: relapseMutation.isPending ? 0.6 : 1 }}
                     >
                       {relapseMutation.isPending ? 'Registrando…' : 'Registrar recaída'}
                     </button>
@@ -285,27 +290,28 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
           )}
 
           {tab === 'alertas' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {(patient.alerts.length ? patient.alerts : [{ time: 'Sin alertas registradas', rel: '', resolved: true }]).map((a, i) => (
-                <div key={i} style={{ background: a.resolved ? 'var(--sage-50)' : 'var(--red-50)', borderRadius: 12, borderLeft: `3px solid ${a.resolved ? 'var(--sage-500)' : 'var(--danger)'}`, padding: '13px 15px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13.5, color: 'var(--fg1)' }}>{a.time}</span>
-                    {a.rel && <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{a.rel}</span>}
+            patient.alerts.length === 0 ? (
+              <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Sin alertas registradas</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {patient.alerts.map((a, i) => (
+                  <div key={i} style={{ background: needsAttention(a.status) ? 'var(--red-50)' : 'var(--bg)', borderRadius: 12, padding: '13px 15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10 }}>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13.5, color: 'var(--fg1)' }}>{a.time}</span>
+                      <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{a.rel}</span>
+                    </div>
+                    <div style={{ marginTop: 9 }}><AlertStatusBadge status={a.status} /></div>
                   </div>
-                  {a.rel && (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginTop: 9, color: a.resolved ? 'var(--sage-500)' : 'var(--danger)', fontSize: 12, fontWeight: 700 }}>
-                      <WIcon name={a.resolved ? 'circle-check' : 'circle-alert'} size={13} />
-                      {a.resolved ? 'Contención con IA' : 'Sin resolver'}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )
           )}
 
           {tab === 'sesiones' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {(patient.sessions.length ? patient.sessions : [{ date: 'Sin sesiones IA registradas', summary: 'Este paciente aún no ha usado el asistente virtual.' }]).map((s, i) => (
+              {/* Antes decía "aún no ha usado el asistente" siempre, aunque sí lo hubiera usado:
+                  el panel todavía no recibe esas sesiones, y eso es lo único cierto que se puede decir. */}
+              {(patient.sessions.length ? patient.sessions : [{ date: 'Todavía no disponible', summary: 'El panel aún no muestra las sesiones de este paciente con el asistente. Que esté vacío no significa que no lo haya usado.' }]).map((s, i) => (
                 <div key={i} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <WIcon name="message-circle" size={16} color="var(--primary)" />
@@ -317,17 +323,21 @@ function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => 
             </div>
           )}
 
-          {tab === 'editar' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {[['Nombre completo', patient.name], ['Correo', patient.email], ['Sede', patient.sede]].map(([l, v]) => (
-                <div key={l}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 6 }}>{l}</label>
-                  <input defaultValue={v} style={{ height: 40, width: '100%', boxSizing: 'border-box', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)', padding: '0 12px', fontSize: 13.5, color: 'var(--fg1)', outline: 'none' }} />
-                </div>
-              ))}
-              <button style={{ marginTop: 4, height: 46, borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer' }}>
-                Guardar cambios
-              </button>
+          {tab === 'datos' && (
+            // Antes eran campos editables con un "Guardar cambios" que no llamaba a nada: el
+            // psicólogo creía haber corregido un correo y no quedaba guardado.
+            <div>
+              <dl style={{ margin: 0 }}>
+                {[['Nombre completo', patient.name], ['Correo', patient.email], ['Sede', patient.sede]].map(([l, v]) => (
+                  <div key={l} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                    <dt style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg2)', marginBottom: 4 }}>{l}</dt>
+                    <dd style={{ margin: 0, fontSize: 14, color: 'var(--fg1)' }}>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p style={{ margin: '14px 0 0', fontSize: 13, color: 'var(--fg2)', lineHeight: 1.5 }}>
+                Estos datos todavía no se pueden editar desde el panel.
+              </p>
             </div>
           )}
         </div>
@@ -351,7 +361,7 @@ function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: P
   })
 
   const Head = ({ label }: { label: string }) => (
-    <th style={{ textAlign: 'left', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 12px 12px', whiteSpace: 'nowrap' }}>{label}</th>
+    <th style={{ textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 12px 12px', whiteSpace: 'nowrap' }}>{label}</th>
   )
 
   return (
@@ -360,7 +370,7 @@ function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: P
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Mis pacientes</h2>
           <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-            <select value={sedeFilter} onChange={e => setSedeFilter(e.target.value)}
+            <select value={sedeFilter} onChange={e => setSedeFilter(e.target.value)} aria-label="Filtrar pacientes por sede"
               style={{ appearance: 'none', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '6px 30px 6px 10px', fontSize: 12, fontWeight: 600, border: '1.5px solid var(--primary)', cursor: 'pointer', fontFamily: 'var(--font-body)', outline: 'none' }}>
               {sedeOptions.map(s => <option key={s} value={s}>{s === 'Todas' ? 'Todas las sedes' : `Sede: ${s}`}</option>)}
             </select>
@@ -369,15 +379,12 @@ function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: P
             </span>
           </div>
         </div>
-        <button style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--surface)', border: '1.5px solid var(--border)', color: 'var(--primary)', borderRadius: 9999, padding: '8px 14px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-          <DownloadIcon size={15} color="var(--primary)" /> Exportar lista
-        </button>
       </div>
 
       <div style={{ padding: '0 24px 16px' }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, height: 40, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '0 14px' }}>
           <WIcon name="search" size={16} color="var(--fg2)" />
-          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nombre…"
+          <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar por nombre…" aria-label="Buscar paciente por nombre"
             style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: 13.5, width: '100%', color: 'var(--fg1)' }} />
         </label>
       </div>
@@ -412,11 +419,11 @@ function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: P
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, color: 'var(--primary)', minWidth: 34 }}>{p.days}</span>
                   <ProgressBar value={p.days} max={120} color={danger ? 'var(--accent)' : 'var(--primary)'} />
-                  <span style={{ fontSize: 11.5, color: 'var(--fg2)', whiteSpace: 'nowrap' }}>días</span>
+                  <span style={{ fontSize: 12, color: 'var(--fg2)', whiteSpace: 'nowrap' }}>días</span>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                  <span style={{ display: 'inline-block', background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 11.5, fontWeight: 600 }}>{p.sede}</span>
+                  <span style={{ display: 'inline-block', background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: danger ? 600 : 400, color: danger ? 'var(--danger)' : 'var(--fg2)' }}>
                     {danger && <WIcon name="circle-alert" size={13} color="var(--danger)" />}
                     {p.lastAlert}
@@ -472,13 +479,16 @@ function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: P
                     {p.lastAlert}
                   </span>
                 </td>
-                <td style={{ padding: '14px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                    <span style={{ color: 'var(--primary)', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap' }}>Ver perfil</span>
-                    <button onClick={e => e.stopPropagation()} style={{ width: 28, height: 28, borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <WIcon name="more-horizontal" size={18} />
-                    </button>
-                  </div>
+                <td style={{ padding: '14px 12px', textAlign: 'right' }}>
+                  {/* La fila se abre con clic, pero sin un botón real no había forma de llegar
+                      con el teclado. El "···" de al lado no hacía nada y se quitó. */}
+                  <button
+                    onClick={e => { e.stopPropagation(); onOpen(p) }}
+                    aria-label={`Ver ficha de ${p.name}`}
+                    style={{ background: 'none', border: 'none', padding: '6px 4px', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'var(--font-body)' }}
+                  >
+                    Ver ficha
+                  </button>
                 </td>
               </tr>
             )
@@ -487,22 +497,18 @@ function PatientTable({ patients, onOpen }: { patients: Patient[]; onOpen: (p: P
       </table>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderTop: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 13, color: 'var(--fg2)' }}>Mostrando 1–{rows.length} de {patients.length} pacientes</span>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['chevron-left', 'chevron-right'].map((icon, i) => (
-            <button key={icon} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 34, height: 34, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: i === 0 ? 'var(--disabled)' : 'var(--fg1)', cursor: 'pointer' }}>
-              <WIcon name={icon} size={17} />
-            </button>
-          ))}
-        </div>
+      {/* Había una paginación con flechas que no hacían nada: la lista siempre se muestra completa */}
+      <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+        <span style={{ fontSize: 13, color: 'var(--fg2)' }}>
+          {rows.length === patients.length ? `${patients.length} pacientes` : `${rows.length} de ${patients.length} pacientes`}
+        </span>
       </div>
     </div>
   )
 }
 
 /* ── Panic Panel ─────────────────────────────────────── */
-function PanicPanel({ todayAlerts, onOpenPatient }: { todayAlerts: TodayAlert[]; onOpenPatient: (name: string) => void }) {
+function PanicPanel({ todayAlerts, onOpenPatient, onViewAll }: { todayAlerts: TodayAlert[]; onOpenPatient: (name: string) => void; onViewAll: () => void }) {
   return (
     <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', borderTop: '3px solid var(--danger)', boxShadow: 'var(--shadow-soft)', padding: 20 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -517,27 +523,19 @@ function PanicPanel({ todayAlerts, onOpenPatient }: { todayAlerts: TodayAlert[];
         {todayAlerts.length === 0 ? (
           <div style={{ padding: '16px 0', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Sin alertas hoy</div>
         ) : todayAlerts.slice(0, 3).map((a, i) => (
-          <div key={i} style={{ background: 'var(--red-50)', borderRadius: 12, borderLeft: '3px solid var(--danger)', padding: '12px 14px' }}>
+          <div key={i} style={{ background: needsAttention(a.status) ? 'var(--red-50)' : 'var(--bg)', borderRadius: 12, padding: '12px 14px' }}>
             <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)' }}>{a.name}</div>
             <div style={{ fontSize: 12, color: 'var(--fg2)', marginTop: 2 }}>{a.rel} · {a.time}</div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 8 }}>
-              {a.resolved ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--sage-50)', color: 'var(--sage-500)', borderRadius: 9999, padding: '3px 10px', fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <WIcon name="circle-check" size={13} /> Contención con IA
-                </span>
-              ) : (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--surface)', color: 'var(--danger)', border: '1px solid var(--danger)', borderRadius: 9999, padding: '3px 10px', fontSize: 11.5, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <WIcon name="circle-alert" size={13} /> Sin resolver
-                </span>
-              )}
+              <AlertStatusBadge status={a.status} />
               <button onClick={() => onOpenPatient(a.name)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0, whiteSpace: 'nowrap', flexShrink: 0 }}>
-                Ver sesión <WIcon name="arrow-right" size={13} />
+                Ver ficha <WIcon name="arrow-right" size={13} />
               </button>
             </div>
           </div>
         ))}
       </div>
-      <button style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
+      <button onClick={onViewAll} style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: 'var(--primary)', fontSize: 13, fontWeight: 600, cursor: 'pointer', padding: 0 }}>
         Ver historial completo <WIcon name="arrow-right" size={14} />
       </button>
     </div>
@@ -547,8 +545,10 @@ function PanicPanel({ todayAlerts, onOpenPatient }: { todayAlerts: TodayAlert[];
 /* ── Export Panel ────────────────────────────────────── */
 function ExportPanel({ patients }: { patients: Patient[] }) {
   const [patientId, setPatientId] = useState('')
-  const [from, setFrom] = useState('2026-05-01')
-  const [to, setTo] = useState('2026-05-29')
+  // Proponía mayo de 2026 fijo: ahora abre con los últimos 30 días, en fecha local.
+  const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const [from, setFrom] = useState(() => ymd(new Date(Date.now() - 30 * 86_400_000)))
+  const [to, setTo] = useState(() => ymd(new Date()))
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState<{ ok: boolean; msg: string } | null>(null)
 
@@ -581,9 +581,10 @@ function ExportPanel({ patients }: { patients: Patient[] }) {
       <h2 style={{ margin: '0 0 4px', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 16, color: 'var(--fg1)' }}>Generar reporte PDF</h2>
       <p style={{ margin: '0 0 16px', fontSize: 12.5, color: 'var(--fg2)' }}>Exporta la evolución y alertas de un paciente.</p>
 
-      <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 6 }}>Paciente</label>
+      <label htmlFor="sb-reporte-paciente" style={{ fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 6 }}>Paciente</label>
       <div style={{ position: 'relative', marginBottom: 14 }}>
         <select
+          id="sb-reporte-paciente"
           value={patientId}
           onChange={e => setPatientId(e.target.value)}
           style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', borderColor: !patientId ? 'var(--border)' : 'var(--primary)' }}
@@ -598,8 +599,8 @@ function ExportPanel({ patients }: { patients: Patient[] }) {
       <div style={{ display: 'flex', gap: 10, marginBottom: 18 }}>
         {[{ label: 'Desde', val: from, set: setFrom }, { label: 'Hasta', val: to, set: setTo }].map(({ label, val, set }) => (
           <div key={label} style={{ flex: 1 }}>
-            <div style={{ fontSize: 11, color: 'var(--fg2)', marginBottom: 4 }}>{label}</div>
-            <input type="date" value={val} onChange={e => set(e.target.value)} style={inputStyle} />
+            <label htmlFor={`sb-reporte-${label}`} style={{ display: 'block', fontSize: 12, color: 'var(--fg2)', marginBottom: 4 }}>{label}</label>
+            <input id={`sb-reporte-${label}`} type="date" value={val} onChange={e => set(e.target.value)} style={inputStyle} />
           </div>
         ))}
       </div>
@@ -618,17 +619,17 @@ function ExportPanel({ patients }: { patients: Patient[] }) {
         }}
       >
         {loading
-          ? <><WIcon name="loader" size={18} color="currentColor" /> Generando…</>
+          ? <><WIcon name="loader" size={18} color="currentColor" style={{ animation: 'sb-spin 0.8s linear infinite' }} /> Generando…</>
           : <><DownloadIcon size={18} color={canExport ? '#fff' : 'var(--fg2)'} /> Exportar PDF</>
         }
       </button>
-      <p style={{ margin: '10px 0 0', fontSize: 11, color: 'var(--fg2)', textAlign: 'center' }}>
+      <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--fg2)', textAlign: 'center' }}>
         {canExport ? 'El reporte se generará en menos de 10 segundos.' : 'Selecciona un paciente y rango de fechas para continuar.'}
       </p>
 
       {toast && (
         <div style={{ position: 'absolute', left: 20, right: 20, bottom: 20, background: toast.ok ? 'var(--primary-hover)' : 'var(--danger)', color: '#fff', borderRadius: 12, padding: '12px 16px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 9, boxShadow: 'var(--shadow-strong)', zIndex: 10 }}>
-          <WIcon name={toast.ok ? 'circle-check' : 'circle-alert'} size={17} color={toast.ok ? 'var(--teal-400)' : '#fff'} />
+          <WIcon name={toast.ok ? 'circle-check' : 'circle-alert'} size={17} color="#fff" />
           {toast.msg}
         </div>
       )}
@@ -645,6 +646,8 @@ interface OverviewPageProps {
 export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
   const [selected, setSelected] = useState<Patient | null>(null)
   const isNarrow = useIsNarrow()
+  const isCompact = useMediaQuery('(max-width: 1399px)')
+  const stacked = isNarrow || isCompact
 
   useAlertsRealtime()
 
@@ -677,14 +680,13 @@ export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
 
   const patients: Patient[] = patientList.map(p => toPatient(p, alertsByPatient, sedeMap))
 
-  const today = new Date().toISOString().slice(0, 10)
   const todayAlerts: TodayAlert[] = alertHistory
-    .filter(a => a.createdAt.startsWith(today))
+    .filter(a => isToday(a.createdAt))
     .map(a => ({
       name: a.patientName,
       rel: relTime(a.createdAt),
       time: new Date(a.createdAt).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }),
-      resolved: a.status !== 'pending',
+      status: a.status,
     }))
 
   const avgDays = patients.length
@@ -705,11 +707,11 @@ export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
   }
 
   return (
-    // `minWidth: 1180` obligaba a desplazar la página de lado en cualquier pantalla
-    // más angosta: en el teléfono el resumen quedaba cortado por la mitad.
+    // Sin ancho mínimo: con `minWidth: 1180`, un notebook de 1280–1366 px tenía que
+    // desplazar la página de lado. El reparto de columnas lo decide la cuadrícula de abajo.
     <div style={{
       padding: isNarrow ? '16px 12px 28px' : 32,
-      maxWidth: 1440, minWidth: isNarrow ? 0 : 1180,
+      maxWidth: 1440,
       margin: '0 auto', width: '100%', boxSizing: 'border-box',
     }}>
       {/* Las cuatro métricas en fila no caben; en dos columnas siguen siendo legibles */}
@@ -720,25 +722,36 @@ export function OverviewPage({ onNav, reqCount }: OverviewPageProps) {
         marginBottom: isNarrow ? 16 : 24,
       }}>
         <MetricCard icon="users" label="Pacientes activos" value={patients.length} tone="teal" important
-          sub={<><WIcon name="trending-up" size={14} color="var(--sage-500)" /><span style={{ color: 'var(--sage-500)', fontWeight: 600 }}>activos</span> · total en mi sede</>} />
+          sub="en tu sede" />
         <MetricCard icon="inbox" label="Solicitudes pendientes" value={reqCount} tone="amber" important
           onClick={() => onNav('requests')}
-          sub={<><WIcon name="clock" size={14} color="var(--accent)" /><span style={{ color: 'var(--accent)', fontWeight: 600 }}>{reqCount} esperando aprobación</span></>} />
-        <MetricCard icon="triangle-alert" label="Alertas hoy" value={todayAlerts.length} tone="red" important
+          sub={<><WIcon name="clock" size={14} color="var(--primary)" /><span style={{ color: 'var(--primary)', fontWeight: 600 }}>{reqCount} esperando aprobación</span></>} />
+        <MetricCard icon="triangle-alert" label="Alertas hoy" value={todayAlerts.length}
+          tone={todayAlerts.some(a => needsAttention(a.status)) ? 'red' : 'teal'} important={todayAlerts.some(a => needsAttention(a.status))}
           sub="Botones de pánico activados" />
         <MetricCard icon="trophy" label="Promedio abstinencia" value={avgDays} tone="gold" important
           sub="días promedio por paciente · acumulado 2026" />
       </div>
 
+      {/* En pantalla ancha, la tabla va a la izquierda y las alertas y el reporte a la
+          derecha. Por debajo de 1400 px la tabla necesita todo el ancho (la columna del
+          paciente quedaba en ~70 px), así que todo va en una columna, con las alertas de
+          pánico primero: son lo que no puede quedar abajo del scroll. */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isNarrow ? '1fr' : 'minmax(0,1.85fr) minmax(0,1fr)',
+        gridTemplateColumns: stacked ? '1fr' : 'minmax(0,1.85fr) minmax(0,1fr)',
+        gridTemplateRows: stacked ? undefined : 'auto 1fr',
+        gridTemplateAreas: stacked ? '"panic" "table" "export"' : '"table panic" "table export"',
         gap: isNarrow ? 12 : 16,
         alignItems: 'start',
       }}>
-        <PatientTable patients={patients} onOpen={setSelected} />
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <PanicPanel todayAlerts={todayAlerts} onOpenPatient={openByName} />
+        <div style={{ gridArea: 'table', minWidth: 0 }}>
+          <PatientTable patients={patients} onOpen={setSelected} />
+        </div>
+        <div style={{ gridArea: 'panic', minWidth: 0 }}>
+          <PanicPanel todayAlerts={todayAlerts} onOpenPatient={openByName} onViewAll={() => onNav('alerts')} />
+        </div>
+        <div style={{ gridArea: 'export', minWidth: 0 }}>
           <ExportPanel patients={patients} />
         </div>
       </div>

@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Linking,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -29,12 +31,18 @@ import {
   savePending,
 } from '../services/checkInQueue';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
-import { readProgress, saveProgress } from '../services/offlineStore';
+import {
+  readProgress,
+  readReminderChoice,
+  saveProgress,
+  saveReminderChoice,
+} from '../services/offlineStore';
 import { conReintento } from '../services/reintentoEscritura';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
+const REFRESH_MS = 3 * 60 * 1000;
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
 
@@ -43,11 +51,16 @@ export function HomeScreen({ navigation }: Props) {
   const [todayEmotion, setTodayEmotion] = useState<EmotionType | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  // Un error que no era de red dejaba «Cargando tu progreso…» para siempre
+  const [loadFailed, setLoadFailed] = useState(false);
+  // CA7.4: se pide el permiso recién cuando el paciente sabe para qué es
+  const [askReminder, setAskReminder] = useState(false);
   const [loading, setLoading] = useState(true);
   const [offline, setOffline] = useState(false);
   const [activeTab, setActiveTab] = useState<NavTab>('home');
 
   const load = useCallback(async () => {
+    setLoadFailed(false);
     try {
       // Verifica suspensión antes de cargar el resto
       const billing = await api.getBillingStatus(TEMP_USER_ID);
@@ -114,6 +127,7 @@ export function HomeScreen({ navigation }: Props) {
           });
         }
       } else {
+        setLoadFailed(true);
         console.error('[HomeScreen] load error', (err as Error).message);
       }
     } finally {
@@ -121,23 +135,61 @@ export function HomeScreen({ navigation }: Props) {
     }
   }, [navigation]);
 
+  // Antes recargaba cada 5 s mientras la pantalla estuviera abierta: con 4 llamadas
+  // por vuelta son 2.880 peticiones por hora de pantalla, en batería y datos del
+  // paciente. Nada de acá cambia por segundo; lo urgente llega por push.
   useFocusEffect(
     useCallback(() => {
       load();
-      const interval = setInterval(load, 5_000);
+      const interval = setInterval(load, REFRESH_MS);
       return () => clearInterval(interval);
     }, [load]),
   );
 
-  // CA7.4: registrar el dispositivo para el recordatorio de las 20:00. Se hace acá
-  // y no al abrir la app porque en Home el paciente ya está identificado.
+  // CA7.4: el recordatorio de las 20:00 llega como push. Antes se pedía el permiso
+  // del sistema apenas cargaba esta pantalla, sin explicar para qué: se pregunta
+  // primero en la app y solo después aparece el diálogo de Android.
   useEffect(() => {
-    let dejarDeEscuchar = () => {};
-    registrarParaNotificaciones(TEMP_USER_ID).then((f) => {
-      dejarDeEscuchar = f;
+    let detener = () => {};
+    let vigente = true;
+    readReminderChoice().then((choice) => {
+      if (!vigente) return;
+      if (choice === null) {
+        setAskReminder(true);
+        return;
+      }
+      if (choice === 'accepted') {
+        registrarParaNotificaciones(TEMP_USER_ID).then((r) => {
+          detener = r.detener;
+        });
+      }
     });
-    return () => dejarDeEscuchar();
+    return () => {
+      vigente = false;
+      detener();
+    };
   }, []);
+
+  const handleActivarRecordatorio = async () => {
+    setAskReminder(false);
+    await saveReminderChoice('accepted');
+    const { activado } = await registrarParaNotificaciones(TEMP_USER_ID);
+    if (!activado) {
+      Alert.alert(
+        'Sin permiso para avisarte',
+        'Android no nos dejó enviarte el recordatorio. Puedes darlo desde los ajustes del teléfono cuando quieras.',
+        [
+          { text: 'Ahora no', style: 'cancel' },
+          { text: 'Abrir ajustes', onPress: () => Linking.openSettings() },
+        ],
+      );
+    }
+  };
+
+  const handleRechazarRecordatorio = async () => {
+    setAskReminder(false);
+    await saveReminderChoice('dismissed');
+  };
 
   // CA7.3: al recuperar la conexión se vacía la cola sola. También se intenta al
   // montar, por si la app se cerró y se reabrió sin red.
@@ -226,11 +278,17 @@ export function HomeScreen({ navigation }: Props) {
             Día {progress?.daysStreak ?? '…'} de tu camino
           </Text>
         </View>
-        <View style={styles.avatar}>
+        {/* Tenía tamaño, borde y posición de botón de perfil, y no hacía nada */}
+        <Pressable
+          style={styles.avatar}
+          onPress={() => navigation.navigate('Profile')}
+          accessibilityRole="button"
+          accessibilityLabel="Mi perfil"
+        >
           <Text style={styles.avatarLetter}>
             {TEMP_FIRST_NAME.charAt(0).toUpperCase()}
           </Text>
-        </View>
+        </Pressable>
       </View>
 
       {/* Contenido principal */}
@@ -247,9 +305,39 @@ export function HomeScreen({ navigation }: Props) {
           {unreadNotifs.length > 0 && (
             <NotificationSection
               notifications={unreadNotifs}
-              onViewAll={() => {}}
               onMarkRead={handleMarkRead}
             />
+          )}
+
+          {askReminder && (
+            <View style={styles.reminderCard}>
+              <View style={styles.reminderHead}>
+                <Icon name="bell" size={18} color={Colors.primary} />
+                <Text style={styles.reminderTitle} accessibilityRole="header">
+                  Recordatorio de las 20:00
+                </Text>
+              </View>
+              <Text style={styles.reminderBody}>
+                Podemos avisarte cada noche para que registres cómo estuvo tu día. Es un
+                aviso al día y lo puedes desactivar cuando quieras.
+              </Text>
+              <View style={styles.reminderActions}>
+                <Pressable
+                  style={styles.reminderPrimary}
+                  onPress={handleActivarRecordatorio}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.reminderPrimaryText}>Activar recordatorio</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.reminderGhost}
+                  onPress={handleRechazarRecordatorio}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.reminderGhostText}>Ahora no</Text>
+                </Pressable>
+              </View>
+            </View>
           )}
 
           {offline && (
@@ -269,8 +357,17 @@ export function HomeScreen({ navigation }: Props) {
           ) : (
             <View style={styles.counterPlaceholder}>
               <Text style={styles.counterPlaceholderText}>
-                {offline ? 'Tu progreso aparecerá al recuperar la conexión' : 'Cargando tu progreso…'}
+                {offline
+                  ? 'Tu progreso aparecerá al recuperar la conexión'
+                  : loadFailed
+                  ? 'No pudimos cargar tu progreso. Tus días no se perdieron.'
+                  : 'Cargando tu progreso…'}
               </Text>
+              {loadFailed && !offline && (
+                <Pressable style={styles.retryBtn} onPress={load} accessibilityRole="button">
+                  <Text style={styles.retryText}>Reintentar</Text>
+                </Pressable>
+              )}
             </View>
           )}
 
@@ -397,4 +494,38 @@ const styles = StyleSheet.create({
     color: Colors.fg2,
     textAlign: 'center',
   },
+  reminderCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    padding: 16,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  reminderHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  reminderTitle: { fontFamily: Fonts.headingBold, fontSize: 15, color: Colors.ink900 },
+  reminderBody: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg1, lineHeight: 19 },
+  reminderActions: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  reminderPrimary: {
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    borderRadius: 9999,
+    backgroundColor: Colors.primary,
+  },
+  reminderPrimaryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
+  reminderGhost: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 14 },
+  reminderGhostText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg2 },
+  retryBtn: {
+    marginTop: 14,
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    borderRadius: 9999,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+  },
+  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
+
 });

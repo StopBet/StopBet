@@ -20,6 +20,92 @@ está.
 
 ---
 
+## 2026-09-15 — Auditoría UX de mobile, segunda tanda: hay que recompilar (PR #96)
+
+**A quién le pega:** a todo el que corra la app en su teléfono o emulador, y en particular a
+**Matías Barraza** (Inicio, Pánico, Asistente), **Catalina Yáñez** (Comunidad), **Matías
+Lara** (Registro) y **José Meza** (login).
+
+**Qué tienes que hacer:**
+
+1. **Recompilar la app, no basta con recargar el bundle.** Cambiaron `styles.xml` y
+   `colors.xml`: `pnpm run android` (o `android:device`). Si solo recargas Metro, los
+   diálogos del sistema van a seguir viéndose como antes.
+2. **Vuelve a correr `pnpm run seed`** si quieres el texto corregido del anuncio de la
+   sesión grupal. Decía «miércoles 18 de junio» y el 18 de junio de 2026 es jueves, así que
+   no calzaba con la fecha que la app formatea desde `eventDate`.
+
+**Dos APIs internas cambiaron.** Si tocas estos archivos, ojo:
+
+- `registrarParaNotificaciones(userId)` ya no devuelve una función, devuelve
+  `{ activado, detener }`. Se necesitaba saber si el paciente aceptó el permiso para poder
+  decírselo en pantalla.
+- `StepperHeader` recibe `labels: string[]` y `current: number`. El registro declara sus dos
+  pasos reales (Datos · Sede); `PaymentScreen` pasa los tres explícitamente.
+
+**Comportamientos que cambiaron a propósito** (para que nadie los reporte como bug):
+
+- **Inicio y Logros se refrescan cada 3 minutos, no cada 5 segundos.** Si cambias algo en la
+  base de datos y no aparece al tiro en la app, es esto: sal y vuelve a entrar a la pantalla.
+  Antes eran 2.880 peticiones por hora de pantalla abierta.
+- **La pantalla de «tu padrino respondió» ya no se cierra sola a los 30 segundos.** La
+  cierra el paciente. Ese temporizador además marcaba como *cancelada* una alerta que sí
+  había sido *respondida*, o sea ensuciaba el historial del psicólogo.
+- **El registro salta el paso de elegir institución** mientras AJUTER sea la única, y el
+  indicador muestra dos pasos en vez de tres. La pantalla `SelectInstitutionScreen` sigue
+  existiendo para cuando haya una segunda.
+- **El foro usa `FlatList`.** Si agregas contenido al foro, ya no se monta todo de una vez.
+- **La app fuerza tema claro.** Con el teléfono en modo oscuro se ve igual que siempre; lo
+  que cambia es que los `Alert` nativos ahora salen con los colores de StopBet en vez de
+  gris oscuro con botones verde azulado. El modo oscuro de verdad sigue pendiente (SIS-07).
+- **Los campos de tarjeta de `PaymentScreen` se eliminaron.** Con una pasarela real (Webpay)
+  los datos de tarjeta no deben pasar por la app: el flujo correcto es redirigir al
+  formulario alojado de Transbank. Ver `docs/presupuesto-stack-2026-09.md`.
+
+**Colores:** hay cinco tokens nuevos en `constants/colors.ts` (`dangerSurface`,
+`dangerBorder`, `successSurface`, `infoSurface`, `infoBorder`). Si vas a pintar un fondo de
+estado, úsalos; no inventes otro pálido. Se reemplazaron 57 hex escritos a mano, entre ellos
+los restos del tema AJUTER naranja y verde azulado.
+
+El detalle hallazgo por hallazgo está en `docs/auditoria-ux-mobile-2026-09-14.md`.
+
+---
+
+## 2026-09-14 — Auditoría UX de la web: cambios visibles en el panel y el portal (PR #95)
+
+**A quién le pega:** a quien use o muestre el panel web, sobre todo a **Eduardo** (Resumen,
+Alertas y `DashboardApp.tsx`), **José Meza** (login), **Matías Lara** y **Catalina Yáñez**
+(Solicitudes) y a quien toque Equipo o el portal del familiar.
+
+**Qué hacer:** no hay nada que instalar ni correr. Estos cambios son a propósito:
+
+- **Estados de alerta reales.** Las alertas de pánico muestran «Esperando al padrino»,
+  «Escalada · sin respuesta», «El padrino respondió» o «Cerrada». Antes, una alerta
+  escalada (que sigue abierta) decía «Resuelto con IA», y una cerrada decía «Sin resolver».
+  Se usa `utils/alertStatus.ts` y `components/AlertStatusBadge.tsx`: no vuelvas a mapear
+  los estados a mano.
+- **Se quitaron botones sin acción:**
+  - «Exportar lista», `···`, la paginación falsa y la campana con «3» fijo;
+  - «Atender» y «Exportar» en Alertas;
+  - los «Guardar cambios» de la ficha y de Configuración.
+
+  Si esperabas verlos, no es un bug.
+- **Solicitudes pide menos datos.** Al aprobar ya no se piden padrino, fecha ni notas, y
+  al rechazar ya no se pide motivo, porque el backend no recibía ninguno de esos datos.
+- **Secciones marcadas como provisorias:**
+  - Configuración muestra el usuario de la sesión, en solo lectura;
+  - Finanzas avisa que sus datos son de ejemplo;
+  - «Mis pacientes» y «Reportes» dicen «Próximamente».
+- **Contraste.** Hay un token nuevo, `--secondary-text` (verde para texto), y `--teal-50`
+  quedó un punto más claro. El verde `#97b23f` y el azul claro ya no se usan como texto,
+  porque no alcanzaban el contraste mínimo. La skill `stopbet-web-design` está actualizada.
+- **Modales accesibles.** Para uno nuevo usa `hooks/useDialog`: se cierra con Escape y el
+  foco no se escapa.
+
+Detalle completo: `docs/auditoria-ux-web-2026-09-14.md`.
+
+---
+
 ## 2026-09-14 — Auditoría UX mobile: hay que recompilar Android y agregar `ENABLE_DEV_TOOLS` al backend (PR #90 a #94)
 
 **A quién le pega:** a todos los que corren la app mobile, y a quien use las herramientas de

@@ -38,7 +38,7 @@ export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchieve
           style={styles.secondaryButton}
           accessibilityRole="button"
         >
-          <View style={[styles.secondaryIcon, { backgroundColor: '#E6F4F2' }]}>
+          <View style={[styles.secondaryIcon, { backgroundColor: Colors.infoSurface }]}>
             <Icon name="users" size={20} color={Colors.primary} />
           </View>
           <Text style={styles.secondaryLabel}>Comunidad</Text>

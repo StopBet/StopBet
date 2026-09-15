@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf'
 import type { Patient } from '../data/mockData'
+import { ALERT_STATUS, needsAttention } from './alertStatus'
 
 const ORANGE = [232, 136, 58] as const   // #E8883A — primary AJUTER
 const DARK   = [42,  38,  36] as const   // #2A2624 — fg1
@@ -239,12 +240,12 @@ export function generatePatientPDF(patient: Patient, from: string, to: string): 
     y += 5
 
     patient.alerts.forEach(a => {
-      const status = a.resolved ? 'Resuelta con IA' : 'Sin resolver'
+      const status = ALERT_STATUS[a.status].label
       setColor(doc, DARK, 'text')
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(8)
       doc.text(`• ${a.time}`, 18, y)
-      setColor(doc, a.resolved ? [79, 142, 79] : [184, 50, 50], 'text')
+      setColor(doc, needsAttention(a.status) ? [184, 50, 50] : a.status === 'responded' ? [45, 90, 158] : [107, 106, 106], 'text')
       doc.text(status, 80, y)
       y += 5.5
     })

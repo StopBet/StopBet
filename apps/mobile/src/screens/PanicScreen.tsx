@@ -24,6 +24,7 @@ import { Fonts } from '../constants/typography';
 import { Icon } from '../components/Icon';
 import { api } from '../services/api';
 import { conReintento } from '../services/reintentoEscritura';
+import { readSponsor, saveSponsor } from '../services/offlineStore';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Constantes
@@ -33,14 +34,18 @@ const HOLD_DURATION_MS = 2000;
 const POLL_INTERVAL_MS = 5000;
 const ESCALATION_SECONDS = 120; // CA1.3: debe coincidir con ESCALATION_MS del backend
 const CRISIS_LINE = '*4141';
-const AUTO_RESET_MS = 30_000; // 30 s tras respuesta/comunidad/escalada
+
+function formatPhone(phone: string): string {
+  const m = /^\+569(\d{4})(\d{4})$/.exec(phone.replace(/\s/g, ''));
+  return m ? `+56 9 ${m[1]} ${m[2]}` : phone;
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tipos internos
 
 type ScreenState =
   | { kind: 'loading' }
-  | { kind: 'offline' }
+  | { kind: 'offline'; sponsor: SponsorInfo | null }
   | { kind: 'idle'; sponsor: SponsorInfo | null }
   | { kind: 'waiting'; alert: PanicAlertDto; sponsor: SponsorInfo | null }
   | { kind: 'responded'; alert: PanicAlertDto; sponsor: SponsorInfo | null }
@@ -62,7 +67,6 @@ export function PanicScreen({ navigation }: Props) {
   // ── Polls / timers ─────────────────────────────────────────────────────
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const autoResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Refleja state.kind sin stale-closure; el poll lo usa para guardar navegación
   const stateKindRef = useRef<ScreenState['kind']>('loading');
 
@@ -74,9 +78,15 @@ export function PanicScreen({ navigation }: Props) {
   // Load inicial
 
   const load = useCallback(async () => {
+    // El botón no espera al servidor: aparece de inmediato con el último padrino conocido
+    const cached = await readSponsor();
+    setState((prev) => (prev.kind === 'loading' ? { kind: 'idle', sponsor: cached } : prev));
     try {
-      const sponsorInfo = await api.getSponsorInfo(TEMP_USER_ID);
-      const activeResp = await api.getPanicActiveAlert(TEMP_USER_ID);
+      const [sponsorInfo, activeResp] = await Promise.all([
+        api.getSponsorInfo(TEMP_USER_ID),
+        api.getPanicActiveAlert(TEMP_USER_ID),
+      ]);
+      void saveSponsor(sponsorInfo);
 
       if (activeResp.alert) {
         const { alert, sponsor } = activeResp;
@@ -86,7 +96,6 @@ export function PanicScreen({ navigation }: Props) {
           startPolling();
         } else if (alert.status === 'responded') {
           setState({ kind: 'responded', alert, sponsor });
-          scheduleAutoReset(alert.id, sponsor);
         } else if (alert.status === 'escalated') {
           // Ya navegamos al asistente cuando se escaló. Al volver a esta pantalla
           // no tiene sentido bloquearla con "Asistente IA listo" — ir directo a idle.
@@ -101,7 +110,7 @@ export function PanicScreen({ navigation }: Props) {
     } catch (err) {
       const isNetworkError = (err as Error).message?.includes('Network request failed') ||
         (err as Error).message?.includes('Failed to fetch');
-      setState(isNetworkError ? { kind: 'offline' } : { kind: 'idle', sponsor: null });
+      setState(isNetworkError ? { kind: 'offline', sponsor: await readSponsor() } : { kind: 'idle', sponsor: null });
     }
   }, []);
 
@@ -112,7 +121,6 @@ export function PanicScreen({ navigation }: Props) {
       return () => {
         stopPolling();
         stopCountdown();
-        clearAutoReset();
       };
     }, [load, holdProgress]),
   );
@@ -131,7 +139,6 @@ export function PanicScreen({ navigation }: Props) {
           stopPolling();
           stopCountdown();
           setState({ kind: 'responded', alert, sponsor });
-          scheduleAutoReset(alert.id, sponsor);
         } else if (alert.status === 'escalated') {
           // Solo navegar si el usuario no canceló mientras el callback estaba en vuelo
           if (stateKindRef.current === 'waiting') {
@@ -181,22 +188,18 @@ export function PanicScreen({ navigation }: Props) {
     }
   };
 
-  const clearAutoReset = () => {
-    if (autoResetRef.current) {
-      clearTimeout(autoResetRef.current);
-      autoResetRef.current = null;
+  // La pantalla de respuesta se borraba sola a los 30 s —podía desaparecer mientras
+  // el paciente todavía la leía— y de paso marcaba como cancelada una alerta que sí
+  // había sido respondida. Ahora la cierra el paciente cuando quiere.
+  const handleCloseResponded = useCallback(async (alertId: string, sponsorForIdle: SponsorInfo | null) => {
+    setState({ kind: 'idle', sponsor: sponsorForIdle });
+    navigation.navigate('Home');
+    try {
+      await api.cancelPanicAlert(TEMP_USER_ID, alertId);
+    } catch {
+      // Best effort: el backend la cierra igual cuando el paciente abre una nueva
     }
-  };
-
-  const scheduleAutoReset = (alertId: string, sponsorForIdle: SponsorInfo | null) => {
-    clearAutoReset();
-    autoResetRef.current = setTimeout(async () => {
-      try {
-        await api.cancelPanicAlert(TEMP_USER_ID, alertId);
-      } catch { /* best effort */ }
-      setState({ kind: 'idle', sponsor: sponsorForIdle });
-    }, AUTO_RESET_MS);
-  };
+  }, [navigation]);
 
   // ──────────────────────────────────────────────────────────────────────
   // Hold-to-activate
@@ -249,7 +252,7 @@ export function PanicScreen({ navigation }: Props) {
     } catch (err) {
       const isNetworkError = (err as Error).message?.includes('Network request failed') ||
         (err as Error).message?.includes('Failed to fetch');
-      if (isNetworkError) setState({ kind: 'offline' });
+      if (isNetworkError) setState({ kind: 'offline', sponsor: await readSponsor() });
     } finally {
       isActivating.current = false;
       holdProgress.setValue(0);
@@ -264,7 +267,6 @@ export function PanicScreen({ navigation }: Props) {
     // Parar todo antes del await para evitar race condition con el poll
     stopPolling();
     stopCountdown();
-    clearAutoReset();
     setCountdown(ESCALATION_SECONDS);
     setState({ kind: 'idle', sponsor: state.sponsor });
     try {
@@ -273,6 +275,18 @@ export function PanicScreen({ navigation }: Props) {
       // Best effort — el estado local ya volvió a idle
     }
   }, [state]);
+
+  // Salir de la espera sin cancelar la alerta: el paciente necesita saber que sigue viva
+  const handleLeaveWaiting = useCallback(() => {
+    Alert.alert(
+      'Tu alerta sigue activa',
+      'Si vuelves al inicio, la alerta ya enviada sigue en pie y tu padrino puede responderla. Puedes volver a esta pantalla cuando quieras.',
+      [
+        { text: 'Seguir esperando', style: 'cancel' },
+        { text: 'Ir al inicio', onPress: () => navigation.navigate('Home') },
+      ],
+    );
+  }, [navigation]);
 
   const handleAlertCommunity = useCallback(async () => {
     if (state.kind !== 'waiting') return;
@@ -308,7 +322,7 @@ export function PanicScreen({ navigation }: Props) {
     }
     stopPolling();
     stopCountdown();
-    scheduleAutoReset(alertId, sponsor);
+    void sponsor;
     navigation.navigate('Assistant');
   }, [state, navigation]);
 
@@ -349,12 +363,12 @@ export function PanicScreen({ navigation }: Props) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <StatusBar barStyle="light-content" backgroundColor={Colors.danger} />
-        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
         </Pressable>
         <View style={styles.offlineBanner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="triangle-alert" size={14} color="#fff" />
+            <Icon name="triangle-alert" size={14} color={Colors.white} />
             <Text style={styles.offlineBannerText}>Sin conexión a internet</Text>
           </View>
         </View>
@@ -364,36 +378,42 @@ export function PanicScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <Text style={styles.title}>¿Necesitas ayuda ahora?</Text>
-          <Text style={styles.subtitle}>No podemos enviar la alerta sin conexión</Text>
+          <Text style={styles.subtitle}>Sin conexión, la alerta no puede salir. Llama directo:</Text>
 
           <View style={styles.disabledBtnWrap}>
             <View style={[styles.panicBtn, styles.panicBtnDisabled]}>
-              <Icon name="hand" size={40} color="#fff" />
+              <Icon name="hand" size={40} color={Colors.white} />
               <Text style={styles.panicBtnLabel}>PÁNICO</Text>
             </View>
             <Text style={styles.holdHintDisabled}>Necesitas conexión para activarlo</Text>
           </View>
 
+          {/* Decía "No fue posible enviar el aviso" nada más abrir la pantalla,
+              sin que el paciente hubiera intentado enviar nada */}
           <View style={styles.warnCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Icon name="triangle-alert" size={14} color={Colors.accent} />
-              <Text style={styles.warnCardTitle}>No fue posible enviar el aviso</Text>
+              <Text style={styles.warnCardTitle}>El botón de pánico necesita conexión</Text>
             </View>
-            <Text style={styles.warnCardBody}>Conéctate a internet e inténtalo nuevamente.</Text>
+            <Text style={styles.warnCardBody}>
+              Mientras tanto, llamar es la vía más rápida y no depende de internet.
+            </Text>
           </View>
 
-          <Pressable
-            style={styles.callRow}
-            onPress={() => Linking.openURL('tel:+56987654321')}
-            accessibilityLabel="Llamar directamente al padrino"
-          >
-            <View style={styles.callIcon}><Icon name="phone" size={20} color={Colors.primary} /></View>
-            <View style={styles.callMeta}>
-              <Text style={styles.callLabel}>Llama directamente a tu padrino</Text>
-              <Text style={styles.callNumber}>+56 9 8765 4321</Text>
-            </View>
-            <Icon name="chevron-right" size={20} color={Colors.fg2} />
-          </Pressable>
+          {state.sponsor?.phone && (
+            <Pressable
+              style={styles.callRow}
+              onPress={() => Linking.openURL(`tel:${state.sponsor?.phone ?? ''}`)}
+              accessibilityLabel={`Llamar a tu padrino, ${state.sponsor.firstName}`}
+            >
+              <View style={styles.callIcon}><Icon name="phone" size={20} color={Colors.primary} /></View>
+              <View style={styles.callMeta}>
+                <Text style={styles.callLabel}>Llama directamente a {state.sponsor.firstName}, tu padrino</Text>
+                <Text style={styles.callNumber}>{formatPhone(state.sponsor.phone)}</Text>
+              </View>
+              <Icon name="chevron-right" size={20} color={Colors.fg2} />
+            </Pressable>
+          )}
 
           <Pressable
             style={[styles.callRow, styles.callRowDanger]}
@@ -421,9 +441,15 @@ export function PanicScreen({ navigation }: Props) {
   if (state.kind === 'responded' || state.kind === 'escalated') {
     const sponsor = state.kind === 'responded' ? state.sponsor : null;
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F0FAF5' }]} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F0FAF5" />
-        <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: Colors.successSurface }]} edges={['top', 'bottom']}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.successSurface} />
+        <Pressable
+          style={styles.backBtn}
+          onPress={() => handleCloseResponded(state.alert.id, sponsor)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Volver al inicio"
+        >
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
         </Pressable>
         <ScrollView
@@ -436,12 +462,12 @@ export function PanicScreen({ navigation }: Props) {
             </View>
             <Text style={styles.respondedTitle}>
               {state.kind === 'responded' && sponsor
-                ? `${sponsor.firstName} está en camino`
+                ? `${sponsor.firstName} respondió a tu alerta`
                 : 'Asistente IA listo'}
             </Text>
             <Text style={styles.respondedSub}>
               {state.kind === 'responded'
-                ? 'Tu padrino respondió hace un momento'
+                ? 'Ya sabe que necesitas apoyo'
                 : 'La alerta fue escalada al asistente'}
             </Text>
           </View>
@@ -453,11 +479,10 @@ export function PanicScreen({ navigation }: Props) {
                   <Text style={styles.avatarLetter}>
                     {sponsor.firstName.charAt(0)}
                   </Text>
-                  <View style={styles.onlineDot} />
                 </View>
                 <View style={styles.sponsorMeta}>
                   <Text style={styles.sponsorName}>{sponsor.firstName} {sponsor.lastName}</Text>
-                  <Text style={styles.sponsorStatus}>Respondió · disponible</Text>
+                  <Text style={styles.sponsorStatus}>Tu padrino</Text>
                 </View>
                 <Icon name="handshake" size={24} color={Colors.sage500} />
               </View>
@@ -465,19 +490,31 @@ export function PanicScreen({ navigation }: Props) {
           )}
 
           <View style={styles.actions}>
-            {state.kind === 'responded' && (
-              <Pressable style={[styles.btn, styles.btnPrimary]} onPress={() => navigation.navigate('Assistant')}>
+            {state.kind === 'responded' && sponsor?.phone && (
+              <Pressable
+                style={[styles.btn, styles.btnPrimary]}
+                onPress={() => Linking.openURL(`tel:${sponsor.phone}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Llamar a ${sponsor.firstName}`}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Icon name="message-circle" size={18} color="#fff" />
-                  <Text style={styles.btnTextLight}>Iniciar chat con {sponsor?.firstName ?? 'padrino'}</Text>
+                  <Icon name="phone" size={18} color={Colors.white} />
+                  <Text style={styles.btnTextLight}>Llamar a {sponsor.firstName}</Text>
                 </View>
               </Pressable>
             )}
             <Pressable style={[styles.btn, styles.btnOutlineTeal]} onPress={() => navigation.navigate('Assistant')}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Icon name="sparkles" size={18} color={Colors.primary} />
-                <Text style={styles.btnTextPrimary}>Hablar con asistente IA</Text>
+                <Text style={styles.btnTextPrimary}>Hablar con el asistente</Text>
               </View>
+            </Pressable>
+            <Pressable
+              style={[styles.btn, styles.btnGhost]}
+              onPress={() => handleCloseResponded(state.alert.id, sponsor)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.btnTextMuted}>Estoy mejor, volver al inicio</Text>
             </Pressable>
           </View>
         </ScrollView>
@@ -490,8 +527,19 @@ export function PanicScreen({ navigation }: Props) {
     const { alert, sponsor } = state;
     const isCountdownUrgent = countdown <= 30;
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#FFF5F5' }]}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFF5F5" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: Colors.dangerSurface }]}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.dangerSurface} />
+        {/* Sin salida explícita, el gesto atrás del sistema detenía la cuenta regresiva
+            y el paciente perdía de vista la escalada sin saber si la alerta seguía viva */}
+        <Pressable
+          style={styles.backBtn}
+          onPress={handleLeaveWaiting}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Volver al inicio"
+        >
+          <Icon name="arrow-left" size={20} color={Colors.fg1} />
+        </Pressable>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -526,10 +574,10 @@ export function PanicScreen({ navigation }: Props) {
                 </View>
               )}
               <View style={styles.sponsorMeta}>
+                {/* "está siendo notificado" concuerda en masculino con cualquier nombre:
+                    a Daniela le decía "notificado". El género del padrino no se conoce. */}
                 <Text style={styles.sponsorName}>
-                  {sponsor
-                    ? `${sponsor.firstName} está siendo notificado`
-                    : 'Notificando padrino…'}
+                  {sponsor ? `Avisando a ${sponsor.firstName}` : 'Avisando a tu padrino…'}
                 </Text>
                 <Text style={styles.notifTime}>hace un momento</Text>
               </View>
@@ -596,7 +644,7 @@ export function PanicScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
-      <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={8}>
+      <Pressable style={styles.backBtn} onPress={() => navigation.navigate('Home')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Volver al inicio">
         <Icon name="arrow-left" size={20} color={Colors.fg1} />
       </Pressable>
       <View style={styles.content}>
@@ -623,10 +671,15 @@ export function PanicScreen({ navigation }: Props) {
                 onPressIn={onPressIn}
                 onPressOut={onPressOut}
                 android_ripple={null}
-                accessibilityLabel="Botón de pánico. Mantén presionado 2 segundos para activar"
+                accessibilityLabel="Botón de pánico"
+                accessibilityHint="Avisa a tu padrino. Mantén presionado 2 segundos o, con TalkBack, toca dos veces."
                 accessibilityRole="button"
+                accessibilityActions={[{ name: 'activate', label: 'Enviar alerta de pánico' }]}
+                onAccessibilityAction={(e) => {
+                  if (e.nativeEvent.actionName === 'activate') handleActivate();
+                }}
               >
-                <Icon name="hand" size={40} color="#fff" />
+                <Icon name="hand" size={40} color={Colors.white} />
                 <Text style={styles.panicBtnLabel}>PÁNICO</Text>
               </Pressable>
             </Animated.View>
@@ -645,11 +698,12 @@ export function PanicScreen({ navigation }: Props) {
               <>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarLetter}>{sponsor.firstName.charAt(0)}</Text>
-                  <View style={styles.onlineDot} />
                 </View>
                 <View style={styles.sponsorMeta}>
+                  {/* "● Disponible" y el punto verde eran texto fijo: nadie sabe si el
+                      padrino está disponible, y prometerlo en una crisis es peor que callar */}
                   <Text style={styles.sponsorName}>{sponsor.firstName} {sponsor.lastName}</Text>
-                  <Text style={styles.sponsorOnline}>● Disponible</Text>
+                  <Text style={styles.sponsorStatus}>Recibirá tu alerta al instante</Text>
                 </View>
                 {sponsor.phone && (
                   <Pressable
@@ -729,11 +783,11 @@ const styles = StyleSheet.create({
   },
   offlineBannerText: {
     fontFamily: Fonts.bodyBold,
-    color: '#fff',
+    color: Colors.white,
     fontSize: 14,
   },
   warnCard: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: Colors.infoSurface,
     borderLeftWidth: 4,
     borderLeftColor: Colors.accent,
     borderRadius: 16,
@@ -757,12 +811,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#EFF4F1',
+    backgroundColor: Colors.successSurface,
     borderRadius: 16,
     padding: 14,
   },
   callRowDanger: {
-    backgroundColor: '#FFF0F0',
+    backgroundColor: Colors.dangerSurface,
     borderWidth: 1.5,
     borderColor: 'rgba(184,50,50,0.18)',
   },
@@ -770,12 +824,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
   callIconDanger: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   callMeta: { flex: 1 },
   callLabel: {
@@ -790,7 +844,7 @@ const styles = StyleSheet.create({
   },
   callSubLabel: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.fg2,
     marginTop: 2,
   },
@@ -854,13 +908,13 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   panicBtnDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.border,
     shadowOpacity: 0,
     elevation: 0,
   },
   panicBtnLabel: {
     fontFamily: Fonts.bodyBold,
-    color: '#fff',
+    color: Colors.white,
     fontSize: 14,
     letterSpacing: 2,
   },
@@ -873,7 +927,7 @@ const styles = StyleSheet.create({
   holdHintDisabled: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: '#ccc',
+    color: Colors.border,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -919,20 +973,11 @@ const styles = StyleSheet.create({
   },
   avatarLetter: {
     fontFamily: Fonts.bodyBold,
-    color: '#fff',
+    color: Colors.white,
     fontSize: 18,
   },
-  onlineDot: {
-    position: 'absolute',
-    right: -1,
-    bottom: -1,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Colors.sage500,
-    borderWidth: 2.5,
-    borderColor: Colors.surface,
-  },
+  btnGhost: { backgroundColor: 'transparent' },
+  btnTextMuted: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg2 },
   sponsorMeta: { flex: 1 },
   sponsorName: {
     fontFamily: Fonts.headingBold,
@@ -940,15 +985,9 @@ const styles = StyleSheet.create({
     color: Colors.ink900,
   },
   sponsorStatus: {
-    fontFamily: Fonts.bodyBold,
+    fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.sage500,
-    marginTop: 2,
-  },
-  sponsorOnline: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.sage500,
+    color: Colors.fg2,
     marginTop: 2,
   },
   noSponsorText: {
@@ -1021,7 +1060,7 @@ const styles = StyleSheet.create({
   },
   timerCap: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.fg2,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -1055,7 +1094,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.amber50,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#EDCFAA',
+    borderColor: Colors.infoBorder,
     padding: 14,
     flexDirection: 'row',
     gap: 12,
@@ -1064,7 +1103,7 @@ const styles = StyleSheet.create({
   iaBannerTitle: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13.5,
-    color: Colors.accent,
+    color: Colors.primary,
   },
   iaBannerBody: {
     fontFamily: Fonts.body,
@@ -1076,10 +1115,10 @@ const styles = StyleSheet.create({
 
   // ── Comunidad banner ──
   communityCard: {
-    backgroundColor: '#EFF4F1',
+    backgroundColor: Colors.successSurface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#D5E4E0',
+    borderColor: Colors.infoBorder,
     padding: 14,
     flexDirection: 'row',
     gap: 12,
@@ -1109,7 +1148,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#EFF4F1',
+    backgroundColor: Colors.successSurface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 5,
@@ -1156,7 +1195,7 @@ const styles = StyleSheet.create({
   },
   btnTextLight: {
     fontFamily: Fonts.bodyBold,
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
   },
   btnTextPrimary: {

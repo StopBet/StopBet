@@ -20,6 +20,7 @@ import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
@@ -55,16 +56,26 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   const [familySheetOpen, setFamilySheetOpen] = useState(false);
   const [familyLink, setFamilyLink] = useState<string | null>(null);
   const [paying, setPaying] = useState(false);
+  // Sin datos no se inventan cifras: la pantalla dice que está cargando o que falló.
+  const [loadState, setLoadState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [payError, setPayError] = useState<string | null>(null);
+  const [confirmPayOpen, setConfirmPayOpen] = useState(false);
+  const [familyLinkError, setFamilyLinkError] = useState(false);
+
+  const reduceMotion = useReduceMotion();
 
   // Animación del halo en Estado 2
   const haloAnim = useRef(new Animated.Value(0)).current;
   const haloLoop = useRef<Animated.CompositeAnimation | null>(null);
 
   const load = useCallback(async () => {
+    setLoadState('loading');
     try {
       const status = await api.getBillingStatus(TEMP_USER_ID);
       setBillingStatus(status);
+      setLoadState('ready');
     } catch (err) {
+      setLoadState('error');
       // Sin red es un estado esperado, no un fallo: con console.error React
       // Native levanta el LogBox encima de la pantalla.
       if (isNetworkError(err)) {
@@ -78,7 +89,8 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (screenState === 'reactivated') {
+    // El halo latía en bucle indefinidamente en la pantalla de cuenta reactivada
+    if (screenState === 'reactivated' && !reduceMotion) {
       haloAnim.setValue(0);
       haloLoop.current = Animated.loop(
         Animated.timing(haloAnim, {
@@ -91,7 +103,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
       haloLoop.current.start();
     }
     return () => haloLoop.current?.stop();
-  }, [screenState, haloAnim]);
+  }, [screenState, haloAnim, reduceMotion]);
 
   const haloScale = haloAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
   const haloOpacity = haloAnim.interpolate({
@@ -100,13 +112,20 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   });
 
   const handlePay = async () => {
+    setConfirmPayOpen(false);
     setPaying(true);
+    setPayError(null);
     try {
       const updated = await api.payOverdue(TEMP_USER_ID);
       setBillingStatus(updated);
       setScreenState('reactivated');
     } catch (err) {
-      console.error('[SuspendedAccountScreen] pay error', (err as Error).message);
+      // Antes el botón volvía a su estado sin decir nada y el paciente no sabía si había pagado
+      setPayError(
+        isNetworkError(err)
+          ? 'No hay conexión. No se registró ningún pago; inténtalo de nuevo.'
+          : 'No pudimos registrar el pago. No se cobró nada; inténtalo de nuevo.',
+      );
     } finally {
       setPaying(false);
     }
@@ -117,9 +136,10 @@ export function SuspendedAccountScreen({ navigation }: Props) {
       try {
         const { url } = await api.getFamilyLink(TEMP_USER_ID);
         setFamilyLink(url);
+        setFamilyLinkError(false);
       } catch {
-        // Muestra el sheet igualmente con link placeholder
-        setFamilyLink('stopbet.cl/pago/...');
+        // Antes ponía 'stopbet.cl/pago/...' y el familiar recibía un enlace roto
+        setFamilyLinkError(true);
       }
     }
     setFamilySheetOpen(true);
@@ -147,7 +167,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   if (screenState === 'reactivated') {
     return (
       <SafeAreaView style={styles.safeReactivated} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F0FAF5" />
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.successSurface} />
         <View style={styles.reactivatedContent}>
           {/* Halo + check badge */}
           <View style={styles.checkWrap}>
@@ -199,7 +219,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
       <View style={styles.suspBanner}>
         <Icon name="triangle-alert" size={15} color={Colors.accent} />
         <Text style={styles.suspBannerText}>
-          Cuenta suspendida · {billingStatus?.overdueMonths ?? 3} meses de mora
+          Cuenta suspendida
         </Text>
       </View>
 
@@ -215,61 +235,80 @@ export function SuspendedAccountScreen({ navigation }: Props) {
           </View>
           <Text style={styles.mainTitle}>Tu cuenta está suspendida</Text>
           <Text style={styles.mainSub}>
-            Llevas {billingStatus?.overdueMonths ?? 3} meses sin pagar. Reactiva tu cuenta para
-            continuar tu proceso de rehabilitación.
+            Para volver a usar la app hay que ponerse al día con el plan. Tu proceso te sigue
+            esperando.
           </Text>
         </View>
 
-        {/* Tarjeta de adeudos */}
-        <View style={styles.overdueCard}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-            <Icon name="calendar" size={15} color={Colors.accent} />
-            <Text style={styles.overdueCardTitle}>
-              {billingStatus?.overdueMonths ?? overdue.length} mensualidades vencidas
+        {/* Tarjeta de adeudos. Antes, sin datos, mostraba "3 meses de mora" y "$0 adeudado":
+            cifras de relleno en la pantalla donde el paciente decide cuánto pagar. */}
+        {loadState === 'loading' ? (
+          <View style={styles.overdueCard}>
+            <Text style={styles.stateText}>Cargando tu estado de cuenta…</Text>
+          </View>
+        ) : !billingStatus ? (
+          <View style={styles.overdueCard}>
+            <Text style={styles.stateText}>
+              No pudimos cargar tu estado de cuenta, así que tampoco podemos mostrarte cuánto
+              falta. Revisa tu conexión e inténtalo de nuevo.
             </Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={load} accessibilityRole="button">
+              <Text style={styles.retryText}>Reintentar</Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.overdueMonths}>
-            {overdue.length > 0
-              ? overdue.map((inv: Invoice) => (
-                  <View key={inv.id} style={styles.monthRow}>
-                    <Text style={styles.monthLabel}>{formatMonth(inv.month)}</Text>
-                    <Text style={styles.monthAmount}>{formatCLP(inv.amountCLP)}</Text>
-                  </View>
-                ))
-              : /* Fallback para cuando no hay datos aún */
-                null}
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.totalRow}>
-            <Text style={styles.totalAmount}>
-              {formatCLP(billingStatus?.totalOwedCLP ?? 0)}
-            </Text>
-            <Text style={styles.totalLabel}> CLP · total adeudado</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          {billingStatus?.firstOverdueDate && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="clock" size={13} color={Colors.danger} />
-              <Text style={styles.overdueDate}>
-                Primera mora: {formatDate(billingStatus.firstOverdueDate)} · hace{' '}
-                {billingStatus.daysOverdue} día{billingStatus.daysOverdue !== 1 ? 's' : ''}
+        ) : (
+          <View style={styles.overdueCard}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+              <Icon name="calendar" size={15} color={Colors.accent} />
+              <Text style={styles.overdueCardTitle}>
+                {overdue.length} mensualidad{overdue.length !== 1 ? 'es' : ''} pendiente
+                {overdue.length !== 1 ? 's' : ''}
               </Text>
             </View>
-          )}
-        </View>
+
+            <View style={styles.overdueMonths}>
+              {overdue.map((inv: Invoice) => (
+                <View key={inv.id} style={styles.monthRow}>
+                  <Text style={styles.monthLabel}>{formatMonth(inv.month)}</Text>
+                  <Text style={styles.monthAmount}>{formatCLP(inv.amountCLP)}</Text>
+                </View>
+              ))}
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.totalRow}>
+              <Text style={styles.totalAmount}>{formatCLP(billingStatus.totalOwedCLP)}</Text>
+              <Text style={styles.totalLabel}> CLP · total pendiente</Text>
+            </View>
+
+            {billingStatus.firstOverdueDate && (
+              <>
+                <View style={styles.divider} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Icon name="clock" size={13} color={Colors.fg2} />
+                  <Text style={styles.overdueDate}>
+                    Desde el {formatDate(billingStatus.firstOverdueDate)}
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+        )}
 
         {/* Acciones de pago */}
         <View style={styles.actions}>
+          {payError && (
+            <View style={styles.payErrorBox} accessibilityLiveRegion="polite">
+              <Icon name="triangle-alert" size={15} color={Colors.danger} />
+              <Text style={styles.payErrorText}>{payError}</Text>
+            </View>
+          )}
           <TouchableOpacity
-            style={[styles.btnPrimary, paying && styles.btnDisabled]}
-            onPress={handlePay}
+            style={[styles.btnPrimary, (paying || loadState !== 'ready') && styles.btnDisabled]}
+            onPress={() => setConfirmPayOpen(true)}
             activeOpacity={0.85}
-            disabled={paying}
+            disabled={paying || loadState !== 'ready'}
             accessibilityRole="button"
             accessibilityState={{ busy: paying }}
           >
@@ -328,10 +367,43 @@ export function SuspendedAccountScreen({ navigation }: Props) {
           <Text style={styles.panicButtonLabel}>BOTÓN DE PÁNICO</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="heart" size={13} color={Colors.danger} />
-            <Text style={styles.panicFoot}>Tu padrino siempre estará disponible</Text>
+            <Text style={styles.panicFoot}>El botón de pánico y la línea *4141 siguen disponibles</Text>
           </View>
         </View>
       </ScrollView>
+
+      {/* Confirmación de pago: antes un toque llamaba a payOverdue sin decir cuánto ni preguntar */}
+      <Modal
+        visible={confirmPayOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmPayOpen(false)}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.sheetTitle}>Confirmar pago</Text>
+            <Text style={styles.sheetSub}>
+              Vas a registrar el pago de {formatCLP(billingStatus?.totalOwedCLP ?? 0)} y reactivar
+              tu cuenta.
+            </Text>
+            <Text style={styles.confirmNote}>
+              Esta acción no cobra ninguna tarjeta: deja el pago registrado y te devuelve el acceso.
+            </Text>
+            <View style={styles.sheetActions}>
+              <TouchableOpacity style={styles.btnPrimary} onPress={handlePay} accessibilityRole="button">
+                <Text style={styles.btnPrimaryText}>Confirmar y reactivar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.btnOutline}
+                onPress={() => setConfirmPayOpen(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.btnOutlineText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Bottom sheet: Avisar a familiar ── */}
       <Modal
@@ -354,33 +426,28 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               Comparte un enlace de pago seguro para que un familiar pueda reactivar tu cuenta por ti.
             </Text>
 
-            {/* Familiar de apoyo (placeholder) */}
-            <View style={styles.famRow}>
-              <View style={styles.famAvatar}>
-                <Text style={styles.famAvatarText}>P</Text>
-              </View>
-              <View style={styles.famInfo}>
-                <Text style={styles.famName}>Patricia Soto</Text>
-                <Text style={styles.famRel}>Madre · familiar de apoyo</Text>
-              </View>
-              <Icon name="circle-check" size={20} color={Colors.sage500} />
-            </View>
-
-            {/* Enlace de pago */}
-            {familyLink && (
+            {/* Acá salía "Patricia Soto · Madre", el mismo familiar inventado para todos */}
+            {familyLink ? (
               <View style={styles.linkBox}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Icon name="link" size={13} color={Colors.primary} />
                   <Text style={styles.linkBoxText}>{familyLink}</Text>
                 </View>
               </View>
+            ) : (
+              <Text style={styles.stateText}>
+                {familyLinkError
+                  ? 'No pudimos generar el enlace de pago. Inténtalo de nuevo más tarde.'
+                  : 'Generando el enlace…'}
+              </Text>
             )}
 
             <View style={styles.sheetActions}>
               <TouchableOpacity
-                style={styles.btnPrimary}
+                style={[styles.btnPrimary, !familyLink && styles.btnDisabled]}
                 onPress={handleShareFamilyLink}
                 activeOpacity={0.85}
+                disabled={!familyLink}
                 accessibilityRole="button"
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -482,7 +549,8 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', alignItems: 'baseline' },
   totalAmount: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3 },
   totalLabel: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.fg2 },
-  overdueDate: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.danger },
+  // Rojo de alarma sobre una fecha: es un dato, no una emergencia
+  overdueDate: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.fg2 },
 
   /* Actions */
   actions: { gap: 12 },
@@ -494,7 +562,7 @@ const styles = StyleSheet.create({
   emDividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
   emDividerText: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1,
     color: Colors.danger,
     textTransform: 'uppercase',
@@ -502,7 +570,7 @@ const styles = StyleSheet.create({
 
   /* Panic card */
   panicCard: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: Colors.dangerSurface,
     borderWidth: 2,
     borderColor: Colors.danger,
     borderRadius: 16,
@@ -586,7 +654,7 @@ const styles = StyleSheet.create({
   linkBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EAF5F3',
+    backgroundColor: Colors.infoSurface,
     borderRadius: 12,
     padding: 11,
     marginBottom: 16,
@@ -600,7 +668,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     borderRadius: 9999,
     paddingVertical: 15,
+    // El botón de "Ir a mi inicio" vive en un contenedor centrado y se encogía al ancho
+    // del ícono: su texto salía cortado por los dos lados.
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
   btnOutline: {
@@ -615,7 +689,7 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.6 },
 
   /* Reactivated state */
-  safeReactivated: { flex: 1, backgroundColor: '#F0FAF5' },
+  safeReactivated: { flex: 1, backgroundColor: Colors.successSurface },
   reactivatedContent: {
     flex: 1,
     justifyContent: 'center',
@@ -683,4 +757,21 @@ const styles = StyleSheet.create({
   nextPaymentLabel: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
   nextPaymentText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
   nextPaymentVal: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg1 },
+  stateText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg1, lineHeight: 20 },
+  retryBtn: {
+    marginTop: 14, alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center',
+    paddingHorizontal: 18, borderRadius: 9999, borderWidth: 1.5, borderColor: Colors.primary,
+  },
+  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
+  payErrorBox: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12,
+    backgroundColor: Colors.dangerSurface, borderRadius: 12, padding: 12,
+  },
+  payErrorText: { fontFamily: Fonts.body, flex: 1, fontSize: 13.5, color: Colors.danger, lineHeight: 19 },
+  confirmOverlay: {
+    flex: 1, backgroundColor: 'rgba(45,90,158,0.32)', justifyContent: 'center', paddingHorizontal: 22,
+  },
+  confirmCard: { backgroundColor: Colors.surface, borderRadius: 20, padding: 22 },
+  confirmNote: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 10 },
+
 });

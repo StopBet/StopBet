@@ -35,6 +35,17 @@ export const Colors = {
   // Peligro — exclusivo para botón de pánico y alertas críticas
   danger: '#B83232',
 
+  // Fondos de estado. Antes cada pantalla inventaba su propio pálido: convivían
+  // #FEE2E2, #FFF5F5, #FFF0F0, #FBF0F0, #FEECEC y #F7E7E7 para el mismo rojo suave,
+  // y #EAF3F2, #E6F4F2, #EFF9F4, #EAF5F3 —verdes azulados del tema AJUTER anterior—
+  // para el mismo azul suave. Tenerlos con nombre es lo que hace posible un tema
+  // oscuro más adelante (SIS-07).
+  dangerSurface:  '#FBF0F0',
+  dangerBorder:   '#F0D3D3',
+  successSurface: '#F0FAF5',
+  infoSurface:    '#F2F7FC',
+  infoBorder:     '#D6E4F2',
+
   // Utilidades
   white:          '#FFFFFF',
   overlayWhite16: 'rgba(255,255,255,0.16)',

@@ -1,5 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
@@ -13,10 +14,36 @@ export function DayCounter({ days, milestone }: Props) {
   const pct = Math.min(days / milestone, 1);
   const daysLeft = milestone - days;
 
+  // El aro era un borde verde entero: con 75 % de avance se leía como hito cumplido
+  const RADIO = 65;
+  const GROSOR = 10;
+  const PERIMETRO = 2 * Math.PI * RADIO;
+
   return (
     <View style={styles.card}>
       <View style={styles.ringContainer}>
         <View style={styles.ring}>
+          <Svg width={140} height={140} style={StyleSheet.absoluteFill}>
+            <Circle
+              cx={70}
+              cy={70}
+              r={RADIO}
+              stroke={Colors.border}
+              strokeWidth={GROSOR}
+              fill="none"
+            />
+            <Circle
+              cx={70}
+              cy={70}
+              r={RADIO}
+              stroke={Colors.sage500}
+              strokeWidth={GROSOR}
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray={`${PERIMETRO * pct} ${PERIMETRO}`}
+              transform={`rotate(-90 70 70)`}
+            />
+          </Svg>
           <Text style={styles.daysNumber}>{days}</Text>
           <Text style={styles.daysText}>días sin apostar</Text>
         </View>
@@ -61,8 +88,6 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    borderWidth: 10,
-    borderColor: Colors.sage500,
     backgroundColor: Colors.sage50,
     alignItems: 'center',
     justifyContent: 'center',

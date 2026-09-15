@@ -1,3 +1,5 @@
+import type { PanicStatus } from '../utils/alertStatus'
+
 export interface PatientEvolution {
   label: string
   mood: number
@@ -7,7 +9,7 @@ export interface PatientEvolution {
 export interface PatientAlert {
   time: string
   rel: string
-  resolved: boolean
+  status: PanicStatus
 }
 
 export interface PatientSession {
@@ -38,7 +40,7 @@ export interface TodayAlert {
   name: string
   rel: string
   time: string
-  resolved: boolean
+  status: PanicStatus
 }
 
 export interface AlertData {
@@ -104,9 +106,9 @@ export const PATIENTS: Patient[] = [
       { label: '22 may', mood: 2, alert: true }, { label: '', mood: 4 }, { label: '29 may', mood: 4 },
     ],
     alerts: [
-      { time: 'Hoy · 14:32', rel: 'hace 2 horas', resolved: true },
-      { time: 'Hoy · 09:15', rel: 'hace 7 horas', resolved: true },
-      { time: '22 may · 21:40', rel: 'hace 7 días', resolved: false },
+      { time: 'Hoy · 14:32', rel: 'hace 2 horas', status: 'responded' },
+      { time: 'Hoy · 09:15', rel: 'hace 7 horas', status: 'responded' },
+      { time: '22 may · 21:40', rel: 'hace 7 días', status: 'escalated' },
     ],
     sessions: [
       { date: '29 may · 16:20', summary: 'Sesión IA de respiración guiada tras impulso fuerte. Completada.' },
@@ -125,9 +127,9 @@ export const PATIENTS: Patient[] = [
 ]
 
 export const TODAY_ALERTS: TodayAlert[] = [
-  { name: 'Carlos Rodríguez', rel: 'hace 2 horas', time: '14:32', resolved: true },
-  { name: 'Diego Morales', rel: 'hace 5 horas', time: '11:08', resolved: false },
-  { name: 'Carlos Rodríguez', rel: 'hace 7 horas', time: '09:15', resolved: true },
+  { name: 'Carlos Rodríguez', rel: 'hace 2 horas', time: '14:32', status: 'responded' },
+  { name: 'Diego Morales', rel: 'hace 5 horas', time: '11:08', status: 'escalated' },
+  { name: 'Carlos Rodríguez', rel: 'hace 7 horas', time: '09:15', status: 'responded' },
 ]
 
 export const ALERT_DATA: AlertData[] = [

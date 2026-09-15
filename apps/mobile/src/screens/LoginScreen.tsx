@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -143,7 +144,7 @@ export function LoginScreen({ navigation }: Props) {
               accessibilityState={{ busy: isLoading }}
             >
               {isLoading
-                ? <ActivityIndicator color="#fff" size="small" />
+                ? <ActivityIndicator color={Colors.white} size="small" />
                 : <Text style={styles.btnPrimaryText}>Iniciar sesión</Text>
               }
             </Pressable>
@@ -155,23 +156,17 @@ export function LoginScreen({ navigation }: Props) {
               </View>
             )}
 
-            {/* Olvidé contraseña */}
-            <Pressable style={styles.forgotBtn}>
+            {/* No hacía nada: todavía no existe recuperación de clave, así que escribe a soporte */}
+            <Pressable
+              style={styles.forgotBtn}
+              accessibilityRole="button"
+              onPress={() => Linking.openURL('mailto:soporte@stopbet.cl?subject=Recuperar%20contrase%C3%B1a')}
+            >
               <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
             </Pressable>
           </View>
 
-          {/* Separador */}
-          <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerLabel}>o</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          {/* Biometría */}
-          <Pressable style={styles.btnOutline}>
-            <Text style={styles.btnOutlineText}>Iniciar con huella digital</Text>
-          </Pressable>
+          {/* El acceso con huella todavía no existe: el botón no hacía nada y se quitó */}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -308,7 +303,7 @@ const styles = StyleSheet.create({
   errorBanner: {
     marginTop: 12,
     borderRadius: 10,
-    backgroundColor: '#F7E7E7',
+    backgroundColor: Colors.dangerSurface,
     borderWidth: 1,
     borderColor: 'rgba(184,50,50,0.22)',
     padding: 12,
@@ -327,36 +322,6 @@ const styles = StyleSheet.create({
   },
   forgotText: {
     fontSize: 13.5,
-    fontFamily: Fonts.bodyBold,
-    color: Colors.primary,
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-    gap: 12,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: Colors.border,
-  },
-  dividerLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.fg2,
-    paddingHorizontal: 4,
-  },
-  btnOutline: {
-    height: 52,
-    borderRadius: 9999,
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  btnOutlineText: {
-    fontSize: 15,
     fontFamily: Fonts.bodyBold,
     color: Colors.primary,
   },

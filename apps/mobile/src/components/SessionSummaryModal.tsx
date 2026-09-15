@@ -28,7 +28,7 @@ function aiVal(v: string | null | undefined, fallback: string): string {
 function buildChips(summary: AiSessionSummary, durationMinutes: number): SummaryChip[] {
   return [
     {
-      bg: '#EAF3F2',
+      bg: Colors.infoSurface,
       icon: 'chart-column',
       iconColor: Colors.primary,
       label: 'Estado anímico',
@@ -38,12 +38,12 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number): Summary
       bg: Colors.sage50,
       icon: 'leaf',
       iconColor: Colors.sage500,
-      label: 'Hoy fue intenso',
+      label: 'Cómo te vas',
       value: aiVal(summary.progressNote, 'Estás avanzando'),
       valueColor: Colors.sage500,
     },
     {
-      bg: '#EAF3F2',
+      bg: Colors.infoSurface,
       icon: 'wind',
       iconColor: Colors.primary,
       label: 'Técnica usada',
@@ -64,7 +64,6 @@ interface Props {
   summary: AiSessionSummary | null;
   durationMinutes: number;
   onContinue: () => void;
-  onViewHistory: () => void;
 }
 
 export function SessionSummaryModal({
@@ -72,7 +71,6 @@ export function SessionSummaryModal({
   summary,
   durationMinutes,
   onContinue,
-  onViewHistory,
 }: Props) {
   if (!summary) return null;
 
@@ -120,17 +118,14 @@ export function SessionSummaryModal({
           <View style={styles.noteRow}>
             <Icon name="lock" size={14} color={Colors.fg2} />
             <Text style={styles.note}>
-              Solo se guarda este resumen general; el contenido de la conversación es privado y no se almacena. Tu psicólogo ve tu evolución para acompañarte mejor.
+              Este resumen ayuda al asistente a retomar la próxima vez. La conversación queda guardada en tu cuenta y tu psicólogo no la lee.
             </Text>
           </View>
 
-          <TouchableOpacity activeOpacity={0.85} onPress={onContinue} style={styles.btn}>
+          <TouchableOpacity activeOpacity={0.85} onPress={onContinue} style={styles.btn} accessibilityRole="button">
             <Text style={styles.btnText}>Continuar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onViewHistory} style={styles.linkBtn}>
-            <Text style={styles.linkText}>Ver historial de sesiones</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -161,7 +156,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#EAF3F2',
+    backgroundColor: Colors.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -206,7 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipText: { flex: 1 },
-  chipLabel: { fontFamily: Fonts.bodyBold, fontSize: 10, color: Colors.fg2, letterSpacing: 0.3 },
+  chipLabel: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2, letterSpacing: 0.3 },
   chipValue: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.ink900, marginTop: 2 },
 
   noteRow: {
@@ -231,6 +226,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
-  linkBtn: { marginTop: 12, padding: 4 },
-  linkText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
 });

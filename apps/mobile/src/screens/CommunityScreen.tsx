@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -39,10 +40,11 @@ const TEMP_SEDE = 'Santiago';
 
 const REACTION_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];
 
+// La "mano con corazón" no se lee como fuerza y la carita no se lee como abrazo
 const REACTION_ICON_MAP: Record<ReactionEmoji, IconName> = {
-  '💪': 'hand-heart',
+  '💪': 'flame',
   '❤️': 'heart',
-  '🤗': 'smile',
+  '🤗': 'hand-heart',
 };
 
 // TalkBack lee el ícono como nada y el contador suelto como "2": cada reacción necesita nombre
@@ -87,6 +89,9 @@ export function CommunityScreen({ navigation, route }: Props) {
   const [reportPostId, setReportPostId] = useState<string | null>(null);
   const [reportReason, setReportReason] = useState('');
   const [reportSending, setReportSending] = useState(false);
+
+  // Menú de cada publicación (hoja inferior)
+  const [menuPost, setMenuPost] = useState<CommunityPost | null>(null);
 
   // Respuestas: expansión y cache por post
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -297,9 +302,10 @@ export function CommunityScreen({ navigation, route }: Props) {
     );
   };
 
+  // El "···" disparaba directo Eliminar o Reportar según de quién fuera el post: mismo ícono,
+  // dos acciones distintas y ninguna escrita. Ahora abre un menú con las opciones a la vista.
   const handleMenuPress = (post: CommunityPost) => {
-    if (post.authorId === TEMP_USER_ID) handleDelete(post.id);
-    else handleReport(post.id);
+    setMenuPost(post);
   };
 
   const handleTabPress = (navTab: 'home' | 'community' | 'achievements' | 'profile') => {
@@ -415,37 +421,44 @@ export function CommunityScreen({ navigation, route }: Props) {
             </ScrollView>
           ) : (
             <>
-              <ScrollView
+              {/* Era un ScrollView con posts.map: en una sede activa se dibujaban
+                  cientos de publicaciones de una vez, con sus respuestas. FlatList
+                  monta solo lo que está a la vista. */}
+              <FlatList
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
-              >
-                {posts.length === 0 ? (
+                data={posts}
+                keyExtractor={(p) => p.id}
+                initialNumToRender={6}
+                maxToRenderPerBatch={8}
+                windowSize={11}
+                removeClippedSubviews
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
                   <EmptyState
                     iconName="message-circle"
                     title="Sé el primero en escribir"
                     text="Comparte cómo te sientes o anima a quienes están en el mismo camino."
                   />
-                ) : (
-                  posts.map((p) => (
-                    <PostCard
-                      key={p.id}
-                      post={p}
-                      disabled={offline}
-                      expanded={!!expanded[p.id]}
-                      replies={repliesByPost[p.id]}
-                      replyDraft={replyDraft[p.id] ?? ''}
-                      onReact={(emoji) => handleReaction(p, emoji)}
-                      onToggleReplies={() => handleToggleReplies(p.id)}
-                      onChangeReplyDraft={(text) =>
-                        setReplyDraft((prev) => ({ ...prev, [p.id]: text }))
-                      }
-                      onSendReply={() => handleReply(p.id)}
-                      onMenuPress={() => handleMenuPress(p)}
-                    />
-                  ))
+                }
+                renderItem={({ item: p }) => (
+                  <PostCard
+                    post={p}
+                    disabled={offline}
+                    expanded={!!expanded[p.id]}
+                    replies={repliesByPost[p.id]}
+                    replyDraft={replyDraft[p.id] ?? ''}
+                    onReact={(emoji) => handleReaction(p, emoji)}
+                    onToggleReplies={() => handleToggleReplies(p.id)}
+                    onChangeReplyDraft={(text) =>
+                      setReplyDraft((prev) => ({ ...prev, [p.id]: text }))
+                    }
+                    onSendReply={() => handleReply(p.id)}
+                    onMenuPress={() => handleMenuPress(p)}
+                  />
                 )}
-              </ScrollView>
+              />
 
               {/* Composer */}
               <View style={[styles.composer, offline && styles.composerOff]}>
@@ -479,6 +492,62 @@ export function CommunityScreen({ navigation, route }: Props) {
           )}
         </KeyboardAvoidingView>
       )}
+
+      {/* Menú de la publicación: las opciones se leen antes de tocarlas */}
+      <Modal
+        visible={menuPost !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuPost(null)}
+      >
+        <TouchableOpacity
+          style={styles.sheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setMenuPost(null)}
+          accessible={false}
+        >
+          <View style={styles.sheetCard}>
+            <Text style={styles.sheetTitle}>Opciones de la publicación</Text>
+            {menuPost?.authorId === TEMP_USER_ID ? (
+              <TouchableOpacity
+                style={styles.sheetItem}
+                accessibilityRole="button"
+                onPress={() => {
+                  const id = menuPost.id;
+                  setMenuPost(null);
+                  handleDelete(id);
+                }}
+              >
+                <Icon name="trash-2" size={18} color={Colors.danger} />
+                <Text style={[styles.sheetItemText, { color: Colors.danger }]}>
+                  Eliminar mi publicación
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.sheetItem}
+                accessibilityRole="button"
+                onPress={() => {
+                  const id = menuPost!.id;
+                  setMenuPost(null);
+                  handleReport(id);
+                }}
+              >
+                <Icon name="flag" size={18} color={Colors.fg1} />
+                <Text style={styles.sheetItemText}>Reportar publicación</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity
+              style={styles.sheetItem}
+              accessibilityRole="button"
+              onPress={() => setMenuPost(null)}
+            >
+              <Icon name="x" size={18} color={Colors.fg2} />
+              <Text style={[styles.sheetItemText, { color: Colors.fg2 }]}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* CA5.3: motivo del reporte */}
       <Modal
@@ -557,6 +626,9 @@ function AnnouncementCard({
   onToggleAttendance: () => void;
 }) {
   const isPsychologist = announcement.authorRole === 'psychologist';
+  // La sesión de junio seguía pidiendo "Confirmar asistencia" en septiembre
+  const eventPassed =
+    !!announcement.eventDate && new Date(announcement.eventDate).getTime() < Date.now();
   return (
     <View style={styles.pinCard}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
@@ -574,8 +646,9 @@ function AnnouncementCard({
           </Text>
         </View>
         <View style={[styles.roleChip, !isPsychologist && styles.roleChipAdmin]}>
+          {/* Decía "Admin": el paciente ve a un coordinador de AJUTER, no a un administrador */}
           <Text style={[styles.roleChipText, !isPsychologist && styles.roleChipTextAdmin]}>
-            {isPsychologist ? 'Psicólogo' : 'Admin'}
+            {ROLE_LABEL[announcement.authorRole]}
           </Text>
         </View>
       </View>
@@ -587,24 +660,32 @@ function AnnouncementCard({
             <Icon name="calendar" size={12} color={Colors.fg2} />
             <Text style={styles.annDate}>{formatEventDate(announcement.eventDate)}</Text>
           </View>
-          <TouchableOpacity
-            style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
-            onPress={onToggleAttendance}
-            disabled={disabled}
-            accessibilityRole="button"
-            accessibilityState={{ selected: !!announcement.userAttends }}
-            hitSlop={{ top: 7, bottom: 7 }}
-            activeOpacity={0.85}
-          >
-            {announcement.userAttends ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Icon name="check" size={14} color={Colors.white} />
-                <Text style={[styles.attendBtnText, styles.attendBtnTextOn]}>Asistiré</Text>
-              </View>
-            ) : (
-              <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
-            )}
-          </TouchableOpacity>
+          {eventPassed ? (
+            <View style={styles.finishedChip}>
+              <Text style={styles.finishedText}>
+                {announcement.userAttends ? 'Finalizado · asististe' : 'Finalizado'}
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
+              onPress={onToggleAttendance}
+              disabled={disabled}
+              accessibilityRole="button"
+              accessibilityState={{ selected: !!announcement.userAttends }}
+              hitSlop={{ top: 7, bottom: 7 }}
+              activeOpacity={0.85}
+            >
+              {announcement.userAttends ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Icon name="check" size={14} color={Colors.white} />
+                  <Text style={[styles.attendBtnText, styles.attendBtnTextOn]}>Asistiré</Text>
+                </View>
+              ) : (
+                <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -830,10 +911,12 @@ function timeAgo(iso: string): string {
 function formatEventDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
+  // "jue 12 jun" al lado de un cuerpo que dice "miércoles" hace dudar de la fecha;
+  // el día completo deja claro cuál manda
   return d.toLocaleDateString('es-CL', {
-    weekday: 'short',
+    weekday: 'long',
     day: 'numeric',
-    month: 'short',
+    month: 'long',
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -919,7 +1002,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.fg2 },
+  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
   pinHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pinTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.primary, marginTop: 11 },
   pinBody: { fontFamily: Fonts.body, fontSize: 15, color: Colors.ink900, lineHeight: 22, marginTop: 6 },
@@ -1014,7 +1097,7 @@ const styles = StyleSheet.create({
   avatarSm: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   avatarSmLetter: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
   replyName: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.ink900 },
-  replyTime: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2 },
+  replyTime: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
   replyBody: { fontFamily: Fonts.body, fontSize: 13, color: Colors.ink900, lineHeight: 20, marginTop: 5, marginLeft: 36 },
 
   replyComposer: {
@@ -1087,6 +1170,20 @@ const styles = StyleSheet.create({
   },
   readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2 },
 
+  // Menú de la publicación
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheetCard: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 26,
+  },
+  sheetTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.ink900, marginBottom: 6 },
+  sheetItem: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 8 },
+  sheetItemText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
+
   // Modal de reporte (CA5.3)
   modalBackdrop: {
     flex: 1,
@@ -1130,4 +1227,14 @@ const styles = StyleSheet.create({
   },
   modalSubmitDisabled: { backgroundColor: Colors.border },
   modalSubmitText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
+  finishedChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9999,
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  finishedText: { fontFamily: Fonts.bodyBold, fontSize: 12.5, color: Colors.fg2 },
+
 });

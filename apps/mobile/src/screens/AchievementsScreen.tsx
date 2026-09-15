@@ -37,6 +37,7 @@ import { readAchievements, saveAchievements } from '../services/offlineStore';
 
 // Ajustar cuando se conecte autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
+const REFRESH_MS = 3 * 60 * 1000;
 
 const MONTHS_LONG = [
   'enero','febrero','marzo','abril','mayo','junio',
@@ -117,6 +118,8 @@ export function AchievementsScreen({ navigation }: Props) {
   const [relapseModal, setRelapseModal] = useState(false);
   const [relapseMessage, setRelapseMessage] = useState('');
   const [shareMilestone, setShareMilestone] = useState<BadgeMilestone | null>(null);
+  // Tocar una insignia bloqueada no hacía nada: ahora dice cuánto falta
+  const [lockedInfo, setLockedInfo] = useState<BadgeMilestone | null>(null);
   const [isExternalRelapse, setIsExternalRelapse] = useState(false);
 
   const load = useCallback(async () => {
@@ -158,10 +161,13 @@ export function AchievementsScreen({ navigation }: Props) {
     }
   }, []);
 
+  // Antes recargaba cada 5 s mientras la pantalla estuviera abierta: con 4 llamadas
+  // por vuelta son 2.880 peticiones por hora de pantalla, en batería y datos del
+  // paciente. Nada de acá cambia por segundo; lo urgente llega por push.
   useFocusEffect(
     useCallback(() => {
       load();
-      const interval = setInterval(load, 5_000);
+      const interval = setInterval(load, REFRESH_MS);
       return () => clearInterval(interval);
     }, [load]),
   );
@@ -320,10 +326,19 @@ export function AchievementsScreen({ navigation }: Props) {
               </View>
             )}
 
-            <TouchableOpacity style={styles.relapseBtn} onPress={handleRelapse} activeOpacity={0.8} accessibilityRole="button" hitSlop={{ top: 5, bottom: 5 }}>
+            {/* Iba en el rojo reservado al pánico y en el centro de la tarjeta del logro:
+                se leía como castigo. El modal que viene después ya tiene el tono correcto. */}
+            <TouchableOpacity
+              style={styles.relapseBtn}
+              onPress={handleRelapse}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityHint="Reinicia tu contador. Nadie te va a retar por esto"
+              hitSlop={{ top: 5, bottom: 5 }}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Icon name="heart" size={14} color={Colors.danger} />
-                <Text style={styles.relapseBtnText}>Reportar recaída</Text>
+                <Icon name="hand-heart" size={15} color={Colors.fg2} />
+                <Text style={styles.relapseBtnText}>Registrar una recaída</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -342,10 +357,22 @@ export function AchievementsScreen({ navigation }: Props) {
                   key={milestone}
                   style={styles.badgeItem}
                   activeOpacity={earned ? 0.75 : 1}
-                  onPress={earned ? () => setShareMilestone(milestone) : undefined}
+                  onPress={
+                    earned
+                      ? () => setShareMilestone(milestone)
+                      : () => setLockedInfo(milestone)
+                  }
                   accessibilityRole="button"
-                  accessibilityState={{ disabled: !earned }}
-                  accessibilityHint={earned ? 'Compartir con la comunidad' : 'Insignia aún no obtenida'}
+                  // TalkBack leía igual una ganada y una bloqueada: solo el nombre
+                  accessibilityLabel={
+                    earned
+                      ? `${cfg.label}, ${cfg.daysLabel}, conseguida`
+                      : `${cfg.label}, ${cfg.daysLabel}, bloqueada${
+                          milestone > days ? `, faltan ${milestone - days} día${milestone - days !== 1 ? 's' : ''}` : ''
+                        }`
+                  }
+                  accessibilityState={{ selected: earned }}
+                  accessibilityHint={earned ? 'Compartir con la comunidad' : 'Ver cuánto falta'}
                 >
                   {isNewest && (
                     <View style={styles.newChip}>
@@ -381,6 +408,34 @@ export function AchievementsScreen({ navigation }: Props) {
           </>}
         </ScrollView>
       )}
+
+      <Modal
+        visible={lockedInfo !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLockedInfo(null)}
+      >
+        <View style={styles.lockedOverlay}>
+          <View style={styles.lockedCard}>
+            <Icon name="lock" size={26} color={Colors.fg2} />
+            <Text style={styles.lockedTitle}>
+              {lockedInfo !== null ? BADGE_CONFIG[lockedInfo].label : ''}
+            </Text>
+            <Text style={styles.lockedBody}>
+              {lockedInfo !== null && lockedInfo > days
+                ? `Se consigue a los ${BADGE_CONFIG[lockedInfo].daysLabel}. Te faltan ${lockedInfo - days} día${lockedInfo - days !== 1 ? 's' : ''}.`
+                : 'Todavía no la consigues. Va a aparecer acá cuando la ganes.'}
+            </Text>
+            <TouchableOpacity
+              style={styles.lockedBtn}
+              onPress={() => setLockedInfo(null)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.lockedBtnText}>Entendido</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <BottomNav
         active={activeTab}
@@ -435,6 +490,7 @@ export function AchievementsScreen({ navigation }: Props) {
       <BadgeUnlockModal
         milestone={shareMilestone}
         badgeDef={shareMilestone ? BADGE_CONFIG[shareMilestone] : null}
+        isNew={shareMilestone !== null && shareMilestone === newestEarnedMilestone}
         onShare={handleShare}
         onClose={() => setShareMilestone(null)}
       />
@@ -577,14 +633,15 @@ const styles = StyleSheet.create({
   },
 
   relapseBtn: {
-    marginTop: 18,
+    marginTop: 22,
     borderWidth: 1.5,
-    borderColor: Colors.danger,
+    borderColor: Colors.border,
     borderRadius: 9999,
-    paddingVertical: 9,
+    minHeight: 48,
+    justifyContent: 'center',
     paddingHorizontal: 18,
   },
-  relapseBtnText: { fontFamily: Fonts.bodyBold, color: Colors.danger, fontSize: 13 },
+  relapseBtnText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 13.5 },
 
   /* Section title */
   sectionTitle: {
@@ -649,10 +706,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     zIndex: 1,
   },
-  newChipText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 9 },
+  newChipText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
   badgeLabel: {
     fontFamily: Fonts.body,
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.fg1,
     textAlign: 'center',
     marginTop: 7,
@@ -660,7 +717,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   badgeLabelLocked: { color: Colors.fg2 },
-  badgeDays: { fontFamily: Fonts.bodyBold, fontSize: 9, color: Colors.fg2, marginTop: 2 },
+  badgeDays: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2, marginTop: 2 },
 
   /* Cycle card */
   cycleCard: {
@@ -683,7 +740,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  cycleChipText: { fontFamily: Fonts.bodyBold, color: Colors.greenText, fontSize: 11 },
+  cycleChipText: { fontFamily: Fonts.bodyBold, color: Colors.greenText, fontSize: 12 },
   cycleDates: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
   cycleProgress: {
     fontFamily: Fonts.bodyBold,
@@ -732,7 +789,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#E6F4F2',
+    backgroundColor: Colors.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -766,4 +823,29 @@ const styles = StyleSheet.create({
   btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
   btnLink: { marginTop: 14, minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
   btnLinkText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 14 },
+  lockedOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(45,90,158,0.32)',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+  lockedCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    gap: 10,
+  },
+  lockedTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900 },
+  lockedBody: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg1, lineHeight: 20, textAlign: 'center' },
+  lockedBtn: {
+    marginTop: 8,
+    minHeight: 48,
+    justifyContent: 'center',
+    paddingHorizontal: 26,
+    borderRadius: 9999,
+    backgroundColor: Colors.primary,
+  },
+  lockedBtnText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.white },
+
 });
