@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
-  Alert,
   Animated,
   Linking,
   Pressable,
@@ -27,6 +26,7 @@ import { api } from '../services/api';
 import { conReintento } from '../services/reintentoEscritura';
 import { readSponsor, saveSponsor } from '../services/offlineStore';
 import { useUserId } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Constantes
@@ -57,6 +57,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Panic'>;
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function PanicScreen({ navigation }: Props) {
+  const { showDialog } = useDialog();
   const userId = useUserId();
   const { isDark } = useTheme();
   const c = useColors();
@@ -283,14 +284,14 @@ export function PanicScreen({ navigation }: Props) {
 
   // Salir de la espera sin cancelar la alerta: el paciente necesita saber que sigue viva
   const handleLeaveWaiting = useCallback(() => {
-    Alert.alert(
-      'Tu alerta sigue activa',
-      'Si vuelves al inicio, la alerta ya enviada sigue en pie y tu padrino puede responderla. Puedes volver a esta pantalla cuando quieras.',
-      [
-        { text: 'Seguir esperando', style: 'cancel' },
-        { text: 'Ir al inicio', onPress: () => navigation.navigate('MainTabs', { screen: 'Home' }) },
+    showDialog({
+      title: 'Tu alerta sigue activa',
+      message: 'Si vuelves al inicio, la alerta ya enviada sigue en pie y tu padrino puede responderla. Puedes volver a esta pantalla cuando quieras.',
+      actions: [
+        { label: 'Ir al inicio', onPress: () => navigation.navigate('MainTabs', { screen: 'Home' }) },
+        { label: 'Seguir esperando', tone: 'cancel' },
       ],
-    );
+    });
   }, [navigation]);
 
   const handleAlertCommunity = useCallback(async () => {
@@ -302,10 +303,11 @@ export function PanicScreen({ navigation }: Props) {
       // —ambos se pintan con este flag—, así que el paciente en crisis se quedaba sin
       // la opción y creyendo que su red ya sabía, cuando nadie había visto nada.
       if (!communityNotified) {
-        Alert.alert(
-          'No pudimos avisar a tu comunidad',
-          `Tu mensaje no llegó al foro. Puedes intentarlo otra vez, hablar ahora con el asistente o llamar al ${CRISIS_LINE}.`,
-        );
+        showDialog({
+          title: 'No pudimos avisar a tu comunidad',
+          message: `Tu mensaje no llegó al foro. Puedes intentarlo otra vez, hablar ahora con el asistente o llamar al ${CRISIS_LINE}.`,
+          actions: [{ label: 'Entendido' }],
+        });
         return;
       }
       setState({ kind: 'waiting', alert: { ...state.alert, communityNotified: true }, sponsor: state.sponsor });

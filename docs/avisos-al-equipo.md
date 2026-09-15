@@ -20,6 +20,30 @@ está.
 
 ---
 
+## 2026-09-15 — AJUTER sale del cromo de la app: es un cliente, no la marca
+
+**A quién le pega:** a quien escriba textos de la app mobile.
+
+**La regla, decidida por el PO:** la app es **StopBet**; AJUTER es su primer cliente y en el
+futuro puede haber más. Entonces:
+
+- **En el cromo de la app no va el nombre del cliente.** "Ingresa con tus credenciales",
+  no "…de AJUTER". "Tu equipo clínico", no "tu equipo AJUTER". "Tu sede", no "tu sede
+  AJUTER".
+- **Donde sí es un dato del paciente, sale de la sesión.** Perfil ahora dice
+  "Paciente · Sede Santiago" leyendo `user.sedeId`, no un texto fijo.
+- **Se queda escrito solo donde AJUTER es el dato**: la pantalla de elegir institución, que
+  es literalmente la lista de instituciones.
+
+De paso, **Perfil mostraba "Carlos" y la inicial "C" escritos a mano en el JSX**, así que
+seguía saliendo Carlos con cualquier cuenta aunque el resto de la app ya usara la sesión
+real. Ahora sale el nombre, el apellido y la inicial de quien entró.
+
+Queda pendiente `contacto@ajuter.cl`, que es el correo real del cliente: cuando haya una
+segunda institución tendrá que venir de la sede, no del código.
+
+---
+
 ## 2026-09-15 — Mobile tiene sesión real: se acabó la cuenta de demo
 
 **A quién le pega:** a todos. Si probabas la app entrando con cualquier cosa, eso ya no

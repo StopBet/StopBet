@@ -62,6 +62,10 @@ export const lightColors = {
   overlayWhite35: 'rgba(255,255,255,0.35)',
   overlayWhite72: 'rgba(255,255,255,0.72)',
 
+  // El velo detrás de los diálogos. En claro es un azul de marca translúcido; en oscuro
+  // ese mismo azul deja el fondo lavado, así que va un negro.
+  overlay: 'rgba(45,90,158,0.32)',
+
   shadowMedium: 'rgba(80,79,79,0.10)',
   shadowSoft:   'rgba(80,79,79,0.06)',
 };
@@ -115,6 +119,8 @@ export const darkColors: Palette = {
   overlayWhite16: 'rgba(255,255,255,0.10)',
   overlayWhite35: 'rgba(255,255,255,0.22)',
   overlayWhite72: 'rgba(255,255,255,0.60)',
+
+  overlay: 'rgba(0,0,0,0.62)',
 
   shadowMedium: 'rgba(0,0,0,0.45)',
   shadowSoft:   'rgba(0,0,0,0.30)',

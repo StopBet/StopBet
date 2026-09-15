@@ -791,7 +791,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   },
   payErrorText: { fontFamily: Fonts.body, flex: 1, fontSize: 13.5, color: c.dangerText, lineHeight: 19 },
   confirmOverlay: {
-    flex: 1, backgroundColor: 'rgba(45,90,158,0.32)', justifyContent: 'center', paddingHorizontal: 22,
+    flex: 1, backgroundColor: c.overlay, justifyContent: 'center', paddingHorizontal: 22,
   },
   confirmCard: { backgroundColor: c.surface, borderRadius: 20, padding: 22 },
   confirmNote: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 19, marginTop: 10 },

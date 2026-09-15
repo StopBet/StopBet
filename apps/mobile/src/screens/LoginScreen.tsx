@@ -100,7 +100,7 @@ export function LoginScreen({ navigation }: Props) {
           {/* Tarjeta del formulario */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Iniciar sesión</Text>
-            <Text style={styles.cardSubtitle}>Ingresa con tus credenciales de AJUTER</Text>
+            <Text style={styles.cardSubtitle}>Ingresa con tus credenciales</Text>
 
             {/* Campo correo */}
             <View style={styles.field}>

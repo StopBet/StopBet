@@ -53,7 +53,7 @@ export function DayCounter({ days, milestone }: Props) {
       </View>
 
       <View style={styles.milestoneRow}>
-        <Text style={styles.milestoneLabel}>Próximo hito · {milestone} días</Text>
+        <Text style={styles.milestoneLabel}>Próximo hito · {milestone} día{milestone !== 1 ? 's' : ''}</Text>
         <Text style={styles.milestonePercent}>{Math.round(pct * 100)}%</Text>
       </View>
 

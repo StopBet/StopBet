@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -21,10 +20,12 @@ import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
+import { useDialog } from '../context/DialogContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterStep2'>;
 
 export function RegisterStep2Screen({ navigation, route }: Props) {
+  const { showDialog } = useDialog();
   const { isDark } = useTheme();
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -72,14 +73,14 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
       const status = statusMatch ? Number(statusMatch[1]) : null;
       if (status === 409) {
         // Antes era un aviso sin salida: el correo mal escrito quedaba dos pantallas atrás
-        Alert.alert(
-          'Ese correo ya tiene cuenta',
-          `Ya existe una cuenta registrada con ${basicData.email}. Puedes corregirlo o iniciar sesión.`,
-          [
-            { text: 'Corregir mi correo', onPress: () => navigation.goBack() },
-            { text: 'Iniciar sesión', onPress: () => navigation.navigate('Login') },
+        showDialog({
+          title: 'Ese correo ya tiene cuenta',
+          message: `Ya existe una cuenta registrada con ${basicData.email}. Puedes corregirlo o iniciar sesión.`,
+          actions: [
+            { label: 'Corregir mi correo', onPress: () => navigation.goBack() },
+            { label: 'Iniciar sesión', onPress: () => navigation.navigate('Login') },
           ],
-        );
+        });
         return;
       }
       showToast('No pudimos enviar tu solicitud. Tus datos siguen acá; inténtalo de nuevo.', 'error');

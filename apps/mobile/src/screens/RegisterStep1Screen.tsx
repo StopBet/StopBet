@@ -135,7 +135,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
               <Text style={styles.planTitle}>Antes de empezar</Text>
             </View>
             <Text style={styles.planBody}>
-              El plan de StopBet con AJUTER cuesta{' '}
+              El plan de StopBet cuesta{' '}
               <Text style={styles.planAmount}>$30.000 al mes</Text>. Primero un psicólogo revisa
               tu solicitud (24 a 48 horas) y el pago se coordina después con tu sede: registrarte
               no te cobra nada.
@@ -187,7 +187,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
               hint="Opcional. Sirve para sugerirte la sede más cercana." />
           </View>
           <FormInput
-            label="¿Cómo conociste AJUTER?"
+            label="¿Cómo nos conociste?"
             value={referralSource}
             onChangeText={setReferralSource}
             leadingIcon="search"
@@ -218,7 +218,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
         {/* accessible={false}: si no, TalkBack agrupa toda la hoja en un solo elemento y no llega a las opciones */}
         <Pressable style={styles.backdrop} onPress={() => setShowReferral(false)} accessible={false}>
           <Pressable style={styles.sheet} accessible={false}>
-            <Text style={styles.sheetTitle}>¿Cómo conociste AJUTER?</Text>
+            <Text style={styles.sheetTitle}>¿Cómo nos conociste?</Text>
             {REFERRAL_OPTIONS.map(opt => (
               <Touchable key={opt} style={styles.sheetRow} activeOpacity={0.7}
                 accessibilityRole="radio"
@@ -245,7 +245,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   title: { fontFamily: Fonts.headingBold, fontSize: 24, color: c.fg1, letterSpacing: -0.3, marginTop: 6, marginBottom: 0 },
   subtitle: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 28 },
+  backdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', paddingHorizontal: 28 },
   sheet: { backgroundColor: c.surface, borderRadius: 18, paddingVertical: 8 },
   sheetTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 8 },
   sheetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14 },

@@ -37,6 +37,7 @@ import { devFlags } from '../store/devFlags';
 import { toast, useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
 import { useCurrentUser, useUserId } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 
 
 const REACTION_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];
@@ -87,6 +88,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function CommunityScreen({ navigation, route }: Props) {
+  const { showDialog } = useDialog();
   const userId = useUserId();
   const user = useCurrentUser();
   const sede = user?.sedeId ?? '';
@@ -306,14 +308,13 @@ export function CommunityScreen({ navigation, route }: Props) {
 
   // ── Eliminar publicación propia ──────────────────────────────────────
   const handleDelete = (postId: string) => {
-    Alert.alert(
-      'Eliminar publicación',
-      '¿Seguro que quieres eliminarla? No podrás deshacerlo.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
+    showDialog({
+      title: 'Eliminar publicación',
+      message: '¿Seguro que quieres eliminarla? No podrás deshacerlo.',
+      actions: [
         {
-          text: 'Eliminar',
-          style: 'destructive',
+          label: 'Eliminar',
+          tone: 'danger',
           onPress: async () => {
             try {
               await api.deletePost(userId, postId);
@@ -323,8 +324,9 @@ export function CommunityScreen({ navigation, route }: Props) {
             }
           },
         },
+        { label: 'Cancelar', tone: 'cancel' },
       ],
-    );
+    });
   };
 
   // El "···" disparaba directo Eliminar o Reportar según de quién fuera el post: mismo ícono,
@@ -408,7 +410,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                 <EmptyState
                   iconName="megaphone"
                   title="Sin anuncios"
-                  text="Aquí verás los avisos y eventos de tu sede AJUTER."
+                  text="Acá verás los avisos y eventos de tu sede."
                 />
               ) : (
                 announcements.map((a) => (
@@ -1180,7 +1182,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: c.fg2 },
 
   // Menú de la publicación
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  sheetBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
   sheetCard: {
     backgroundColor: c.surface,
     borderTopLeftRadius: 20,
@@ -1196,7 +1198,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   // Modal de reporte (CA5.3)
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: c.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
