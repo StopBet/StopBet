@@ -13,6 +13,7 @@ import { ConfiguracionPage } from './pages/ConfiguracionPage'
 import { SesionesFamiliaresPage } from './pages/SesionesFamiliaresPage'
 import { EquipoPage } from './pages/EquipoPage'
 import { api } from './services/api'
+import { needsAttention } from './utils/alertStatus'
 import type { AuthUser } from './services/api'
 import type { RegistrationRequest } from './data/mockData'
 
@@ -95,6 +96,15 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
     queryFn: api.getSedes,
   })
 
+  // Misma clave que Resumen y Alertas: comparte la caché y el refresco en tiempo real.
+  // El contador de la barra lateral era un "3" fijo.
+  const { data: alertHistory = [] } = useQuery({
+    queryKey: ['alerts', 'history'],
+    queryFn: api.getAlertHistory,
+    refetchInterval: 30_000,
+  })
+  const activeAlertCount = alertHistory.filter(a => needsAttention(a.status)).length
+
   const sedeMap = Object.fromEntries(sedes.map(s => [s.id, s.name]))
 
   const requests: RegistrationRequest[] = pendingRaw.map(r => ({
@@ -135,7 +145,8 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
     try {
       await api.rejectRequest(id)
       qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
-      setToast({ message: 'Solicitud rechazada. Se notificó al solicitante.', tone: 'error' })
+      // Decía "Se notificó al solicitante": el rechazo no envía ningún aviso.
+      setToast({ message: 'Solicitud rechazada.', tone: 'error' })
     } catch {
       setToast({ message: 'Error al rechazar la solicitud.', tone: 'error' })
     }
@@ -146,6 +157,14 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
   const isNarrow = useIsNarrow()
   const [menuOpen, setMenuOpen] = useState(false)
 
+  // El menú del teléfono se cierra también con Escape, como cualquier diálogo
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [menuOpen])
+
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', overflow: 'hidden' }}>
       {/* La barra mide 240 px fijos: en un teléfono se come dos tercios del ancho
@@ -155,15 +174,21 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
           {isNarrow && (
             <div
               onClick={() => setMenuOpen(false)}
-              style={{ position: 'fixed', inset: 0, background: 'rgba(30,45,44,0.42)', zIndex: 40 }}
+              style={{ position: 'fixed', inset: 0, background: 'rgba(45,90,158,0.32)', zIndex: 40 }}
             />
           )}
-          <div style={isNarrow ? { position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50 } : undefined}>
+          <div
+            role={isNarrow ? 'dialog' : undefined}
+            aria-modal={isNarrow || undefined}
+            aria-label={isNarrow ? 'Menú' : undefined}
+            style={isNarrow ? { position: 'fixed', top: 0, left: 0, bottom: 0, zIndex: 50 } : undefined}
+          >
             <Sidebar
               active={nav}
               onNav={(id) => { handleNav(id); setMenuOpen(false) }}
               onLogout={onLogout}
               reqCount={requests.length}
+              alertCount={activeAlertCount}
               user={user}
             />
           </div>
@@ -191,6 +216,9 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
         {/* La TopBar ya no cabe en angosto: el botón de arriba lleva el título */}
         {!isNarrow && <TopBar title={PAGE_TITLES[nav]} />}
         <main style={{ flex: 1, overflowY: 'auto' }}>
+          {/* En angosto la barra superior no se dibuja y el título va en el botón del menú,
+              que no puede contener un h1: la página quedaba sin título para lectores de pantalla. */}
+          {isNarrow && <h1 className="sb-sr-only">{PAGE_TITLES[nav]}</h1>}
           <Routes>
             <Route path="/" element={<OverviewPage onNav={handleNav} reqCount={requests.length} />} />
             <Route path="/alertas" element={<AlertasPage />} />
@@ -198,7 +226,7 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
             <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
             <Route path="/equipo" element={<EquipoPage />} />
             <Route path="/finanzas" element={<FinanzasPage />} />
-            <Route path="/configuracion" element={<ConfiguracionPage />} />
+            <Route path="/configuracion" element={<ConfiguracionPage user={user} />} />
             <Route path="/pacientes" element={<PlaceholderPage title={PAGE_TITLES.patients} />} />
             <Route path="/reportes" element={<PlaceholderPage title={PAGE_TITLES.reports} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
@@ -207,13 +235,13 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
       </div>
 
       {toast && (
-        <div style={{
+        <div role="status" aria-live="polite" style={{
           position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
           background: 'var(--ink-900)', color: '#fff', borderRadius: 12,
           padding: '13px 22px', fontSize: 13.5, fontWeight: 500,
           display: 'flex', alignItems: 'center', gap: 10,
-          boxShadow: 'var(--shadow-strong)', zIndex: 60, whiteSpace: 'nowrap',
-          animation: 'sb-rise 0.32s cubic-bezier(0.34,1.56,0.64,1)',
+          boxShadow: 'var(--shadow-strong)', zIndex: 60, maxWidth: 'calc(100vw - 32px)', boxSizing: 'border-box',
+          animation: 'sb-rise 0.32s var(--ease-calm)',
         }}>
           <span style={{ width: 9, height: 9, borderRadius: '50%', flexShrink: 0, background: toast.tone === 'success' ? 'var(--sage-500)' : 'var(--danger)' }} />
           {toast.message}

@@ -65,7 +65,7 @@ function RecoveryPath() {
 type FormState = 'idle' | 'loading' | 'error' | 'forbidden' | 'offline'
 
 const BLUE = 'var(--sb-blue)'
-const BLUE_LIGHT = '#EAF1F9'
+const BLUE_LIGHT = 'var(--teal-50)'
 
 // /auth/login autentica a cualquier rol, así que el filtro de quién entra a la
 // web vive acá. Sin esto un paciente o padrino aterrizaría en el shell clínico
@@ -154,23 +154,24 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             margin: '0 0 14px', letterSpacing: -0.5,
             fontFamily: 'var(--sb-font-heading)',
           }}>
-            Panel clínico
+            Panel StopBet
           </h1>
           <p style={{
             fontSize: 16, lineHeight: 1.65,
-            color: 'rgba(255,255,255,0.80)',
+            color: 'rgba(255,255,255,0.92)',
             margin: '0 0 30px', maxWidth: 380,
           }}>
-            Gestiona el progreso de tus pacientes en tiempo real
+            {/* Por esta puerta entran el equipo clínico y los familiares: antes el texto solo le hablaba al primero */}
+            Para el equipo clínico de AJUTER y las familias que acompañan el tratamiento.
           </p>
           <ul style={{
             listStyle: 'none', padding: 0, margin: 0,
             display: 'flex', flexDirection: 'column', gap: 14,
           }}>
             {[
-              'Métricas de seguimiento actualizadas',
-              'Alertas de botón de pánico en tiempo real',
-              'Exportación de reportes PDF clínicos',
+              'Seguimiento de pacientes y alertas de pánico en tiempo real',
+              'Reportes clínicos en PDF',
+              'Sesiones de familiares y confirmación de asistencia',
             ].map(item => (
               <li key={item} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span style={{
@@ -187,7 +188,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
 
         {/* Ilustración: la racha de días sin apostar y sus hitos */}
         <div style={{
-          position: 'absolute', right: -60, bottom: -20,
+          position: 'absolute', right: -10, bottom: -20,
           width: 580, zIndex: 1, opacity: 0.85, pointerEvents: 'none',
         }}>
           <RecoveryPath />
@@ -230,7 +231,8 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
         {/* Banner sesión expirada */}
         {sessionExpired && (
           <div style={{
-            position: 'absolute', top: 28, left: 40, right: 40,
+            // En el flujo, no en posición absoluta: en el teléfono tapaba la cabecera con el logo.
+            width: '100%', maxWidth: 440, boxSizing: 'border-box', marginBottom: 16,
             display: 'flex', alignItems: 'center', gap: 10,
             background: 'var(--amber-50)', border: '1px solid rgba(57,111,182,0.30)',
             borderRadius: 12, padding: '12px 16px',
@@ -307,7 +309,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   }}
                 />
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                  stroke="#574F4A" strokeWidth="2" strokeLinecap="round">
+                  stroke="var(--fg2)" strokeWidth="2" strokeLinecap="round">
                   <rect x="2" y="4" width="20" height="16" rx="2"/>
                   <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
                 </svg>
@@ -318,7 +320,9 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             <label style={{ display: 'block' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
                 <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg1)' }}>Contraseña</span>
-                <a href="#" style={{ fontSize: 12.5, fontWeight: 600, color: BLUE, textDecoration: 'none' }}>
+                {/* Enlazaba a "#": no hay flujo de recuperación todavía, así que lleva al
+                    mismo contacto que ya aparece al pie del formulario. */}
+                <a href="mailto:admin@stopbet.cl?subject=Recuperar%20contrase%C3%B1a" style={{ fontSize: 12.5, fontWeight: 600, color: BLUE, textDecoration: 'none' }}>
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
@@ -345,7 +349,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   type="button"
                   onClick={() => setShowPassword(s => !s)}
                   aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', color: '#574F4A' }}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px', display: 'flex', color: 'var(--fg2)' }}
                 >
                   {showPassword
                     ? (
@@ -432,12 +436,12 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                 borderRadius: 10, padding: '10px 14px',
               }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                  stroke="#B83232" strokeWidth="2.5" strokeLinecap="round">
+                  stroke="var(--danger)" strokeWidth="2.5" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="12" y1="8" x2="12" y2="12"/>
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                <span style={{ fontSize: 13, fontWeight: 600, color: '#B83232' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>
                   {formState === 'offline'
                     ? 'No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.'
                     : formState === 'forbidden'

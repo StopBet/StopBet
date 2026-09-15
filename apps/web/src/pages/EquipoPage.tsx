@@ -4,12 +4,13 @@ import { WIcon } from '../components/WIcon'
 import { api } from '../services/api'
 import type { ApiError, CreatePsychologistResponse, PsychologistListItem, Sede } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
+import { useDialog } from '../hooks/useDialog'
 
 const fieldStyle: CSSProperties = { height: 42, width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', padding: '0 12px', fontSize: 13.5, color: 'var(--fg1)', outline: 'none' }
 const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 5 }
 const overlayStyle: CSSProperties = { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }
 const scrimStyle: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease', border: 'none', padding: 0, cursor: 'pointer' }
-const cardStyle: CSSProperties = { position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', animation: 'sb-modal-in 0.28s cubic-bezier(0.34,1.56,0.64,1)', zIndex: 1 }
+const cardStyle: CSSProperties = { position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', animation: 'sb-modal-in 0.28s var(--ease-calm)', zIndex: 1 }
 const closeBtnStyle: CSSProperties = { width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
 const primaryBtnStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 8, height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer' }
 const secondaryBtnStyle: CSSProperties = { height: 46, padding: '0 22px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, cursor: 'pointer' }
@@ -25,7 +26,7 @@ function Scrim({ onClose }: { onClose: () => void }) {
 function Head({ label }: { label: string }) {
   // Sin padding arriba la fila de cabeceras quedaba pegada al borde superior de la
   // tarjeta y las mayusculas se leian recortadas contra la esquina redondeada.
-  return <th style={{ textAlign: 'left', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '16px 14px 12px', whiteSpace: 'nowrap' }}>{label}</th>
+  return <th style={{ textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '16px 14px 12px', whiteSpace: 'nowrap' }}>{label}</th>
 }
 
 function initialsOf(firstName: string, lastName: string) {
@@ -80,11 +81,13 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
     })
   }
 
+  const dialogRef = useDialog<HTMLDivElement>(created ? onDone : onClose)
+
   if (created) {
     return (
       <div style={overlayStyle}>
         <Scrim onClose={onDone} />
-        <div style={{ ...cardStyle, width: 460, padding: 28 }}>
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Psicólogo creado" tabIndex={-1} style={{ ...cardStyle, width: 460, padding: 28 }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)' }}>Psicólogo creado</h2>
           <p style={{ margin: '5px 0 18px', fontSize: 13, color: 'var(--fg2)' }}>
             {created.credentialsEmailSent
@@ -94,7 +97,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
 
           {created.credentialsEmailSent ? (
             <div style={{ ...noticeStyle, background: 'var(--sage-50)' }}>
-              <span style={{ color: 'var(--sage-500)', flexShrink: 0, marginTop: 1 }}><WIcon name="circle-check" size={17} /></span>
+              <span style={{ color: 'var(--secondary-text)', flexShrink: 0, marginTop: 1 }}><WIcon name="circle-check" size={17} /></span>
               <div>Correo enviado a <strong>{created.email}</strong>. Si no lo ve, pídele que revise la carpeta de spam.</div>
             </div>
           ) : (
@@ -137,13 +140,13 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
   return (
     <div style={overlayStyle}>
       <Scrim onClose={onClose} />
-      <div style={{ ...cardStyle, width: 520, padding: 28 }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Crear psicólogo" tabIndex={-1} style={{ ...cardStyle, width: 520, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 22 }}>
           <div>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 21, color: 'var(--fg1)' }}>Crear psicólogo</h2>
             <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>Se genera una contraseña temporal y se le envía por correo.</p>
           </div>
-          <button onClick={onClose} style={closeBtnStyle}>
+          <button onClick={onClose} aria-label="Cerrar" style={closeBtnStyle}>
             <WIcon name="x" size={16} />
           </button>
         </div>
@@ -156,21 +159,21 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <div>
-            <label style={labelStyle}>Nombre</label>
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Fernanda" style={fieldStyle} />
+            <label htmlFor="sb-psico-nombre" style={labelStyle}>Nombre</label>
+            <input id="sb-psico-nombre" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Fernanda" style={fieldStyle} />
           </div>
           <div>
-            <label style={labelStyle}>Apellido</label>
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Fuentes" style={fieldStyle} />
+            <label htmlFor="sb-psico-apellido" style={labelStyle}>Apellido</label>
+            <input id="sb-psico-apellido" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Fuentes" style={fieldStyle} />
           </div>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Correo</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="fernanda.fuentes@ajuter.cl" style={fieldStyle} />
+          <label htmlFor="sb-psico-correo" style={labelStyle}>Correo</label>
+          <input id="sb-psico-correo" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="fernanda.fuentes@ajuter.cl" style={fieldStyle} />
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>RUT</label>
-          <input value={rut} onChange={(e) => setRut(e.target.value)} placeholder="12.345.678-5" style={fieldStyle} />
+          <label htmlFor="sb-psico-rut" style={labelStyle}>RUT</label>
+          <input id="sb-psico-rut" value={rut} onChange={(e) => setRut(e.target.value)} placeholder="12.345.678-5" style={fieldStyle} />
         </div>
         <div style={{ marginBottom: 22 }}>
           <label style={labelStyle}>Sedes</label>
@@ -178,7 +181,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
             {sedes.map((s) => {
               const on = selectedSedes.has(s.id)
               return (
-                <button key={s.id} type="button" onClick={() => toggleSede(s.id)}
+                <button key={s.id} type="button" aria-pressed={on} onClick={() => toggleSede(s.id)}
                   style={{ height: 34, padding: '0 14px', borderRadius: 9999, border: on ? '1.5px solid var(--primary)' : '1.5px solid var(--border)', background: on ? 'var(--teal-50)' : 'var(--surface)', color: on ? 'var(--primary)' : 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {s.name}
                 </button>
@@ -218,6 +221,7 @@ function DeactivateModal({
     onError: (err) => setError(errorMessage(err, 'No se pudo desactivar la cuenta. Inténtalo de nuevo.')),
   })
 
+  const dialogRef = useDialog<HTMLDivElement>(onClose)
   const groups = psychologist.patientsBySede
   const blocked = groups.filter((g) => targetsForSede(candidates, psychologist.id, g.sedeId).length === 0)
   const allChosen = groups.every((g) => reassignments[g.sedeId])
@@ -225,7 +229,7 @@ function DeactivateModal({
   return (
     <div style={overlayStyle}>
       <Scrim onClose={onClose} />
-      <div style={{ ...cardStyle, width: 480, padding: 28 }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Desactivar psicólogo" tabIndex={-1} style={{ ...cardStyle, width: 480, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger)' }}>Desactivar psicólogo</h2>
@@ -233,7 +237,7 @@ function DeactivateModal({
               {psychologist.firstName} {psychologist.lastName} · {psychologist.sedes.map(s => s.name).join(', ') || 'sin sedes'}
             </p>
           </div>
-          <button onClick={onClose} style={closeBtnStyle}>
+          <button onClick={onClose} aria-label="Cerrar" style={closeBtnStyle}>
             <WIcon name="x" size={16} />
           </button>
         </div>
@@ -250,7 +254,7 @@ function DeactivateModal({
               const targets = targetsForSede(candidates, psychologist.id, g.sedeId)
               return (
                 <div key={g.sedeId} style={{ marginBottom: 14 }}>
-                  <label style={labelStyle}>
+                  <label htmlFor={`sb-reasignar-${g.sedeId}`} style={labelStyle}>
                     {g.sedeName} — {g.count} paciente{g.count !== 1 ? 's' : ''}
                   </label>
                   {targets.length === 0 ? (
@@ -260,6 +264,7 @@ function DeactivateModal({
                     </div>
                   ) : (
                     <select
+                      id={`sb-reasignar-${g.sedeId}`}
                       value={reassignments[g.sedeId] ?? ''}
                       onChange={(e) => setReassignments((prev) => ({ ...prev, [g.sedeId]: e.target.value }))}
                       style={{ ...fieldStyle, cursor: 'pointer' }}
@@ -356,13 +361,15 @@ function EditSedesModal({
     mutation.mutate(next)
   }
 
+  const dialogRef = useDialog<HTMLDivElement>(onClose)
+
   if (pendingSede) {
     const pendingSedeName = allSedes.find((s) => s.id === pendingSede.sedeId)?.name ?? pendingSede.sedeId
     const eligibleTargets = targetsForSede(candidates, psychologist.id, pendingSede.sedeId)
     return (
       <div style={overlayStyle}>
         <Scrim onClose={onClose} />
-        <div style={{ ...cardStyle, width: 440, padding: 28 }}>
+        <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Reasignar pacientes" tabIndex={-1} style={{ ...cardStyle, width: 440, padding: 28 }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
             Reasignar pacientes de {pendingSedeName}
           </h2>
@@ -371,14 +378,14 @@ function EditSedesModal({
             Elige a quién se reasignan antes de quitarla.
           </p>
           <div style={{ marginBottom: 22 }}>
-            <label style={labelStyle}>Reasignar a</label>
+            <label htmlFor="sb-reasignar-destino" style={labelStyle}>Reasignar a</label>
             {eligibleTargets.length === 0 ? (
               <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--danger)' }}>
                 Ningún otro psicólogo activo atiende {pendingSedeName}. Asígnale esa sede a
                 alguien antes de quitársela a {psychologist.firstName}.
               </div>
             ) : (
-              <select value={reassignTarget} onChange={(e) => setReassignTarget(e.target.value)} style={{ ...fieldStyle, cursor: 'pointer' }}>
+              <select id="sb-reasignar-destino" value={reassignTarget} onChange={(e) => setReassignTarget(e.target.value)} style={{ ...fieldStyle, cursor: 'pointer' }}>
                 <option value="">Selecciona un psicólogo…</option>
                 {eligibleTargets.map((p) => (
                   <option key={p.id} value={p.id}>{p.firstName} {p.lastName}</option>
@@ -401,13 +408,13 @@ function EditSedesModal({
   return (
     <div style={overlayStyle}>
       <Scrim onClose={onClose} />
-      <div style={{ ...cardStyle, width: 460, padding: 28 }}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Editar sedes" tabIndex={-1} style={{ ...cardStyle, width: 460, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)' }}>Editar sedes</h2>
             <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>{psychologist.firstName} {psychologist.lastName}</p>
           </div>
-          <button onClick={onClose} style={closeBtnStyle}>
+          <button onClick={onClose} aria-label="Cerrar" style={closeBtnStyle}>
             <WIcon name="x" size={16} />
           </button>
         </div>
@@ -424,7 +431,7 @@ function EditSedesModal({
             {allSedes.map((s) => {
               const on = selectedSedes.has(s.id)
               return (
-                <button key={s.id} type="button" onClick={() => toggleSede(s.id)}
+                <button key={s.id} type="button" aria-pressed={on} onClick={() => toggleSede(s.id)}
                   style={{ height: 34, padding: '0 14px', borderRadius: 9999, border: on ? '1.5px solid var(--primary)' : '1.5px solid var(--border)', background: on ? 'var(--teal-50)' : 'var(--surface)', color: on ? 'var(--primary)' : 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {s.name}
                 </button>
@@ -467,7 +474,7 @@ export function EquipoPage() {
     <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1440, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: isNarrow ? 16 : 24, gap: 12, flexDirection: isNarrow ? 'column' : 'row' }}>
         <div>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, color: 'var(--fg1)' }}>Equipo</h1>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, color: 'var(--fg1)' }}>Equipo</h2>
           <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--fg2)' }}>Cuentas de psicólogo y sus sedes asignadas.</p>
         </div>
         <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>
@@ -511,8 +518,8 @@ export function EquipoPage() {
                     <span style={{
                       flexShrink: 0,
                       background: p.accountStatus === 'active' ? 'var(--sage-50)' : 'var(--red-50)',
-                      color: p.accountStatus === 'active' ? 'var(--sage-500)' : 'var(--danger)',
-                      borderRadius: 8, padding: '4px 10px', fontSize: 11.5, fontWeight: 600,
+                      color: p.accountStatus === 'active' ? 'var(--secondary-text)' : 'var(--danger)',
+                      borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600,
                     }}>
                       {p.accountStatus === 'active' ? 'Activo' : 'Inactivo'}
                     </span>
@@ -522,7 +529,7 @@ export function EquipoPage() {
                     {p.sedes.length === 0
                       ? <span style={{ fontSize: 12.5, color: 'var(--fg2)' }}>Sin sedes</span>
                       : p.sedes.map((s) => (
-                          <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 11.5, fontWeight: 600 }}>{s.name}</span>
+                          <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{s.name}</span>
                         ))}
                   </div>
 
@@ -576,7 +583,7 @@ export function EquipoPage() {
                     <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)' }}>{p.patientCount}</div>
                     {/* Reasignar exige saber cuantos hay en cada sede, no solo el total. */}
                     {p.patientsBySede.length > 0 && (
-                      <div style={{ marginTop: 3, fontSize: 11.5, color: 'var(--fg2)', lineHeight: 1.5 }}>
+                      <div style={{ marginTop: 3, fontSize: 12, color: 'var(--fg2)', lineHeight: 1.5 }}>
                         {p.patientsBySede.map((g) => (
                           <div key={g.sedeId}>{g.sedeName}: {g.count}</div>
                         ))}
@@ -586,14 +593,14 @@ export function EquipoPage() {
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {p.sedes.map((s) => (
-                        <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 11.5, fontWeight: 600 }}>{s.name}</span>
+                        <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{s.name}</span>
                       ))}
                     </div>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
                     <span style={{
                       background: p.accountStatus === 'active' ? 'var(--sage-50)' : 'var(--red-50)',
-                      color: p.accountStatus === 'active' ? 'var(--sage-500)' : 'var(--danger)',
+                      color: p.accountStatus === 'active' ? 'var(--secondary-text)' : 'var(--danger)',
                       borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600,
                     }}>
                       {p.accountStatus === 'active' ? 'Activo' : 'Inactivo'}

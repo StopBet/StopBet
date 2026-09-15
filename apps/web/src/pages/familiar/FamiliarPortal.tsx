@@ -22,7 +22,9 @@ function Shell({
 }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <header style={{ background: 'var(--ajuter-gradient)', padding: '26px 24px' }}>
+      {/* El degradado institucional arranca en el azul claro, justo donde va el saludo: el blanco
+          quedaba en 1,99:1. Este tramo usa solo los dos azules oscuros de la marca. */}
+      <header style={{ background: 'linear-gradient(90deg, var(--primary-hover) 0%, var(--primary) 100%)', padding: '26px 24px' }}>
         <div style={{ maxWidth, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 22, color: '#fff' }}>

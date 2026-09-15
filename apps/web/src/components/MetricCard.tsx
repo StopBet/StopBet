@@ -6,9 +6,9 @@ type Tone = 'teal' | 'sage' | 'amber' | 'gold' | 'red'
 
 const TONES: Record<Tone, { bg: string; fg: string }> = {
   teal:  { bg: 'var(--teal-50)',  fg: 'var(--primary)' },
-  sage:  { bg: 'var(--sage-50)',  fg: 'var(--sage-500)' },
-  amber: { bg: 'var(--amber-50)', fg: 'var(--accent)' },
-  gold:  { bg: 'var(--gold-50)',  fg: 'var(--gold)' },
+  sage:  { bg: 'var(--sage-50)',  fg: 'var(--secondary-text)' },
+  amber: { bg: 'var(--amber-50)', fg: 'var(--primary)' },
+  gold:  { bg: 'var(--gold-50)',  fg: 'var(--primary)' },
   red:   { bg: 'var(--red-50)',   fg: 'var(--danger)' },
 }
 
@@ -38,8 +38,9 @@ export function MetricCard({ icon, label, value, sub, tone = 'teal', important, 
       onClick={onClick}
       style={{
         flex: 1, minWidth: 0, background: 'var(--surface)', borderRadius: 16,
-        border: '1px solid var(--border)',
-        borderLeft: important ? `4px solid ${t.fg}` : '1px solid var(--border)',
+        // "important" ponía una franja de 4 px en casi todas las tarjetas, y así ninguna
+        // destacaba. Ahora solo se marca la que tiene algo que atender.
+        border: `1px solid ${important && tone === 'red' && Number(value) > 0 ? 'var(--danger)' : 'var(--border)'}`,
         boxShadow: 'var(--shadow-soft)', padding: isNarrow ? '14px 14px 16px' : 20,
         cursor: onClick ? 'pointer' : undefined,
       }}
@@ -56,12 +57,13 @@ export function MetricCard({ icon, label, value, sub, tone = 'teal', important, 
         <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: valueSize, color: t.fg, lineHeight: 1, fontVariantNumeric: 'tabular-nums', minWidth: 0, overflowWrap: 'anywhere' }}>
           {value}
         </span>
-        {tone === 'red' && (
+        {/* Solo late si hay algo que atender: un punto rojo latiendo con 0 enseña a ignorar el rojo */}
+        {tone === 'red' && Number(value) > 0 && (
           <span style={{ width: 9, height: 9, borderRadius: '50%', background: 'var(--danger)', marginTop: 3, flexShrink: 0, animation: 'sb-pulse 1.8s ease-in-out infinite' }} />
         )}
       </div>
       {sub && (
-        <div style={{ fontSize: isNarrow ? 11.5 : 12.5, color: 'var(--fg2)', marginTop: isNarrow ? 6 : 8, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', lineHeight: 1.35 }}>
+        <div style={{ fontSize: isNarrow ? 12 : 12.5, color: 'var(--fg2)', marginTop: isNarrow ? 6 : 8, display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'wrap', lineHeight: 1.35 }}>
           {sub}
         </div>
       )}

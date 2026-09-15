@@ -153,7 +153,7 @@ export function SessionCalendar({ sessions }: { sessions: FamilySession[] }) {
                 scope="col"
                 style={{
                   padding: '0 0 10px',
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: 600,
                   color: 'var(--fg2)',
                   textTransform: 'uppercase',
@@ -204,8 +204,9 @@ export function SessionCalendar({ sessions }: { sessions: FamilySession[] }) {
                       : tone === 'today'
                         ? 'var(--surface-alt)'
                         : 'transparent'
+                // Sobre el verde de relleno el blanco daba 2,40:1: el día confirmado va en texto oscuro.
                 const color =
-                  tone === 'confirmed' || tone === 'mandatory'
+                  tone === 'mandatory'
                     ? '#fff'
                     : tone === 'declined'
                       ? 'var(--primary)'
@@ -270,7 +271,7 @@ export function SessionCalendar({ sessions }: { sessions: FamilySession[] }) {
                 <span
                   style={{
                     flexShrink: 0,
-                    color: session.userAttends === true ? 'var(--secondary)' : 'var(--primary)',
+                    color: session.userAttends === true ? 'var(--secondary-text)' : 'var(--primary)',
                     marginTop: 2,
                   }}
                 >
@@ -283,7 +284,7 @@ export function SessionCalendar({ sessions }: { sessions: FamilySession[] }) {
                       <span
                         style={{
                           color: 'var(--primary)',
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: 700,
                           textTransform: 'uppercase',
                           letterSpacing: '.05em',
