@@ -20,6 +20,57 @@ está.
 
 ---
 
+## 2026-09-15 — Mobile tiene sesión real: se acabó la cuenta de demo
+
+**A quién le pega:** a todos. Si probabas la app entrando con cualquier cosa, eso ya no
+funciona.
+
+**Qué tienes que hacer:** entrar con una cuenta de verdad. Las del seed sirven —
+`ana.perez@stopbet.cl`, `pedro.alvarez@stopbet.cl`, `demo@stopbet.cl`… — todas con la clave
+`Stopbet2026!`. Si no corriste `pnpm run seed`, no vas a poder entrar.
+
+**Qué estaba pasando.** `LoginScreen` tenía un `TODO`: esperaba 900 ms y llamaba a
+`signIn()`. **Cualquier correo con cualquier clave abría la sesión**, y las siete pantallas
+leían un `TEMP_USER_ID` fijo. Por eso toda cuenta mostraba "Hola, Carlos" con el mismo
+progreso: no es que no se guardara el cambio de cuenta, es que nunca hubo cuentas.
+
+**Qué cambió:**
+
+- `POST /auth/login` de verdad, con sus errores distinguidos: credenciales incorrectas
+  (401), cuenta suspendida (403) y "esta app es para pacientes" si entra alguien del equipo
+  clínico — el backend no filtra por rol, lo hace la app, igual que la web.
+- El token va en `Authorization: Bearer` y **rota solo ante un 401**, con `singleFlight`
+  para que varias llamadas en paralelo no se pisen (el backend revoca el refresh al primer
+  uso). Si el refresh ya no sirve, la app vuelve al login sola.
+- **La sesión sobrevive a cerrar la app.** Ya no vuelve a Bienvenida cada vez.
+- Se sigue mandando `x-user-id`, pero **con el id real**: 14 de 17 controladores lo leen sin
+  verificarlo. Cuando se registre `JwtAuthGuard` como guard global, ese header se puede
+  sacar.
+
+**Si tocas código:**
+
+- **No existe más `TEMP_USER_ID`.** Usa `useUserId()` de `context/AuthContext`, y
+  `useCurrentUser()` si necesitas el nombre o la sede.
+- **Las cachés sin conexión reciben el `userId`**: `readProgress(userId)`,
+  `saveCommunity(userId, data)`, etc. La clave en disco es `@stopbet/last-progress/<userId>`.
+
+**Dos fugas entre cuentas que arreglamos de paso**, y que conviene conocer porque el patrón
+se puede repetir: las cachés sin conexión usaban **una sola clave para toda la app**, así que
+entrar con otra cuenta y quedarse sin red mostraba el progreso —y el teléfono del padrino—
+del paciente anterior. Y el detector de recaída externa guardaba el número de intento del
+usuario previo en una variable de módulo: al cambiar de cuenta le anunciaba a quien recién
+entraba **"tu psicólogo registró una recaída en tu historial"**. Ojo con el estado de módulo
+en `services/`: ahora es por paciente.
+
+⚠️ **Una consecuencia para decidir:** el backend rechaza el login de cuentas suspendidas
+(403), y `JwtStrategy` corta las sesiones ya abiertas. Eso deja **`SuspendedAccountScreen`
+sin forma de alcanzarse**: un paciente suspendido no puede entrar a pagar desde la app. Hoy
+el login le dice que escriba a `contacto@ajuter.cl`. Cuando exista la pasarela habrá que
+decidir si el backend le da una sesión limitada para pagar, o si el cobro se resuelve fuera
+de la app.
+
+---
+
 ## 2026-09-15 — La app ya tiene tema oscuro: no uses `Colors` directo
 
 **A quién le pega:** a cualquiera que escriba UI en mobile.

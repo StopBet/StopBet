@@ -1,4 +1,5 @@
 import type {
+  LoginResponse,
   ActiveAlertResponse,
   AchievementsData,
   RelapseResponse,
@@ -24,6 +25,8 @@ import type {
 } from '@stopbet/shared-types';
 
 import { devFlags } from '../store/devFlags';
+import { session } from './session';
+import { singleFlight } from './singleFlight';
 
 // ── Detección de recaída externa (psicólogo desde dashboard) ─────────────────
 let _lastAttemptNumber: number | null = null;
@@ -40,6 +43,18 @@ export function suppressNextExternalRelapseDetection(): void {
   _suppressExternalDetection = true;
 }
 
+/**
+ * El número de intento recordado es de un paciente concreto. Al cambiar de cuenta, el de
+ * la nueva casi nunca coincide con el de la anterior y la app le anunciaba a quien recién
+ * entraba: "tu psicólogo registró una recaída en tu historial". En una app clínica ese
+ * aviso falso no es un detalle.
+ */
+export function resetRelapseDetection(): void {
+  _lastAttemptNumber = null;
+  _pendingExternalRelapse = false;
+  _suppressExternalDetection = false;
+}
+
 // En debug el teléfono alcanza el backend del PC por `adb reverse tcp:3000 tcp:3000`.
 // En release no hay túnel: el APK que se instala fuera del computador de alguien
 // del equipo tiene que ir contra el backend desplegado o no llega a nada.
@@ -48,6 +63,27 @@ const BASE_URL = __DEV__
   : 'https://stopbetbackend-production.up.railway.app';
 
 const REQUEST_TIMEOUT_MS = 25000;
+
+// El access token dura 15 min. Ante un 401 se rota una vez con el refresh token; si eso
+// falla, se limpia la sesión y la app vuelve al login.
+async function tryRefresh(): Promise<boolean> {
+  const token = session.getRefreshToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: token }),
+    });
+    if (!res.ok) return false;
+    await session.save((await res.json()) as LoginResponse);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const refreshOnce = singleFlight(tryRefresh);
 
 async function request<T>(
   path: string,
@@ -58,15 +94,35 @@ async function request<T>(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      ...fetchOpts,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(userId ? { 'x-user-id': userId } : {}),
-        ...fetchOpts.headers,
-      },
-    });
+    const enviar = () => {
+      const token = session.getAccessToken();
+      return fetch(`${BASE_URL}${path}`, {
+        ...fetchOpts,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          // 14 de 17 controladores del backend todavía leen `x-user-id` sin verificarlo.
+          // Se sigue mandando, pero con el id real de la sesión, no con uno fijo.
+          ...(userId ? { 'x-user-id': userId } : {}),
+          ...fetchOpts.headers,
+        },
+      });
+    };
+
+    let res = await enviar();
+
+    // Las rutas de /auth quedan fuera del reintento: un 401 ahí significa "credenciales
+    // incorrectas", no "token vencido".
+    if (res.status === 401 && !path.startsWith('/auth/')) {
+      if (await refreshOnce()) {
+        res = await enviar();
+      } else {
+        await session.clear();
+        session.notifyExpired();
+      }
+    }
+
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`${res.status} ${body}`);
@@ -81,6 +137,33 @@ async function request<T>(
 }
 
 export const api = {
+  // ── Sesión ───────────────────────────────────────────────────────────
+  login: async (email: string, password: string): Promise<LoginResponse> => {
+    const data = await request<LoginResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    await session.save(data);
+    return data;
+  },
+
+  logout: async (): Promise<void> => {
+    const refreshToken = session.getRefreshToken();
+    try {
+      if (refreshToken) {
+        await request<void>('/auth/logout', {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch {
+      // Si el servidor no responde igual se cierra la sesión local: dejar al paciente
+      // dentro de una cuenta que quiso cerrar es peor que un token sin revocar.
+    } finally {
+      await session.clear();
+    }
+  },
+
   // ── Progreso del paciente ────────────────────────────────────────────
   getProgress: async (userId: string) => {
     const data = await request<PatientProgress>(`/users/${userId}/progress`, { userId });

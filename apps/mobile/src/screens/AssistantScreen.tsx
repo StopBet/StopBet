@@ -39,8 +39,8 @@ import type { AppStackParamList } from '../navigation/types';
 import { readSponsor } from '../services/offlineStore';
 import { useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
+import { useUserId } from '../context/AuthContext';
 
-const PLACEHOLDER_USER_ID = '11111111-1111-1111-1111-111111111111'; // TODO: reemplazar con ID real del contexto de auth
 const INACTIVITY_MS = 10 * 60 * 1000;
 const IDLE_WARNING_MS = 60 * 1000; // el aviso sale 1 minuto antes de cerrar
 
@@ -55,6 +55,7 @@ interface ListItem {
 }
 
 export function AssistantScreen() {
+  const userId = useUserId();
   const c = useColors();
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
@@ -78,7 +79,7 @@ export function AssistantScreen() {
   const handleAutoClose = useCallback(async () => {
     if (!sessionId) return;
     try {
-      const result = await api.closeAiSession(PLACEHOLDER_USER_ID, sessionId);
+      const result = await api.closeAiSession(userId, sessionId);
       setSummary(result);
       setSummaryVisible(true);
     } catch {
@@ -103,7 +104,7 @@ export function AssistantScreen() {
   // La tarjeta de crisis ofrecía "Contactar a mi padrino" y abría otra pantalla.
   // Con el teléfono guardado se puede llamar de verdad desde acá.
   useEffect(() => {
-    readSponsor().then(setSponsor).catch(() => {});
+    readSponsor(userId).then(setSponsor).catch(() => {});
   }, []);
 
   const addTypingIndicator = () => {
@@ -138,7 +139,7 @@ export function AssistantScreen() {
   const initSession = useCallback(async () => {
     setInitError(false);
     try {
-      const existing = await api.getActiveAiSession(PLACEHOLDER_USER_ID);
+      const existing = await api.getActiveAiSession(userId);
 
       if (cancelledRef.current) return;
 
@@ -158,7 +159,7 @@ export function AssistantScreen() {
         appendMessages(existing.messages);
         resetInactivityTimer();
       } else {
-        const started = await api.startAiSession(PLACEHOLDER_USER_ID);
+        const started = await api.startAiSession(userId);
         if (cancelledRef.current) return;
 
         setSessionId(started.session.id);
@@ -208,7 +209,7 @@ export function AssistantScreen() {
       // vive en services/api.ts, que comparten otras ramas este sprint. Se acota
       // acá para no tocarlo; al mergear conviene subir el tipo a la función.
       const res = (await api.sendAiMessage(
-        PLACEHOLDER_USER_ID,
+        userId,
         sessionId,
         text,
       )) as SendMessageWithRiskResponse;
@@ -243,7 +244,7 @@ export function AssistantScreen() {
           onPress: async () => {
             try {
               if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-              const result = await api.closeAiSession(PLACEHOLDER_USER_ID, sessionId);
+              const result = await api.closeAiSession(userId, sessionId);
               setSummary(result);
               setSummaryVisible(true);
             } catch {

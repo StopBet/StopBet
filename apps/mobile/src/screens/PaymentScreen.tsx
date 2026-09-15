@@ -45,7 +45,6 @@ export function PaymentScreen({ navigation, route }: Props) {
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const { userId } = route.params;
-  const { signIn } = useContext(AuthContext);
   const [method, setMethod] = useState<PaymentMethod>('card');
   const [paying, setPaying] = useState(false);
 
@@ -53,12 +52,14 @@ export function PaymentScreen({ navigation, route }: Props) {
     setPaying(true);
     try {
       await api.createSubscription({ userId, paymentMethod: method });
-      // Antes decía "Tu pago fue procesado correctamente" —no se cobra nada todavía— y el
-      // botón llevaba a Bienvenida, así que el paciente quedaba fuera de la app recién activada.
+      // Antes decía "Tu pago fue procesado correctamente" —no se cobra nada todavía— y
+      // llevaba a Bienvenida. Con sesión real tampoco se puede entrar directo: el registro
+      // no pide contraseña, la crea el equipo de AJUTER al aprobar la solicitud y la manda
+      // por correo. Así que el paso siguiente honesto es el login.
       Alert.alert(
         'Cuenta activada',
-        'Ya puedes entrar a StopBet. El cobro del plan se coordina con tu sede AJUTER.',
-        [{ text: 'Entrar', onPress: signIn }],
+        'Entra con las credenciales que te enviará AJUTER por correo. El cobro del plan se coordina con tu sede.',
+        [{ text: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') }],
       );
     } catch {
       showToast('No pudimos activar tu cuenta. Inténtalo de nuevo en unos minutos.', 'error');
