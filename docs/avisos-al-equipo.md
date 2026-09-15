@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-15 — Ahora se cambia de sección deslizando: `pnpm install` y recompilar
+## 2026-09-15 — Deslizar entre secciones, avisos que no interrumpen y onda al tocar: `pnpm install` y recompilar
 
 **A quién le pega:** a todo el que corra la app mobile. Y si tocas navegación —**Matías
 Barraza** (Inicio, Pánico, Asistente), **Catalina Yáñez** (Comunidad), **HdU03** (Logros)—
@@ -55,6 +55,26 @@ y la cuenta suspendida siguen siendo pantallas del stack, por encima de las pest
 - **`BottomNav` ya no se dibuja dentro de cada pantalla.** La pinta el navegador una sola
   vez, en `src/navigation/MainTabs.tsx`. Si la vuelves a poner en una pantalla van a salir
   dos barras. Con eso se fueron los cuatro `handleTabPress` duplicados.
+
+**Tres piezas nuevas que hay que usar en vez de lo de antes:**
+
+- **`components/Touchable.tsx` reemplaza a `TouchableOpacity`.** Android responde al toque
+  con una onda; la app solo bajaba la opacidad, que es el gesto de iOS. Migraron los 182
+  usos. Tiene la misma forma que `TouchableOpacity` (`style`, `activeOpacity`, `onPress`,
+  accesibilidad), así que cambiar el nombre alcanza. Sobre fondo azul o rojo, pásale
+  `rippleColor="rgba(255,255,255,0.28)"`: la onda gris no se ve sobre color.
+- **`useToast()` para lo que solo hay que leer.** El diálogo del sistema queda para las
+  decisiones: eliminar, cerrar sesión, registrar una recaída, salir de una alerta activa.
+  Para "Gracias, lo revisaremos" o "guardamos tu check-in" va `showToast(mensaje)`, o
+  `toast(mensaje, 'error')` si estás fuera de un componente y no puedes usar hooks.
+- **Hay un `SafeAreaProvider` en la raíz de `App.tsx`.** Antes no existía: los insets venían
+  del que monta React Navigation dentro de cada navegador. Si algo tuyo usa
+  `useSafeAreaInsets` fuera de un navegador, ahora funciona.
+
+**Un arreglo que te puede cambiar lo que ves:** `isNetworkError` ahora reconoce `Aborted`.
+El cliente HTTP corta a los 25 s con `AbortController` y eso llegaba como un error normal,
+no como falta de conexión: un backend caído mostraba "No pudimos cargar tu progreso" en vez
+del estado sin conexión, y en desarrollo levantaba el LogBox encima de la pantalla.
 
 **Dos decisiones, por si te llama la atención:**
 
