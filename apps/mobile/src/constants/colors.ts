@@ -6,7 +6,8 @@ export const Colors = {
   primaryLight: '#93bce5',   // azul claro — estados secundarios
 
   // Secundarios
-  green:   '#c2d66e',        // verde — progreso, logros, estados positivos
+  green:   '#c2d66e',        // verde — rellenos de progreso y logros; como texto no se lee (1,6:1)
+  greenText: '#5B7324',      // verde para texto e íconos sobre fondos claros (5,35:1 sobre blanco)
   purple:  '#b7a9d3',        // lavanda — variante secundaria
 
   // Fondo y superficie
@@ -16,8 +17,9 @@ export const Colors = {
 
   // Tipografía
   fg1:    '#504f4f',         // texto principal
-  fg2:    '#737070',         // texto secundario
+  fg2:    '#6b6a6a',         // texto secundario — igual que la web; el anterior (#737070) daba 4,43:1 sobre crema
   ink900: '#504f4f',
+  onPrimaryMuted: '#EFF3F9', // texto secundario sobre azul (4,57:1); el azul claro daba 2,56:1
 
   // Acento (azul claro secundario)
   accent:  '#93bce5',
