@@ -52,6 +52,9 @@ Alertas y `DashboardApp.tsx`), **José Meza** (login), **Matías Lara** y **Cata
   foco no se escapa.
 
 Detalle completo: `docs/auditoria-ux-web-2026-09-14.md`.
+
+---
+
 ## 2026-09-14 — Auditoría UX mobile: hay que recompilar Android y agregar `ENABLE_DEV_TOOLS` al backend (PR #90 a #94)
 
 **A quién le pega:** a todos los que corren la app mobile, y a quien use las herramientas de
