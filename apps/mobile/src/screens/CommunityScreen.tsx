@@ -326,19 +326,8 @@ export function CommunityScreen({ navigation, route }: Props) {
           <Text style={styles.headerTitle}>Comunidad</Text>
           <Text style={styles.headerSub}>Sede {TEMP_SEDE}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.panicBtn}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('Panic')}
-          accessibilityRole="button"
-          accessibilityLabel="Botón de pánico"
-          hitSlop={{ top: 8, bottom: 8 }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Icon name="siren" size={14} color={Colors.white} />
-            <Text style={styles.panicBtnText}>Pánico</Text>
-          </View>
-        </TouchableOpacity>
+        {/* Acá había una segunda entrada al pánico: el SOS de la barra de abajo está
+            en esta misma pantalla, más grande y en el mismo lugar de siempre. */}
       </View>
 
       {/* Tabs */}
@@ -939,13 +928,6 @@ const styles = StyleSheet.create({
   headerMeta: { flex: 1, minWidth: 0 },
   headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
   headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onPrimaryMuted, marginTop: 3 },
-  panicBtn: {
-    backgroundColor: Colors.danger,
-    borderRadius: 9999,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-  },
-  panicBtnText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
 
   tabs: {
     flexDirection: 'row',

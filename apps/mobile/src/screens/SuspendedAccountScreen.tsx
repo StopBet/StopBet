@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Linking,
   Animated,
   Easing,
   Modal,
@@ -334,10 +335,20 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             </View>
           </TouchableOpacity>
 
-          <Text style={styles.helpLink}>
-            ¿Tienes problemas para pagar?{' '}
-            <Text style={styles.helpLinkBold}>soporte@stopbet.cl</Text>
-          </Text>
+          {/* Antes decía soporte@stopbet.cl acá y contacto@ajuter.cl en el registro, y
+              ninguno abría el correo. El pago se coordina con la sede, así que el
+              contacto es el mismo del registro. */}
+          <TouchableOpacity
+            style={styles.helpLinkBtn}
+            onPress={() => Linking.openURL('mailto:contacto@ajuter.cl?subject=Problemas%20para%20pagar%20mi%20plan')}
+            accessibilityRole="button"
+            accessibilityLabel="Escribir a contacto@ajuter.cl"
+          >
+            <Text style={styles.helpLink}>
+              ¿Tienes problemas para pagar?{' '}
+              <Text style={styles.helpLinkBold}>contacto@ajuter.cl</Text>
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Divisor de emergencia */}
@@ -554,6 +565,7 @@ const styles = StyleSheet.create({
 
   /* Actions */
   actions: { gap: 12 },
+  helpLinkBtn: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
   helpLink: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, textAlign: 'center' },
   helpLinkBold: { fontFamily: Fonts.bodyBold, color: Colors.primary },
 

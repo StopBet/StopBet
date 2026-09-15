@@ -34,6 +34,7 @@ import { TechniqueCard } from '../components/TechniqueCard';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
 import { Icon } from '../components/Icon';
+import { PanicHeaderButton } from '../components/PanicHeaderButton';
 import type { AppStackParamList } from '../navigation/types';
 import { readSponsor } from '../services/offlineStore';
 import { useToast } from '../context/ToastContext';
@@ -329,10 +330,15 @@ export function AssistantScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <View style={styles.avatarDot} />
-          <View>
-            <Text style={styles.headerTitle}>Asistente StopBet</Text>
-            <Text style={styles.headerSub}>AJUTER · Privado y seguro</Text>
+          <View style={styles.avatarDot}>
+            {/* Era un círculo azul vacío */}
+            <Icon name="sparkles" size={20} color={Colors.white} />
+          </View>
+          {/* Sin `flex: 1` y sin truncar, el título se metía debajo de los botones
+              cuando el de pánico creció al tamaño compartido */}
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle} numberOfLines={1}>Asistente</Text>
+            <Text style={styles.headerSub} numberOfLines={1}>Privado y seguro</Text>
           </View>
         </View>
 
@@ -343,17 +349,12 @@ export function AssistantScreen() {
               style={styles.closeBtn}
               accessibilityRole="button"
               accessibilityLabel="Terminar conversación"
+              accessibilityHint="Guarda un resumen y cierra el chat"
             >
-              <Text style={styles.closeBtnText}>Terminar</Text>
+              <Icon name="x" size={20} color={Colors.fg2} />
             </TouchableOpacity>
           )}
-          <TouchableOpacity
-            onPress={() => navigation.navigate('Panic')}
-            style={styles.panicBtn}
-            accessibilityLabel="Botón de pánico"
-          >
-            <Icon name="siren" size={20} color={Colors.danger} />
-          </TouchableOpacity>
+          <PanicHeaderButton onPress={() => navigation.navigate('Panic')} />
         </View>
       </View>
 
@@ -426,7 +427,7 @@ export function AssistantScreen() {
             value={inputText}
             onChangeText={setInputText}
             accessibilityLabel="Mensaje para el asistente"
-            placeholder={sessionId ? 'Escribe aquí…' : initError ? 'Sin conexión con el asistente' : 'Conectando…'}
+            placeholder={sessionId ? 'Cuéntame cómo estás…' : initError ? 'Sin conexión con el asistente' : 'Conectando…'}
             placeholderTextColor={Colors.fg2}
             editable={!!sessionId}
             multiline
@@ -475,32 +476,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backBtn: { padding: 6, marginRight: 6 },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: 2 },
+  headerCenter: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerTitleWrap: { flex: 1, minWidth: 0 },
   avatarDot: {
     width: 38,
     height: 38,
     borderRadius: 19,
     backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
   headerSub: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 1 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   closeBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    // Con el botón de pánico compartido, la palabra "Terminar" dejaba al título en
+    // "Asistente Sto…". El nombre accesible lo sigue diciendo completo.
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
     borderRadius: 9999,
-  },
-  closeBtnText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
-  panicBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: Colors.dangerSurface,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   listContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 10 },
 

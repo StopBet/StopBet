@@ -493,6 +493,27 @@ export function AchievementsScreen({ navigation }: Props) {
   );
 }
 
+/**
+ * La tarjeta de cada ciclo cerraba con "Cada intento cuenta. Aprendiste algo valioso."
+ * palabra por palabra, en todos: leído en fila suena a plantilla. Ahora dice algo que
+ * solo se puede decir de ese ciclo.
+ */
+function cycleNote(period: AbstinencePeriod): string {
+  const dias = period.daysAchieved;
+  const insignias = period.earnedBadges.length;
+
+  if (insignias > 0) {
+    return `Ganaste ${insignias} insignia${insignias === 1 ? '' : 's'} en ${dias} día${dias === 1 ? '' : 's'}. Eso no se borra.`;
+  }
+  if (dias >= 7) {
+    return `Aguantaste ${dias} días. La próxima parte desde más arriba.`;
+  }
+  if (dias >= 1) {
+    return `${dias} día${dias === 1 ? '' : 's'} también cuentan: volviste a empezar.`;
+  }
+  return 'Volver a empezar ya es parte del proceso.';
+}
+
 /* ── CycleCard ─────────────────────────────────────────────────────────── */
 
 function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attemptLabel: number }) {
@@ -522,7 +543,8 @@ function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attempt
       <View style={styles.cycleNote}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
           <Icon name="leaf" size={12} color={Colors.fg2} />
-          <Text style={styles.cycleNoteText}>Cada intento cuenta. Aprendiste algo valioso.</Text>
+          {/* La misma frase palabra por palabra en cada ciclo sonaba a plantilla */}
+          <Text style={styles.cycleNoteText}>{cycleNote(period)}</Text>
         </View>
       </View>
     </View>
@@ -599,7 +621,9 @@ const styles = StyleSheet.create({
     marginBottom: 0,
   },
   counterNum: {
-    fontFamily: Fonts.bodyBold,
+    // El manual reserva Chillax para los números grandes; Inicio ya lo usaba y acá
+    // el mismo dato salía en Satoshi
+    fontFamily: Fonts.headingBold,
     fontSize: 72,
     color: Colors.primary,
     letterSpacing: -1,
