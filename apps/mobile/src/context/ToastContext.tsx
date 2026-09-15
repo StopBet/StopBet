@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from './ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon } from '../components/Icon';
 import { useReduceMotion } from '../hooks/useReduceMotion';
@@ -45,6 +46,8 @@ export function toast(message: string, tone: ToastTone = 'info'): void {
 const VISIBLE_MS = 4000;
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const [toast, setToast] = useState<ToastState | null>(null);
   const { bottom } = useSafeAreaInsets();
   const reduceMotion = useReduceMotion();
@@ -92,7 +95,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <Icon
               name={toast.tone === 'error' ? 'triangle-alert' : 'circle-check'}
               size={17}
-              color={toast.tone === 'error' ? Colors.danger : Colors.greenText}
+              color={toast.tone === 'error' ? c.danger : c.greenText}
             />
             <Text style={styles.text}>{toast.message}</Text>
           </View>
@@ -102,24 +105,24 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   wrap: { position: 'absolute', left: 16, right: 16 },
   toast: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     paddingVertical: 14,
     paddingHorizontal: 16,
-    shadowColor: Colors.shadowMedium,
+    shadowColor: c.shadowMedium,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 14,
     elevation: 6,
   },
-  toastError: { borderColor: Colors.dangerBorder, backgroundColor: Colors.dangerSurface },
-  text: { fontFamily: Fonts.body, flex: 1, fontSize: 14, color: Colors.fg1, lineHeight: 20 },
+  toastError: { borderColor: c.dangerBorder, backgroundColor: c.dangerSurface },
+  text: { fontFamily: Fonts.body, flex: 1, fontSize: 14, color: c.fg1, lineHeight: 20 },
 });

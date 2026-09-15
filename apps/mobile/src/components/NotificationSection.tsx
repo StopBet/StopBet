@@ -1,41 +1,42 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Notification } from '@stopbet/shared-types';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
 
-const TYPE_STYLES: Record<string, { bg: string; border: string; iconColor: string; titleColor: string; icon: IconName }> = {
+const makeTypeStyles = (c: Palette): Record<string, { bg: string; border: string; iconColor: string; titleColor: string; icon: IconName }> => ({
   warning: {
-    bg: Colors.amber50,
-    border: Colors.infoBorder,
-    iconColor: Colors.primary,
-    titleColor: Colors.primary,
+    bg: c.amber50,
+    border: c.infoBorder,
+    iconColor: c.primary,
+    titleColor: c.primary,
     icon: 'triangle-alert',
   },
   info: {
-    bg: Colors.infoSurface,
-    border: Colors.infoBorder,
-    iconColor: Colors.primary,
-    titleColor: Colors.primary,
+    bg: c.infoSurface,
+    border: c.infoBorder,
+    iconColor: c.primary,
+    titleColor: c.primary,
     icon: 'calendar',
   },
   success: {
-    bg: Colors.sage50,
-    border: Colors.infoBorder,
-    iconColor: Colors.greenText,
-    titleColor: Colors.greenText,
+    bg: c.sage50,
+    border: c.infoBorder,
+    iconColor: c.greenText,
+    titleColor: c.greenText,
     icon: 'circle-check',
   },
   danger: {
-    bg: Colors.dangerSurface,
-    border: Colors.dangerBorder,
-    iconColor: Colors.danger,
-    titleColor: Colors.danger,
+    bg: c.dangerSurface,
+    border: c.dangerBorder,
+    iconColor: c.danger,
+    titleColor: c.danger,
     icon: 'siren',
   },
-};
+});
 
 function timeAgo(createdAt: string): string {
   const diff = Date.now() - new Date(createdAt).getTime();
@@ -55,11 +56,14 @@ interface Props {
 }
 
 export function NotificationSection({ notifications, onMarkRead }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const TYPE_STYLES = useMemo(() => makeTypeStyles(c), [c]);
   return (
     <View style={styles.wrapper}>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Icon name="bell" size={16} color={Colors.ink900} />
+          <Icon name="bell" size={16} color={c.ink900} />
           <Text style={styles.title} accessibilityRole="header">Notificaciones</Text>
         </View>
         {/* "Ver todo" no llevaba a ninguna parte: no existe pantalla de notificaciones */}
@@ -101,7 +105,7 @@ export function NotificationSection({ notifications, onMarkRead }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   wrapper: {
     paddingHorizontal: 16,
   },
@@ -119,12 +123,12 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.headingBold,
     fontSize: 16,
-    color: Colors.ink900,
+    color: c.ink900,
   },
   count: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.fg2,
+    color: c.fg2,
   },
   list: {
     gap: 10,
@@ -162,13 +166,13 @@ const styles = StyleSheet.create({
   time: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.fg2,
+    color: c.fg2,
     marginLeft: 8,
   },
   body: {
     fontFamily: Fonts.body,
     fontSize: 12.5,
-    color: Colors.fg1,
+    color: c.fg1,
     lineHeight: 18,
     marginTop: 3,
   },

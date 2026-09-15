@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 import { Touchable } from './Touchable';
@@ -16,6 +17,8 @@ import { Touchable } from './Touchable';
  * vive en la navegación, no en un encabezado.
  */
 export function PanicHeaderButton({ onPress }: { onPress: () => void }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   return (
     <Touchable
       rippleColor="rgba(255,255,255,0.28)"
@@ -27,21 +30,21 @@ export function PanicHeaderButton({ onPress }: { onPress: () => void }) {
       accessibilityHint="Avisa a tu padrino ahora"
     >
       <View style={styles.row}>
-        <Icon name="siren" size={16} color={Colors.white} />
+        <Icon name="siren" size={16} color={c.white} />
         <Text style={styles.label}>Pánico</Text>
       </View>
     </Touchable>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   btn: {
-    backgroundColor: Colors.danger,
+    backgroundColor: c.danger,
     borderRadius: 9999,
     minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 14,
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  label: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 13 },
+  label: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 13 },
 });

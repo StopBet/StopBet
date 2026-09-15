@@ -132,3 +132,27 @@ export async function readReminderChoice(): Promise<ReminderChoice | null> {
     return null;
   }
 }
+
+// Preferencia de tema. Por omisión sigue al teléfono, que es lo que espera la mayoría;
+// la elección manual existe porque el sistema no siempre acompaña: alguien puede tener el
+// teléfono en claro y querer la app oscura para el check-in de la noche.
+const THEME_KEY = '@stopbet/theme';
+
+export type ThemePreference = 'system' | 'light' | 'dark';
+
+export async function saveThemePreference(pref: ThemePreference): Promise<void> {
+  try {
+    await AsyncStorage.setItem(THEME_KEY, pref);
+  } catch {
+    // Sin la preferencia guardada se vuelve a seguir al teléfono: no es un fallo grave
+  }
+}
+
+export async function readThemePreference(): Promise<ThemePreference> {
+  try {
+    const stored = await AsyncStorage.getItem(THEME_KEY);
+    return stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+  } catch {
+    return 'system';
+  }
+}

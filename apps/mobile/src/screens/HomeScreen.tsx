@@ -22,7 +22,8 @@ import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
 import { NotificationSection } from '../components/NotificationSection';
 import { Icon } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { api, hasPendingExternalRelapse, acknowledgePendingRelapse } from '../services/api';
 import {
@@ -68,6 +69,8 @@ function formatEventDate(iso: string): string {
 }
 
 export function HomeScreen({ navigation }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const [progress, setProgress] = useState<PatientProgress | null>(null);
   const [todayEmotion, setTodayEmotion] = useState<EmotionType | null>(null);
@@ -281,14 +284,14 @@ export function HomeScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={c.primary} />
 
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerText}>
           <View style={styles.greetingRow}>
             <Text style={styles.greeting}>Hola, {TEMP_FIRST_NAME}</Text>
-            <Icon name="hand" size={20} color={Colors.white} />
+            <Icon name="hand" size={20} color={c.white} />
           </View>
           <Text style={styles.subtitle}>
             Día {progress?.daysStreak ?? '…'} de tu camino
@@ -310,7 +313,7 @@ export function HomeScreen({ navigation }: Props) {
       {/* Contenido principal */}
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={c.primaryText} />
         </View>
       ) : (
         <ScrollView
@@ -328,7 +331,7 @@ export function HomeScreen({ navigation }: Props) {
           {askReminder && (
             <View style={styles.reminderCard}>
               <View style={styles.reminderHead}>
-                <Icon name="bell" size={18} color={Colors.primary} />
+                <Icon name="bell" size={18} color={c.primaryText} />
                 <Text style={styles.reminderTitle} accessibilityRole="header">
                   Recordatorio de las 20:00
                 </Text>
@@ -358,7 +361,7 @@ export function HomeScreen({ navigation }: Props) {
 
           {offline && (
             <View style={styles.offlineBanner}>
-              <Icon name="triangle-alert" size={16} color={Colors.fg2} />
+              <Icon name="triangle-alert" size={16} color={c.fg2} />
               <Text style={styles.offlineText}>
                 {progress
                   ? 'Sin conexión — te mostramos tus últimos datos guardados.'
@@ -404,13 +407,13 @@ export function HomeScreen({ navigation }: Props) {
               accessibilityLabel={`Próxima sesión de tu sede: ${formatEventDate(nextEvent.eventDate!)}. Ver en Anuncios`}
             >
               <View style={styles.eventIcon}>
-                <Icon name="calendar" size={20} color={Colors.primary} />
+                <Icon name="calendar" size={20} color={c.primaryText} />
               </View>
               <View style={styles.eventText}>
                 <Text style={styles.eventLabel}>Próxima sesión de tu sede</Text>
                 <Text style={styles.eventWhen}>{formatEventDate(nextEvent.eventDate!)}</Text>
               </View>
-              <Icon name="chevron-right" size={20} color={Colors.fg2} />
+              <Icon name="chevron-right" size={20} color={c.fg2} />
             </Touchable>
           )}
         </ScrollView>
@@ -420,10 +423,10 @@ export function HomeScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
   },
   header: {
     flexDirection: 'row',
@@ -432,7 +435,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 18,
     paddingTop: 16,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     gap: 14,
   },
   headerText: {
@@ -447,39 +450,39 @@ const styles = StyleSheet.create({
   greeting: {
     fontFamily: Fonts.headingBold,
     fontSize: 22,
-    color: Colors.white,
+    color: c.white,
     lineHeight: 28,
   },
   subtitle: {
     fontFamily: Fonts.body,
     fontSize: 14,
-    color: Colors.onPrimaryMuted,
+    color: c.onPrimaryMuted,
     marginTop: 2,
   },
   avatar: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: Colors.overlayWhite16,
+    backgroundColor: c.overlayWhite16,
     borderWidth: 1.5,
-    borderColor: Colors.overlayWhite35,
+    borderColor: c.overlayWhite35,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarLetter: {
     fontFamily: Fonts.headingBold,
     fontSize: 20,
-    color: Colors.white,
+    color: c.white,
   },
   loader: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   scroll: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
   },
   scrollContent: {
     paddingTop: 16,
@@ -494,55 +497,55 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
   offlineText: {
     fontFamily: Fonts.body,
     flex: 1,
     fontSize: 13,
-    color: Colors.fg2,
+    color: c.fg2,
   },
   counterPlaceholder: {
     marginHorizontal: 20,
     paddingVertical: 32,
     paddingHorizontal: 20,
     borderRadius: 16,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     alignItems: 'center',
   },
   counterPlaceholderText: {
     fontFamily: Fonts.body,
     fontSize: 14,
-    color: Colors.fg2,
+    color: c.fg2,
     textAlign: 'center',
   },
   reminderCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     marginHorizontal: 16,
     padding: 16,
     gap: 10,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
   reminderHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  reminderTitle: { fontFamily: Fonts.headingBold, fontSize: 15, color: Colors.ink900 },
-  reminderBody: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg1, lineHeight: 19 },
+  reminderTitle: { fontFamily: Fonts.headingBold, fontSize: 15, color: c.ink900 },
+  reminderBody: { fontFamily: Fonts.body, fontSize: 13, color: c.fg1, lineHeight: 19 },
   reminderActions: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   reminderPrimary: {
     minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 18,
     borderRadius: 9999,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
   },
-  reminderPrimaryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
+  reminderPrimaryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.white },
   reminderGhost: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 14 },
-  reminderGhostText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg2 },
+  reminderGhostText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg2 },
   retryBtn: {
     marginTop: 14,
     minHeight: 48,
@@ -550,9 +553,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     borderRadius: 9999,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
+    borderColor: c.primary,
   },
-  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
+  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.primaryText },
 
   eventCard: {
     flexDirection: 'row',
@@ -562,17 +565,17 @@ const styles = StyleSheet.create({
     marginTop: 14,
     padding: 14,
     borderRadius: 16,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
   eventIcon: {
     width: 42, height: 42, borderRadius: 12,
-    backgroundColor: Colors.infoSurface,
+    backgroundColor: c.infoSurface,
     alignItems: 'center', justifyContent: 'center',
   },
   eventText: { flex: 1 },
-  eventLabel: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2 },
-  eventWhen: { fontFamily: Fonts.bodyBold, fontSize: 14.5, color: Colors.ink900, marginTop: 2 },
+  eventLabel: { fontFamily: Fonts.body, fontSize: 12.5, color: c.fg2 },
+  eventWhen: { fontFamily: Fonts.bodyBold, fontSize: 14.5, color: c.ink900, marginTop: 2 },
 
 });

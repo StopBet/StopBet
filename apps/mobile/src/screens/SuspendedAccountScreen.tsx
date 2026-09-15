@@ -16,7 +16,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { BillingStatus, Invoice } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useTheme, useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
@@ -52,6 +53,9 @@ type ScreenState = 'suspended' | 'reactivated';
 type Props = NativeStackScreenProps<AppStackParamList, 'SuspendedAccount'>;
 
 export function SuspendedAccountScreen({ navigation }: Props) {
+  const { isDark } = useTheme();
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const [billingStatus, setBillingStatus] = useState<BillingStatus | null>(null);
   const [screenState, setScreenState] = useState<ScreenState>('suspended');
   const [familySheetOpen, setFamilySheetOpen] = useState(false);
@@ -168,7 +172,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   if (screenState === 'reactivated') {
     return (
       <SafeAreaView style={styles.safeReactivated} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor={Colors.successSurface} />
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.successSurface} />
         <View style={styles.reactivatedContent}>
           {/* Halo + check badge */}
           <View style={styles.checkWrap}>
@@ -179,7 +183,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               ]}
             />
             <View style={styles.checkBadge}>
-              <Icon name="circle-check" size={44} color={Colors.sage500} />
+              <Icon name="circle-check" size={44} color={c.sage500} />
             </View>
           </View>
 
@@ -192,7 +196,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
 
           {billingStatus?.nextPaymentDate && (
             <View style={styles.nextPaymentRow}>
-              <Icon name="calendar" size={15} color={Colors.fg2} />
+              <Icon name="calendar" size={15} color={c.fg2} />
               <Text style={styles.nextPaymentText}>Próxima mensualidad:</Text>
               <Text style={styles.nextPaymentVal}>
                 {formatDate(billingStatus.nextPaymentDate)}
@@ -202,7 +206,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
 
           <Touchable
       rippleColor="rgba(255,255,255,0.28)" style={styles.btnPrimary} onPress={handleGoHome} activeOpacity={0.85} accessibilityRole="button">
-            <Icon name="house" size={17} color={Colors.white} />
+            <Icon name="house" size={17} color={c.white} />
             <Text style={styles.btnPrimaryText}>Ir a mi inicio</Text>
           </Touchable>
         </View>
@@ -215,11 +219,11 @@ export function SuspendedAccountScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeSuspended} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.amber50} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.amber50} />
 
       {/* Banner de suspensión */}
       <View style={styles.suspBanner}>
-        <Icon name="triangle-alert" size={15} color={Colors.accent} />
+        <Icon name="triangle-alert" size={15} color={c.accent} />
         <Text style={styles.suspBannerText}>
           Cuenta suspendida
         </Text>
@@ -233,7 +237,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
         {/* Bloque central: ícono + título */}
         <View style={styles.centerBlock}>
           <View style={styles.lockBadge}>
-            <Icon name="lock" size={44} color={Colors.accent} />
+            <Icon name="lock" size={44} color={c.accent} />
           </View>
           <Text style={styles.mainTitle}>Tu cuenta está suspendida</Text>
           <Text style={styles.mainSub}>
@@ -261,7 +265,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
         ) : (
           <View style={styles.overdueCard}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-              <Icon name="calendar" size={15} color={Colors.accent} />
+              <Icon name="calendar" size={15} color={c.accent} />
               <Text style={styles.overdueCardTitle}>
                 {overdue.length} mensualidad{overdue.length !== 1 ? 'es' : ''} pendiente
                 {overdue.length !== 1 ? 's' : ''}
@@ -288,7 +292,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               <>
                 <View style={styles.divider} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Icon name="clock" size={13} color={Colors.fg2} />
+                  <Icon name="clock" size={13} color={c.fg2} />
                   <Text style={styles.overdueDate}>
                     Desde el {formatDate(billingStatus.firstOverdueDate)}
                   </Text>
@@ -302,7 +306,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
         <View style={styles.actions}>
           {payError && (
             <View style={styles.payErrorBox} accessibilityLiveRegion="polite">
-              <Icon name="triangle-alert" size={15} color={Colors.danger} />
+              <Icon name="triangle-alert" size={15} color={c.dangerText} />
               <Text style={styles.payErrorText}>{payError}</Text>
             </View>
           )}
@@ -319,7 +323,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
               <Text style={styles.btnPrimaryText}>Procesando...</Text>
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Icon name="credit-card" size={17} color={Colors.white} />
+                <Icon name="credit-card" size={17} color={c.white} />
                 <Text style={styles.btnPrimaryText}>Pagar ahora y reactivar</Text>
               </View>
             )}
@@ -332,7 +336,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             accessibilityRole="button"
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Icon name="users" size={17} color={Colors.primary} />
+              <Icon name="users" size={17} color={c.primaryText} />
               <Text style={styles.btnOutlineText}>Avisar a mi familiar</Text>
             </View>
           </Touchable>
@@ -357,7 +361,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
         <View style={styles.emDivider}>
           <View style={styles.emDividerLine} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Icon name="siren" size={11} color={Colors.danger} />
+            <Icon name="siren" size={11} color={c.dangerText} />
             <Text style={styles.emDividerText}>Emergencia</Text>
           </View>
           <View style={styles.emDividerLine} />
@@ -375,11 +379,11 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             accessibilityLabel="Botón de pánico"
             accessibilityRole="button"
           >
-            <Icon name="siren" size={30} color={Colors.white} />
+            <Icon name="siren" size={30} color={c.white} />
           </Touchable>
           <Text style={styles.panicButtonLabel}>BOTÓN DE PÁNICO</Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="heart" size={13} color={Colors.danger} />
+            <Icon name="heart" size={13} color={c.dangerText} />
             <Text style={styles.panicFoot}>El botón de pánico y la línea *4141 siguen disponibles</Text>
           </View>
         </View>
@@ -444,7 +448,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
             {familyLink ? (
               <View style={styles.linkBox}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Icon name="link" size={13} color={Colors.primary} />
+                  <Icon name="link" size={13} color={c.primaryText} />
                   <Text style={styles.linkBoxText}>{familyLink}</Text>
                 </View>
               </View>
@@ -466,7 +470,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
                 accessibilityRole="button"
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Icon name="share" size={17} color={Colors.white} />
+                  <Icon name="share" size={17} color={c.white} />
                   <Text style={styles.btnPrimaryText}>Compartir enlace de pago</Text>
                 </View>
               </Touchable>
@@ -488,14 +492,14 @@ export function SuspendedAccountScreen({ navigation }: Props) {
 
 /* ── Estilos ─────────────────────────────────────────────────────────────── */
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   /* Suspended state */
-  safeSuspended: { flex: 1, backgroundColor: Colors.amber50 },
+  safeSuspended: { flex: 1, backgroundColor: c.amber50 },
 
   suspBanner: {
-    backgroundColor: Colors.amber50,
+    backgroundColor: c.amber50,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: c.border,
     paddingVertical: 11,
     paddingHorizontal: 16,
     alignItems: 'center',
@@ -503,9 +507,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 7,
   },
-  suspBannerText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.primary },
+  suspBannerText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.primaryText },
 
-  scroll: { flex: 1, backgroundColor: Colors.bg },
+  scroll: { flex: 1, backgroundColor: c.bg },
   scrollContent: { padding: 22, paddingBottom: 48, gap: 22 },
 
   centerBlock: { alignItems: 'center', paddingHorizontal: 8 },
@@ -513,7 +517,7 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: Colors.amber50,
+    backgroundColor: c.amber50,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 0,
@@ -521,7 +525,7 @@ const styles = StyleSheet.create({
   mainTitle: {
     fontFamily: Fonts.headingBold,
     fontSize: 26,
-    color: Colors.fg1,
+    color: c.fg1,
     textAlign: 'center',
     marginTop: 22,
     lineHeight: 32,
@@ -530,7 +534,7 @@ const styles = StyleSheet.create({
   mainSub: {
     fontFamily: Fonts.body,
     fontSize: 15,
-    color: Colors.fg2,
+    color: c.fg2,
     textAlign: 'center',
     lineHeight: 23,
     marginTop: 8,
@@ -539,18 +543,18 @@ const styles = StyleSheet.create({
 
   /* Overdue card */
   overdueCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     borderLeftWidth: 4,
-    borderLeftColor: Colors.accent,
+    borderLeftColor: c.accent,
     padding: 18,
-    shadowColor: Colors.shadowMedium,
+    shadowColor: c.shadowMedium,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 8,
     elevation: 3,
   },
-  overdueCardTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.primary },
+  overdueCardTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: c.primaryText },
   overdueMonths: { marginTop: 10, gap: 0 },
   monthRow: {
     flexDirection: 'row',
@@ -558,53 +562,53 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     borderBottomWidth: 0,
   },
-  monthLabel: { fontFamily: Fonts.body, fontSize: 13.5, color: Colors.fg2 },
-  monthAmount: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.fg1 },
-  divider: { height: 1, backgroundColor: Colors.border, marginVertical: 14 },
+  monthLabel: { fontFamily: Fonts.body, fontSize: 13.5, color: c.fg2 },
+  monthAmount: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: c.fg1 },
+  divider: { height: 1, backgroundColor: c.border, marginVertical: 14 },
   totalRow: { flexDirection: 'row', alignItems: 'baseline' },
-  totalAmount: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3 },
-  totalLabel: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.fg2 },
+  totalAmount: { fontFamily: Fonts.headingBold, fontSize: 24, color: c.fg1, letterSpacing: -0.3 },
+  totalLabel: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.fg2 },
   // Rojo de alarma sobre una fecha: es un dato, no una emergencia
-  overdueDate: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.fg2 },
+  overdueDate: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.fg2 },
 
   /* Actions */
   actions: { gap: 12 },
   helpLinkBtn: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
-  helpLink: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, textAlign: 'center' },
-  helpLinkBold: { fontFamily: Fonts.bodyBold, color: Colors.primary },
+  helpLink: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, textAlign: 'center' },
+  helpLinkBold: { fontFamily: Fonts.bodyBold, color: c.primaryText },
 
   /* Emergency divider */
   emDivider: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  emDividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
+  emDividerLine: { flex: 1, height: 1, backgroundColor: c.border },
   emDividerText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
     letterSpacing: 1,
-    color: Colors.danger,
+    color: c.dangerText,
     textTransform: 'uppercase',
   },
 
   /* Panic card */
   panicCard: {
-    backgroundColor: Colors.dangerSurface,
+    backgroundColor: c.dangerSurface,
     borderWidth: 2,
-    borderColor: Colors.danger,
+    borderColor: c.danger,
     borderRadius: 16,
     padding: 18,
     alignItems: 'center',
     paddingBottom: 20,
   },
-  panicCardLead: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 20, textAlign: 'center' },
+  panicCardLead: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 20, textAlign: 'center' },
   panicButton: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.danger,
+    backgroundColor: c.danger,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 14,
     marginBottom: 10,
-    shadowColor: Colors.danger,
+    shadowColor: c.danger,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.35,
     shadowRadius: 16,
@@ -615,10 +619,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
     letterSpacing: 1,
-    color: Colors.danger,
+    color: c.dangerText,
     textTransform: 'uppercase',
   },
-  panicFoot: { fontFamily: Fonts.body, fontSize: 12, color: Colors.danger, marginTop: 8 },
+  panicFoot: { fontFamily: Fonts.body, fontSize: 12, color: c.dangerText, marginTop: 8 },
 
   /* Bottom sheet */
   sheetOverlay: {
@@ -627,7 +631,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 22,
@@ -637,19 +641,19 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: Colors.border,
+    backgroundColor: c.border,
     alignSelf: 'center',
     marginBottom: 16,
   },
-  sheetTitle: { fontFamily: Fonts.headingBold, fontSize: 19, color: Colors.fg1 },
-  sheetSub: { fontFamily: Fonts.body, fontSize: 13.5, color: Colors.fg2, lineHeight: 20, marginTop: 6 },
+  sheetTitle: { fontFamily: Fonts.headingBold, fontSize: 19, color: c.fg1 },
+  sheetSub: { fontFamily: Fonts.body, fontSize: 13.5, color: c.fg2, lineHeight: 20, marginTop: 6 },
   famRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 16,
     padding: 12,
     marginTop: 16,
@@ -659,29 +663,29 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: Colors.teal400,
+    backgroundColor: c.teal400,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  famAvatarText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
+  famAvatarText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: c.white },
   famInfo: { flex: 1 },
-  famName: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
-  famRel: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 2 },
+  famName: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1 },
+  famRel: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, marginTop: 2 },
   linkBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.infoSurface,
+    backgroundColor: c.infoSurface,
     borderRadius: 12,
     padding: 11,
     marginBottom: 16,
     gap: 10,
   },
-  linkBoxText: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.primary, flex: 1 },
+  linkBoxText: { fontFamily: Fonts.body, fontSize: 12.5, color: c.primaryText, flex: 1 },
   sheetActions: { gap: 10 },
 
   /* Buttons */
   btnPrimary: {
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingVertical: 15,
     // El botón de "Ir a mi inicio" vive en un contenedor centrado y se encogía al ancho
@@ -692,20 +696,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
+  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 16 },
   btnOutline: {
     borderRadius: 9999,
     paddingVertical: 15,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.primary,
+    borderColor: c.primary,
     backgroundColor: 'transparent',
   },
-  btnOutlineText: { fontFamily: Fonts.bodyBold, color: Colors.primary, fontSize: 16 },
+  btnOutlineText: { fontFamily: Fonts.bodyBold, color: c.primaryText, fontSize: 16 },
   btnDisabled: { opacity: 0.6 },
 
   /* Reactivated state */
-  safeReactivated: { flex: 1, backgroundColor: Colors.successSurface },
+  safeReactivated: { flex: 1, backgroundColor: c.successSurface },
   reactivatedContent: {
     flex: 1,
     justifyContent: 'center',
@@ -724,18 +728,18 @@ const styles = StyleSheet.create({
     width: 116,
     height: 116,
     borderRadius: 58,
-    backgroundColor: Colors.sage500,
+    backgroundColor: c.sage500,
   },
   checkBadge: {
     width: 116,
     height: 116,
     borderRadius: 58,
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderWidth: 5,
-    borderColor: Colors.sage500,
+    borderColor: c.sage500,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.sage500,
+    shadowColor: c.sage500,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.28,
     shadowRadius: 16,
@@ -745,14 +749,14 @@ const styles = StyleSheet.create({
   reactivatedTitle: {
     fontFamily: Fonts.headingBold,
     fontSize: 28,
-    color: Colors.fg1,
+    color: c.fg1,
     textAlign: 'center',
     letterSpacing: -0.4,
   },
   reactivatedSub: {
     fontFamily: Fonts.body,
     fontSize: 15,
-    color: Colors.fg2,
+    color: c.fg2,
     textAlign: 'center',
     lineHeight: 23,
     marginTop: 8,
@@ -761,33 +765,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 16,
     paddingVertical: 13,
     paddingHorizontal: 16,
     alignSelf: 'stretch',
     justifyContent: 'center',
   },
-  nextPaymentLabel: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
-  nextPaymentText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
-  nextPaymentVal: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg1 },
-  stateText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg1, lineHeight: 20 },
+  nextPaymentLabel: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
+  nextPaymentText: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
+  nextPaymentVal: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg1 },
+  stateText: { fontFamily: Fonts.body, fontSize: 14, color: c.fg1, lineHeight: 20 },
   retryBtn: {
     marginTop: 14, alignSelf: 'flex-start', minHeight: 48, justifyContent: 'center',
-    paddingHorizontal: 18, borderRadius: 9999, borderWidth: 1.5, borderColor: Colors.primary,
+    paddingHorizontal: 18, borderRadius: 9999, borderWidth: 1.5, borderColor: c.primary,
   },
-  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
+  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.primaryText },
   payErrorBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12,
-    backgroundColor: Colors.dangerSurface, borderRadius: 12, padding: 12,
+    backgroundColor: c.dangerSurface, borderRadius: 12, padding: 12,
   },
-  payErrorText: { fontFamily: Fonts.body, flex: 1, fontSize: 13.5, color: Colors.danger, lineHeight: 19 },
+  payErrorText: { fontFamily: Fonts.body, flex: 1, fontSize: 13.5, color: c.dangerText, lineHeight: 19 },
   confirmOverlay: {
     flex: 1, backgroundColor: 'rgba(45,90,158,0.32)', justifyContent: 'center', paddingHorizontal: 22,
   },
-  confirmCard: { backgroundColor: Colors.surface, borderRadius: 20, padding: 22 },
-  confirmNote: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 10 },
+  confirmCard: { backgroundColor: c.surface, borderRadius: 20, padding: 22 },
+  confirmNote: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 19, marginTop: 10 },
 
 });

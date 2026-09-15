@@ -20,7 +20,8 @@ import { StepperHeader } from '../components/StepperHeader';
 import { FormInput } from '../components/FormInput';
 import { BirthDatePicker } from '../components/BirthDatePicker';
 import { Icon } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useTheme, useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Touchable } from '../components/Touchable';
 
@@ -35,6 +36,9 @@ const REFERRAL_OPTIONS = [
 ];
 
 export function RegisterStep1Screen({ navigation, route }: Props) {
+  const { isDark } = useTheme();
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { institutionId } = route.params;
 
   const [firstName, setFirstName] = useState('');
@@ -106,7 +110,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
       <TopBar title="Crear cuenta" onBack={() => navigation.goBack()} />
       <StepperHeader current={1} />
 
@@ -127,7 +131,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
           {/* El costo aparecía recién en "Solicitud enviada", después de entregar RUT y correo */}
           <View style={styles.planCard}>
             <View style={styles.planHead}>
-              <Icon name="id-card" size={16} color={Colors.primary} />
+              <Icon name="id-card" size={16} color={c.primaryText} />
               <Text style={styles.planTitle}>Antes de empezar</Text>
             </View>
             <Text style={styles.planBody}>
@@ -198,7 +202,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
         <Touchable
       rippleColor="rgba(255,255,255,0.28)" activeOpacity={0.85} style={styles.btn} onPress={handleContinue} accessibilityRole="button">
           <Text style={styles.btnText}>Continuar</Text>
-          <Icon name="arrow-right" size={18} color={Colors.white} />
+          <Icon name="arrow-right" size={18} color={c.white} />
         </Touchable>
       </View>
 
@@ -222,7 +226,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
                 onPress={() => { setReferralSource(opt); setShowReferral(false); }}>
                 <Text style={styles.sheetText}>{opt}</Text>
                 {referralSource === opt && (
-                  <Icon name="check" size={18} color={Colors.primary} />
+                  <Icon name="check" size={18} color={c.primaryText} />
                 )}
               </Touchable>
             ))}
@@ -233,33 +237,33 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   flex: { flex: 1 },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 22, paddingBottom: 16 },
-  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6, marginBottom: 0 },
-  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: c.fg1, letterSpacing: -0.3, marginTop: 6, marginBottom: 0 },
+  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 28 },
-  sheet: { backgroundColor: Colors.surface, borderRadius: 18, paddingVertical: 8 },
-  sheetTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 8 },
+  sheet: { backgroundColor: c.surface, borderRadius: 18, paddingVertical: 8 },
+  sheetTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 8 },
   sheetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14 },
-  sheetText: { fontFamily: Fonts.body, fontSize: 15, color: Colors.fg1 },
-  btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
-  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
+  sheetText: { fontFamily: Fonts.body, fontSize: 15, color: c.fg1 },
+  btn: { flexDirection: 'row', gap: 8, backgroundColor: c.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: c.white },
   planCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     padding: 14,
     marginBottom: 22,
     gap: 8,
   },
   planHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  planTitle: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink900 },
-  planBody: { fontFamily: Fonts.body, fontSize: 13.5, color: Colors.fg1, lineHeight: 20 },
-  planAmount: { fontFamily: Fonts.bodyBold, color: Colors.primary },
+  planTitle: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.ink900 },
+  planBody: { fontFamily: Fonts.body, fontSize: 13.5, color: c.fg1, lineHeight: 20 },
+  planAmount: { fontFamily: Fonts.bodyBold, color: c.primaryText },
 
 });

@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AppStackParamList, AuthStackParamList } from './src/navigation/types';
 import { AuthContext } from './src/context/AuthContext';
 import { ToastProvider } from './src/context/ToastContext';
+import { ThemeProvider } from './src/context/ThemeContext';
 
 // Auth screens
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
@@ -73,16 +74,19 @@ export default function App() {
     // React Navigation dentro de cada navegador. El aviso pasajero vive por fuera, así
     // que necesita uno en la raíz.
     <SafeAreaProvider>
-      <AuthContext.Provider value={{
-        signIn: () => setIsSignedIn(true),
-        signOut: () => setIsSignedIn(false),
-      }}>
-        <ToastProvider>
-          <NavigationContainer>
-            {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
-          </NavigationContainer>
-        </ToastProvider>
-      </AuthContext.Provider>
+      {/* El tema va lo más arriba posible: el aviso pasajero y las pantallas lo leen */}
+      <ThemeProvider>
+        <AuthContext.Provider value={{
+          signIn: () => setIsSignedIn(true),
+          signOut: () => setIsSignedIn(false),
+        }}>
+          <ToastProvider>
+            <NavigationContainer>
+              {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
+            </NavigationContainer>
+          </ToastProvider>
+        </AuthContext.Provider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

@@ -15,7 +15,8 @@ import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
 import { Icon, type IconName } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useTheme, useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -39,6 +40,9 @@ const PLAN_FEATURES = [
 ];
 
 export function PaymentScreen({ navigation, route }: Props) {
+  const { isDark } = useTheme();
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const { userId } = route.params;
   const { signIn } = useContext(AuthContext);
@@ -65,7 +69,7 @@ export function PaymentScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
       <TopBar title="Crear cuenta" onBack={() => navigation.goBack()} />
       <StepperHeader current={3} labels={['Datos', 'Sede', 'Pago']} />
 
@@ -92,7 +96,7 @@ export function PaymentScreen({ navigation, route }: Props) {
           <View style={styles.planSep} />
           {PLAN_FEATURES.map((f) => (
             <View key={f} style={styles.planFeat}>
-              <Icon name="circle-check" size={16} color={Colors.sage500} />
+              <Icon name="circle-check" size={16} color={c.sage500} />
               <Text style={styles.planFeatText}>{f}</Text>
             </View>
           ))}
@@ -115,7 +119,7 @@ export function PaymentScreen({ navigation, route }: Props) {
                 style={[styles.methodCard, sel && styles.methodCardSel]}
               >
                 <View style={[styles.methodIcon, sel && styles.methodIconSel]}>
-                  <Icon name={m.icon} size={20} color={sel ? Colors.white : Colors.primary} />
+                  <Icon name={m.icon} size={20} color={sel ? c.white : c.primary} />
                 </View>
                 <Text style={styles.methodLabel}>{m.label}</Text>
                 <View style={[styles.radio, sel && styles.radioSel]}>
@@ -128,7 +132,7 @@ export function PaymentScreen({ navigation, route }: Props) {
         })}
 
         <View style={styles.secureNote}>
-          <Icon name="lock" size={14} color={Colors.fg2} />
+          <Icon name="lock" size={14} color={c.fg2} />
           <Text style={styles.secureText}>
             La app no pide datos de tarjeta: el cobro se coordina con tu sede AJUTER.
           </Text>
@@ -146,10 +150,10 @@ export function PaymentScreen({ navigation, route }: Props) {
           accessibilityState={{ busy: paying }}
         >
           {paying ? (
-            <ActivityIndicator color={Colors.white} />
+            <ActivityIndicator color={c.white} />
           ) : (
             <>
-              <Icon name="circle-check" size={17} color={Colors.white} />
+              <Icon name="circle-check" size={17} color={c.white} />
               <Text style={styles.btnText}>Activar mi cuenta</Text>
             </>
           )}
@@ -159,19 +163,19 @@ export function PaymentScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 22, paddingBottom: 16 },
-  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6 },
-  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: c.fg1, letterSpacing: -0.3, marginTop: 6 },
+  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
 
   planCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 18,
-    shadowColor: Colors.shadowMedium,
+    shadowColor: c.shadowMedium,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 12,
@@ -181,46 +185,46 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 22,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 14,
   },
-  planLogoText: { fontFamily: Fonts.headingBold, fontSize: 17, color: Colors.white, letterSpacing: 0.5 },
-  planName: { fontFamily: Fonts.headingBold, textAlign: 'center', fontSize: 16, color: Colors.ink900 },
+  planLogoText: { fontFamily: Fonts.headingBold, fontSize: 17, color: c.white, letterSpacing: 0.5 },
+  planName: { fontFamily: Fonts.headingBold, textAlign: 'center', fontSize: 16, color: c.ink900 },
   planPrice: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'center', gap: 6, marginVertical: 8 },
-  planAmt: { fontFamily: Fonts.bodyBold, fontSize: 40, color: Colors.primary, letterSpacing: -0.8 },
-  planPer: { fontFamily: Fonts.body, fontSize: 18, color: Colors.fg2 },
-  planSep: { height: 1, backgroundColor: Colors.border, marginBottom: 16 },
+  planAmt: { fontFamily: Fonts.bodyBold, fontSize: 40, color: c.primaryText, letterSpacing: -0.8 },
+  planPer: { fontFamily: Fonts.body, fontSize: 18, color: c.fg2 },
+  planSep: { height: 1, backgroundColor: c.border, marginBottom: 16 },
   planFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 11 },
-  planFeatText: { fontFamily: Fonts.body, flex: 1, fontSize: 14, color: Colors.ink900, lineHeight: 20 },
-  planRenew: { fontFamily: Fonts.body, fontSize: 12, fontStyle: 'italic', color: Colors.fg2, lineHeight: 16, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.border },
+  planFeatText: { fontFamily: Fonts.body, flex: 1, fontSize: 14, color: c.ink900, lineHeight: 20 },
+  planRenew: { fontFamily: Fonts.body, fontSize: 12, fontStyle: 'italic', color: c.fg2, lineHeight: 16, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border },
 
-  methodsTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900, marginBottom: 12, marginTop: 4 },
+  methodsTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.ink900, marginBottom: 12, marginTop: 4 },
   methodCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 13,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 16,
     padding: 14,
     marginBottom: 10,
   },
-  methodCardSel: { borderColor: Colors.primary, backgroundColor: Colors.infoSurface },
-  methodIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
-  methodIconSel: { backgroundColor: Colors.white },
-  methodLabel: { fontFamily: Fonts.bodyBold, flex: 1, fontSize: 15, color: Colors.ink900 },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
-  radioSel: { borderColor: Colors.primary },
-  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: Colors.primary },
+  methodCardSel: { borderColor: c.primary, backgroundColor: c.infoSurface },
+  methodIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
+  methodIconSel: { backgroundColor: c.white },
+  methodLabel: { fontFamily: Fonts.bodyBold, flex: 1, fontSize: 15, color: c.ink900 },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
+  radioSel: { borderColor: c.primary },
+  radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: c.primary },
 
   secureNote: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 16, marginBottom: 2 },
-  secureText: { fontFamily: Fonts.body, flex: 1, fontSize: 12, color: Colors.fg2, lineHeight: 17 },
+  secureText: { fontFamily: Fonts.body, flex: 1, fontSize: 12, color: c.fg2, lineHeight: 17 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
-  btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
+  btn: { flexDirection: 'row', gap: 8, backgroundColor: c.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.5 },
-  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: c.white },
 });

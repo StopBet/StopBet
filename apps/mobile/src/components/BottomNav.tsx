@@ -5,7 +5,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
@@ -28,6 +29,8 @@ interface Props {
 }
 
 export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { bottom } = useSafeAreaInsets();
   const renderTab = (tab: { id: NavTab; icon: IconName; label: string }) => {
     const isActive = active === tab.id;
@@ -41,7 +44,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
         accessibilityLabel={tab.label}
         accessibilityState={{ selected: isActive }}
       >
-        <Icon name={tab.icon} size={24} color={isActive ? Colors.primary : Colors.fg2} />
+        <Icon name={tab.icon} size={24} color={isActive ? c.primary : c.fg2} />
         <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
           {tab.label}
         </Text>
@@ -62,7 +65,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
         style={styles.panicButton}
       >
         <View style={styles.panicContent}>
-          <Icon name="siren" size={20} color={Colors.white} />
+          <Icon name="siren" size={20} color={c.white} />
           <Text style={styles.panicLabel}>SOS</Text>
         </View>
       </Touchable>
@@ -72,14 +75,14 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   bar: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'flex-end',
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
     paddingHorizontal: 8,
     paddingTop: 10,
   },
@@ -92,11 +95,11 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.fg2,
+    color: c.fg2,
   },
   tabLabelActive: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.primary,
+    color: c.primaryText,
   },
   panicContent: {
     alignItems: 'center',
@@ -106,21 +109,21 @@ const styles = StyleSheet.create({
   panicLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.white,
+    color: c.white,
     letterSpacing: 1.5,
   },
   panicButton: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.danger,
+    backgroundColor: c.danger,
     borderWidth: 5,
-    borderColor: Colors.bg,
+    borderColor: c.bg,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -28,
     marginHorizontal: 4,
-    shadowColor: Colors.danger,
+    shadowColor: c.danger,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.45,
     shadowRadius: 10,

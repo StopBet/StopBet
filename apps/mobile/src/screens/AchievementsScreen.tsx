@@ -23,7 +23,8 @@ import type {
 import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { BadgeUnlockModal } from '../components/BadgeUnlockModal';
 import { Icon, type IconName } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import {
   api,
@@ -116,6 +117,8 @@ type Props = CompositeScreenProps<
 >;
 
 export function AchievementsScreen({ navigation }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const [data, setData] = useState<AchievementsData>(EMPTY_DATA);
   // Arranca en true: hasta que llegue la primera respuesta, EMPTY_DATA diría
@@ -257,7 +260,7 @@ export function AchievementsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={c.primary} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -268,13 +271,13 @@ export function AchievementsScreen({ navigation }: Props) {
           </Text>
         </View>
         <View style={styles.trophyCircle}>
-          <Icon name="trophy" size={22} color={Colors.white} />
+          <Icon name="trophy" size={22} color={c.white} />
         </View>
       </View>
 
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={c.primaryText} />
         </View>
       ) : (
         <ScrollView
@@ -284,7 +287,7 @@ export function AchievementsScreen({ navigation }: Props) {
         >
           {offline && (
             <View style={styles.offlineBanner}>
-              <Icon name="triangle-alert" size={16} color={Colors.fg2} />
+              <Icon name="triangle-alert" size={16} color={c.fg2} />
               <Text style={styles.offlineText}>
                 {hasData
                   ? 'Sin conexión — te mostramos tus últimos datos guardados.'
@@ -308,7 +311,7 @@ export function AchievementsScreen({ navigation }: Props) {
             <Text style={styles.counterUnit}>días sin apostar</Text>
             {currentPeriod?.startDate && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 }}>
-                <Icon name="calendar" size={13} color={Colors.fg2} />
+                <Icon name="calendar" size={13} color={c.fg2} />
                 <Text style={styles.counterStart}>Comenzaste el {formatDateLong(currentPeriod.startDate)}</Text>
               </View>
             )}
@@ -320,7 +323,7 @@ export function AchievementsScreen({ navigation }: Props) {
                   <View style={[styles.progressFill, { width: `${progressFraction * 100}%` }]} />
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 10 }}>
-                  <Icon name="target" size={13} color={Colors.gold} />
+                  <Icon name="target" size={13} color={c.gold} />
                   <Text style={styles.progressLabel}>Próximo hito: {nextM} días · faltan {daysLeft} día{daysLeft !== 1 ? 's' : ''}</Text>
                 </View>
               </View>
@@ -337,7 +340,7 @@ export function AchievementsScreen({ navigation }: Props) {
               hitSlop={{ top: 5, bottom: 5 }}
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Icon name="hand-heart" size={15} color={Colors.fg2} />
+                <Icon name="hand-heart" size={15} color={c.fg2} />
                 <Text style={styles.relapseBtnText}>Registrar una recaída</Text>
               </View>
             </Touchable>
@@ -380,11 +383,11 @@ export function AchievementsScreen({ navigation }: Props) {
                     </View>
                   )}
                   <View style={[styles.badgeDisc, earned ? styles.badgeDiscEarned : styles.badgeDiscLocked]}>
-                    <Icon name={cfg.icon} size={26} color={earned ? Colors.green : Colors.fg2} />
+                    <Icon name={cfg.icon} size={26} color={earned ? c.green : c.fg2} />
                   </View>
                   {!earned && (
                     <View style={styles.badgeLock}>
-                      <Icon name="lock" size={10} color={Colors.white} />
+                      <Icon name="lock" size={10} color={c.white} />
                     </View>
                   )}
                   <Text style={[styles.badgeLabel, !earned && styles.badgeLabelLocked]}>
@@ -417,7 +420,7 @@ export function AchievementsScreen({ navigation }: Props) {
       >
         <View style={styles.lockedOverlay}>
           <View style={styles.lockedCard}>
-            <Icon name="lock" size={26} color={Colors.fg2} />
+            <Icon name="lock" size={26} color={c.fg2} />
             <Text style={styles.lockedTitle}>
               {lockedInfo !== null ? BADGE_CONFIG[lockedInfo].label : ''}
             </Text>
@@ -450,7 +453,7 @@ export function AchievementsScreen({ navigation }: Props) {
         <View style={styles.overlay}>
           <View style={styles.modal}>
             <View style={styles.modalIcon}>
-              <Icon name={isExternalRelapse ? 'user' : 'heart'} size={42} color={Colors.sage500} />
+              <Icon name={isExternalRelapse ? 'user' : 'heart'} size={42} color={c.sage500} />
             </View>
             <Text style={styles.modalTitle}>
               {isExternalRelapse ? 'Tu psicólogo registró una recaída' : 'No estás solo en esto'}
@@ -468,7 +471,7 @@ export function AchievementsScreen({ navigation }: Props) {
               accessibilityRole="button"
             >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Icon name="message-circle" size={18} color={Colors.white} />
+                <Icon name="message-circle" size={18} color={c.white} />
                 <Text style={styles.btnPrimaryText}>Hablar con el asistente ahora</Text>
               </View>
             </Touchable>
@@ -519,6 +522,8 @@ function cycleNote(period: AbstinencePeriod): string {
 /* ── CycleCard ─────────────────────────────────────────────────────────── */
 
 function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attemptLabel: number }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.cycleCard}>
       <View style={styles.cycleTop}>
@@ -537,14 +542,14 @@ function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attempt
             .sort((a, b) => a.milestone - b.milestone)
             .map((b: EarnedBadge) => (
               <View key={b.id} style={styles.miniBadge}>
-                <Icon name={BADGE_CONFIG[b.milestone]?.icon ?? 'medal'} size={14} color={Colors.green} />
+                <Icon name={BADGE_CONFIG[b.milestone]?.icon ?? 'medal'} size={14} color={c.green} />
               </View>
             ))}
         </View>
       )}
       <View style={styles.cycleNote}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-          <Icon name="leaf" size={12} color={Colors.fg2} />
+          <Icon name="leaf" size={12} color={c.fg2} />
           {/* La misma frase palabra por palabra en cada ciclo sonaba a plantilla */}
           <Text style={styles.cycleNoteText}>{cycleNote(period)}</Text>
         </View>
@@ -555,8 +560,8 @@ function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attempt
 
 /* ── Estilos ───────────────────────────────────────────────────────────── */
 
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Colors.primary },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: c.primary },
 
   header: {
     flexDirection: 'row',
@@ -564,24 +569,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 18,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     gap: 12,
   },
   headerText: { flex: 1 },
-  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white, lineHeight: 26 },
-  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onPrimaryMuted, marginTop: 3 },
+  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: c.white, lineHeight: 26 },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: c.onPrimaryMuted, marginTop: 3 },
   trophyCircle: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.overlayWhite16,
+    backgroundColor: c.overlayWhite16,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  loader: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
+  loader: { flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
 
-  scroll: { flex: 1, backgroundColor: Colors.bg },
+  scroll: { flex: 1, backgroundColor: c.bg },
   scrollContent: { padding: 16, paddingBottom: 24, gap: 0 },
 
   /* Counter card */
@@ -592,30 +597,30 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     marginBottom: 16,
   },
   offlineText: {
     fontFamily: Fonts.body,
     flex: 1,
     fontSize: 13,
-    color: Colors.fg2,
+    color: c.fg2,
   },
   counterPlaceholderText: {
     fontFamily: Fonts.body,
     fontSize: 14,
-    color: Colors.fg2,
+    color: c.fg2,
     textAlign: 'center',
     paddingVertical: 20,
   },
   counterCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 24,
     alignItems: 'center',
-    shadowColor: Colors.shadowMedium,
+    shadowColor: c.shadowMedium,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 8,
@@ -627,48 +632,48 @@ const styles = StyleSheet.create({
     // el mismo dato salía en Satoshi
     fontFamily: Fonts.headingBold,
     fontSize: 72,
-    color: Colors.primary,
+    color: c.primaryText,
     letterSpacing: -1,
     lineHeight: 80,
   },
-  counterUnit: { fontFamily: Fonts.bodyBold, fontSize: 18, color: Colors.fg2, marginTop: 2 },
-  counterStart: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
+  counterUnit: { fontFamily: Fonts.bodyBold, fontSize: 18, color: c.fg2, marginTop: 2 },
+  counterStart: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
 
   progressWrap: { width: '100%', marginTop: 20 },
   progressTrack: {
     height: 8,
     borderRadius: 9999,
-    backgroundColor: Colors.border,
+    backgroundColor: c.border,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
     borderRadius: 9999,
-    backgroundColor: Colors.sage500,
+    backgroundColor: c.sage500,
   },
   progressLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.greenText,
+    color: c.greenText,
     textAlign: 'center',
   },
 
   relapseBtn: {
     marginTop: 22,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 9999,
     minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 18,
   },
-  relapseBtnText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 13.5 },
+  relapseBtnText: { fontFamily: Fonts.bodyBold, color: c.fg2, fontSize: 13.5 },
 
   /* Section title */
   sectionTitle: {
     fontFamily: Fonts.headingBold,
     fontSize: 18,
-    color: Colors.fg1,
+    color: c.fg1,
     marginTop: 28,
     marginBottom: 14,
     marginLeft: 4,
@@ -693,17 +698,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeDiscEarned: {
-    backgroundColor: Colors.gold50,
+    backgroundColor: c.gold50,
     borderWidth: 2,
-    borderColor: Colors.green,
-    shadowColor: Colors.green,
+    borderColor: c.green,
+    shadowColor: c.green,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 4,
   },
   badgeDiscLocked: {
-    backgroundColor: Colors.border,
+    backgroundColor: c.border,
     opacity: 0.6,
   },
   badgeLock: {
@@ -713,7 +718,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: Colors.fg2,
+    backgroundColor: c.fg2,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -721,34 +726,34 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -7,
     right: '8%',
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingHorizontal: 7,
     paddingVertical: 2,
     zIndex: 1,
   },
-  newChipText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
+  newChipText: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 12 },
   badgeLabel: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.fg1,
+    color: c.fg1,
     textAlign: 'center',
     marginTop: 7,
     lineHeight: 13,
     paddingHorizontal: 2,
   },
-  badgeLabelLocked: { color: Colors.fg2 },
-  badgeDays: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2, marginTop: 2 },
+  badgeLabelLocked: { color: c.fg2 },
+  badgeDays: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.fg2, marginTop: 2 },
 
   /* Cycle card */
   cycleCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     borderTopWidth: 3,
-    borderTopColor: Colors.sage500,
+    borderTopColor: c.sage500,
     padding: 16,
     marginBottom: 12,
-    shadowColor: Colors.shadowSoft,
+    shadowColor: c.shadowSoft,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 1,
     shadowRadius: 4,
@@ -756,17 +761,17 @@ const styles = StyleSheet.create({
   },
   cycleTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cycleChip: {
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderRadius: 9999,
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  cycleChipText: { fontFamily: Fonts.bodyBold, color: Colors.greenText, fontSize: 12 },
-  cycleDates: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
+  cycleChipText: { fontFamily: Fonts.bodyBold, color: c.greenText, fontSize: 12 },
+  cycleDates: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
   cycleProgress: {
     fontFamily: Fonts.bodyBold,
     fontSize: 15,
-    color: Colors.ink900,
+    color: c.ink900,
     marginTop: 11,
     marginBottom: 12,
   },
@@ -775,14 +780,14 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.gold50,
+    backgroundColor: c.gold50,
     borderWidth: 1.5,
-    borderColor: Colors.green,
+    borderColor: c.green,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cycleNote: { marginTop: 13 },
-  cycleNoteText: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, fontStyle: 'italic', lineHeight: 18 },
+  cycleNoteText: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, fontStyle: 'italic', lineHeight: 18 },
 
   /* Overlay + modals */
   overlay: {
@@ -796,11 +801,11 @@ const styles = StyleSheet.create({
   },
   modal: {
     width: '100%',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 24,
     padding: 28,
     alignItems: 'center',
-    shadowColor: Colors.ink900,
+    shadowColor: c.ink900,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 24,
@@ -810,14 +815,14 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: Colors.infoSurface,
+    backgroundColor: c.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   modalTitle: {
     fontFamily: Fonts.headingBold,
     fontSize: 22,
-    color: Colors.ink900,
+    color: c.ink900,
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 8,
@@ -826,7 +831,7 @@ const styles = StyleSheet.create({
   modalText: {
     fontFamily: Fonts.body,
     fontSize: 15,
-    color: Colors.fg2,
+    color: c.fg2,
     textAlign: 'center',
     lineHeight: 23,
     marginHorizontal: 8,
@@ -835,15 +840,15 @@ const styles = StyleSheet.create({
   /* Buttons */
   btnPrimary: {
     width: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingVertical: 15,
     alignItems: 'center',
     marginTop: 22,
   },
-  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
+  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 16 },
   btnLink: { marginTop: 14, minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
-  btnLinkText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 14 },
+  btnLinkText: { fontFamily: Fonts.bodyBold, color: c.fg2, fontSize: 14 },
   lockedOverlay: {
     flex: 1,
     backgroundColor: 'rgba(45,90,158,0.32)',
@@ -851,22 +856,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
   },
   lockedCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 24,
     alignItems: 'center',
     gap: 10,
   },
-  lockedTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900 },
-  lockedBody: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg1, lineHeight: 20, textAlign: 'center' },
+  lockedTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: c.ink900 },
+  lockedBody: { fontFamily: Fonts.body, fontSize: 14, color: c.fg1, lineHeight: 20, textAlign: 'center' },
   lockedBtn: {
     marginTop: 8,
     minHeight: 48,
     justifyContent: 'center',
     paddingHorizontal: 26,
     borderRadius: 9999,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
   },
-  lockedBtnText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.white },
+  lockedBtnText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.white },
 
 });

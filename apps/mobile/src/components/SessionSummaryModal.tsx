@@ -6,7 +6,8 @@ import {
   View,
 } from 'react-native';
 import type { AiSessionSummary } from '@stopbet/shared-types';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
@@ -25,34 +26,34 @@ function aiVal(v: string | null | undefined, fallback: string): string {
   return v.trim();
 }
 
-function buildChips(summary: AiSessionSummary, durationMinutes: number): SummaryChip[] {
+function buildChips(summary: AiSessionSummary, durationMinutes: number, c: Palette): SummaryChip[] {
   return [
     {
-      bg: Colors.infoSurface,
+      bg: c.infoSurface,
       icon: 'chart-column',
-      iconColor: Colors.primary,
+      iconColor: c.primary,
       label: 'Estado anímico',
       value: aiVal(summary.mood, 'No registrado'),
     },
     {
-      bg: Colors.sage50,
+      bg: c.sage50,
       icon: 'leaf',
-      iconColor: Colors.sage500,
+      iconColor: c.sage500,
       label: 'Cómo te vas',
       value: aiVal(summary.progressNote, 'Estás avanzando'),
-      valueColor: Colors.sage500,
+      valueColor: c.sage500,
     },
     {
-      bg: Colors.infoSurface,
+      bg: c.infoSurface,
       icon: 'wind',
-      iconColor: Colors.primary,
+      iconColor: c.primary,
       label: 'Técnica usada',
       value: aiVal(summary.techniqueUsed, 'Ninguna'),
     },
     {
-      bg: Colors.sage50,
+      bg: c.sage50,
       icon: 'moon',
-      iconColor: Colors.sage500,
+      iconColor: c.sage500,
       label: 'Detonante',
       value: aiVal(summary.trigger, 'Sin detonante'),
     },
@@ -72,9 +73,11 @@ export function SessionSummaryModal({
   durationMinutes,
   onContinue,
 }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   if (!summary) return null;
 
-  const chips = buildChips(summary, durationMinutes);
+  const chips = buildChips(summary, durationMinutes, c);
 
   return (
     <Modal
@@ -87,9 +90,9 @@ export function SessionSummaryModal({
         <View style={styles.modal}>
           {/* Ícono central */}
           <View style={styles.iconWrap}>
-            <Icon name="clipboard-list" size={28} color={Colors.primary} />
+            <Icon name="clipboard-list" size={28} color={c.primaryText} />
             <View style={styles.iconCheck}>
-              <Icon name="check" size={13} color={Colors.white} />
+              <Icon name="check" size={13} color={c.white} />
             </View>
           </View>
 
@@ -116,7 +119,7 @@ export function SessionSummaryModal({
           </View>
 
           <View style={styles.noteRow}>
-            <Icon name="lock" size={14} color={Colors.fg2} />
+            <Icon name="lock" size={14} color={c.fg2} />
             <Text style={styles.note}>
               Este resumen ayuda al asistente a retomar la próxima vez. La conversación queda guardada en tu cuenta y tu psicólogo no la lee.
             </Text>
@@ -133,7 +136,7 @@ export function SessionSummaryModal({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(30,45,44,0.55)',
@@ -143,11 +146,11 @@ const styles = StyleSheet.create({
   },
   modal: {
     width: '100%',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 24,
     padding: 26,
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: c.shadowMedium,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
@@ -157,7 +160,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: Colors.infoSurface,
+    backgroundColor: c.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -169,14 +172,14 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: Colors.sage500,
+    backgroundColor: c.sage500,
     borderWidth: 3,
-    borderColor: Colors.surface,
+    borderColor: c.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: { fontFamily: Fonts.headingBold, fontSize: 22, color: Colors.ink900, marginTop: 16 },
-  sub: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 18, textAlign: 'center', marginTop: 4 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 22, color: c.ink900, marginTop: 16 },
+  sub: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 18, textAlign: 'center', marginTop: 4 },
 
   grid: {
     flexDirection: 'row',
@@ -202,8 +205,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipText: { flex: 1 },
-  chipLabel: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2, letterSpacing: 0.3 },
-  chipValue: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.ink900, marginTop: 2 },
+  chipLabel: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.fg2, letterSpacing: 0.3 },
+  chipValue: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: c.ink900, marginTop: 2 },
 
   noteRow: {
     flexDirection: 'row',
@@ -216,15 +219,15 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     flex: 1,
     fontSize: 13,
-    color: Colors.fg2,
+    color: c.fg2,
     lineHeight: 18,
   },
   btn: {
     width: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingVertical: 15,
     alignItems: 'center',
   },
-  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: c.white },
 });

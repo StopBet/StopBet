@@ -12,7 +12,7 @@ import {
   Sprout, Sunrise, Ellipsis, LogOut, Trash2, Flag,
   type LucideProps,
 } from 'lucide-react-native';
-import { Colors } from '../constants/colors';
+import { useColors } from '../context/ThemeContext';
 
 // Mapa de nombres semánticos kebab-case -> íconos Lucide (mismo set que la web).
 // Si falta un ícono, agregar el import arriba y la entrada aquí.
@@ -95,8 +95,10 @@ interface IconProps {
   strokeWidth?: number;
 }
 
-export function Icon({ name, size = 22, color = Colors.fg1, strokeWidth = 2 }: IconProps) {
+export function Icon({ name, size = 22, color, strokeWidth = 2 }: IconProps) {
+  // El color por omisión sale del tema; en oscuro el gris del texto es claro
+  const c = useColors();
   const Cmp = ICON_MAP[name];
   if (!Cmp) return null;
-  return <Cmp size={size} color={color} strokeWidth={strokeWidth} />;
+  return <Cmp size={size} color={color ?? c.fg1} strokeWidth={strokeWidth} />;
 }

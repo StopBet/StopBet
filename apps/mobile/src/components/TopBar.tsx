@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 import { Touchable } from './Touchable';
@@ -12,6 +13,8 @@ interface Props {
 }
 
 export function TopBar({ title, stepLabel, onBack }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.bar}>
       {onBack ? (
@@ -23,7 +26,7 @@ export function TopBar({ title, stepLabel, onBack }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Volver"
         >
-          <Icon name="arrow-left" size={18} color={Colors.fg1} />
+          <Icon name="arrow-left" size={18} color={c.fg1} />
         </Touchable>
       ) : (
         <View style={styles.backBtn} />
@@ -38,7 +41,7 @@ export function TopBar({ title, stepLabel, onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -51,9 +54,9 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -61,12 +64,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     flex: 1,
     fontSize: 15,
-    color: Colors.fg1,
+    color: c.fg1,
   },
   stepLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.fg2,
+    color: c.fg2,
   },
   spacer: {
     width: 38,
