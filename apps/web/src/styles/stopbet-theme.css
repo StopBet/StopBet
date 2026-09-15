@@ -21,7 +21,9 @@
   /* ---- Primario: el naranja AJUTER pasa al azul ---- */
   --teal-700: #396fb6;
   --teal-400: #2d5a9e;
-  --teal-50:  #EAF1F9;   /* tinte del primario, para fondos de etiqueta */
+  /* Tinte del primario, para fondos de etiqueta. Un punto más claro que el #EAF1F9 anterior:
+     con ese, el azul primario de los chips y las iniciales daba 4,47:1 y no llegaba a AA. */
+  --teal-50:  #ECF3FA;
 
   /* ---- Acento: el oro pasa al azul claro del manual ---- */
   --amber-500: #93bce5;
@@ -33,6 +35,9 @@
   /* ---- Verde: el del manual, no el sage genérico ---- */
   --sage-500: #97b23f;   /* c2d66e oscurecido: sobre blanco, #c2d66e no alcanza contraste AA */
   --sage-50:  #F2F7E2;
+  /* Verde para texto e íconos. #97b23f sirve de relleno, pero como texto da 2,40:1 sobre
+     blanco; este da 5,35:1. Es un derivado, no reemplaza a ningún color del manual. */
+  --secondary-text: #5B7324;
 
   /* ---- Fondo y texto ---- */
   --cream-50: #f4f4e9;

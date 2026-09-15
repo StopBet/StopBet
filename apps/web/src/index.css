@@ -2,7 +2,6 @@
 @import "./styles/colors_and_type.css";
 @import "./styles/stopbet-brand.css";
 @import "./styles/stopbet-theme.css";
-@import "./styles/icons.css";
 
 /* ============================================================
    Tailwind v4 — Mapeo de tokens de diseño a clases utilitarias
@@ -13,6 +12,7 @@
   --color-primary:       var(--primary);
   --color-primary-hover: var(--primary-hover);
   --color-secondary:     var(--secondary);
+  --color-secondary-text: var(--secondary-text);
   --color-accent:        var(--accent);
   --color-danger:        var(--danger);
   --color-gold:          var(--gold);
@@ -56,6 +56,31 @@ body {
   background-color: var(--bg);
   color: var(--fg1);
   font-family: var(--font-body);
+}
+
+/* Foco visible. Lleva !important porque varios campos traen `outline: none` en línea, y
+   el estilo en línea le gana a cualquier selector: sin esto, navegando con teclado no se
+   veía dónde estaba el foco. En la barra lateral azul el anillo va en blanco. */
+:focus-visible {
+  outline: 2px solid var(--primary) !important;
+  outline-offset: 2px;
+}
+aside :focus-visible {
+  outline-color: #fff !important;
+}
+
+/* Movimiento reducido: se conserva el cambio de estado, sin desplazamientos ni latidos.
+   El spinner de carga sigue girando, porque es la única señal de que algo está pasando. */
+@media (prefers-reduced-motion: reduce) {
+  [style*="sb-pulse"] { animation: none !important; }
+  [style*="sb-modal-in"], [style*="sb-drawer-in"], [style*="sb-rise"] { animation-name: sb-scrim-in !important; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* Solo para lectores de pantalla */
+.sb-sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
 @keyframes sb-spin {
