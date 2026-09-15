@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Mismo azul que los PNG de ic_launcher (no el #396fb6 del manual), para que el ícono no cambie de tono según el launcher -->
+    <color name="ic_launcher_background">#3073B5</color>
+</resources>
