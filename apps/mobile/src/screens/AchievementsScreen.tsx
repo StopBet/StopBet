@@ -37,6 +37,7 @@ import { readAchievements, saveAchievements } from '../services/offlineStore';
 
 // Ajustar cuando se conecte autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
+const REFRESH_MS = 3 * 60 * 1000;
 
 const MONTHS_LONG = [
   'enero','febrero','marzo','abril','mayo','junio',
@@ -160,10 +161,13 @@ export function AchievementsScreen({ navigation }: Props) {
     }
   }, []);
 
+  // Antes recargaba cada 5 s mientras la pantalla estuviera abierta: con 4 llamadas
+  // por vuelta son 2.880 peticiones por hora de pantalla, en batería y datos del
+  // paciente. Nada de acá cambia por segundo; lo urgente llega por push.
   useFocusEffect(
     useCallback(() => {
       load();
-      const interval = setInterval(load, 5_000);
+      const interval = setInterval(load, REFRESH_MS);
       return () => clearInterval(interval);
     }, [load]),
   );
@@ -702,10 +706,10 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     zIndex: 1,
   },
-  newChipText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 9 },
+  newChipText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
   badgeLabel: {
     fontFamily: Fonts.body,
-    fontSize: 10,
+    fontSize: 12,
     color: Colors.fg1,
     textAlign: 'center',
     marginTop: 7,
@@ -713,7 +717,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   badgeLabelLocked: { color: Colors.fg2 },
-  badgeDays: { fontFamily: Fonts.bodyBold, fontSize: 9, color: Colors.fg2, marginTop: 2 },
+  badgeDays: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2, marginTop: 2 },
 
   /* Cycle card */
   cycleCard: {
@@ -736,7 +740,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  cycleChipText: { fontFamily: Fonts.bodyBold, color: Colors.greenText, fontSize: 11 },
+  cycleChipText: { fontFamily: Fonts.bodyBold, color: Colors.greenText, fontSize: 12 },
   cycleDates: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
   cycleProgress: {
     fontFamily: Fonts.bodyBold,
@@ -785,7 +789,7 @@ const styles = StyleSheet.create({
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: '#E6F4F2',
+    backgroundColor: Colors.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },

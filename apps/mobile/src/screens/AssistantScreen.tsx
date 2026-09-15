@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.dangerSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
   bubbleText: { fontFamily: Fonts.body, fontSize: 15, lineHeight: 21 },
   bubbleTextUser: { color: Colors.white },
   bubbleTextAI: { color: Colors.ink900 },
-  bubbleTime: { fontFamily: Fonts.body, fontSize: 10, color: Colors.fg2, marginTop: 4, alignSelf: 'flex-end' },
+  bubbleTime: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 4, alignSelf: 'flex-end' },
   bubbleTimeUser: { color: Colors.onPrimaryMuted },
 
   inputBar: {

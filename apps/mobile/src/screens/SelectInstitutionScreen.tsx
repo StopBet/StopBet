@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   cardSelected: {
     borderWidth: 2,
     borderColor: Colors.primary,
-    backgroundColor: '#EAF3F2',
+    backgroundColor: Colors.infoSurface,
     padding: 14,
   },
   cardSoon: {
@@ -155,8 +155,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   metaSoon: { backgroundColor: Colors.bg },
-  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.greenText },
-  metaTextSoon: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.fg2 },
+  metaText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.greenText },
+  metaTextSoon: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
   btn: {

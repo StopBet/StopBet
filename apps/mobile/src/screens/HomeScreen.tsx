@@ -42,6 +42,7 @@ import { conReintento } from '../services/reintentoEscritura';
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
+const REFRESH_MS = 3 * 60 * 1000;
 
 type Props = NativeStackScreenProps<AppStackParamList, 'Home'>;
 
@@ -134,10 +135,13 @@ export function HomeScreen({ navigation }: Props) {
     }
   }, [navigation]);
 
+  // Antes recargaba cada 5 s mientras la pantalla estuviera abierta: con 4 llamadas
+  // por vuelta son 2.880 peticiones por hora de pantalla, en batería y datos del
+  // paciente. Nada de acá cambia por segundo; lo urgente llega por push.
   useFocusEffect(
     useCallback(() => {
       load();
-      const interval = setInterval(load, 5_000);
+      const interval = setInterval(load, REFRESH_MS);
       return () => clearInterval(interval);
     }, [load]),
   );

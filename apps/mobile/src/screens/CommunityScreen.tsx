@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -420,37 +421,44 @@ export function CommunityScreen({ navigation, route }: Props) {
             </ScrollView>
           ) : (
             <>
-              <ScrollView
+              {/* Era un ScrollView con posts.map: en una sede activa se dibujaban
+                  cientos de publicaciones de una vez, con sus respuestas. FlatList
+                  monta solo lo que está a la vista. */}
+              <FlatList
                 style={styles.scroll}
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
-              >
-                {posts.length === 0 ? (
+                data={posts}
+                keyExtractor={(p) => p.id}
+                initialNumToRender={6}
+                maxToRenderPerBatch={8}
+                windowSize={11}
+                removeClippedSubviews
+                keyboardShouldPersistTaps="handled"
+                ListEmptyComponent={
                   <EmptyState
                     iconName="message-circle"
                     title="Sé el primero en escribir"
                     text="Comparte cómo te sientes o anima a quienes están en el mismo camino."
                   />
-                ) : (
-                  posts.map((p) => (
-                    <PostCard
-                      key={p.id}
-                      post={p}
-                      disabled={offline}
-                      expanded={!!expanded[p.id]}
-                      replies={repliesByPost[p.id]}
-                      replyDraft={replyDraft[p.id] ?? ''}
-                      onReact={(emoji) => handleReaction(p, emoji)}
-                      onToggleReplies={() => handleToggleReplies(p.id)}
-                      onChangeReplyDraft={(text) =>
-                        setReplyDraft((prev) => ({ ...prev, [p.id]: text }))
-                      }
-                      onSendReply={() => handleReply(p.id)}
-                      onMenuPress={() => handleMenuPress(p)}
-                    />
-                  ))
+                }
+                renderItem={({ item: p }) => (
+                  <PostCard
+                    post={p}
+                    disabled={offline}
+                    expanded={!!expanded[p.id]}
+                    replies={repliesByPost[p.id]}
+                    replyDraft={replyDraft[p.id] ?? ''}
+                    onReact={(emoji) => handleReaction(p, emoji)}
+                    onToggleReplies={() => handleToggleReplies(p.id)}
+                    onChangeReplyDraft={(text) =>
+                      setReplyDraft((prev) => ({ ...prev, [p.id]: text }))
+                    }
+                    onSendReply={() => handleReply(p.id)}
+                    onMenuPress={() => handleMenuPress(p)}
+                  />
                 )}
-              </ScrollView>
+              />
 
               {/* Composer */}
               <View style={[styles.composer, offline && styles.composerOff]}>
@@ -994,7 +1002,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 2,
   },
-  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.fg2 },
+  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
   pinHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   pinTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.primary, marginTop: 11 },
   pinBody: { fontFamily: Fonts.body, fontSize: 15, color: Colors.ink900, lineHeight: 22, marginTop: 6 },
@@ -1089,7 +1097,7 @@ const styles = StyleSheet.create({
   avatarSm: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   avatarSmLetter: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
   replyName: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.ink900 },
-  replyTime: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2 },
+  replyTime: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
   replyBody: { fontFamily: Fonts.body, fontSize: 13, color: Colors.ink900, lineHeight: 20, marginTop: 5, marginLeft: 36 },
 
   replyComposer: {

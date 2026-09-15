@@ -144,7 +144,7 @@ export function LoginScreen({ navigation }: Props) {
               accessibilityState={{ busy: isLoading }}
             >
               {isLoading
-                ? <ActivityIndicator color="#fff" size="small" />
+                ? <ActivityIndicator color={Colors.white} size="small" />
                 : <Text style={styles.btnPrimaryText}>Iniciar sesión</Text>
               }
             </Pressable>
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   errorBanner: {
     marginTop: 12,
     borderRadius: 10,
-    backgroundColor: '#F7E7E7',
+    backgroundColor: Colors.dangerSurface,
     borderWidth: 1,
     borderColor: 'rgba(184,50,50,0.22)',
     padding: 12,

@@ -327,7 +327,7 @@ export function ProfileScreen({ navigation }: Props) {
               </View>
             </View>
             {devFlags.overrideDays !== null && (
-              <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+              <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
                 <Icon name="check" size={12} color={Colors.greenText} />
                 <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
                   Mostrando {devFlags.overrideDays} días
@@ -337,7 +337,7 @@ export function ProfileScreen({ navigation }: Props) {
               </View>
             )}
             {syncStatus === 'error' && (
-              <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.devBadge, { backgroundColor: Colors.dangerSurface }]}>
                 <Icon name="triangle-alert" size={12} color={Colors.danger} />
                 <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
                   Error al sincronizar con el servidor
@@ -363,7 +363,7 @@ export function ProfileScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
             {checkInResetStatus === 'ok' && (
-              <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+              <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
                 <Icon name="check" size={12} color={Colors.greenText} />
                 <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
                   Check-in borrado — ya puedes registrarlo de nuevo
@@ -371,7 +371,7 @@ export function ProfileScreen({ navigation }: Props) {
               </View>
             )}
             {checkInResetStatus === 'error' && (
-              <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.devBadge, { backgroundColor: Colors.dangerSurface }]}>
                 <Icon name="triangle-alert" size={12} color={Colors.danger} />
                 <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
                   Error al borrar el check-in
@@ -397,7 +397,7 @@ export function ProfileScreen({ navigation }: Props) {
               </TouchableOpacity>
             </View>
             {panicResetStatus === 'ok' && (
-              <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+              <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
                 <Icon name="check" size={12} color={Colors.greenText} />
                 <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
                   Alerta cancelada — el botón de pánico vuelve al estado normal
@@ -405,7 +405,7 @@ export function ProfileScreen({ navigation }: Props) {
               </View>
             )}
             {panicResetStatus === 'error' && (
-              <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+              <View style={[styles.devBadge, { backgroundColor: Colors.dangerSurface }]}>
                 <Icon name="triangle-alert" size={12} color={Colors.danger} />
                 <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
                   Error al cancelar la alerta
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: Colors.dangerSurface,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,

@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   cap: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.fg2,
   },
   capActive: {

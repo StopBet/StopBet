@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: '#FBF0F0',
+    backgroundColor: Colors.dangerSurface,
     marginBottom: 6,
   },
   actionText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg1 },

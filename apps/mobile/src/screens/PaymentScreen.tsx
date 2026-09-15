@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   planSep: { height: 1, backgroundColor: Colors.border, marginBottom: 16 },
   planFeat: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 11 },
   planFeatText: { fontFamily: Fonts.body, flex: 1, fontSize: 14, color: Colors.ink900, lineHeight: 20 },
-  planRenew: { fontFamily: Fonts.body, fontSize: 11, fontStyle: 'italic', color: Colors.fg2, lineHeight: 16, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.border },
+  planRenew: { fontFamily: Fonts.body, fontSize: 12, fontStyle: 'italic', color: Colors.fg2, lineHeight: 16, marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: Colors.border },
 
   methodsTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900, marginBottom: 12, marginTop: 4 },
   methodCard: {
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10,
   },
-  methodCardSel: { borderColor: Colors.primary, backgroundColor: '#EAF3F2' },
+  methodCardSel: { borderColor: Colors.primary, backgroundColor: Colors.infoSurface },
   methodIcon: { width: 42, height: 42, borderRadius: 12, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
   methodIconSel: { backgroundColor: Colors.white },
   methodLabel: { fontFamily: Fonts.bodyBold, flex: 1, fontSize: 15, color: Colors.ink900 },

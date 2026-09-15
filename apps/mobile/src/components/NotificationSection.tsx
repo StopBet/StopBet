@@ -8,28 +8,28 @@ import { Icon, type IconName } from './Icon';
 const TYPE_STYLES: Record<string, { bg: string; border: string; iconColor: string; titleColor: string; icon: IconName }> = {
   warning: {
     bg: Colors.amber50,
-    border: '#F3CDB9',
+    border: Colors.infoBorder,
     iconColor: Colors.primary,
     titleColor: Colors.primary,
     icon: 'triangle-alert',
   },
   info: {
-    bg: '#EAF3F2',
-    border: '#C2DBD8',
+    bg: Colors.infoSurface,
+    border: Colors.infoBorder,
     iconColor: Colors.primary,
     titleColor: Colors.primary,
     icon: 'calendar',
   },
   success: {
     bg: Colors.sage50,
-    border: '#BDD6C7',
+    border: Colors.infoBorder,
     iconColor: Colors.greenText,
     titleColor: Colors.greenText,
     icon: 'circle-check',
   },
   danger: {
-    bg: '#FEECEC',
-    border: '#F5C2C2',
+    bg: Colors.dangerSurface,
+    border: Colors.dangerBorder,
     iconColor: Colors.danger,
     titleColor: Colors.danger,
     icon: 'siren',
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   },
   time: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.fg2,
     marginLeft: 8,
   },

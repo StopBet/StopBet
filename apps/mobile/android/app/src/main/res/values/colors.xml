@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="splash_bg">#396fb6</color>
+    <!-- Manual de marca: azul StopBet, tinta y superficie. Los usan los diálogos
+         nativos (Alert), que antes salían con el acento por defecto de Android. -->
+    <color name="brand_primary">#396fb6</color>
+    <color name="brand_ink">#3a3939</color>
+    <color name="brand_surface">#FFFFFF</color>
 </resources>

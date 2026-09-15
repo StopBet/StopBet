@@ -194,12 +194,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     gap: 13,
   },
-  cardSelected: { borderWidth: 2, borderColor: Colors.primary, backgroundColor: '#EAF3F2', padding: 14 },
+  cardSelected: { borderWidth: 2, borderColor: Colors.primary, backgroundColor: Colors.infoSurface, padding: 14 },
   pin: {
     width: 42,
     height: 42,
     borderRadius: 13,
-    backgroundColor: '#EAF3F2',
+    backgroundColor: Colors.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginTop: 8,
   },
-  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.greenText },
+  metaText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.greenText },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },

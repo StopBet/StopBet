@@ -28,7 +28,7 @@ function aiVal(v: string | null | undefined, fallback: string): string {
 function buildChips(summary: AiSessionSummary, durationMinutes: number): SummaryChip[] {
   return [
     {
-      bg: '#EAF3F2',
+      bg: Colors.infoSurface,
       icon: 'chart-column',
       iconColor: Colors.primary,
       label: 'Estado anímico',
@@ -43,7 +43,7 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number): Summary
       valueColor: Colors.sage500,
     },
     {
-      bg: '#EAF3F2',
+      bg: Colors.infoSurface,
       icon: 'wind',
       iconColor: Colors.primary,
       label: 'Técnica usada',
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#EAF3F2',
+    backgroundColor: Colors.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   chipText: { flex: 1 },
-  chipLabel: { fontFamily: Fonts.bodyBold, fontSize: 10, color: Colors.fg2, letterSpacing: 0.3 },
+  chipLabel: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2, letterSpacing: 0.3 },
   chipValue: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: Colors.ink900, marginTop: 2 },
 
   noteRow: {

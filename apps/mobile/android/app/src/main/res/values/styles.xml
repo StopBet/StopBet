@@ -1,8 +1,18 @@
 <resources>
 
     <!-- Base application theme. -->
-    <style name="AppTheme.Base" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <!-- Era DayNight sin colores propios: con el teléfono en modo oscuro la app seguía
+         clara, pero cada Alert salía gris oscuro con botones verde azulado (el acento
+         por defecto de Android). Hasta que la app tenga tema oscuro de verdad, se fija
+         el tema claro y los colores de marca, para que los diálogos del sistema —los de
+         recaída, cerrar sesión o eliminar una publicación— se vean como StopBet. -->
+    <style name="AppTheme.Base" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="colorPrimary">@color/brand_primary</item>
+        <item name="colorPrimaryDark">@color/brand_primary</item>
+        <item name="colorAccent">@color/brand_primary</item>
+        <item name="android:textColorPrimary">@color/brand_ink</item>
+        <item name="android:colorBackground">@color/brand_surface</item>
         <!-- La barra de navegación tapaba el final de la app con un gris que no es
              de la paleta. Transparente deja que el crema de la BottomNav llegue
              hasta el borde; el padding lo pone `useSafeAreaInsets`. -->

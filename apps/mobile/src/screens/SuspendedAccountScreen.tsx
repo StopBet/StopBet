@@ -20,6 +20,7 @@ import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const TEMP_FIRST_NAME = 'Carlos';
@@ -61,6 +62,8 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   const [confirmPayOpen, setConfirmPayOpen] = useState(false);
   const [familyLinkError, setFamilyLinkError] = useState(false);
 
+  const reduceMotion = useReduceMotion();
+
   // Animación del halo en Estado 2
   const haloAnim = useRef(new Animated.Value(0)).current;
   const haloLoop = useRef<Animated.CompositeAnimation | null>(null);
@@ -86,7 +89,8 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (screenState === 'reactivated') {
+    // El halo latía en bucle indefinidamente en la pantalla de cuenta reactivada
+    if (screenState === 'reactivated' && !reduceMotion) {
       haloAnim.setValue(0);
       haloLoop.current = Animated.loop(
         Animated.timing(haloAnim, {
@@ -99,7 +103,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
       haloLoop.current.start();
     }
     return () => haloLoop.current?.stop();
-  }, [screenState, haloAnim]);
+  }, [screenState, haloAnim, reduceMotion]);
 
   const haloScale = haloAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.7] });
   const haloOpacity = haloAnim.interpolate({
@@ -163,7 +167,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   if (screenState === 'reactivated') {
     return (
       <SafeAreaView style={styles.safeReactivated} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F0FAF5" />
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.successSurface} />
         <View style={styles.reactivatedContent}>
           {/* Halo + check badge */}
           <View style={styles.checkWrap}>
@@ -558,7 +562,7 @@ const styles = StyleSheet.create({
   emDividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
   emDividerText: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12,
     letterSpacing: 1,
     color: Colors.danger,
     textTransform: 'uppercase',
@@ -566,7 +570,7 @@ const styles = StyleSheet.create({
 
   /* Panic card */
   panicCard: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: Colors.dangerSurface,
     borderWidth: 2,
     borderColor: Colors.danger,
     borderRadius: 16,
@@ -650,7 +654,7 @@ const styles = StyleSheet.create({
   linkBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EAF5F3',
+    backgroundColor: Colors.infoSurface,
     borderRadius: 12,
     padding: 11,
     marginBottom: 16,
@@ -685,7 +689,7 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.6 },
 
   /* Reactivated state */
-  safeReactivated: { flex: 1, backgroundColor: '#F0FAF5' },
+  safeReactivated: { flex: 1, backgroundColor: Colors.successSurface },
   reactivatedContent: {
     flex: 1,
     justifyContent: 'center',
@@ -761,7 +765,7 @@ const styles = StyleSheet.create({
   retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
   payErrorBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 12,
-    backgroundColor: '#FBF0F0', borderRadius: 12, padding: 12,
+    backgroundColor: Colors.dangerSurface, borderRadius: 12, padding: 12,
   },
   payErrorText: { fontFamily: Fonts.body, flex: 1, fontSize: 13.5, color: Colors.danger, lineHeight: 19 },
   confirmOverlay: {

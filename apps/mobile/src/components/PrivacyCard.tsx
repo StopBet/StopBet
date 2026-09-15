@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#CFE7E3',
+    borderColor: Colors.infoBorder,
     borderRadius: 16,
     padding: 16,
     shadowColor: Colors.shadowSoft,
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 11,
-    backgroundColor: '#EAF3F2',
+    backgroundColor: Colors.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },

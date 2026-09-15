@@ -183,7 +183,8 @@ export class CommunityService {
   async createBadgeAnnouncementPost(patientId: string, milestone: number, sede: string) {
     return this.createPost(
       {
-        body: `🏅 ¡Alcancé ${milestone} días sin apostar! Gracias a todos por el apoyo de la comunidad.`,
+        // Con la insignia de 1 día publicaba "¡Alcancé 1 días sin apostar!"
+        body: `🏅 ¡Alcancé ${milestone} día${milestone === 1 ? '' : 's'} sin apostar! Gracias a todos por el apoyo de la comunidad.`,
         sede,
       },
       patientId,

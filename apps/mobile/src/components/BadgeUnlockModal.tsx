@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import type { BadgeMilestone } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 
@@ -53,6 +54,7 @@ const CENTER = AREA / 2;
 
 export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose }: Props) {
   const visible = milestone !== null && badgeDef !== null;
+  const reduceMotion = useReduceMotion();
 
   // ── Animated values ────────────────────────────────────────────────────────
   const overlayOp   = useRef(new Animated.Value(0)).current;
@@ -90,6 +92,20 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
   useEffect(() => {
     if (!visible) { reset(); return; }
     reset();
+
+    // Con "quitar animaciones" activo, la celebración se muestra de una vez: mismo
+    // contenido, sin chispas, sin onda y sin rebote.
+    if (reduceMotion) {
+      overlayOp.setValue(1);
+      modalOp.setValue(1);
+      modalY.setValue(0);
+      badgeScale.setValue(1);
+      ringOp.setValue(0);
+      textOp.setValue(1);
+      textY.setValue(0);
+      btnsOp.setValue(1);
+      return;
+    }
 
     // Phase 1 — overlay + modal slide-up
     Animated.parallel([
@@ -169,7 +185,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
         ]),
       ]).start();
     });
-  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visible, reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!visible || !milestone || !badgeDef) return null;
 

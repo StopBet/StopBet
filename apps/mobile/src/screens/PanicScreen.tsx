@@ -368,7 +368,7 @@ export function PanicScreen({ navigation }: Props) {
         </Pressable>
         <View style={styles.offlineBanner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="triangle-alert" size={14} color="#fff" />
+            <Icon name="triangle-alert" size={14} color={Colors.white} />
             <Text style={styles.offlineBannerText}>Sin conexión a internet</Text>
           </View>
         </View>
@@ -382,7 +382,7 @@ export function PanicScreen({ navigation }: Props) {
 
           <View style={styles.disabledBtnWrap}>
             <View style={[styles.panicBtn, styles.panicBtnDisabled]}>
-              <Icon name="hand" size={40} color="#fff" />
+              <Icon name="hand" size={40} color={Colors.white} />
               <Text style={styles.panicBtnLabel}>PÁNICO</Text>
             </View>
             <Text style={styles.holdHintDisabled}>Necesitas conexión para activarlo</Text>
@@ -441,8 +441,8 @@ export function PanicScreen({ navigation }: Props) {
   if (state.kind === 'responded' || state.kind === 'escalated') {
     const sponsor = state.kind === 'responded' ? state.sponsor : null;
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#F0FAF5' }]} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#F0FAF5" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: Colors.successSurface }]} edges={['top', 'bottom']}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.successSurface} />
         <Pressable
           style={styles.backBtn}
           onPress={() => handleCloseResponded(state.alert.id, sponsor)}
@@ -498,7 +498,7 @@ export function PanicScreen({ navigation }: Props) {
                 accessibilityLabel={`Llamar a ${sponsor.firstName}`}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Icon name="phone" size={18} color="#fff" />
+                  <Icon name="phone" size={18} color={Colors.white} />
                   <Text style={styles.btnTextLight}>Llamar a {sponsor.firstName}</Text>
                 </View>
               </Pressable>
@@ -527,8 +527,8 @@ export function PanicScreen({ navigation }: Props) {
     const { alert, sponsor } = state;
     const isCountdownUrgent = countdown <= 30;
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#FFF5F5' }]}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FFF5F5" />
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: Colors.dangerSurface }]}>
+        <StatusBar barStyle="dark-content" backgroundColor={Colors.dangerSurface} />
         {/* Sin salida explícita, el gesto atrás del sistema detenía la cuenta regresiva
             y el paciente perdía de vista la escalada sin saber si la alerta seguía viva */}
         <Pressable
@@ -679,7 +679,7 @@ export function PanicScreen({ navigation }: Props) {
                   if (e.nativeEvent.actionName === 'activate') handleActivate();
                 }}
               >
-                <Icon name="hand" size={40} color="#fff" />
+                <Icon name="hand" size={40} color={Colors.white} />
                 <Text style={styles.panicBtnLabel}>PÁNICO</Text>
               </Pressable>
             </Animated.View>
@@ -783,11 +783,11 @@ const styles = StyleSheet.create({
   },
   offlineBannerText: {
     fontFamily: Fonts.bodyBold,
-    color: '#fff',
+    color: Colors.white,
     fontSize: 14,
   },
   warnCard: {
-    backgroundColor: '#FFF5EB',
+    backgroundColor: Colors.infoSurface,
     borderLeftWidth: 4,
     borderLeftColor: Colors.accent,
     borderRadius: 16,
@@ -811,12 +811,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#EFF4F1',
+    backgroundColor: Colors.successSurface,
     borderRadius: 16,
     padding: 14,
   },
   callRowDanger: {
-    backgroundColor: '#FFF0F0',
+    backgroundColor: Colors.dangerSurface,
     borderWidth: 1.5,
     borderColor: 'rgba(184,50,50,0.18)',
   },
@@ -824,12 +824,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
     alignItems: 'center',
     justifyContent: 'center',
   },
   callIconDanger: {
-    backgroundColor: '#fff',
+    backgroundColor: Colors.white,
   },
   callMeta: { flex: 1 },
   callLabel: {
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
   },
   callSubLabel: {
     fontFamily: Fonts.body,
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.fg2,
     marginTop: 2,
   },
@@ -908,13 +908,13 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   panicBtnDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: Colors.border,
     shadowOpacity: 0,
     elevation: 0,
   },
   panicBtnLabel: {
     fontFamily: Fonts.bodyBold,
-    color: '#fff',
+    color: Colors.white,
     fontSize: 14,
     letterSpacing: 2,
   },
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
   holdHintDisabled: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: '#ccc',
+    color: Colors.border,
     textAlign: 'center',
     marginTop: 8,
   },
@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
   },
   avatarLetter: {
     fontFamily: Fonts.bodyBold,
-    color: '#fff',
+    color: Colors.white,
     fontSize: 18,
   },
   btnGhost: { backgroundColor: 'transparent' },
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
   },
   timerCap: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.fg2,
     textTransform: 'uppercase',
     letterSpacing: 1,
@@ -1094,7 +1094,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.amber50,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#EDCFAA',
+    borderColor: Colors.infoBorder,
     padding: 14,
     flexDirection: 'row',
     gap: 12,
@@ -1115,10 +1115,10 @@ const styles = StyleSheet.create({
 
   // ── Comunidad banner ──
   communityCard: {
-    backgroundColor: '#EFF4F1',
+    backgroundColor: Colors.successSurface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#D5E4E0',
+    borderColor: Colors.infoBorder,
     padding: 14,
     flexDirection: 'row',
     gap: 12,
@@ -1148,7 +1148,7 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#EFF4F1',
+    backgroundColor: Colors.successSurface,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 5,
@@ -1195,7 +1195,7 @@ const styles = StyleSheet.create({
   },
   btnTextLight: {
     fontFamily: Fonts.bodyBold,
-    color: '#fff',
+    color: Colors.white,
     fontSize: 16,
   },
   btnTextPrimary: {

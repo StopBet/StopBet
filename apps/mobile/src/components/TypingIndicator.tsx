@@ -1,8 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { Colors } from '../constants/colors';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 
 export function TypingIndicator() {
+  const reduceMotion = useReduceMotion();
   const dots = [
     useRef(new Animated.Value(0)).current,
     useRef(new Animated.Value(0)).current,
@@ -10,6 +12,12 @@ export function TypingIndicator() {
   ];
 
   useEffect(() => {
+    // Tres puntos saltando sin parar mientras el asistente responde: con "quitar
+    // animaciones" se dejan quietos y visibles, que es lo que informan igual.
+    if (reduceMotion) {
+      dots.forEach((d) => d.setValue(1));
+      return;
+    }
     const animations = dots.map((dot, i) =>
       Animated.loop(
         Animated.sequence([
@@ -22,7 +30,7 @@ export function TypingIndicator() {
     );
     animations.forEach((a) => a.start());
     return () => animations.forEach((a) => a.stop());
-  }, []);
+  }, [reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={styles.container}>
