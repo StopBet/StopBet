@@ -52,7 +52,7 @@ export class SubscriptionsService {
         userId: dto.userId,
         type: 'success',
         title: '¡Cuenta activada!',
-        body: 'Tu pago fue procesado correctamente. Bienvenido a StopBet · AJUTER.',
+        body: 'Tu cuenta quedó activa. Bienvenido a StopBet · AJUTER.',
       }),
     );
 

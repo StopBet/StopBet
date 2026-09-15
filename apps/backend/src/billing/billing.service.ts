@@ -98,7 +98,7 @@ export class BillingService {
         userId,
         type: 'success',
         title: '¡Cuenta reactivada!',
-        body: 'Tu pago fue procesado. Puedes retomar tu proceso de rehabilitación.',
+        body: 'Tu cuenta quedó activa de nuevo. Puedes retomar tu proceso.',
       }),
     );
 

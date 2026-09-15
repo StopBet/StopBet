@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,11 +15,11 @@ import type { PaymentMethod } from '@stopbet/shared-types';
 import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
-import { FormInput } from '../components/FormInput';
 import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
+import { AuthContext } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Payment'>;
 
@@ -39,32 +39,23 @@ const PLAN_FEATURES = [
 
 export function PaymentScreen({ navigation, route }: Props) {
   const { userId } = route.params;
+  const { signIn } = useContext(AuthContext);
   const [method, setMethod] = useState<PaymentMethod>('card');
-  const [cardNumber, setCardNumber] = useState('');
-  const [expiry, setExpiry] = useState('');
-  const [cvv, setCvv] = useState('');
-  const [cardName, setCardName] = useState('');
   const [paying, setPaying] = useState(false);
 
   const handlePay = async () => {
-    if (method === 'card') {
-      if (!cardNumber || !expiry || !cvv || !cardName) {
-        Alert.alert('Campos incompletos', 'Completa todos los campos de la tarjeta.');
-        return;
-      }
-    }
-
     setPaying(true);
     try {
       await api.createSubscription({ userId, paymentMethod: method });
-      // Ir al Home de la app — en la navegación real se cambia al AppStack
+      // Antes decía "Tu pago fue procesado correctamente" —no se cobra nada todavía— y el
+      // botón llevaba a Bienvenida, así que el paciente quedaba fuera de la app recién activada.
       Alert.alert(
-        '¡Cuenta activada!',
-        'Tu pago fue procesado correctamente. Bienvenido a StopBet · AJUTER.',
-        [{ text: 'Ir al inicio', onPress: () => navigation.navigate('Welcome') }],
+        'Cuenta activada',
+        'Ya puedes entrar a StopBet. El cobro del plan se coordina con tu sede AJUTER.',
+        [{ text: 'Entrar', onPress: signIn }],
       );
     } catch {
-      Alert.alert('Error en el pago', 'No se pudo procesar el pago. Inténtalo de nuevo.');
+      Alert.alert('No se pudo activar', 'Inténtalo de nuevo en unos minutos.');
     } finally {
       setPaying(false);
     }
@@ -73,8 +64,8 @@ export function PaymentScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
-      <TopBar title="Crear cuenta" stepLabel="Paso 3 de 3" onBack={() => navigation.goBack()} />
-      <StepperHeader current={3} />
+      <TopBar title="Crear cuenta" onBack={() => navigation.goBack()} />
+      <StepperHeader current={3} labels={['Datos', 'Sede', 'Pago']} />
 
       <ScrollView
         style={styles.scroll}
@@ -130,32 +121,15 @@ export function PaymentScreen({ navigation, route }: Props) {
                 </View>
               </TouchableOpacity>
 
-              {/* Campos de tarjeta inline */}
-              {m.id === 'card' && sel && (
-                <View style={styles.cardFields}>
-                  <FormInput label="Número de tarjeta" value={cardNumber} onChangeText={setCardNumber}
-                    placeholder="0000  0000  0000  0000" keyboardType="number-pad" />
-                  <View style={styles.rowFields}>
-                    <View style={styles.halfField}>
-                      <FormInput label="Vencimiento" value={expiry} onChangeText={setExpiry}
-                        placeholder="MM / AA" keyboardType="number-pad" />
-                    </View>
-                    <View style={styles.halfField}>
-                      <FormInput label="CVV" value={cvv} onChangeText={setCvv}
-                        placeholder="•••" keyboardType="number-pad" secureTextEntry />
-                    </View>
-                  </View>
-                  <FormInput label="Nombre en la tarjeta" value={cardName} onChangeText={setCardName}
-                    placeholder="Nombre y apellido" />
-                </View>
-              )}
             </React.Fragment>
           );
         })}
 
         <View style={styles.secureNote}>
           <Icon name="lock" size={14} color={Colors.fg2} />
-          <Text style={styles.secureText}>Pago seguro · TLS 1.2+</Text>
+          <Text style={styles.secureText}>
+            La app no pide datos de tarjeta: el cobro se coordina con tu sede AJUTER.
+          </Text>
         </View>
       </ScrollView>
 
@@ -172,8 +146,8 @@ export function PaymentScreen({ navigation, route }: Props) {
             <ActivityIndicator color={Colors.white} />
           ) : (
             <>
-              <Icon name="lock" size={17} color={Colors.white} />
-              <Text style={styles.btnText}>Pagar $30.000 y continuar</Text>
+              <Icon name="circle-check" size={17} color={Colors.white} />
+              <Text style={styles.btnText}>Activar mi cuenta</Text>
             </>
           )}
         </TouchableOpacity>
@@ -239,12 +213,8 @@ const styles = StyleSheet.create({
   radioSel: { borderColor: Colors.primary },
   radioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: Colors.primary },
 
-  cardFields: { marginBottom: 4, paddingHorizontal: 2 },
-  rowFields: { flexDirection: 'row', gap: 12 },
-  halfField: { flex: 1 },
-
   secureNote: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 16, marginBottom: 2 },
-  secureText: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2 },
+  secureText: { fontFamily: Fonts.body, flex: 1, fontSize: 12, color: Colors.fg2, lineHeight: 17 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
   btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
