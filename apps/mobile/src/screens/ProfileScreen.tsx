@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
-  Alert,
   Linking,
   Pressable,
   ScrollView,
@@ -31,6 +30,7 @@ import {
 } from '../services/offlineStore';
 import { AuthContext, useUserId } from '../context/AuthContext';
 import { Touchable } from '../components/Touchable';
+import { useDialog } from '../context/DialogContext';
 
 
 // Vive en el navegador de pestañas, pero también navega al stack de arriba
@@ -41,6 +41,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function ProfileScreen({ navigation }: Props) {
+  const { showDialog } = useDialog();
   const userId = useUserId();
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -84,14 +85,14 @@ export function ProfileScreen({ navigation }: Props) {
       await saveReminderChoice(activado ? 'accepted' : 'dismissed');
       setReminderOn(activado);
       if (!activado) {
-        Alert.alert(
-          'Sin permiso para avisarte',
-          'Android no nos dejó enviarte el recordatorio. Puedes darlo desde los ajustes del teléfono.',
-          [
-            { text: 'Ahora no', style: 'cancel' },
-            { text: 'Abrir ajustes', onPress: () => Linking.openSettings() },
+        showDialog({
+          title: 'Sin permiso para avisarte',
+          message: 'Android no nos dejó enviarte el recordatorio. Puedes darlo desde los ajustes del teléfono.',
+          actions: [
+            { label: 'Abrir ajustes', onPress: () => Linking.openSettings() },
+            { label: 'Ahora no', tone: 'cancel' },
           ],
-        );
+        });
       }
     } finally {
       setReminderLoading(false);
@@ -165,14 +166,14 @@ export function ProfileScreen({ navigation }: Props) {
   };
 
   const confirmSignOut = () => {
-    Alert.alert(
-      'Cerrar sesión',
-      '¿Seguro que quieres salir de tu cuenta?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Cerrar sesión', style: 'destructive', onPress: signOut },
+    showDialog({
+      title: 'Cerrar sesión',
+      message: '¿Seguro que quieres salir de tu cuenta?',
+      actions: [
+        { label: 'Cerrar sesión', tone: 'danger', onPress: signOut },
+        { label: 'Cancelar', tone: 'cancel' },
       ],
-    );
+    });
   };
 
   return (

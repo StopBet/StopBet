@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -40,6 +39,7 @@ import { readSponsor } from '../services/offlineStore';
 import { useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
 import { useUserId } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 
 const INACTIVITY_MS = 10 * 60 * 1000;
 const IDLE_WARNING_MS = 60 * 1000; // el aviso sale 1 minuto antes de cerrar
@@ -55,6 +55,7 @@ interface ListItem {
 }
 
 export function AssistantScreen() {
+  const { showDialog } = useDialog();
   const userId = useUserId();
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -233,14 +234,13 @@ export function AssistantScreen() {
 
   const handleManualClose = useCallback(async () => {
     if (!sessionId) return;
-    Alert.alert(
+    showDialog({
       // "Cerrar sesión" son las mismas palabras que salir de la cuenta, en Perfil
-      'Terminar conversación',
-      '¿Quieres terminar? Se guardará un resumen de lo que conversaste.',
-      [
-        { text: 'Seguir conversando', style: 'cancel' },
+      title: 'Terminar conversación',
+      message: '¿Quieres terminar? Se guardará un resumen de lo que conversaste.',
+      actions: [
         {
-          text: 'Terminar',
+          label: 'Terminar',
           onPress: async () => {
             try {
               if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
@@ -252,8 +252,9 @@ export function AssistantScreen() {
             }
           },
         },
+        { label: 'Seguir conversando', tone: 'cancel' },
       ],
-    );
+    });
   }, [sessionId]);
 
   const durationMinutes = sessionStartedAt

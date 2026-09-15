@@ -245,7 +245,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   title: { fontFamily: Fonts.headingBold, fontSize: 24, color: c.fg1, letterSpacing: -0.3, marginTop: 6, marginBottom: 0 },
   subtitle: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', paddingHorizontal: 28 },
+  backdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'center', paddingHorizontal: 28 },
   sheet: { backgroundColor: c.surface, borderRadius: 18, paddingVertical: 8 },
   sheetTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1, paddingHorizontal: 18, paddingTop: 12, paddingBottom: 8 },
   sheetRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 14 },

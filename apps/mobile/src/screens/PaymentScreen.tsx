@@ -1,7 +1,6 @@
 import React, { useContext, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -22,6 +21,7 @@ import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { AuthContext } from '../context/AuthContext';
 import { Touchable } from '../components/Touchable';
+import { useDialog } from '../context/DialogContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Payment'>;
 
@@ -40,6 +40,7 @@ const PLAN_FEATURES = [
 ];
 
 export function PaymentScreen({ navigation, route }: Props) {
+  const { showDialog } = useDialog();
   const { isDark } = useTheme();
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -56,11 +57,11 @@ export function PaymentScreen({ navigation, route }: Props) {
       // llevaba a Bienvenida. Con sesión real tampoco se puede entrar directo: el registro
       // no pide contraseña, la crea el equipo de AJUTER al aprobar la solicitud y la manda
       // por correo. Así que el paso siguiente honesto es el login.
-      Alert.alert(
-        'Cuenta activada',
-        'Entra con las credenciales que te enviará AJUTER por correo. El cobro del plan se coordina con tu sede.',
-        [{ text: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') }],
-      );
+      showDialog({
+        title: 'Cuenta activada',
+        message: 'Entra con las credenciales que te enviará AJUTER por correo. El cobro del plan se coordina con tu sede.',
+        actions: [{ label: 'Ir a iniciar sesión', onPress: () => navigation.navigate('Login') }],
+      });
     } catch {
       showToast('No pudimos activar tu cuenta. Inténtalo de nuevo en unos minutos.', 'error');
     } finally {

@@ -1,7 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   ScrollView,
   StatusBar,
@@ -38,6 +37,7 @@ import { isNetworkError } from '../services/checkInQueue';
 import { readAchievements, saveAchievements } from '../services/offlineStore';
 import { Touchable } from '../components/Touchable';
 import { useUserId } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 
 // Ajustar cuando se conecte autenticación real
 const REFRESH_MS = 3 * 60 * 1000;
@@ -117,6 +117,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function AchievementsScreen({ navigation }: Props) {
+  const { showDialog } = useDialog();
   const userId = useUserId();
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -184,14 +185,13 @@ export function AchievementsScreen({ navigation }: Props) {
   );
 
   const handleRelapse = () => {
-    Alert.alert(
-      'Reportar recaída',
-      '¿Quieres reportar una recaída? Tu historial se conserva y el contador comenzará de nuevo.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
+    showDialog({
+      title: 'Registrar una recaída',
+      message: 'Tu historial se conserva y el contador comienza de nuevo. Nadie te va a retar por esto.',
+      actions: [
         {
-          text: 'Reportar',
-          style: 'destructive',
+          label: 'Registrar',
+          tone: 'danger',
           onPress: async () => {
             try {
               const devStartDate = devFlags.overrideDays !== null
@@ -210,8 +210,9 @@ export function AchievementsScreen({ navigation }: Props) {
             }
           },
         },
+        { label: 'Cancelar', tone: 'cancel' },
       ],
-    );
+    });
   };
 
   const handleShare = async () => {
@@ -325,7 +326,9 @@ export function AchievementsScreen({ navigation }: Props) {
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 10 }}>
                   <Icon name="target" size={13} color={c.gold} />
-                  <Text style={styles.progressLabel}>Próximo hito: {nextM} días · faltan {daysLeft} día{daysLeft !== 1 ? 's' : ''}</Text>
+                  <Text style={styles.progressLabel}>
+                    Próximo hito: {nextM} día{nextM !== 1 ? 's' : ''} · faltan {daysLeft} día{daysLeft !== 1 ? 's' : ''}
+                  </Text>
                 </View>
               </View>
             )}
@@ -852,7 +855,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   btnLinkText: { fontFamily: Fonts.bodyBold, color: c.fg2, fontSize: 14 },
   lockedOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(45,90,158,0.32)',
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     paddingHorizontal: 30,
   },

@@ -215,7 +215,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
 const makeStyles = (c: Palette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     paddingHorizontal: 22,
   },

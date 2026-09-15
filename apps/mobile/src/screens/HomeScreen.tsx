@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Pressable,
   ScrollView,
@@ -43,6 +42,7 @@ import { conReintento } from '../services/reintentoEscritura';
 import { useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
 import { useCurrentUser, useUserId } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
 
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -66,6 +66,7 @@ function formatEventDate(iso: string): string {
 }
 
 export function HomeScreen({ navigation }: Props) {
+  const { showDialog } = useDialog();
   const userId = useUserId();
   const user = useCurrentUser();
   const sede = user?.sedeId ?? '';
@@ -133,14 +134,14 @@ export function HomeScreen({ navigation }: Props) {
 
       if (hasPendingExternalRelapse()) {
         acknowledgePendingRelapse();
-        Alert.alert(
-          'Recaída registrada por tu psicólogo',
-          'Tu psicólogo ha registrado una recaída en tu historial. El contador ha sido reiniciado. Tu equipo AJUTER está aquí para apoyarte.',
-          [
-            { text: 'Ver mis logros', onPress: () => navigation.navigate('Achievements') },
-            { text: 'Cerrar', style: 'cancel' },
+        showDialog({
+          title: 'Recaída registrada por tu psicólogo',
+          message: 'Tu psicólogo registró una recaída en tu historial y el contador comenzó de nuevo. Tu equipo AJUTER está acá para acompañarte.',
+          actions: [
+            { label: 'Ver mis logros', onPress: () => navigation.navigate('Achievements') },
+            { label: 'Cerrar', tone: 'cancel' },
           ],
-        );
+        });
       }
     } catch (err) {
       // Quedarse sin red es un estado esperado —hay un simulador en Perfil— y no
@@ -210,14 +211,14 @@ export function HomeScreen({ navigation }: Props) {
     await saveReminderChoice('accepted');
     const { activado } = await registrarParaNotificaciones(userId);
     if (!activado) {
-      Alert.alert(
-        'Sin permiso para avisarte',
-        'Android no nos dejó enviarte el recordatorio. Puedes darlo desde los ajustes del teléfono cuando quieras.',
-        [
-          { text: 'Ahora no', style: 'cancel' },
-          { text: 'Abrir ajustes', onPress: () => Linking.openSettings() },
+      showDialog({
+        title: 'Sin permiso para avisarte',
+        message: 'Android no nos dejó enviarte el recordatorio. Puedes darlo desde los ajustes del teléfono cuando quieras.',
+        actions: [
+          { label: 'Abrir ajustes', onPress: () => Linking.openSettings() },
+          { label: 'Ahora no', tone: 'cancel' },
         ],
-      );
+      });
     }
   };
 

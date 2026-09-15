@@ -9,6 +9,7 @@ import { api, resetRelapseDetection } from './src/services/api';
 import { session } from './src/services/session';
 import { isNetworkError } from './src/services/checkInQueue';
 import { ToastProvider } from './src/context/ToastContext';
+import { DialogProvider } from './src/context/DialogContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 
 // Auth screens
@@ -118,9 +119,11 @@ export default function App() {
       <ThemeProvider>
         <AuthContext.Provider value={{ user, signIn, signOut }}>
           <ToastProvider>
-            <NavigationContainer>
-              {cargandoSesion ? null : user ? <AppNavigator /> : <AuthNavigator />}
-            </NavigationContainer>
+            <DialogProvider>
+              <NavigationContainer>
+                {cargandoSesion ? null : user ? <AppNavigator /> : <AuthNavigator />}
+              </NavigationContainer>
+            </DialogProvider>
           </ToastProvider>
         </AuthContext.Provider>
       </ThemeProvider>
