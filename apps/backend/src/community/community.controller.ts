@@ -9,8 +9,10 @@ import {
   Param,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiHeader,
   ApiOperation,
   ApiParam,
@@ -18,7 +20,11 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { ReactionEmoji } from '@stopbet/shared-types';
+import { AuthUser, ReactionEmoji } from '@stopbet/shared-types';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { CommunityService } from './community.service';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -45,16 +51,23 @@ export class CommunityController {
     return this.service.findAnnouncements(sede, userId);
   }
 
+  // Un anuncio llega a toda la sede con el nombre y el rol del autor arriba. Sin guard,
+  // cualquiera que supiera la URL podía publicar uno firmado como el equipo clínico. El
+  // autor sale del token, no del header: mandar el `x-user-id` de otro ya no sirve.
   @Post('announcements')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('psychologist', 'coordinator')
+  @ApiBearerAuth()
   @HttpCode(201)
-  @ApiOperation({ summary: 'Crea un anuncio (psicólogo o admin)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del autor' })
+  @ApiOperation({ summary: 'Crea un anuncio (psicólogo o coordinador)' })
   @ApiResponse({ status: 201, description: 'Anuncio creado' })
+  @ApiResponse({ status: 401, description: 'Token ausente o inválido' })
+  @ApiResponse({ status: 403, description: 'Solo el equipo clínico puede publicar anuncios' })
   createAnnouncement(
-    @Headers('x-user-id') authorId: string,
+    @CurrentUser() user: AuthUser,
     @Body() dto: CreateAnnouncementDto,
   ) {
-    return this.service.createAnnouncement(dto, authorId);
+    return this.service.createAnnouncement(dto, user.id);
   }
 
   @Post('announcements/:id/attend')
@@ -177,31 +190,40 @@ export class CommunityController {
 
   // ── Moderación (psicólogo, desde el dashboard) ───────────────────────────
 
+  // El rol lo sigue validando el servicio (`assertPsychologist`); lo que faltaba acá era
+  // que la identidad viniera del token: con `x-user-id` bastaba escribir el UUID de un
+  // psicólogo para leer todo lo reportado, con el texto y el nombre de quien lo escribió.
   @Get('moderation/flagged')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Lista publicaciones con 1+ reporte para moderación (psicólogo)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del psicólogo' })
   @ApiQuery({ name: 'sede', description: 'Sede (Santiago | Viña del Mar | Concepción)' })
   @ApiResponse({
     status: 200,
     description: 'CommunityPost[] reportadas, con los motivos (sin identificar al denunciante)',
   })
+  @ApiResponse({ status: 401, description: 'Token ausente o inválido' })
   @ApiResponse({ status: 403, description: 'Solo un psicólogo puede moderar' })
   findFlagged(
-    @Headers('x-user-id') userId: string,
+    @CurrentUser() user: AuthUser,
     @Query('sede') sede?: string,
   ) {
-    return this.service.findFlaggedPosts(sede, userId);
+    return this.service.findFlaggedPosts(sede, user.id);
   }
 
+  // Sin `@Roles`: el servicio deja borrar al autor su propia publicación y a un psicólogo
+  // cualquiera reportada. Un guard de rol acá le quitaría al paciente el borrado de lo suyo.
   @Delete('posts/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @HttpCode(200)
-  @ApiOperation({ summary: 'Elimina una publicación reportada (psicólogo)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del psicólogo' })
+  @ApiOperation({ summary: 'Elimina una publicación propia, o una reportada si es psicólogo' })
   @ApiParam({ name: 'id', description: 'UUID de la publicación' })
   @ApiResponse({ status: 200, description: '{ deleted: true }' })
-  @ApiResponse({ status: 403, description: 'Solo un psicólogo puede moderar' })
+  @ApiResponse({ status: 401, description: 'Token ausente o inválido' })
+  @ApiResponse({ status: 403, description: 'No es el autor ni un psicólogo' })
   @ApiResponse({ status: 404, description: 'Publicación no encontrada' })
-  deletePost(@Param('id') id: string, @Headers('x-user-id') userId: string) {
-    return this.service.deletePost(id, userId);
+  deletePost(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.deletePost(id, user.id);
   }
 }

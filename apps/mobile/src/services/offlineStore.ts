@@ -164,3 +164,23 @@ export async function readThemePreference(): Promise<ThemePreference> {
     return 'system';
   }
 }
+
+// Sede elegida por un psicólogo que atiende en más de una. Va por usuario: en un teléfono
+// compartido, la sede del anterior no debe decidir a quién le llega el anuncio del siguiente.
+const SEDE_KEY = '@stopbet/staff-sede';
+
+export async function saveStaffSede(userId: string, sedeId: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(claveDe(SEDE_KEY, userId), sedeId);
+  } catch {
+    // Sin la preferencia guardada se vuelve a la primera sede: no es un fallo grave
+  }
+}
+
+export async function readStaffSede(userId: string): Promise<string | null> {
+  try {
+    return await AsyncStorage.getItem(claveDe(SEDE_KEY, userId));
+  } catch {
+    return null;
+  }
+}

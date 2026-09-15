@@ -136,6 +136,72 @@ async function request<T>(
   }
 }
 
+// ── Tipos de la vista del equipo clínico ─────────────────────────────────────
+// Se declaran acá y no en `@stopbet/shared-types` por la misma razón que en el dashboard
+// web, que ya los tiene locales: tocar el paquete compartido obliga a todo el equipo a
+// recompilarlo después de pullear. Si algún día se mueven, se mueven los dos juntos.
+
+export interface StaffPatient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  sedeId: string | null;
+  daysStreak: number;
+  accountStatus: string;
+  onboardingStatus: string | null;
+  lastCheckIn: { emotion: string; date: string } | null;
+  recentCheckIns: { emotion: string; date: string }[];
+  createdAt: string;
+}
+
+export type PanicStatus = 'pending' | 'responded' | 'escalated' | 'cancelled';
+
+export interface StaffAlert {
+  id: string;
+  patientId: string;
+  patientName: string;
+  sedeId: string | null;
+  status: PanicStatus;
+  communityNotified: boolean;
+  createdAt: string;
+  respondedAt: string | null;
+  escalatedAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface StaffPendingRequest {
+  id: string;
+  userId: string;
+  sedeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface FlaggedPost {
+  id: string;
+  authorId: string;
+  authorName: string | null;
+  type: string;
+  sede: string;
+  body: string | null;
+  reportCount: number;
+  replyCount: number;
+  createdAt: string;
+}
+
+export interface StaffProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  accountStatus: string;
+  sedes: Sede[];
+  patientCount: number;
+  patientsBySede: { sedeId: string; sedeName: string; count: number }[];
+}
+
 export const api = {
   // ── Sesión ───────────────────────────────────────────────────────────
   login: async (email: string, password: string): Promise<LoginResponse> => {
@@ -450,4 +516,34 @@ export const api = {
 
   unmuteCommunity: (userId: string) =>
     request<{ muted: boolean }>('/notifications/community-mute', { userId, method: 'DELETE' }),
+
+  // ── Vista del equipo clínico ─────────────────────────────────────────
+  // Estos cinco endpoints ya exigen `Authorization: Bearer` y rol en el backend, así que
+  // no se les manda `x-user-id`: el servidor saca quién pregunta del token.
+
+  getStaffProfile: (psychologistId: string) =>
+    request<StaffProfile>(`/psychologists/${psychologistId}`),
+
+  getStaffPatients: () => request<StaffPatient[]>('/users/patients'),
+
+  getStaffAlerts: () => request<StaffAlert[]>('/panic/alerts/history'),
+
+  getStaffPendingRequests: () =>
+    request<StaffPendingRequest[]>('/registration/pending'),
+
+  getFlaggedPosts: (sede?: string) =>
+    request<FlaggedPost[]>(
+      `/community/moderation/flagged${sede ? `?sede=${encodeURIComponent(sede)}` : ''}`,
+    ),
+
+  createAnnouncement: (data: {
+    sede: string;
+    body: string;
+    title?: string;
+    eventDate?: string;
+  }) =>
+    request<CommunityPost>('/community/announcements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

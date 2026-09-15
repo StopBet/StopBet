@@ -27,6 +27,21 @@ import { MainTabs } from './src/navigation/MainTabs';
 import { PanicScreen } from './src/screens/PanicScreen';
 import { SuspendedAccountScreen } from './src/screens/SuspendedAccountScreen';
 
+// Equipo clínico
+import { StaffTabs } from './src/navigation/StaffTabs';
+
+// Quién puede entrar por el teléfono. El familiar queda fuera porque su portal es una app
+// web aparte, sin ninguna pantalla acá. El **coordinador** también queda fuera, y no por
+// criterio de producto: el backend no lo atiende. `GET /psychologists/:id` responde 404
+// para él —filtra por `role: 'psychologist'`— así que se queda sin sedes, y
+// `assertPsychologist` le cierra la moderación con 403. Entraría a una app rota. Para
+// sumarlo hay que arreglar esos dos endpoints primero.
+const ROLES_EN_LA_APP: AuthUser['role'][] = ['patient', 'psychologist'];
+
+function esEquipoClínico(rol: AuthUser['role']): boolean {
+  return rol === 'psychologist';
+}
+
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const AppStack = createNativeStackNavigator<AppStackParamList>();
 
@@ -87,8 +102,9 @@ export default function App() {
       resetRelapseDetection();
       const data = await api.login(email, password);
       // El backend no filtra por rol en /auth/login: la web decide en su pantalla de
-      // acceso y acá hacemos lo mismo. Esta app es la del paciente.
-      if (data.user.role !== 'patient') {
+      // acceso y acá hacemos lo mismo. En el teléfono entran el paciente y el equipo
+      // clínico, cada uno a su app; el familiar sigue siendo solo del portal web.
+      if (!ROLES_EN_LA_APP.includes(data.user.role)) {
         await api.logout();
         return 'rol';
       }
@@ -121,7 +137,10 @@ export default function App() {
           <ToastProvider>
             <DialogProvider>
               <NavigationContainer>
-                {cargandoSesion ? null : user ? <AppNavigator /> : <AuthNavigator />}
+                {cargandoSesion ? null
+                  : !user ? <AuthNavigator />
+                  : esEquipoClínico(user.role) ? <StaffTabs />
+                  : <AppNavigator />}
               </NavigationContainer>
             </DialogProvider>
           </ToastProvider>

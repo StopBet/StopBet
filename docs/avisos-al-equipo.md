@@ -20,6 +20,49 @@ está.
 
 ---
 
+## 2026-09-16 — La app móvil ahora también es del psicólogo
+
+**A quién le pega:** a quien toque `apps/mobile`, y a quien toque el módulo `community` del
+backend.
+
+**Qué cambió.** Al entrar con una cuenta de **psicólogo**, la app ya no rechaza la sesión:
+muestra una vista propia con tres secciones —Resumen, Comunidad y Perfil— en vez de la app
+del paciente. Es un espejo condensado del Resumen del panel web, **de solo lectura**, más lo
+único que se puede escribir desde el teléfono: publicar anuncios de la sede y eliminar
+publicaciones reportadas.
+
+**Tres cosas que conviene saber antes de tocar esto:**
+
+1. **Hay dos árboles de navegación, no uno.** `App.tsx` decide por rol: `patient` va a
+   `AppNavigator` (lo de siempre) y `psychologist` a `StaffTabs`. El del equipo clínico **no
+   monta pánico, asistente ni check-in**, y su barra inferior **no tiene el botón SOS**:
+   `POST /panic/alerts` crea una alerta a nombre de quien lo toca, así que ahí no significa
+   nada y podría generar una crisis falsa.
+2. **El coordinador sigue sin entrar por la app, y no es criterio de producto.** El backend
+   no lo atiende: `GET /psychologists/:id` filtra por `role: 'psychologist'` y le responde
+   404, y `assertPsychologist` le cierra la moderación con 403. Entraría a una app rota. Si
+   alguien quiere sumarlo, primero hay que arreglar esos dos endpoints.
+3. **`users.sedeId` guarda dos cosas distintas** y esto no es nuevo, pero acá se nota: las
+   cuentas del seed tienen el **nombre** ("Santiago") y las creadas desde el registro tienen
+   el **UUID**. `panic_alerts` copia la del paciente, así que arrastra lo mismo. Por eso
+   existe `utils/staff.ts → mismaSede()`, que acepta las dos formas. Comparar solo por id
+   deja fuera a media sede **sin que nada lo delate**: la lista sale vacía, no rota. El
+   arreglo de verdad es normalizar la columna, y eso es una migración.
+
+**Backend — `POST /community/announcements` ahora exige token y rol.** Antes **no verificaba
+nada**: bastaba mandar el `x-user-id` de un psicólogo, sin ninguna credencial, para publicar
+un anuncio firmado con su nombre a toda la sede. Ahora lleva `JwtAuthGuard + RolesGuard` y el
+autor sale del token. `GET /community/moderation/flagged` y `DELETE /community/posts/:id`
+llevan `JwtAuthGuard` (sin `@Roles`, porque el servicio ya distingue autor de psicólogo y un
+guard de rol le quitaría al paciente el borrado de lo suyo). **Si algo tuyo llama a esos tres
+endpoints con `x-user-id` y sin `Authorization: Bearer`, ahora recibe 401.** La web y mobile
+ya mandan Bearer.
+
+**No hace falta correr nada** después de pullear: no hay dependencias nuevas. Sí hay que
+**recompilar la app** si la tenías instalada, porque cambió la navegación nativa.
+
+---
+
 ## 2026-09-15 — La auditoría UX de la web ya está hecha: no la repitas
 
 **A quién le pega:** a quien tome el dashboard web (y a quien vaya a tocar mobile).
