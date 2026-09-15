@@ -443,6 +443,10 @@ const UPCOMING_ITEMS: { icon: IconName; label: string; sub: string }[] = [
   { icon: 'user',     label: 'Datos personales', sub: 'Nombre, RUT y contacto' },
   { icon: 'hospital', label: 'Mi sede AJUTER',   sub: 'Tu centro de tratamiento' },
   { icon: 'lock',     label: 'Privacidad',       sub: 'Tus datos y permisos' },
+  // Va acá y no como algo usable a propósito: la pasarela la define el cliente y
+  // todavía no hay reunión, y falta decidir si paga el propio paciente o el
+  // familiar que asignó. Anunciarlo sin poder cobrar sería otra promesa vacía.
+  { icon: 'credit-card', label: 'Portal de pago', sub: 'Pagar tu plan desde la app, tú o tu familiar' },
 ];
 
 const styles = StyleSheet.create({
