@@ -59,7 +59,7 @@ export function LoginScreen({ navigation }: Props) {
         >
           {/* Botón volver */}
           <View style={styles.headerRow}>
-            <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={12}>
+            <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={12} accessibilityRole="button">
               <Icon name="arrow-left" size={18} color={Colors.primary} />
               <Text style={styles.backText}>Volver</Text>
             </Pressable>
@@ -90,6 +90,7 @@ export function LoginScreen({ navigation }: Props) {
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
+                  accessibilityLabel="Correo electrónico"
                   placeholder="tucorreo@ajuter.cl"
                   placeholderTextColor={Colors.fg2}
                   keyboardType="email-address"
@@ -108,6 +109,7 @@ export function LoginScreen({ navigation }: Props) {
                   style={styles.input}
                   value={password}
                   onChangeText={setPassword}
+                  accessibilityLabel="Contraseña"
                   placeholder="Tu contraseña"
                   placeholderTextColor={Colors.fg2}
                   secureTextEntry={!showPassword}
@@ -136,6 +138,9 @@ export function LoginScreen({ navigation }: Props) {
               style={[styles.btnPrimary, (!canSubmit || isLoading) && styles.btnDisabled]}
               onPress={handleLogin}
               disabled={!canSubmit || isLoading}
+              accessibilityRole="button"
+              accessibilityLabel="Iniciar sesión"
+              accessibilityState={{ busy: isLoading }}
             >
               {isLoading
                 ? <ActivityIndicator color="#fff" size="small" />
@@ -145,7 +150,7 @@ export function LoginScreen({ navigation }: Props) {
 
             {/* Banner error */}
             {isError && (
-              <View style={styles.errorBanner}>
+              <View style={styles.errorBanner} accessibilityLiveRegion="polite">
                 <Text style={styles.errorText}>Correo o contraseña incorrectos</Text>
               </View>
             )}
@@ -194,6 +199,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingVertical: 8,
+    minHeight: 48,
     alignSelf: 'flex-start',
   },
   backText: {
@@ -272,9 +278,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.ink900,
     paddingVertical: 0,
+    // todo el alto de la caja es tocable, no solo la línea de texto
+    alignSelf: 'stretch',
+    textAlignVertical: 'center',
   },
   eyeBtn: {
     paddingLeft: 10,
+    minWidth: 44,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   btnPrimary: {
     height: 52,
@@ -308,7 +321,9 @@ const styles = StyleSheet.create({
   },
   forgotBtn: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 14,
+    minHeight: 48,
   },
   forgotText: {
     fontSize: 13.5,

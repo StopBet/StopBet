@@ -45,6 +45,13 @@ const REACTION_ICON_MAP: Record<ReactionEmoji, IconName> = {
   '🤗': 'smile',
 };
 
+// TalkBack lee el ícono como nada y el contador suelto como "2": cada reacción necesita nombre
+const REACTION_NAME: Record<ReactionEmoji, string> = {
+  '💪': 'Fuerza',
+  '❤️': 'Cariño',
+  '🤗': 'Abrazo',
+};
+
 const ROLE_LABEL: Record<UserRole, string> = {
   patient: 'Paciente',
   psychologist: 'Psicólogo',
@@ -315,6 +322,9 @@ export function CommunityScreen({ navigation, route }: Props) {
           style={styles.panicBtn}
           activeOpacity={0.85}
           onPress={() => navigation.navigate('Panic')}
+          accessibilityRole="button"
+          accessibilityLabel="Botón de pánico"
+          hitSlop={{ top: 8, bottom: 8 }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <Icon name="siren" size={14} color={Colors.white} />
@@ -324,14 +334,26 @@ export function CommunityScreen({ navigation, route }: Props) {
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity style={styles.tab} onPress={() => setTab('announcements')} activeOpacity={0.7}>
+      <View style={styles.tabs} accessibilityRole="tablist">
+        <TouchableOpacity
+          style={styles.tab}
+          onPress={() => setTab('announcements')}
+          activeOpacity={0.7}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'announcements' }}
+        >
           <Text style={[styles.tabText, tab === 'announcements' && styles.tabTextActive]}>
             Anuncios
           </Text>
           {tab === 'announcements' && <View style={styles.tabUnderline} />}
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => setTab('forum')} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.tab}
+          onPress={() => setTab('forum')}
+          activeOpacity={0.7}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'forum' }}
+        >
           <Text style={[styles.tabText, tab === 'forum' && styles.tabTextActive]}>Foro</Text>
           {tab === 'forum' && <View style={styles.tabUnderline} />}
         </TouchableOpacity>
@@ -429,6 +451,7 @@ export function CommunityScreen({ navigation, route }: Props) {
               <View style={[styles.composer, offline && styles.composerOff]}>
                 <TextInput
                   style={styles.composerInput}
+                  accessibilityLabel="Mensaje para la comunidad"
                   placeholder={offline ? 'Necesitas conexión para publicar' : 'Escribe un mensaje de apoyo…'}
                   placeholderTextColor={Colors.fg2}
                   value={draft}
@@ -440,6 +463,9 @@ export function CommunityScreen({ navigation, route }: Props) {
                   style={[styles.sendBtn, (offline || !draft.trim()) && styles.sendBtnDisabled]}
                   onPress={handlePost}
                   disabled={offline || !draft.trim() || posting}
+                  accessibilityRole="button"
+                  accessibilityLabel="Publicar mensaje"
+                  accessibilityState={{ busy: posting }}
                   activeOpacity={0.85}
                 >
                   {posting ? (
@@ -469,6 +495,7 @@ export function CommunityScreen({ navigation, route }: Props) {
             </Text>
             <TextInput
               style={styles.modalInput}
+              accessibilityLabel="Motivo del reporte"
               placeholder="Motivo del reporte…"
               placeholderTextColor={Colors.fg2}
               value={reportReason}
@@ -481,6 +508,7 @@ export function CommunityScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 style={styles.modalCancel}
                 onPress={() => setReportPostId(null)}
+                accessibilityRole="button"
                 disabled={reportSending}
               >
                 <Text style={styles.modalCancelText}>Cancelar</Text>
@@ -489,6 +517,9 @@ export function CommunityScreen({ navigation, route }: Props) {
                 style={[styles.modalSubmit, (!reportReason.trim() || reportSending) && styles.modalSubmitDisabled]}
                 onPress={submitReport}
                 disabled={!reportReason.trim() || reportSending}
+                accessibilityRole="button"
+                accessibilityLabel="Reportar"
+                accessibilityState={{ busy: reportSending }}
               >
                 {reportSending
                   ? <ActivityIndicator size="small" color={Colors.white} />
@@ -560,6 +591,9 @@ function AnnouncementCard({
             style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
             onPress={onToggleAttendance}
             disabled={disabled}
+            accessibilityRole="button"
+            accessibilityState={{ selected: !!announcement.userAttends }}
+            hitSlop={{ top: 7, bottom: 7 }}
             activeOpacity={0.85}
           >
             {announcement.userAttends ? (
@@ -613,7 +647,12 @@ function PostCard({
           <Text style={styles.authorName}>{post.authorName}</Text>
           <Text style={styles.authorMeta}>{timeAgo(post.createdAt)}</Text>
         </View>
-        <TouchableOpacity onPress={onMenuPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <TouchableOpacity
+          onPress={onMenuPress}
+          hitSlop={14}
+          accessibilityRole="button"
+          accessibilityLabel="Opciones del mensaje"
+        >
           <Icon name="ellipsis" size={20} color={Colors.fg2} />
         </TouchableOpacity>
       </View>
@@ -630,6 +669,10 @@ function PostCard({
               style={[styles.reactChip, s.userReacted && styles.reactChipOn]}
               onPress={() => onReact(emoji)}
               disabled={disabled}
+              hitSlop={{ top: 11, bottom: 11, left: 5, right: 5 }}
+              accessibilityRole="button"
+              accessibilityLabel={`${REACTION_NAME[emoji]}, ${s.count} ${s.count === 1 ? 'reacción' : 'reacciones'}`}
+              accessibilityState={{ selected: !!s.userReacted, disabled }}
               activeOpacity={0.7}
             >
               <Icon name={REACTION_ICON_MAP[emoji]} size={14} color={s.userReacted ? Colors.primary : Colors.fg2} />
@@ -638,7 +681,13 @@ function PostCard({
           );
         })}
         <View style={styles.flex} />
-        <TouchableOpacity onPress={onToggleReplies} activeOpacity={0.7}>
+        <TouchableOpacity
+          onPress={onToggleReplies}
+          activeOpacity={0.7}
+          hitSlop={{ top: 14, bottom: 14, left: 6, right: 6 }}
+          accessibilityRole="button"
+          accessibilityState={{ expanded }}
+        >
           <Text style={styles.replyLink}>
             {post.replyCount > 0 ? `${post.replyCount} respuestas` : 'Responder'}
           </Text>
@@ -669,6 +718,7 @@ function PostCard({
             <View style={styles.replyComposer}>
               <TextInput
                 style={styles.replyInput}
+                accessibilityLabel="Tu respuesta"
                 placeholder="Escribe una respuesta…"
                 placeholderTextColor={Colors.fg2}
                 value={replyDraft}
@@ -679,6 +729,7 @@ function PostCard({
                 style={[styles.replySendBtn, !replyDraft.trim() && styles.sendBtnDisabled]}
                 onPress={onSendReply}
                 disabled={!replyDraft.trim()}
+                accessibilityRole="button"
                 activeOpacity={0.85}
               >
                 <Text style={styles.replySendText}>Enviar</Text>
@@ -804,7 +855,7 @@ const styles = StyleSheet.create({
   },
   headerMeta: { flex: 1, minWidth: 0 },
   headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
-  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.teal400, marginTop: 3 },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onPrimaryMuted, marginTop: 3 },
   panicBtn: {
     backgroundColor: Colors.danger,
     borderRadius: 9999,
@@ -819,7 +870,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  tab: { flex: 1, alignItems: 'center', paddingTop: 14, paddingBottom: 12 },
+  tab: { flex: 1, alignItems: 'center', paddingTop: 14, paddingBottom: 12, minHeight: 48 },
   tabText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg2 },
   tabTextActive: { fontFamily: Fonts.bodyBold, color: Colors.primary },
   tabUnderline: {
@@ -837,7 +888,7 @@ const styles = StyleSheet.create({
     paddingVertical: 11,
     paddingHorizontal: 18,
   },
-  offlineText: { fontFamily: Fonts.bodyBold, color: Colors.accent, fontSize: 13 },
+  offlineText: { fontFamily: Fonts.bodyBold, color: Colors.primary, fontSize: 13 },
 
   loader: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
 
@@ -909,7 +960,7 @@ const styles = StyleSheet.create({
   },
   roleChipAdmin: { backgroundColor: Colors.amber50 },
   roleChipText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.primary },
-  roleChipTextAdmin: { color: Colors.accent },
+  roleChipTextAdmin: { color: Colors.fg1 },
 
   // Foro
   msgCard: {

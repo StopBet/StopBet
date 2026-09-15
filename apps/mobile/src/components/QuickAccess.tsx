@@ -18,6 +18,7 @@ export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchieve
         activeOpacity={0.85}
         onPress={onPressAssistant}
         style={styles.primaryButton}
+        accessibilityRole="button"
       >
         <View style={styles.primaryIcon}>
           <Icon name="sparkles" size={24} color={Colors.white} />
@@ -35,6 +36,7 @@ export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchieve
           activeOpacity={0.85}
           onPress={onPressCommunity}
           style={styles.secondaryButton}
+          accessibilityRole="button"
         >
           <View style={[styles.secondaryIcon, { backgroundColor: '#E6F4F2' }]}>
             <Icon name="users" size={20} color={Colors.primary} />
@@ -46,9 +48,10 @@ export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchieve
           activeOpacity={0.85}
           onPress={onPressAchievements}
           style={styles.secondaryButton}
+          accessibilityRole="button"
         >
           <View style={[styles.secondaryIcon, { backgroundColor: Colors.gold50 }]}>
-            <Icon name="trophy" size={20} color={Colors.gold} />
+            <Icon name="trophy" size={20} color={Colors.greenText} />
           </View>
           <Text style={styles.secondaryLabel}>Mis logros</Text>
         </TouchableOpacity>
@@ -97,7 +100,7 @@ const styles = StyleSheet.create({
   primarySubtitle: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.overlayWhite72,
+    color: Colors.onPrimaryMuted,
     marginTop: 4,
   },
   grid: {

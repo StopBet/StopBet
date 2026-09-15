@@ -37,6 +37,9 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
         onPress={() => onTabPress(tab.id)}
         style={styles.tab}
         activeOpacity={0.7}
+        accessibilityRole="tab"
+        accessibilityLabel={tab.label}
+        accessibilityState={{ selected: isActive }}
       >
         <Icon name={tab.icon} size={24} color={isActive ? Colors.primary : Colors.fg2} />
         <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>
@@ -47,7 +50,7 @@ export function BottomNav({ active, onTabPress, onPanicPress }: Props) {
   };
 
   return (
-    <View style={[styles.bar, { paddingBottom: Math.max(bottom, 12) }]}>
+    <View style={[styles.bar, { paddingBottom: Math.max(bottom, 12) }]} accessibilityRole="tablist">
       {LEFT_TABS.map(renderTab)}
 
       <TouchableOpacity

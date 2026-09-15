@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
   capDone: {
-    color: Colors.sage500,
+    color: Colors.greenText,
   },
   line: {
     flex: 1,

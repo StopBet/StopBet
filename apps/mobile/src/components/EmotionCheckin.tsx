@@ -23,10 +23,10 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
   return (
     <View style={styles.wrapper}>
       <View style={styles.header}>
-        <Text style={styles.title}>Check emocional diario</Text>
+        <Text style={styles.title} accessibilityRole="header">Check emocional diario</Text>
         {done && (
           <View style={styles.badge}>
-            <Icon name="check" size={13} color={Colors.sage500} />
+            <Icon name="check" size={13} color={Colors.greenText} />
             <Text style={styles.badgeText}>Completado hoy</Text>
           </View>
         )}
@@ -46,6 +46,10 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
               activeOpacity={0.8}
               disabled={done}
               onPress={() => onPick(o.type)}
+              // sin label TalkBack leería el nombre del emoji antes que la emoción
+              accessibilityRole="button"
+              accessibilityLabel={o.label}
+              accessibilityState={{ selected: isSelected, disabled: done }}
               style={[
                 styles.emotionCard,
                 isSelected && styles.emotionCardSelected,
@@ -92,7 +96,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.sage500,
+    color: Colors.greenText,
   },
   scrollContent: {
     paddingHorizontal: 16,
@@ -135,6 +139,6 @@ const styles = StyleSheet.create({
   },
   labelSelected: {
     fontFamily: Fonts.bodyBold,
-    color: Colors.sage500,
+    color: Colors.greenText,
   },
 });

@@ -94,6 +94,8 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
                 key={sede.id}
                 activeOpacity={0.85}
                 onPress={() => setSelectedSedeId(sede.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: sel }}
                 style={[styles.card, sel && styles.cardSelected]}
               >
                 <View style={[styles.pin, sel && styles.pinSelected]}>
@@ -124,6 +126,8 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
           style={[styles.btn, (!selectedSedeId || submitting) && styles.btnDisabled]}
           onPress={handleSubmit}
           disabled={!selectedSedeId || submitting}
+          accessibilityRole="button"
+          accessibilityState={{ busy: submitting }}
         >
           {submitting ? (
             <ActivityIndicator color={Colors.white} />
@@ -181,7 +185,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     marginTop: 8,
   },
-  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.sage500 },
+  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.greenText },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },

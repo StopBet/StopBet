@@ -224,11 +224,15 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
 
           {/* Buttons */}
           <Animated.View style={{ opacity: btnsOp, width: '100%', alignItems: 'center', marginTop: 4 }}>
-            <TouchableOpacity style={styles.btnPrimary} onPress={onShare} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.btnPrimary} onPress={onShare} activeOpacity={0.85} accessibilityRole="button">
               <Icon name="users" size={18} color={Colors.white} />
               <Text style={styles.btnPrimaryText}>Compartir con la comunidad</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={onClose} style={styles.btnLink}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.btnLink}
+              accessibilityRole="button"
+            >
               <Text style={styles.btnLinkText}>Ahora no</Text>
             </TouchableOpacity>
           </Animated.View>
@@ -314,7 +318,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.accent,
+    color: Colors.primary,
     marginTop: 5,
   },
   sub: {
@@ -338,6 +342,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
-  btnLink: { marginTop: 14, padding: 4 },
+  btnLink: { marginTop: 14, minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
   btnLinkText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 14 },
 });

@@ -27,10 +27,10 @@ export function CrisisCard({ crisis, onPanic, onContactSponsor }: Props) {
   };
 
   return (
-    <View style={styles.card}>
+    <View style={styles.card} accessibilityLiveRegion="polite">
       <View style={styles.header}>
         <Icon name="triangle-alert" size={18} color={Colors.danger} />
-        <Text style={styles.title}>
+        <Text style={styles.title} accessibilityRole="header">
           {crisis.sustained ? 'Llevas un rato difícil' : 'Estoy aquí contigo'}
         </Text>
       </View>
@@ -38,7 +38,7 @@ export function CrisisCard({ crisis, onPanic, onContactSponsor }: Props) {
         No tienes que pasar este momento solo. Puedes buscar ayuda ahora mismo:
       </Text>
       {crisis.suggestions.map((s) => (
-        <TouchableOpacity key={s} style={styles.action} onPress={() => handle(s)}>
+        <TouchableOpacity key={s} style={styles.action} onPress={() => handle(s)} accessibilityRole="button">
           <Icon name={LABELS[s].icon} size={16} color={Colors.danger} />
           <Text style={styles.actionText}>{LABELS[s].text}</Text>
         </TouchableOpacity>
@@ -64,6 +64,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    minHeight: 48,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
