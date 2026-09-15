@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-14 — Auditoría UX de la web: cambios visibles en el panel y el portal (PR pendiente)
+## 2026-09-14 — Auditoría UX de la web: cambios visibles en el panel y el portal (PR #95)
 
 **A quién le pega:** a quien use o muestre el panel web, sobre todo a **Eduardo** (Resumen,
 Alertas y `DashboardApp.tsx`), **José Meza** (login), **Matías Lara** y **Catalina Yáñez**
