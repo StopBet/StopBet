@@ -11,28 +11,44 @@ export function PrivacyCard() {
         <View style={styles.shield}>
           <Icon name="shield" size={18} color={Colors.primary} />
         </View>
-        <Text style={styles.title}>Esta conversación es privada</Text>
+        <Text style={styles.title}>Qué pasa con lo que escribes</Text>
       </View>
 
       <Text style={styles.body}>
-        Habla con total libertad. Nada de lo que escribas aquí se comparte. Al cerrar la sesión solo
-        se guarda un resumen muy general de tu progreso.
+        Puedes hablar con libertad. Esto es lo que pasa con tus mensajes:
       </Text>
 
       <View style={styles.list}>
         <View style={styles.listItem}>
           <View style={styles.listIcon}>
-            <Icon name="check" size={14} color={Colors.sage500} />
+            <Icon name="eye-off" size={14} color={Colors.primary} />
+          </View>
+          <Text style={styles.listText}>Tu psicólogo no lee esta conversación.</Text>
+        </View>
+        <View style={styles.listItem}>
+          <View style={styles.listIcon}>
+            <Icon name="lock" size={14} color={Colors.primary} />
           </View>
           <Text style={styles.listText}>
-            Solo se registran datos generales: ánimo, técnica usada y nivel de riesgo.
+            Tus mensajes quedan guardados en tu cuenta para que puedas retomar la conversación,
+            mientras tu cuenta exista.
           </Text>
         </View>
         <View style={styles.listItem}>
           <View style={styles.listIcon}>
-            <Icon name="x" size={14} color={Colors.fg2} />
+            <Icon name="sparkles" size={14} color={Colors.primary} />
           </View>
-          <Text style={styles.listText}>No se guarda el contenido de los mensajes.</Text>
+          <Text style={styles.listText}>
+            Para responderte, tus mensajes pasan por un servicio de IA de Google, sin tu nombre ni tu RUT.
+          </Text>
+        </View>
+        <View style={styles.listItem}>
+          <View style={styles.listIcon}>
+            <Icon name="clipboard-list" size={14} color={Colors.primary} />
+          </View>
+          <Text style={styles.listText}>
+            Al cerrar, se guarda un resumen: ánimo, técnica usada y nivel de riesgo.
+          </Text>
         </View>
       </View>
     </View>
