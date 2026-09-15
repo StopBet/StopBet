@@ -7,7 +7,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,6 +35,7 @@ import { useToast } from '../context/ToastContext';
 import { devFlags } from '../store/devFlags';
 import { isNetworkError } from '../services/checkInQueue';
 import { readAchievements, saveAchievements } from '../services/offlineStore';
+import { Touchable } from '../components/Touchable';
 
 // Ajustar cuando se conecte autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -328,7 +328,7 @@ export function AchievementsScreen({ navigation }: Props) {
 
             {/* Iba en el rojo reservado al pánico y en el centro de la tarjeta del logro:
                 se leía como castigo. El modal que viene después ya tiene el tono correcto. */}
-            <TouchableOpacity
+            <Touchable
               style={styles.relapseBtn}
               onPress={handleRelapse}
               activeOpacity={0.8}
@@ -340,7 +340,7 @@ export function AchievementsScreen({ navigation }: Props) {
                 <Icon name="hand-heart" size={15} color={Colors.fg2} />
                 <Text style={styles.relapseBtnText}>Registrar una recaída</Text>
               </View>
-            </TouchableOpacity>
+            </Touchable>
           </View>
           )}
 
@@ -353,7 +353,7 @@ export function AchievementsScreen({ navigation }: Props) {
               const isNewest = milestone === newestEarnedMilestone;
               const cfg = BADGE_CONFIG[milestone];
               return (
-                <TouchableOpacity
+                <Touchable
                   key={milestone}
                   style={styles.badgeItem}
                   activeOpacity={earned ? 0.75 : 1}
@@ -391,7 +391,7 @@ export function AchievementsScreen({ navigation }: Props) {
                     {cfg.label}
                   </Text>
                   <Text style={styles.badgeDays}>{cfg.daysLabel}</Text>
-                </TouchableOpacity>
+                </Touchable>
               );
             })}
           </View>
@@ -426,13 +426,14 @@ export function AchievementsScreen({ navigation }: Props) {
                 ? `Se consigue a los ${BADGE_CONFIG[lockedInfo].daysLabel}. Te faltan ${lockedInfo - days} día${lockedInfo - days !== 1 ? 's' : ''}.`
                 : 'Todavía no la consigues. Va a aparecer acá cuando la ganes.'}
             </Text>
-            <TouchableOpacity
+            <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
               style={styles.lockedBtn}
               onPress={() => setLockedInfo(null)}
               accessibilityRole="button"
             >
               <Text style={styles.lockedBtnText}>Entendido</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         </View>
       </Modal>
@@ -455,7 +456,8 @@ export function AchievementsScreen({ navigation }: Props) {
               {isExternalRelapse ? 'Tu psicólogo registró una recaída' : 'No estás solo en esto'}
             </Text>
             <Text style={styles.modalText}>{relapseMessage}</Text>
-            <TouchableOpacity
+            <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
               style={styles.btnPrimary}
               onPress={() => {
                 setRelapseModal(false);
@@ -469,14 +471,14 @@ export function AchievementsScreen({ navigation }: Props) {
                 <Icon name="message-circle" size={18} color={Colors.white} />
                 <Text style={styles.btnPrimaryText}>Hablar con el asistente ahora</Text>
               </View>
-            </TouchableOpacity>
-            <TouchableOpacity
+            </Touchable>
+            <Touchable
               onPress={() => { setRelapseModal(false); setIsExternalRelapse(false); }}
               style={styles.btnLink}
               accessibilityRole="button"
             >
               <Text style={styles.btnLinkText}>Cerrar</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         </View>
       </Modal>

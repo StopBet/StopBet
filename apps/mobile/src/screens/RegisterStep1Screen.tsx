@@ -9,7 +9,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +22,7 @@ import { BirthDatePicker } from '../components/BirthDatePicker';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
+import { Touchable } from '../components/Touchable';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterStep1'>;
 
@@ -195,10 +195,11 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
       </KeyboardAvoidingView>
 
       <View style={styles.footer}>
-        <TouchableOpacity activeOpacity={0.85} style={styles.btn} onPress={handleContinue} accessibilityRole="button">
+        <Touchable
+      rippleColor="rgba(255,255,255,0.28)" activeOpacity={0.85} style={styles.btn} onPress={handleContinue} accessibilityRole="button">
           <Text style={styles.btnText}>Continuar</Text>
           <Icon name="arrow-right" size={18} color={Colors.white} />
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       <BirthDatePicker
@@ -215,7 +216,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
           <Pressable style={styles.sheet} accessible={false}>
             <Text style={styles.sheetTitle}>¿Cómo conociste AJUTER?</Text>
             {REFERRAL_OPTIONS.map(opt => (
-              <TouchableOpacity key={opt} style={styles.sheetRow} activeOpacity={0.7}
+              <Touchable key={opt} style={styles.sheetRow} activeOpacity={0.7}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: referralSource === opt }}
                 onPress={() => { setReferralSource(opt); setShowReferral(false); }}>
@@ -223,7 +224,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
                 {referralSource === opt && (
                   <Icon name="check" size={18} color={Colors.primary} />
                 )}
-              </TouchableOpacity>
+              </Touchable>
             ))}
           </Pressable>
         </Pressable>

@@ -6,7 +6,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,6 +19,7 @@ import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterStep2'>;
 
@@ -110,15 +110,15 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
             <Text style={styles.loadErrorText}>
               No pudimos cargar las sedes. Revisa tu conexión e inténtalo de nuevo.
             </Text>
-            <TouchableOpacity style={styles.retryBtn} onPress={loadSedes} accessibilityRole="button">
+            <Touchable style={styles.retryBtn} onPress={loadSedes} accessibilityRole="button">
               <Text style={styles.retryText}>Reintentar</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         ) : (
           sedes.map((sede) => {
             const sel = selectedSedeId === sede.id;
             return (
-              <TouchableOpacity
+              <Touchable
                 key={sede.id}
                 activeOpacity={0.85}
                 onPress={() => setSelectedSedeId(sede.id)}
@@ -145,14 +145,15 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
                 ) : (
                   <View style={styles.radio} />
                 )}
-              </TouchableOpacity>
+              </Touchable>
             );
           })
         )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
           activeOpacity={0.85}
           style={[styles.btn, (!selectedSedeId || submitting) && styles.btnDisabled]}
           onPress={handleSubmit}
@@ -169,7 +170,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
               <Text style={styles.btnText}>Enviar solicitud</Text>
             </>
           )}
-        </TouchableOpacity>
+        </Touchable>
       </View>
     </SafeAreaView>
   );

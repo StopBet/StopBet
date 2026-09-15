@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
+import { Touchable } from './Touchable';
 
 /**
  * El acceso al pánico desde un encabezado.
@@ -16,7 +17,8 @@ import { Icon } from './Icon';
  */
 export function PanicHeaderButton({ onPress }: { onPress: () => void }) {
   return (
-    <TouchableOpacity
+    <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
       style={styles.btn}
       activeOpacity={0.85}
       onPress={onPress}
@@ -28,7 +30,7 @@ export function PanicHeaderButton({ onPress }: { onPress: () => void }) {
         <Icon name="siren" size={16} color={Colors.white} />
         <Text style={styles.label}>Pánico</Text>
       </View>
-    </TouchableOpacity>
+    </Touchable>
   );
 }
 

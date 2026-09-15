@@ -5,12 +5,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
+import { Touchable } from './Touchable';
 
 type Props = {
   visible: boolean;
@@ -99,15 +99,15 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
         <Pressable style={styles.sheet} accessible={false}>
           <View style={styles.header}>
             <Text style={styles.title} accessibilityRole="header">Fecha de nacimiento</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={14} accessibilityRole="button" accessibilityLabel="Cerrar">
+            <Touchable onPress={onClose} hitSlop={14} accessibilityRole="button" accessibilityLabel="Cerrar">
 
               <Icon name="x" size={20} color={Colors.fg2} />
-            </TouchableOpacity>
+            </Touchable>
           </View>
 
           {/* Migas: cada tramo ya elegido vuelve a su paso con un toque */}
           <View style={styles.crumbs}>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setStep('year')}
+            <Touchable activeOpacity={0.7} onPress={() => setStep('year')}
               hitSlop={{ top: 10, bottom: 10 }}
               accessibilityRole="button"
               accessibilityLabel={step === 'year' ? `Año ${year}` : `Año ${year}, cambiar`}
@@ -115,9 +115,9 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
               style={[styles.crumbPill, step === 'year' && styles.crumbPillOn]}>
               {step !== 'year' && <Icon name="chevron-left" size={14} color={Colors.primary} />}
               <Text style={[styles.crumb, step === 'year' && styles.crumbActive]}>{year}</Text>
-            </TouchableOpacity>
+            </Touchable>
             {step !== 'year' && (
-              <TouchableOpacity activeOpacity={0.7} onPress={() => setStep('month')}
+              <Touchable activeOpacity={0.7} onPress={() => setStep('month')}
                 hitSlop={{ top: 10, bottom: 10 }}
                 accessibilityRole="button"
                 accessibilityLabel={step === 'month' ? `Mes ${MONTHS[month]}` : `Mes ${MONTHS[month]}, cambiar`}
@@ -127,7 +127,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
                 <Text style={[styles.crumb, step === 'month' && styles.crumbActive]}>
                   {MONTHS[month]}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             )}
             <Text style={styles.crumbHint}>
               {step === 'year' ? 'Elige el año' : step === 'month' ? 'Elige el mes' : 'Elige el día'}
@@ -137,13 +137,14 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
           {step === 'year' && (
             <ScrollView ref={yearScroll} style={styles.scroll} contentContainerStyle={styles.grid}>
               {years.map(y => (
-                <TouchableOpacity key={y} style={[styles.cell3, y === year && styles.cellOn]}
+                <Touchable
+      rippleColor="rgba(255,255,255,0.28)" key={y} style={[styles.cell3, y === year && styles.cellOn]}
                   activeOpacity={0.7}
                   accessibilityRole="button"
                   accessibilityState={{ selected: y === year }}
                   onPress={() => { if (!armed) return; setYear(y); setStep('month'); }}>
                   <Text style={[styles.cellText, y === year && styles.cellTextOn]}>{y}</Text>
-                </TouchableOpacity>
+                </Touchable>
               ))}
             </ScrollView>
           )}
@@ -153,7 +154,8 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
               {MONTHS.map((name, i) => {
                 const off = monthDisabled(i);
                 return (
-                  <TouchableOpacity key={name} disabled={off}
+                  <Touchable
+      rippleColor="rgba(255,255,255,0.28)" key={name} disabled={off}
                     style={[styles.cell3, i === month && styles.cellOn, off && styles.cellOff]}
                     activeOpacity={0.7}
                     accessibilityRole="button"
@@ -163,7 +165,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
                     <Text style={[styles.cellText, i === month && styles.cellTextOn, off && styles.cellTextOff]}>
                       {name.slice(0, 3)}
                     </Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 );
               })}
             </View>
@@ -185,7 +187,8 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
                   const off = dayDisabled(day);
                   const on = initial?.d === day && initial.m === month && initial.y === year;
                   return (
-                    <TouchableOpacity key={day} disabled={off} activeOpacity={0.7}
+                    <Touchable
+      rippleColor="rgba(255,255,255,0.28)" key={day} disabled={off} activeOpacity={0.7}
                       style={[styles.cell7, on && styles.cellOn, off && styles.cellOff]}
                       accessibilityRole="button"
                       accessibilityLabel={`${day} de ${MONTHS[month].toLowerCase()} de ${year}`}
@@ -194,7 +197,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
                       <Text style={[styles.cellText, on && styles.cellTextOn, off && styles.cellTextOff]}>
                         {day}
                       </Text>
-                    </TouchableOpacity>
+                    </Touchable>
                   );
                 })}
               </View>

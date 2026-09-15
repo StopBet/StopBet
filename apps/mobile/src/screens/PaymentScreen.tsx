@@ -6,7 +6,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,6 +20,7 @@ import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { AuthContext } from '../context/AuthContext';
+import { Touchable } from '../components/Touchable';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Payment'>;
 
@@ -107,7 +107,7 @@ export function PaymentScreen({ navigation, route }: Props) {
           const sel = method === m.id;
           return (
             <React.Fragment key={m.id}>
-              <TouchableOpacity
+              <Touchable
                 activeOpacity={0.85}
                 onPress={() => setMethod(m.id)}
                 accessibilityRole="radio"
@@ -121,7 +121,7 @@ export function PaymentScreen({ navigation, route }: Props) {
                 <View style={[styles.radio, sel && styles.radioSel]}>
                   {sel && <View style={styles.radioDot} />}
                 </View>
-              </TouchableOpacity>
+              </Touchable>
 
             </React.Fragment>
           );
@@ -136,7 +136,8 @@ export function PaymentScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
           activeOpacity={0.85}
           style={[styles.btn, paying && styles.btnDisabled]}
           onPress={handlePay}
@@ -152,7 +153,7 @@ export function PaymentScreen({ navigation, route }: Props) {
               <Text style={styles.btnText}>Activar mi cuenta</Text>
             </>
           )}
-        </TouchableOpacity>
+        </Touchable>
       </View>
     </SafeAreaView>
   );

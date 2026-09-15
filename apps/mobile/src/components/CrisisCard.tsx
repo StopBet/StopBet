@@ -1,9 +1,10 @@
 import React from 'react';
-import { Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, StyleSheet, Text, View } from 'react-native';
 import type { CrisisSignal, CrisisSuggestion, SponsorInfo } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 const CRISIS_LINE = '*4141';
 
@@ -59,10 +60,10 @@ export function CrisisCard({ crisis, sponsor, onPanic, onOpenSupportNetwork }: P
       {crisis.suggestions.map((s) => {
         const { text, icon } = labelFor(s);
         return (
-          <TouchableOpacity key={s} style={styles.action} onPress={() => handle(s)} accessibilityRole="button">
+          <Touchable key={s} style={styles.action} onPress={() => handle(s)} accessibilityRole="button">
             <Icon name={icon} size={16} color={Colors.danger} />
             <Text style={styles.actionText}>{text}</Text>
-          </TouchableOpacity>
+          </Touchable>
         );
       })}
     </View>

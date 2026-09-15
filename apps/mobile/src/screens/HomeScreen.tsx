@@ -8,7 +8,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -41,6 +40,7 @@ import {
 } from '../services/offlineStore';
 import { conReintento } from '../services/reintentoEscritura';
 import { useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -396,7 +396,7 @@ export function HomeScreen({ navigation }: Props) {
           <QuickAccess onPressAssistant={() => navigation.navigate('Assistant')} />
 
           {nextEvent && (
-            <TouchableOpacity
+            <Touchable
               style={styles.eventCard}
               activeOpacity={0.85}
               onPress={() => navigation.navigate('Community', { initialTab: 'announcements' })}
@@ -411,7 +411,7 @@ export function HomeScreen({ navigation }: Props) {
                 <Text style={styles.eventWhen}>{formatEventDate(nextEvent.eventDate!)}</Text>
               </View>
               <Icon name="chevron-right" size={20} color={Colors.fg2} />
-            </TouchableOpacity>
+            </Touchable>
           )}
         </ScrollView>
       )}

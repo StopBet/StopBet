@@ -11,7 +11,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -35,6 +34,7 @@ import { isNetworkError } from '../services/checkInQueue';
 import { readCommunity, saveCommunity } from '../services/offlineStore';
 import { devFlags } from '../store/devFlags';
 import { toast, useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -332,7 +332,7 @@ export function CommunityScreen({ navigation, route }: Props) {
 
       {/* Tabs */}
       <View style={styles.tabs} accessibilityRole="tablist">
-        <TouchableOpacity
+        <Touchable
           style={styles.tab}
           onPress={() => setTab('announcements')}
           activeOpacity={0.7}
@@ -343,8 +343,8 @@ export function CommunityScreen({ navigation, route }: Props) {
             Anuncios
           </Text>
           {tab === 'announcements' && <View style={styles.tabUnderline} />}
-        </TouchableOpacity>
-        <TouchableOpacity
+        </Touchable>
+        <Touchable
           style={styles.tab}
           onPress={() => setTab('forum')}
           activeOpacity={0.7}
@@ -353,7 +353,7 @@ export function CommunityScreen({ navigation, route }: Props) {
         >
           <Text style={[styles.tabText, tab === 'forum' && styles.tabTextActive]}>Foro</Text>
           {tab === 'forum' && <View style={styles.tabUnderline} />}
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       {/* El modo simulado producía un banner idéntico al de una caída real, así que
@@ -463,7 +463,8 @@ export function CommunityScreen({ navigation, route }: Props) {
                   editable={!offline}
                   multiline
                 />
-                <TouchableOpacity
+                <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                   style={[styles.sendBtn, (offline || !draft.trim()) && styles.sendBtnDisabled]}
                   onPress={handlePost}
                   disabled={offline || !draft.trim() || posting}
@@ -477,7 +478,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                   ) : (
                     <Icon name="send" size={18} color={Colors.white} />
                   )}
-                </TouchableOpacity>
+                </Touchable>
               </View>
             </>
           )}
@@ -491,7 +492,7 @@ export function CommunityScreen({ navigation, route }: Props) {
         animationType="fade"
         onRequestClose={() => setMenuPost(null)}
       >
-        <TouchableOpacity
+        <Touchable
           style={styles.sheetBackdrop}
           activeOpacity={1}
           onPress={() => setMenuPost(null)}
@@ -500,7 +501,7 @@ export function CommunityScreen({ navigation, route }: Props) {
           <View style={styles.sheetCard}>
             <Text style={styles.sheetTitle}>Opciones de la publicación</Text>
             {menuPost?.authorId === TEMP_USER_ID ? (
-              <TouchableOpacity
+              <Touchable
                 style={styles.sheetItem}
                 accessibilityRole="button"
                 onPress={() => {
@@ -513,9 +514,9 @@ export function CommunityScreen({ navigation, route }: Props) {
                 <Text style={[styles.sheetItemText, { color: Colors.danger }]}>
                   Eliminar mi publicación
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             ) : (
-              <TouchableOpacity
+              <Touchable
                 style={styles.sheetItem}
                 accessibilityRole="button"
                 onPress={() => {
@@ -526,18 +527,18 @@ export function CommunityScreen({ navigation, route }: Props) {
               >
                 <Icon name="flag" size={18} color={Colors.fg1} />
                 <Text style={styles.sheetItemText}>Reportar publicación</Text>
-              </TouchableOpacity>
+              </Touchable>
             )}
-            <TouchableOpacity
+            <Touchable
               style={styles.sheetItem}
               accessibilityRole="button"
               onPress={() => setMenuPost(null)}
             >
               <Icon name="x" size={18} color={Colors.fg2} />
               <Text style={[styles.sheetItemText, { color: Colors.fg2 }]}>Cancelar</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
-        </TouchableOpacity>
+        </Touchable>
       </Modal>
 
       {/* CA5.3: motivo del reporte */}
@@ -565,15 +566,16 @@ export function CommunityScreen({ navigation, route }: Props) {
               autoFocus
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity
+              <Touchable
                 style={styles.modalCancel}
                 onPress={() => setReportPostId(null)}
                 accessibilityRole="button"
                 disabled={reportSending}
               >
                 <Text style={styles.modalCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Touchable>
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.modalSubmit, (!reportReason.trim() || reportSending) && styles.modalSubmitDisabled]}
                 onPress={submitReport}
                 disabled={!reportReason.trim() || reportSending}
@@ -584,7 +586,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                 {reportSending
                   ? <ActivityIndicator size="small" color={Colors.white} />
                   : <Text style={styles.modalSubmitText}>Reportar</Text>}
-              </TouchableOpacity>
+              </Touchable>
             </View>
           </View>
         </View>
@@ -657,7 +659,8 @@ function AnnouncementCard({
               </Text>
             </View>
           ) : (
-            <TouchableOpacity
+            <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
               style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
               onPress={onToggleAttendance}
               disabled={disabled}
@@ -674,7 +677,7 @@ function AnnouncementCard({
               ) : (
                 <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
               )}
-            </TouchableOpacity>
+            </Touchable>
           )}
         </View>
       )}
@@ -718,14 +721,14 @@ function PostCard({
           <Text style={styles.authorName}>{post.authorName}</Text>
           <Text style={styles.authorMeta}>{timeAgo(post.createdAt)}</Text>
         </View>
-        <TouchableOpacity
+        <Touchable
           onPress={onMenuPress}
           hitSlop={14}
           accessibilityRole="button"
           accessibilityLabel="Opciones del mensaje"
         >
           <Icon name="ellipsis" size={20} color={Colors.fg2} />
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       <Text style={styles.msgBody}>{post.body}</Text>
@@ -735,7 +738,7 @@ function PostCard({
         {REACTION_EMOJIS.map((emoji) => {
           const s = summaryFor(emoji);
           return (
-            <TouchableOpacity
+            <Touchable
               key={emoji}
               style={[styles.reactChip, s.userReacted && styles.reactChipOn]}
               onPress={() => onReact(emoji)}
@@ -748,11 +751,11 @@ function PostCard({
             >
               <Icon name={REACTION_ICON_MAP[emoji]} size={14} color={s.userReacted ? Colors.primary : Colors.fg2} />
               {s.count > 0 && <Text style={styles.reactCount}>{s.count}</Text>}
-            </TouchableOpacity>
+            </Touchable>
           );
         })}
         <View style={styles.flex} />
-        <TouchableOpacity
+        <Touchable
           onPress={onToggleReplies}
           activeOpacity={0.7}
           hitSlop={{ top: 14, bottom: 14, left: 6, right: 6 }}
@@ -762,7 +765,7 @@ function PostCard({
           <Text style={styles.replyLink}>
             {post.replyCount > 0 ? `${post.replyCount} respuestas` : 'Responder'}
           </Text>
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       {/* Respuestas */}
@@ -796,7 +799,8 @@ function PostCard({
                 onChangeText={onChangeReplyDraft}
                 multiline
               />
-              <TouchableOpacity
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.replySendBtn, !replyDraft.trim() && styles.sendBtnDisabled]}
                 onPress={onSendReply}
                 disabled={!replyDraft.trim()}
@@ -804,7 +808,7 @@ function PostCard({
                 activeOpacity={0.85}
               >
                 <Text style={styles.replySendText}>Enviar</Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
           )}
         </View>

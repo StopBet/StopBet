@@ -9,7 +9,6 @@ import {
   Switch,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +25,7 @@ import { registrarParaNotificaciones } from '../services/pushNotifications';
 import { useToast } from '../context/ToastContext';
 import { readReminderChoice, saveReminderChoice } from '../services/offlineStore';
 import { AuthContext } from '../context/AuthContext';
+import { Touchable } from '../components/Touchable';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -324,13 +324,14 @@ export function ProfileScreen({ navigation }: Props) {
                   returnKeyType="done"
                   onSubmitEditing={applyDays}
                 />
-                <TouchableOpacity style={styles.devApplyBtn} onPress={applyDays}>
+                <Touchable
+      rippleColor="rgba(255,255,255,0.28)" style={styles.devApplyBtn} onPress={applyDays}>
                   <Text style={styles.devApplyText}>OK</Text>
-                </TouchableOpacity>
+                </Touchable>
                 {devFlags.overrideDays !== null && (
-                  <TouchableOpacity style={styles.devClearBtn} onPress={clearDays}>
+                  <Touchable style={styles.devClearBtn} onPress={clearDays}>
                     <Icon name="x" size={14} color={Colors.fg2} />
-                  </TouchableOpacity>
+                  </Touchable>
                 )}
               </View>
             </View>
@@ -360,7 +361,8 @@ export function ProfileScreen({ navigation }: Props) {
                 <Text style={styles.devLabel}>Check-in emocional</Text>
                 <Text style={styles.devSub}>Reinicia el check-in de hoy para volver a registrarlo</Text>
               </View>
-              <TouchableOpacity
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.devApplyBtn, checkInResetStatus === 'loading' && { opacity: 0.5 }]}
                 onPress={resetCheckIn}
                 disabled={checkInResetStatus === 'loading'}
@@ -368,7 +370,7 @@ export function ProfileScreen({ navigation }: Props) {
                 <Text style={styles.devApplyText}>
                   {checkInResetStatus === 'loading' ? '…' : 'Reset'}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
             {checkInResetStatus === 'ok' && (
               <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
@@ -394,7 +396,8 @@ export function ProfileScreen({ navigation }: Props) {
                 <Text style={styles.devLabel}>Alerta de pánico</Text>
                 <Text style={styles.devSub}>Cancela la alerta activa para volver al botón idle</Text>
               </View>
-              <TouchableOpacity
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.devApplyBtn, panicResetStatus === 'loading' && { opacity: 0.5 }]}
                 onPress={resetPanicAlert}
                 disabled={panicResetStatus === 'loading'}
@@ -402,7 +405,7 @@ export function ProfileScreen({ navigation }: Props) {
                 <Text style={styles.devApplyText}>
                   {panicResetStatus === 'loading' ? '…' : 'Reset'}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
             {panicResetStatus === 'ok' && (
               <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
@@ -423,7 +426,7 @@ export function ProfileScreen({ navigation }: Props) {
           </View>
         )}
 
-        <TouchableOpacity
+        <Touchable
           style={styles.signOutBtn}
           onPress={confirmSignOut}
           accessibilityRole="button"
@@ -431,7 +434,7 @@ export function ProfileScreen({ navigation }: Props) {
         >
           <Icon name="log-out" size={18} color={Colors.fg1} />
           <Text style={styles.signOutText}>Cerrar sesión</Text>
-        </TouchableOpacity>
+        </Touchable>
       </ScrollView>
 
     </SafeAreaView>

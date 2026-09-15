@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,6 +37,7 @@ import { PanicHeaderButton } from '../components/PanicHeaderButton';
 import type { AppStackParamList } from '../navigation/types';
 import { readSponsor } from '../services/offlineStore';
 import { useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
 
 const PLACEHOLDER_USER_ID = '11111111-1111-1111-1111-111111111111'; // TODO: reemplazar con ID real del contexto de auth
 const INACTIVITY_MS = 10 * 60 * 1000;
@@ -319,7 +319,7 @@ export function AssistantScreen() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <Touchable
           onPress={() => navigation.goBack()}
           style={styles.backBtn}
           hitSlop={8}
@@ -327,7 +327,7 @@ export function AssistantScreen() {
           accessibilityLabel="Volver"
         >
           <Icon name="arrow-left" size={20} color={Colors.fg1} />
-        </TouchableOpacity>
+        </Touchable>
 
         <View style={styles.headerCenter}>
           <View style={styles.avatarDot}>
@@ -344,7 +344,7 @@ export function AssistantScreen() {
 
         <View style={styles.headerActions}>
           {sessionId && (
-            <TouchableOpacity
+            <Touchable
               onPress={handleManualClose}
               style={styles.closeBtn}
               accessibilityRole="button"
@@ -352,7 +352,7 @@ export function AssistantScreen() {
               accessibilityHint="Guarda un resumen y cierra el chat"
             >
               <Icon name="x" size={20} color={Colors.fg2} />
-            </TouchableOpacity>
+            </Touchable>
           )}
           <PanicHeaderButton onPress={() => navigation.navigate('Panic')} />
         </View>
@@ -389,16 +389,17 @@ export function AssistantScreen() {
               Revisa tu conexión y vuelve a intentarlo. Si necesitas ayuda ahora, usa el botón de pánico o llama al *4141.
             </Text>
             <View style={styles.initErrorActions}>
-              <TouchableOpacity style={styles.retryBtn} onPress={initSession} accessibilityRole="button">
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)" style={styles.retryBtn} onPress={initSession} accessibilityRole="button">
                 <Text style={styles.retryText}>Reintentar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Touchable>
+              <Touchable
                 style={styles.panicLink}
                 onPress={() => navigation.navigate('Panic')}
                 accessibilityRole="button"
               >
                 <Text style={styles.panicLinkText}>Ir al botón de pánico</Text>
-              </TouchableOpacity>
+              </Touchable>
             </View>
           </View>
         )}
@@ -410,13 +411,13 @@ export function AssistantScreen() {
             <Text style={styles.idleText}>
               Si no escribes en un minuto, cerramos la conversación y guardamos el resumen.
             </Text>
-            <TouchableOpacity
+            <Touchable
               onPress={resetInactivityTimer}
               style={styles.idleBtn}
               accessibilityRole="button"
             >
               <Text style={styles.idleBtnText}>Sigo acá</Text>
-            </TouchableOpacity>
+            </Touchable>
           </View>
         )}
 
@@ -435,7 +436,8 @@ export function AssistantScreen() {
             returnKeyType="send"
             onSubmitEditing={handleSend}
           />
-          <TouchableOpacity
+          <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
             onPress={handleSend}
             disabled={!sessionId || !inputText.trim() || isSending}
             accessibilityRole="button"
@@ -446,7 +448,7 @@ export function AssistantScreen() {
             ]}
           >
             <Icon name="arrow-up" size={20} color={Colors.white} />
-          </TouchableOpacity>
+          </Touchable>
         </View>
       </KeyboardAvoidingView>
 

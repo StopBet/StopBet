@@ -5,12 +5,12 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 interface Props {
   label: string;
@@ -105,7 +105,7 @@ export function FormInput({
             importantForAutofill={autoCorrect ? undefined : 'no'}
           />
           {secureTextEntry && (
-            <TouchableOpacity
+            <Touchable
               onPress={() => setSecure((v) => !v)}
               style={styles.eyeBtn}
               hitSlop={11}
@@ -113,7 +113,7 @@ export function FormInput({
               accessibilityLabel={secure ? 'Mostrar contraseña' : 'Ocultar contraseña'}
             >
               <Icon name={secure ? 'eye' : 'eye-off'} size={18} color={Colors.fg2} />
-            </TouchableOpacity>
+            </Touchable>
           )}
           {trailingIcon && !secureTextEntry && (
             <View style={styles.trailing}>

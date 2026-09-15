@@ -4,7 +4,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,6 +13,7 @@ import { TopBar } from '../components/TopBar';
 import { Icon } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
+import { Touchable } from '../components/Touchable';
 
 const INSTITUTION_ID = 'AJUTER';
 
@@ -39,7 +39,7 @@ export function SelectInstitutionScreen({ navigation }: Props) {
         </Text>
 
         {/* AJUTER — seleccionada */}
-        <TouchableOpacity
+        <Touchable
           activeOpacity={0.85}
           onPress={() => setSelected(INSTITUTION_ID)}
           accessibilityRole="radio"
@@ -60,7 +60,7 @@ export function SelectInstitutionScreen({ navigation }: Props) {
           {selected === INSTITUTION_ID && (
             <Icon name="check" size={20} color={Colors.primary} />
           )}
-        </TouchableOpacity>
+        </Touchable>
 
         {/* Próximamente */}
         <View style={[styles.card, styles.cardSoon]}>
@@ -79,7 +79,8 @@ export function SelectInstitutionScreen({ navigation }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
           activeOpacity={0.85}
           style={[styles.btn, !selected && styles.btnDisabled]}
           onPress={() =>
@@ -90,7 +91,7 @@ export function SelectInstitutionScreen({ navigation }: Props) {
         >
           <Text style={styles.btnText}>Continuar</Text>
           <Icon name="arrow-right" size={18} color={Colors.white} />
-        </TouchableOpacity>
+        </Touchable>
       </View>
     </SafeAreaView>
   );

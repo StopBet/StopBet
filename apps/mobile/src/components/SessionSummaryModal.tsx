@@ -3,13 +3,13 @@ import {
   Modal,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import type { AiSessionSummary } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 interface SummaryChip {
   bg: string;
@@ -122,9 +122,10 @@ export function SessionSummaryModal({
             </Text>
           </View>
 
-          <TouchableOpacity activeOpacity={0.85} onPress={onContinue} style={styles.btn} accessibilityRole="button">
+          <Touchable
+      rippleColor="rgba(255,255,255,0.28)" activeOpacity={0.85} onPress={onContinue} style={styles.btn} accessibilityRole="button">
             <Text style={styles.btnText}>Continuar</Text>
-          </TouchableOpacity>
+          </Touchable>
 
         </View>
       </View>

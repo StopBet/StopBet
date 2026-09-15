@@ -1,8 +1,9 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
+import { Touchable } from './Touchable';
 
 interface Props {
   title: string;
@@ -14,7 +15,7 @@ export function TopBar({ title, stepLabel, onBack }: Props) {
   return (
     <View style={styles.bar}>
       {onBack ? (
-        <TouchableOpacity
+        <Touchable
           onPress={onBack}
           activeOpacity={0.7}
           style={styles.backBtn}
@@ -23,7 +24,7 @@ export function TopBar({ title, stepLabel, onBack }: Props) {
           accessibilityLabel="Volver"
         >
           <Icon name="arrow-left" size={18} color={Colors.fg1} />
-        </TouchableOpacity>
+        </Touchable>
       ) : (
         <View style={styles.backBtn} />
       )}
