@@ -34,6 +34,26 @@ export type MainTabsParamList = {
   Profile: undefined;
 };
 
+/**
+ * Las tres secciones del equipo clínico. Mismo gesto de deslizar que el paciente, con
+ * otro contenido: acá no hay pánico, ni check-in, ni logros.
+ */
+export type StaffTabsParamList = {
+  Summary: undefined;
+  StaffCommunity: undefined;
+  StaffProfile: undefined;
+};
+
+/**
+ * El redactor de anuncios va en el stack y no dentro de la pestaña: abrir el teclado sobre
+ * el pager lo rearma en la primera página y remonta la pantalla, así que un modal hijo de
+ * Comunidad se cerraba con el anuncio a medio escribir.
+ */
+export type StaffStackParamList = {
+  StaffTabs: NavigatorScreenParams<StaffTabsParamList> | undefined;
+  NewAnnouncement: { sedeNombre: string };
+};
+
 export type AppStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabsParamList> | undefined;
   Assistant: undefined;

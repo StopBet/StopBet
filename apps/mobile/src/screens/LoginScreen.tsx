@@ -33,7 +33,7 @@ const MENSAJES: Record<LoginError, string> = {
   credenciales: 'Correo o contraseña incorrectos',
   suspendida:
     'Tu cuenta está suspendida por mensualidades pendientes. Escribe a contacto@ajuter.cl para reactivarla.',
-  rol: 'Esta app es para pacientes. Si eres del equipo clínico, entra por el panel web.',
+  rol: 'Esta cuenta no entra por la app. El panel web es el camino para tu rol.',
   red: 'No pudimos conectar. Revisa tu conexión e inténtalo de nuevo.',
 };
 
