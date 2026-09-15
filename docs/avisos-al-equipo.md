@@ -20,6 +20,41 @@ está.
 
 ---
 
+## 2026-09-14 — Auditoría UX de la web: cambios visibles en el panel y el portal (PR pendiente)
+
+**A quién le pega:** a quien use o muestre el panel web, sobre todo a **Eduardo** (Resumen,
+Alertas y `DashboardApp.tsx`), **José Meza** (login), **Matías Lara** y **Catalina Yáñez**
+(Solicitudes) y a quien toque Equipo o el portal del familiar.
+
+**Qué hacer:** no hay nada que instalar ni correr. Estos cambios son a propósito:
+
+- **Estados de alerta reales.** Las alertas de pánico muestran «Esperando al padrino»,
+  «Escalada · sin respuesta», «El padrino respondió» o «Cerrada». Antes, una alerta
+  escalada (que sigue abierta) decía «Resuelto con IA», y una cerrada decía «Sin resolver».
+  Se usa `utils/alertStatus.ts` y `components/AlertStatusBadge.tsx`: no vuelvas a mapear
+  los estados a mano.
+- **Se quitaron botones sin acción:**
+  - «Exportar lista», `···`, la paginación falsa y la campana con «3» fijo;
+  - «Atender» y «Exportar» en Alertas;
+  - los «Guardar cambios» de la ficha y de Configuración.
+
+  Si esperabas verlos, no es un bug.
+- **Solicitudes pide menos datos.** Al aprobar ya no se piden padrino, fecha ni notas, y
+  al rechazar ya no se pide motivo, porque el backend no recibía ninguno de esos datos.
+- **Secciones marcadas como provisorias:**
+  - Configuración muestra el usuario de la sesión, en solo lectura;
+  - Finanzas avisa que sus datos son de ejemplo;
+  - «Mis pacientes» y «Reportes» dicen «Próximamente».
+- **Contraste.** Hay un token nuevo, `--secondary-text` (verde para texto), y `--teal-50`
+  quedó un punto más claro. El verde `#97b23f` y el azul claro ya no se usan como texto,
+  porque no alcanzaban el contraste mínimo. La skill `stopbet-web-design` está actualizada.
+- **Modales accesibles.** Para uno nuevo usa `hooks/useDialog`: se cierra con Escape y el
+  foco no se escapa.
+
+Detalle completo: `docs/auditoria-ux-web-2026-09-14.md`.
+
+---
+
 ## 2026-09-03 — Aprobar una solicitud ya refresca el conteo de pacientes en Equipo (commit directo en `main`)
 
 **A quién le pega:** a **Eduardo**, porque toca `apps/web/src/DashboardApp.tsx`, que es suyo — si

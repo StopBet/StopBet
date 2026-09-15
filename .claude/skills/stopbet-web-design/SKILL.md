@@ -40,19 +40,23 @@ Usa siempre el token semántico, nunca el crudo ni un hex a mano.
 | `bg-primary` / `text-primary` | `--primary` | `#396fb6` | Azul StopBet — acciones, headers |
 | `hover:bg-primary-hover` | `--primary-hover` | `#2d5a9e` | Azul oscuro — hover/pressed |
 | `bg-accent` / `text-accent` | `--accent` | `#93bce5` | Azul claro — CTAs, highlights |
-| `bg-secondary` / `text-secondary` | `--secondary` | `#97b23f` | Verde del manual — progreso, logros |
+| `bg-secondary` | `--secondary` | `#97b23f` | Verde del manual oscurecido — **solo rellenos** (barras, fondos) |
+| `text-secondary-text` | `--secondary-text` | `#5B7324` | Verde para **texto e íconos** (5,35:1 sobre blanco) |
 | `bg-danger` / `text-danger` | `--danger` | `#B83232` | **SOLO** pánico y alertas críticas |
 | `bg-bg` | `--bg` | `#f4f4e9` | Fondo crema de la app |
 | `bg-surface` | `--surface` | `#FFFFFF` | Tarjetas, modales, paneles |
-| `bg-surface-alt` | `--surface-alt` | `#EAF1F9` | Fondo alternativo (tinte azul) |
+| `bg-surface-alt` | `--surface-alt` | `#ECF3FA` | Fondo alternativo (tinte azul) |
 | `text-fg1` | `--fg1` | `#3a3939` | Texto principal |
 | `text-fg2` | `--fg2` | `#6b6a6a` | Texto secundario, labels |
 | `text-fg-on-primary` | `--fg-on-primary` | `#FFFFFF` | Texto sobre fondo primario |
 | `border-border` | `--border` | `#E2E2D6` | Bordes, separadores |
 | `text-disabled` | `--disabled` | `#B9B9AE` | Estados deshabilitados |
 
-**Ojo con el verde:** el manual trae `#c2d66e`, pero se usa oscurecido a `#97b23f` porque el
-original no alcanza contraste AA sobre blanco. Usa `--secondary`, no el hex del manual.
+**Ojo con el verde:** el manual trae `#c2d66e`, y el panel usa `#97b23f` para rellenos. **Ninguno
+de los dos sirve como texto:** `#97b23f` da 2,40:1 sobre blanco (AA pide 4,5:1). Para texto e
+íconos verdes usa `--secondary-text` (`#5B7324`). Lo mismo con el azul claro: `--accent` es para
+fondos y bordes; el texto azul va en `--primary`. (Corregido en la auditoría web del 14-09-2026:
+esta skill antes decía que `#97b23f` cumplía AA.)
 
 ### Gradiente institucional
 
@@ -115,12 +119,12 @@ import { WIcon } from '../components/WIcon'
 del tamaño pedido, sin error ni warning en consola.** Si un ícono "no aparece", casi siempre es
 que el nombre no está en `ICON_MAP` — verifica contra esta lista antes de buscar en otro lado.
 
-**Los 41 nombres disponibles:**
+**Los 43 nombres disponibles:**
 
 `activity` · `arrow-right` · `bell` · `calendar` · `camera` · `chart-column` · `check` ·
 `chevron-down` · `chevron-left` · `chevron-right` · `circle-alert` · `circle-check` ·
 `clipboard-list` · `clock` · `download` · `flag` · `hand` · `heart-handshake` · `house` ·
-`inbox` · `life-buoy` · `map-pin` · `menu` · `message-circle` · `more-horizontal` ·
+`inbox` · `life-buoy` · `loader` · `log-out` · `map-pin` · `menu` · `message-circle` · `more-horizontal` ·
 `notebook-pen` · `search` · `send` · `settings` · `shield` · `sparkles` · `target` ·
 `trash-2` · `trending-up` · `triangle-alert` · `trophy` · `user-plus` · `user-round` ·
 `users` · `wallet` · `x`
@@ -161,12 +165,24 @@ componente las usa**: es residuo. En código nuevo usa `WIcon`.
 <span className="text-fg2 text-xs">Caption</span>
 ```
 
+## Piezas compartidas (desde la auditoría web del 14-09-2026)
+
+- **Estado de una alerta de pánico:** usa `components/AlertStatusBadge` y `utils/alertStatus.ts`.
+  `escalated` es una alerta **activa** (el padrino no respondió), no una resuelta. `isToday()` compara
+  el día local: `toISOString()` da el día UTC y en Chile falla desde las 20–21 h.
+- **Diálogos:** usa `hooks/useDialog` y pon `role="dialog"`, `aria-modal="true"`, `tabIndex={-1}` y un
+  nombre (`aria-labelledby` o `aria-label`). Así se cierra con Escape y el foco no se escapa.
+- **Foco:** `index.css` ya pinta un anillo en `:focus-visible`. No quites el foco sin dejar otro indicador.
+- **Botones solo de ícono:** llevan `aria-label` siempre.
+- **Datos que no existen:** no se inventan. Si una sección no tiene backend, se dice ("Próximamente",
+  "Datos de ejemplo") en vez de mostrar números o botones sin efecto.
+
 ## Reglas clínicas de diseño
 
 - **`bg-danger` SOLO** para el botón de pánico y alertas críticas. Nunca para validaciones de formulario.
 - Sin colores vibrantes ni animaciones llamativas en estados de crisis del paciente.
 - Íconos de salud (`heart-handshake`, `life-buoy`, `shield`) van con `text-primary` o
-  `text-secondary`, nunca `text-danger` en contextos neutros.
+  `text-secondary-text`, nunca `text-danger` en contextos neutros.
 - Contraste mínimo **WCAG AA** en todo texto sobre fondo de color. Es la razón por la que el
   verde del manual se usa oscurecido.
 
