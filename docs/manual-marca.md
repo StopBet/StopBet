@@ -2,7 +2,8 @@
 
 Referencia rápida de la identidad visual, para que no haya que pedir la imagen del manual
 por el grupo cada vez. Si algo acá contradice al manual original, **manda el manual** —
-y corrige este archivo.
+y corrige este archivo — **salvo las decisiones anotadas abajo**, que el PDF del manual
+todavía no refleja.
 
 ## Paleta
 
@@ -20,10 +21,17 @@ críticas, y no debe usarse decorativamente.
 
 Los seis colores están en [`apps/mobile/src/constants/colors.ts`](../apps/mobile/src/constants/colors.ts).
 
-> ⚠️ El dashboard web **no** usa esta paleta: usa el tema AJUTER (naranja `#E8883A`),
-> descrito en la sección "Design System" de [`CLAUDE.md`](../CLAUDE.md). Son dos marcas
-> distintas conviviendo — AJUTER es la institución, StopBet el producto. No unificar sin
-> preguntar.
+**El azul oficial es `#396fb6`.** El PDF del manual pone al lado RGB 71,111,182, que en
+realidad es `#476FB6`: es un error de tipeo del PDF, no otro color. El ícono de la app
+(`ic_launcher`, adaptativo desde `mipmap-anydpi-v26`) usa `#3073B5`, el mismo azul del
+avatar de Instagram y de los PNG de Android 7, para que el ícono no cambie de tono según la
+versión de Android. A simple vista son el mismo azul; no "corregirlo" a `#396fb6`.
+
+> El dashboard web usa esta misma marca desde el 2026-08-31 (antes iba con el tema AJUTER,
+> naranja `#E8883A`), con dos ajustes de contraste: el texto principal y el verde van más
+> oscuros para cumplir AA. Tokens y detalle en la sección "Design System" de
+> [`CLAUDE.md`](../CLAUDE.md). El logo de AJUTER sigue al pie del sidebar, porque identifica
+> a la institución que usa el panel.
 
 ## Tipografías
 
@@ -32,6 +40,11 @@ Los seis colores están en [`apps/mobile/src/constants/colors.ts`](../apps/mobil
 | Primaria | **Chillax** | Títulos y headings |
 | Secundaria | **Satoshi** | Cuerpo, labels, botones, UI |
 | Terciaria | **Lato** | Complementaria: apoyos, metadata, texto de bajo énfasis |
+
+> **Satoshi es la secundaria, no Lato.** El PDF del manual las muestra al revés (Lato para
+> "cuerpo de texto o web", Satoshi como complementaria). Decisión del PO del 2026-09-14:
+> Satoshi va como secundaria, que es lo que ya usan la app y la web. No cambiar las fuentes a
+> Lato siguiendo el PDF.
 
 Los pesos disponibles están mapeados en
 [`apps/mobile/src/constants/typography.ts`](../apps/mobile/src/constants/typography.ts);
