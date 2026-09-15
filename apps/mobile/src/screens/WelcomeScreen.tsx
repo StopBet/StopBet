@@ -9,16 +9,20 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useTheme, useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Touchable } from '../components/Touchable';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Welcome'>;
 
 export function WelcomeScreen({ navigation }: Props) {
+  const { isDark } = useTheme();
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
 
       {/* Ilustración central */}
       <View style={styles.body}>
@@ -70,10 +74,10 @@ export function WelcomeScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
   },
   body: {
     flex: 1,
@@ -115,7 +119,7 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 22,
     // El isotipo es blanco: sobre el azul claro no se leía.
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -128,14 +132,14 @@ const styles = StyleSheet.create({
     // heredaba Lato del default global de App.tsx.
     fontFamily: Fonts.headingBold,
     fontSize: 40,
-    color: Colors.primary,
+    color: c.primaryText,
     letterSpacing: -0.5,
     marginTop: 22,
   },
   tagline: {
     fontFamily: Fonts.body,
     fontSize: 16,
-    color: Colors.fg2,
+    color: c.fg2,
     marginTop: 10,
     lineHeight: 24,
     textAlign: 'center',
@@ -146,7 +150,7 @@ const styles = StyleSheet.create({
     paddingBottom: 30,
   },
   btnPrimary: {
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     height: 54,
     alignItems: 'center',
@@ -155,7 +159,7 @@ const styles = StyleSheet.create({
   btnPrimaryText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
-    color: Colors.white,
+    color: c.white,
   },
   btnLink: {
     alignItems: 'center',
@@ -166,6 +170,6 @@ const styles = StyleSheet.create({
   btnLinkText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.primary,
+    color: c.primaryText,
   },
 });

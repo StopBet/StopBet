@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -8,7 +8,8 @@ import {
   View,
 } from 'react-native';
 import type { BadgeMilestone } from '@stopbet/shared-types';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { useReduceMotion } from '../hooks/useReduceMotion';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
@@ -33,28 +34,31 @@ interface Props {
 // Spark particles — pre-computed angles/distances so they're stable across renders
 // Eran naranjas AJUTER (#E8883A) y oros inventados, de un tema que ya no existe.
 // Ahora salen del manual de marca: verde, azul claro y lila.
-const SPARKS = [
-  { angle: 0,   dist: 78, color: Colors.green,  size: 10 },
-  { angle: 35,  dist: 92, color: Colors.accent, size: 7 },
-  { angle: 72,  dist: 68, color: Colors.purple,  size: 12 },
-  { angle: 112, dist: 84, color: Colors.green,  size: 8 },
-  { angle: 155, dist: 76, color: Colors.accent, size: 10 },
-  { angle: 198, dist: 88, color: Colors.purple,  size: 7 },
-  { angle: 242, dist: 72, color: Colors.green,  size: 9 },
-  { angle: 285, dist: 82, color: Colors.accent, size: 8 },
-  { angle: 328, dist: 70, color: Colors.purple,  size: 11 },
-  { angle: 50,  dist: 96, color: Colors.green,  size: 5 },
-  { angle: 150, dist: 94, color: Colors.accent, size: 5 },
-  { angle: 250, dist: 98, color: Colors.purple,  size: 5 },
-] as const;
+const makeSparks = (c: Palette) => [
+  { angle: 0,   dist: 78, color: c.green,  size: 10 },
+  { angle: 35,  dist: 92, color: c.accent, size: 7 },
+  { angle: 72,  dist: 68, color: c.purple,  size: 12 },
+  { angle: 112, dist: 84, color: c.green,  size: 8 },
+  { angle: 155, dist: 76, color: c.accent, size: 10 },
+  { angle: 198, dist: 88, color: c.purple,  size: 7 },
+  { angle: 242, dist: 72, color: c.green,  size: 9 },
+  { angle: 285, dist: 82, color: c.accent, size: 8 },
+  { angle: 328, dist: 70, color: c.purple,  size: 11 },
+  { angle: 50,  dist: 96, color: c.green,  size: 5 },
+  { angle: 150, dist: 94, color: c.accent, size: 5 },
+  { angle: 250, dist: 98, color: c.purple,  size: 5 },
+];
 
 // Container big enough so sparks stay within bounds (center=100, max dist=98 → max reach=198 < 200)
 const AREA = 200;
 const CENTER = AREA / 2;
 
 export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const visible = milestone !== null && badgeDef !== null;
   const reduceMotion = useReduceMotion();
+  const SPARKS = useMemo(() => makeSparks(c), [c]);
 
   // ── Animated values ────────────────────────────────────────────────────────
   const overlayOp   = useRef(new Animated.Value(0)).current;
@@ -228,7 +232,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
             <Animated.View
               style={[styles.badgeDisc, { transform: [{ scale: badgeScale }] }]}
             >
-              <Icon name={badgeDef.icon} size={42} color={Colors.greenText} />
+              <Icon name={badgeDef.icon} size={42} color={c.greenText} />
             </Animated.View>
           </View>
 
@@ -249,7 +253,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
           <Animated.View style={{ opacity: btnsOp, width: '100%', alignItems: 'center', marginTop: 4 }}>
             <Touchable
       rippleColor="rgba(255,255,255,0.28)" style={styles.btnPrimary} onPress={onShare} activeOpacity={0.85} accessibilityRole="button">
-              <Icon name="users" size={18} color={Colors.white} />
+              <Icon name="users" size={18} color={c.white} />
               <Text style={styles.btnPrimaryText}>Compartir con la comunidad</Text>
             </Touchable>
             <Touchable
@@ -266,7 +270,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(30,20,10,0.65)',
@@ -276,13 +280,13 @@ const styles = StyleSheet.create({
   },
   modal: {
     width: '100%',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 28,
     paddingTop: 8,
     paddingBottom: 28,
     paddingHorizontal: 28,
     alignItems: 'center',
-    shadowColor: Colors.ink900,
+    shadowColor: c.ink900,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 28,
@@ -302,18 +306,18 @@ const styles = StyleSheet.create({
     height: 108,
     borderRadius: 54,
     borderWidth: 5,
-    borderColor: Colors.accent,
+    borderColor: c.accent,
   },
   badgeDisc: {
     width: 108,
     height: 108,
     borderRadius: 54,
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderWidth: 3,
-    borderColor: Colors.green,
+    borderColor: c.green,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.green,
+    shadowColor: c.green,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.55,
     shadowRadius: 18,
@@ -322,33 +326,33 @@ const styles = StyleSheet.create({
   headline: {
     fontFamily: Fonts.bodyBold,
     fontSize: 19,
-    color: Colors.ink900,
+    color: c.ink900,
     textAlign: 'center',
     marginBottom: 4,
   },
   days: {
     fontFamily: Fonts.headingBold,
     fontSize: 58,
-    color: Colors.primary,
+    color: c.primaryText,
     letterSpacing: -2,
     lineHeight: 62,
   },
   daysUnit: {
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
-    color: Colors.fg2,
+    color: c.fg2,
     marginTop: 0,
   },
   label: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.primary,
+    color: c.primaryText,
     marginTop: 5,
   },
   sub: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.fg2,
+    color: c.fg2,
     textAlign: 'center',
     lineHeight: 19,
     marginTop: 8,
@@ -357,7 +361,7 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     width: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingVertical: 15,
     flexDirection: 'row',
@@ -365,7 +369,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
+  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 16 },
   btnLink: { marginTop: 14, minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
-  btnLinkText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 14 },
+  btnLinkText: { fontFamily: Fonts.bodyBold, color: c.fg2, fontSize: 14 },
 });

@@ -20,7 +20,8 @@ import type {
   SendMessageWithRiskResponse,
   TechniqueType,
 } from '@stopbet/shared-types';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import {
@@ -54,6 +55,8 @@ interface ListItem {
 }
 
 export function AssistantScreen() {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const navigation = useNavigation<Nav>();
 
@@ -269,7 +272,7 @@ export function AssistantScreen() {
       return (
         <View style={styles.recallBanner}>
           <View style={styles.recallIcon}>
-            <Icon name="lightbulb" size={18} color={Colors.accent} />
+            <Icon name="lightbulb" size={18} color={c.accent} />
           </View>
           <View style={styles.recallText}>
             <Text style={styles.recallTitle}>Retomamos donde lo dejaste</Text>
@@ -326,13 +329,13 @@ export function AssistantScreen() {
           accessibilityRole="button"
           accessibilityLabel="Volver"
         >
-          <Icon name="arrow-left" size={20} color={Colors.fg1} />
+          <Icon name="arrow-left" size={20} color={c.fg1} />
         </Touchable>
 
         <View style={styles.headerCenter}>
           <View style={styles.avatarDot}>
             {/* Era un círculo azul vacío */}
-            <Icon name="sparkles" size={20} color={Colors.white} />
+            <Icon name="sparkles" size={20} color={c.white} />
           </View>
           {/* Sin `flex: 1` y sin truncar, el título se metía debajo de los botones
               cuando el de pánico creció al tamaño compartido */}
@@ -351,7 +354,7 @@ export function AssistantScreen() {
               accessibilityLabel="Terminar conversación"
               accessibilityHint="Guarda un resumen y cierra el chat"
             >
-              <Icon name="x" size={20} color={Colors.fg2} />
+              <Icon name="x" size={20} color={c.fg2} />
             </Touchable>
           )}
           <PanicHeaderButton onPress={() => navigation.navigate('Panic')} />
@@ -407,7 +410,7 @@ export function AssistantScreen() {
         {/* El resumen aparecía de golpe a los 10 minutos sin avisar */}
         {idleWarning && (
           <View style={styles.idleBanner} accessibilityLiveRegion="polite">
-            <Icon name="hourglass" size={15} color={Colors.fg1} />
+            <Icon name="hourglass" size={15} color={c.fg1} />
             <Text style={styles.idleText}>
               Si no escribes en un minuto, cerramos la conversación y guardamos el resumen.
             </Text>
@@ -429,7 +432,7 @@ export function AssistantScreen() {
             onChangeText={setInputText}
             accessibilityLabel="Mensaje para el asistente"
             placeholder={sessionId ? 'Cuéntame cómo estás…' : initError ? 'Sin conexión con el asistente' : 'Conectando…'}
-            placeholderTextColor={Colors.fg2}
+            placeholderTextColor={c.fg2}
             editable={!!sessionId}
             multiline
             maxLength={1000}
@@ -447,7 +450,7 @@ export function AssistantScreen() {
               (!sessionId || !inputText.trim() || isSending) && styles.sendBtnDisabled,
             ]}
           >
-            <Icon name="arrow-up" size={20} color={Colors.white} />
+            <Icon name="arrow-up" size={20} color={c.white} />
           </Touchable>
         </View>
       </KeyboardAvoidingView>
@@ -465,8 +468,8 @@ export function AssistantScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   flex: { flex: 1 },
 
   header: {
@@ -474,9 +477,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: c.border,
   },
   backBtn: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: 2 },
   headerCenter: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -485,12 +488,12 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
-  headerSub: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 1 },
+  headerTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.ink900 },
+  headerSub: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, marginTop: 1 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 },
   closeBtn: {
     // Con el botón de pánico compartido, la palabra "Terminar" dejaba al título en
@@ -500,7 +503,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 9999,
   },
   listContent: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8, gap: 10 },
@@ -509,7 +512,7 @@ const styles = StyleSheet.create({
 
   recallBanner: {
     flexDirection: 'row',
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderRadius: 14,
     padding: 12,
     gap: 10,
@@ -517,8 +520,8 @@ const styles = StyleSheet.create({
   },
   recallIcon: { marginTop: 1 },
   recallText: { flex: 1 },
-  recallTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.greenText },
-  recallBody: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2, lineHeight: 17, marginTop: 3 },
+  recallTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.greenText },
+  recallBody: { fontFamily: Fonts.body, fontSize: 12.5, color: c.fg2, lineHeight: 17, marginTop: 3 },
 
   bubbleWrap: { maxWidth: '80%' },
   bubbleWrapLeft: { alignSelf: 'flex-start' },
@@ -531,83 +534,83 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleUser: {
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderBottomRightRadius: 4,
   },
   bubbleAssistant: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderBottomLeftRadius: 4,
   },
   bubbleText: { fontFamily: Fonts.body, fontSize: 15, lineHeight: 21 },
-  bubbleTextUser: { color: Colors.white },
-  bubbleTextAI: { color: Colors.ink900 },
-  bubbleTime: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 4, alignSelf: 'flex-end' },
-  bubbleTimeUser: { color: Colors.onPrimaryMuted },
+  bubbleTextUser: { color: c.white },
+  bubbleTextAI: { color: c.ink900 },
+  bubbleTime: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, marginTop: 4, alignSelf: 'flex-end' },
+  bubbleTimeUser: { color: c.onPrimaryMuted },
 
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
     gap: 10,
   },
   input: {
     fontFamily: Fonts.body,
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingTop: 10,
     paddingBottom: 10,
     fontSize: 15,
-    color: Colors.ink900,
+    color: c.ink900,
     maxHeight: 110,
   },
   sendBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: Colors.border },
+  sendBtnDisabled: { backgroundColor: c.border },
 
   initError: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 14,
     padding: 14,
     marginHorizontal: 16,
     marginBottom: 10,
     gap: 6,
   },
-  initErrorTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
-  initErrorBody: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg1, lineHeight: 20 },
+  initErrorTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.ink900 },
+  initErrorBody: { fontFamily: Fonts.body, fontSize: 14, color: c.fg1, lineHeight: 20 },
   initErrorActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   retryBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingHorizontal: 18,
     minHeight: 48,
     justifyContent: 'center',
   },
-  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
+  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.white },
   panicLink: {
     borderRadius: 9999,
     borderWidth: 1,
-    borderColor: Colors.danger,
+    borderColor: c.danger,
     paddingHorizontal: 18,
     minHeight: 48,
     justifyContent: 'center',
   },
-  panicLinkText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.danger },
+  panicLinkText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.dangerText },
   idleBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -617,12 +620,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
-  idleText: { fontFamily: Fonts.body, flex: 1, fontSize: 12.5, color: Colors.fg1, lineHeight: 18 },
+  idleText: { fontFamily: Fonts.body, flex: 1, fontSize: 12.5, color: c.fg1, lineHeight: 18 },
   idleBtn: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 10 },
-  idleBtnText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.primary },
+  idleBtnText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.primaryText },
 
 });

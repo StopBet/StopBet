@@ -7,7 +7,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
@@ -49,6 +50,8 @@ export function FormInput({
   maxLength,
   autoCorrect = true,
 }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const [focused, setFocused] = useState(false);
   const [secure, setSecure] = useState(secureTextEntry ?? false);
 
@@ -58,8 +61,8 @@ export function FormInput({
   // teclado se cerraba—, y aplazar el re-render con requestAnimationFrame tampoco bastaba:
   // el momento da igual, lo que rompe es tocar el arbol por encima del input. Con el anillo
   // separado el subarbol del TextInput queda intacto y el borde azul vuelve.
-  const borderColor = error ? Colors.danger : Colors.border;
-  const ringColor = focused && !error ? Colors.primary : 'transparent';
+  const borderColor = error ? c.danger : c.border;
+  const ringColor = focused && !error ? c.primary : 'transparent';
 
   return (
     <View style={styles.field}>
@@ -71,7 +74,7 @@ export function FormInput({
       <View style={styles.inputWrap}>
         <View style={[styles.inputRow, { borderColor }]}>
           {leadingIcon && (
-            <Icon name={leadingIcon} size={18} color={Colors.fg2} />
+            <Icon name={leadingIcon} size={18} color={c.fg2} />
           )}
           {prefix && (
             <Text style={styles.prefix}>{prefix}</Text>
@@ -92,7 +95,7 @@ export function FormInput({
             // si el campo es un selector, TalkBack debe llegar al botón de encima y no a este input
             importantForAccessibility={onPress ? 'no' : 'auto'}
             placeholder={placeholder}
-            placeholderTextColor={Colors.fg2}
+            placeholderTextColor={c.fg2}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             keyboardType={keyboardType ?? 'default'}
@@ -112,12 +115,12 @@ export function FormInput({
               accessibilityRole="button"
               accessibilityLabel={secure ? 'Mostrar contraseña' : 'Ocultar contraseña'}
             >
-              <Icon name={secure ? 'eye' : 'eye-off'} size={18} color={Colors.fg2} />
+              <Icon name={secure ? 'eye' : 'eye-off'} size={18} color={c.fg2} />
             </Touchable>
           )}
           {trailingIcon && !secureTextEntry && (
             <View style={styles.trailing}>
-              <Icon name={trailingIcon} size={18} color={Colors.fg2} />
+              <Icon name={trailingIcon} size={18} color={c.fg2} />
             </View>
           )}
         </View>
@@ -135,7 +138,7 @@ export function FormInput({
 
       {error && (
         <View style={styles.errorRow} accessibilityLiveRegion="polite">
-          <Icon name="triangle-alert" size={13} color={Colors.danger} />
+          <Icon name="triangle-alert" size={13} color={c.dangerText} />
           <Text style={styles.error}>{error}</Text>
         </View>
       )}
@@ -146,18 +149,18 @@ export function FormInput({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   field: {
     marginBottom: 16,
   },
   label: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.ink900,
+    color: c.ink900,
     marginBottom: 7,
   },
   req: {
-    color: Colors.primary,
+    color: c.primaryText,
   },
   inputWrap: {
     position: 'relative',
@@ -174,7 +177,7 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1.5,
     borderRadius: 16,
     paddingHorizontal: 14,
@@ -184,16 +187,16 @@ const styles = StyleSheet.create({
   prefix: {
     fontFamily: Fonts.bodyBold,
     fontSize: 15,
-    color: Colors.fg1,
+    color: c.fg1,
     paddingRight: 10,
     borderRightWidth: 1,
-    borderRightColor: Colors.border,
+    borderRightColor: c.border,
   },
   input: {
     fontFamily: Fonts.body,
     flex: 1,
     fontSize: 15,
-    color: Colors.ink900,
+    color: c.ink900,
     padding: 0,
     // todo el alto de la caja es tocable, no solo la línea de texto
     alignSelf: 'stretch',
@@ -215,12 +218,12 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.danger,
+    color: c.dangerText,
   },
   hint: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.fg2,
+    color: c.fg2,
     marginTop: 7,
     lineHeight: 17,
   },

@@ -17,7 +17,8 @@ import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-t
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { Icon, type IconName } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { devFlags } from '../store/devFlags';
 import { api } from '../services/api';
@@ -38,6 +39,8 @@ type Props = CompositeScreenProps<
 >;
 
 export function ProfileScreen({ navigation }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const { signOut } = useContext(AuthContext);
   const [offline, setOffline] = useState(devFlags.simulateOffline);
@@ -170,7 +173,7 @@ export function ProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={c.primary} />
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mi Perfil</Text>
@@ -206,7 +209,7 @@ export function ProfileScreen({ navigation }: Props) {
               accessibilityState={{ checked: reminderOn, disabled: reminderLoading }}
             >
               <View style={styles.menuIcon}>
-                <Icon name="clock" size={22} color={Colors.primary} />
+                <Icon name="clock" size={22} color={c.primaryText} />
               </View>
               <View style={styles.menuText}>
                 <Text style={styles.menuLabel}>Recordatorio diario de las 20:00</Text>
@@ -219,8 +222,8 @@ export function ProfileScreen({ navigation }: Props) {
                 onValueChange={toggleReminder}
                 disabled={reminderLoading}
                 importantForAccessibility="no"
-                trackColor={{ false: Colors.border, true: Colors.primary }}
-                thumbColor={Colors.white}
+                trackColor={{ false: c.border, true: c.primary }}
+                thumbColor={c.white}
               />
             </Pressable>
 
@@ -234,7 +237,7 @@ export function ProfileScreen({ navigation }: Props) {
               accessibilityState={{ checked: communityMuted, disabled: muteLoading }}
             >
               <View style={styles.menuIcon}>
-                <Icon name="bell" size={22} color={Colors.primary} />
+                <Icon name="bell" size={22} color={c.primaryText} />
               </View>
               <View style={styles.menuText}>
                 <Text style={styles.menuLabel}>Silenciar notificaciones de comunidad</Text>
@@ -247,8 +250,8 @@ export function ProfileScreen({ navigation }: Props) {
                 onValueChange={toggleCommunityMute}
                 disabled={muteLoading}
                 importantForAccessibility="no"
-                trackColor={{ false: Colors.border, true: Colors.primary }}
-                thumbColor={Colors.white}
+                trackColor={{ false: c.border, true: c.primary }}
+                thumbColor={c.white}
               />
             </Pressable>
           </View>
@@ -265,7 +268,7 @@ export function ProfileScreen({ navigation }: Props) {
                 accessible
               >
                 <View style={styles.menuIcon}>
-                  <Icon name={item.icon} size={22} color={Colors.fg2} />
+                  <Icon name={item.icon} size={22} color={c.fg2} />
                 </View>
                 <View style={styles.menuText}>
                   <Text style={styles.menuLabelMuted}>{item.label}</Text>
@@ -280,7 +283,7 @@ export function ProfileScreen({ navigation }: Props) {
         {__DEV__ && (
           <View style={styles.devCard}>
             <View style={styles.devHeader}>
-              <Icon name="flask-conical" size={14} color={Colors.fg2} />
+              <Icon name="flask-conical" size={14} color={c.fg2} />
               <Text style={styles.devTitle}>Herramientas de prueba</Text>
             </View>
             <View style={styles.devRow}>
@@ -294,13 +297,13 @@ export function ProfileScreen({ navigation }: Props) {
                 value={offline}
                 accessibilityLabel="Simular sin conexión"
                 onValueChange={toggleOffline}
-                trackColor={{ false: Colors.border, true: Colors.danger }}
-                thumbColor={Colors.white}
+                trackColor={{ false: c.border, true: c.danger }}
+                thumbColor={c.white}
               />
             </View>
             {offline && (
               <View style={styles.devBadge}>
-                <Icon name="triangle-alert" size={12} color={Colors.danger} />
+                <Icon name="triangle-alert" size={12} color={c.dangerText} />
                 <Text style={styles.devBadgeText}>Modo sin conexión activo</Text>
               </View>
             )}
@@ -319,7 +322,7 @@ export function ProfileScreen({ navigation }: Props) {
                   onChangeText={setDaysInput}
                   keyboardType="number-pad"
                   placeholder="—"
-                  placeholderTextColor={Colors.fg2}
+                  placeholderTextColor={c.fg2}
                   maxLength={4}
                   returnKeyType="done"
                   onSubmitEditing={applyDays}
@@ -330,15 +333,15 @@ export function ProfileScreen({ navigation }: Props) {
                 </Touchable>
                 {devFlags.overrideDays !== null && (
                   <Touchable style={styles.devClearBtn} onPress={clearDays}>
-                    <Icon name="x" size={14} color={Colors.fg2} />
+                    <Icon name="x" size={14} color={c.fg2} />
                   </Touchable>
                 )}
               </View>
             </View>
             {devFlags.overrideDays !== null && (
-              <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
-                <Icon name="check" size={12} color={Colors.greenText} />
-                <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
+              <View style={[styles.devBadge, { backgroundColor: c.successSurface }]}>
+                <Icon name="check" size={12} color={c.greenText} />
+                <Text style={[styles.devBadgeText, { color: c.greenText }]}>
                   Mostrando {devFlags.overrideDays} días
                   {syncStatus === 'syncing' ? ' · sincronizando…' : ''}
                   {syncStatus === 'ok' ? ' · sincronizado ✓' : ''}
@@ -346,9 +349,9 @@ export function ProfileScreen({ navigation }: Props) {
               </View>
             )}
             {syncStatus === 'error' && (
-              <View style={[styles.devBadge, { backgroundColor: Colors.dangerSurface }]}>
-                <Icon name="triangle-alert" size={12} color={Colors.danger} />
-                <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+              <View style={[styles.devBadge, { backgroundColor: c.dangerSurface }]}>
+                <Icon name="triangle-alert" size={12} color={c.dangerText} />
+                <Text style={[styles.devBadgeText, { color: c.dangerText }]}>
                   Error al sincronizar con el servidor
                 </Text>
               </View>
@@ -373,17 +376,17 @@ export function ProfileScreen({ navigation }: Props) {
               </Touchable>
             </View>
             {checkInResetStatus === 'ok' && (
-              <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
-                <Icon name="check" size={12} color={Colors.greenText} />
-                <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
+              <View style={[styles.devBadge, { backgroundColor: c.successSurface }]}>
+                <Icon name="check" size={12} color={c.greenText} />
+                <Text style={[styles.devBadgeText, { color: c.greenText }]}>
                   Check-in borrado — ya puedes registrarlo de nuevo
                 </Text>
               </View>
             )}
             {checkInResetStatus === 'error' && (
-              <View style={[styles.devBadge, { backgroundColor: Colors.dangerSurface }]}>
-                <Icon name="triangle-alert" size={12} color={Colors.danger} />
-                <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+              <View style={[styles.devBadge, { backgroundColor: c.dangerSurface }]}>
+                <Icon name="triangle-alert" size={12} color={c.dangerText} />
+                <Text style={[styles.devBadgeText, { color: c.dangerText }]}>
                   Error al borrar el check-in
                 </Text>
               </View>
@@ -408,17 +411,17 @@ export function ProfileScreen({ navigation }: Props) {
               </Touchable>
             </View>
             {panicResetStatus === 'ok' && (
-              <View style={[styles.devBadge, { backgroundColor: Colors.successSurface }]}>
-                <Icon name="check" size={12} color={Colors.greenText} />
-                <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
+              <View style={[styles.devBadge, { backgroundColor: c.successSurface }]}>
+                <Icon name="check" size={12} color={c.greenText} />
+                <Text style={[styles.devBadgeText, { color: c.greenText }]}>
                   Alerta cancelada — el botón de pánico vuelve al estado normal
                 </Text>
               </View>
             )}
             {panicResetStatus === 'error' && (
-              <View style={[styles.devBadge, { backgroundColor: Colors.dangerSurface }]}>
-                <Icon name="triangle-alert" size={12} color={Colors.danger} />
-                <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+              <View style={[styles.devBadge, { backgroundColor: c.dangerSurface }]}>
+                <Icon name="triangle-alert" size={12} color={c.dangerText} />
+                <Text style={[styles.devBadgeText, { color: c.dangerText }]}>
                   Error al cancelar la alerta
                 </Text>
               </View>
@@ -432,7 +435,7 @@ export function ProfileScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Cerrar sesión"
         >
-          <Icon name="log-out" size={18} color={Colors.fg1} />
+          <Icon name="log-out" size={18} color={c.fg1} />
           <Text style={styles.signOutText}>Cerrar sesión</Text>
         </Touchable>
       </ScrollView>
@@ -451,29 +454,29 @@ const UPCOMING_ITEMS: { icon: IconName; label: string; sub: string }[] = [
   { icon: 'credit-card', label: 'Portal de pago', sub: 'Pagar tu plan desde la app, tú o tu familiar' },
 ];
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.primary },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.primary },
 
   header: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 18,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
   },
-  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
-  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onPrimaryMuted, marginTop: 3 },
+  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: c.white },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: c.onPrimaryMuted, marginTop: 3 },
 
-  scroll: { flex: 1, backgroundColor: Colors.bg },
+  scroll: { flex: 1, backgroundColor: c.bg },
   scrollContent: { padding: 16, paddingBottom: 24, gap: 16 },
 
   avatarCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 16,
-    shadowColor: Colors.shadowSoft,
+    shadowColor: c.shadowSoft,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 6,
@@ -483,23 +486,23 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarLetter: { fontFamily: Fonts.headingBold, fontSize: 22, color: Colors.white },
+  avatarLetter: { fontFamily: Fonts.headingBold, fontSize: 22, color: c.white },
   avatarText: { flex: 1 },
-  userName: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900 },
-  userSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, marginTop: 2 },
+  userName: { fontFamily: Fonts.headingBold, fontSize: 18, color: c.ink900 },
+  userSub: { fontFamily: Fonts.body, fontSize: 14, color: c.fg2, marginTop: 2 },
 
   section: { gap: 8 },
-  sectionTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.fg2, marginLeft: 4 },
+  sectionTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.fg2, marginLeft: 4 },
 
   menuCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     overflow: 'hidden',
-    shadowColor: Colors.shadowSoft,
+    shadowColor: c.shadowSoft,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 6,
@@ -514,81 +517,81 @@ const styles = StyleSheet.create({
   },
   menuRowBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: c.border,
   },
   menuIcon: { width: 28, alignItems: 'center' },
   menuText: { flex: 1 },
-  menuLabel: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
-  menuLabelMuted: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
-  menuSub: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 2 },
+  menuLabel: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.ink900 },
+  menuLabelMuted: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1 },
+  menuSub: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, marginTop: 2 },
 
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 12,
     borderWidth: 1,
     // neutro: el rojo del manual es solo para pánico y alertas críticas
-    borderColor: Colors.border,
+    borderColor: c.border,
     padding: 16,
   },
-  signOutText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
+  signOutText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1 },
 
   devCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     gap: 12,
   },
   devHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  devTitle: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2, textTransform: 'uppercase', letterSpacing: 0.5 },
+  devTitle: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.fg2, textTransform: 'uppercase', letterSpacing: 0.5 },
   devRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   devText: { flex: 1 },
-  devLabel: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
-  devSub: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 2, lineHeight: 17 },
+  devLabel: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.ink900 },
+  devSub: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, marginTop: 2, lineHeight: 17 },
   devBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: Colors.dangerSurface,
+    backgroundColor: c.dangerSurface,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
-  devBadgeText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.danger },
-  devDivider: { height: 1, backgroundColor: Colors.border },
+  devBadgeText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.dangerText },
+  devDivider: { height: 1, backgroundColor: c.border },
   devDaysRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   devDaysInput: {
     fontFamily: Fonts.bodyBold,
     width: 64,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 7,
     fontSize: 16,
-    color: Colors.ink900,
+    color: c.ink900,
     textAlign: 'center',
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
   },
   devApplyBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
-  devApplyText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 13 },
+  devApplyText: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 13 },
   devClearBtn: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     alignItems: 'center',
     justifyContent: 'center',
   },

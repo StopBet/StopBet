@@ -27,7 +27,8 @@ import type {
 } from '@stopbet/shared-types';
 import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { Icon, type IconName } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
@@ -82,6 +83,8 @@ type Props = CompositeScreenProps<
 >;
 
 export function CommunityScreen({ navigation, route }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'announcements');
   const [announcements, setAnnouncements] = useState<CommunityPost[]>([]);
@@ -318,7 +321,7 @@ export function CommunityScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={c.primary} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -361,7 +364,7 @@ export function CommunityScreen({ navigation, route }: Props) {
       {(offline || devFlags.simulateOffline) && (
         <View style={styles.offlineBanner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="triangle-alert" size={14} color={Colors.accent} />
+            <Icon name="triangle-alert" size={14} color={c.accent} />
             <Text style={styles.offlineText}>
               {devFlags.simulateOffline
                 ? 'Modo sin conexión SIMULADO · actívalo o apágalo en Perfil'
@@ -373,7 +376,7 @@ export function CommunityScreen({ navigation, route }: Props) {
 
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={c.primaryText} />
         </View>
       ) : (
         <KeyboardAvoidingView
@@ -405,7 +408,7 @@ export function CommunityScreen({ navigation, route }: Props) {
               )}
               <View style={styles.readonlyNote}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Icon name="lock" size={13} color={Colors.fg2} />
+                  <Icon name="lock" size={13} color={c.fg2} />
                   <Text style={styles.readonlyNoteText}>Solo el equipo puede publicar en Anuncios</Text>
                 </View>
               </View>
@@ -457,7 +460,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                   style={styles.composerInput}
                   accessibilityLabel="Mensaje para la comunidad"
                   placeholder={offline ? 'Necesitas conexión para publicar' : 'Escribe un mensaje de apoyo…'}
-                  placeholderTextColor={Colors.fg2}
+                  placeholderTextColor={c.fg2}
                   value={draft}
                   onChangeText={setDraft}
                   editable={!offline}
@@ -474,9 +477,9 @@ export function CommunityScreen({ navigation, route }: Props) {
                   activeOpacity={0.85}
                 >
                   {posting ? (
-                    <ActivityIndicator size="small" color={Colors.white} />
+                    <ActivityIndicator size="small" color={c.white} />
                   ) : (
-                    <Icon name="send" size={18} color={Colors.white} />
+                    <Icon name="send" size={18} color={c.white} />
                   )}
                 </Touchable>
               </View>
@@ -510,8 +513,8 @@ export function CommunityScreen({ navigation, route }: Props) {
                   handleDelete(id);
                 }}
               >
-                <Icon name="trash-2" size={18} color={Colors.danger} />
-                <Text style={[styles.sheetItemText, { color: Colors.danger }]}>
+                <Icon name="trash-2" size={18} color={c.dangerText} />
+                <Text style={[styles.sheetItemText, { color: c.dangerText }]}>
                   Eliminar mi publicación
                 </Text>
               </Touchable>
@@ -525,7 +528,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                   handleReport(id);
                 }}
               >
-                <Icon name="flag" size={18} color={Colors.fg1} />
+                <Icon name="flag" size={18} color={c.fg1} />
                 <Text style={styles.sheetItemText}>Reportar publicación</Text>
               </Touchable>
             )}
@@ -534,8 +537,8 @@ export function CommunityScreen({ navigation, route }: Props) {
               accessibilityRole="button"
               onPress={() => setMenuPost(null)}
             >
-              <Icon name="x" size={18} color={Colors.fg2} />
-              <Text style={[styles.sheetItemText, { color: Colors.fg2 }]}>Cancelar</Text>
+              <Icon name="x" size={18} color={c.fg2} />
+              <Text style={[styles.sheetItemText, { color: c.fg2 }]}>Cancelar</Text>
             </Touchable>
           </View>
         </Touchable>
@@ -558,7 +561,7 @@ export function CommunityScreen({ navigation, route }: Props) {
               style={styles.modalInput}
               accessibilityLabel="Motivo del reporte"
               placeholder="Motivo del reporte…"
-              placeholderTextColor={Colors.fg2}
+              placeholderTextColor={c.fg2}
               value={reportReason}
               onChangeText={setReportReason}
               multiline
@@ -584,7 +587,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                 accessibilityState={{ busy: reportSending }}
               >
                 {reportSending
-                  ? <ActivityIndicator size="small" color={Colors.white} />
+                  ? <ActivityIndicator size="small" color={c.white} />
                   : <Text style={styles.modalSubmitText}>Reportar</Text>}
               </Touchable>
             </View>
@@ -599,9 +602,11 @@ export function CommunityScreen({ navigation, route }: Props) {
 // ── Subcomponentes ─────────────────────────────────────────────────────────
 
 function EmptyState({ iconName, title, text }: { iconName: IconName; title: string; text: string }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.emptyCard}>
-      <Icon name={iconName} size={44} color={Colors.fg2} />
+      <Icon name={iconName} size={44} color={c.fg2} />
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyText}>{text}</Text>
     </View>
@@ -617,6 +622,8 @@ function AnnouncementCard({
   disabled: boolean;
   onToggleAttendance: () => void;
 }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const isPsychologist = announcement.authorRole === 'psychologist';
   // La sesión de junio seguía pidiendo "Confirmar asistencia" en septiembre
   const eventPassed =
@@ -624,11 +631,11 @@ function AnnouncementCard({
   return (
     <View style={styles.pinCard}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
-        <Icon name="bell" size={12} color={Colors.fg2} />
+        <Icon name="bell" size={12} color={c.fg2} />
         <Text style={styles.pinFlag}>Equipo clínico · Sede {announcement.sede}</Text>
       </View>
       <View style={styles.pinHead}>
-        <View style={[styles.avatar, { backgroundColor: isPsychologist ? Colors.primary : Colors.accent }]}>
+        <View style={[styles.avatar, { backgroundColor: isPsychologist ? c.primary : c.accent }]}>
           <Text style={styles.avatarLetter}>{initial(announcement.authorName)}</Text>
         </View>
         <View style={styles.flex}>
@@ -649,7 +656,7 @@ function AnnouncementCard({
       {!!announcement.eventDate && (
         <View style={styles.annCta}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Icon name="calendar" size={12} color={Colors.fg2} />
+            <Icon name="calendar" size={12} color={c.fg2} />
             <Text style={styles.annDate}>{formatEventDate(announcement.eventDate)}</Text>
           </View>
           {eventPassed ? (
@@ -671,7 +678,7 @@ function AnnouncementCard({
             >
               {announcement.userAttends ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                  <Icon name="check" size={14} color={Colors.white} />
+                  <Icon name="check" size={14} color={c.white} />
                   <Text style={[styles.attendBtnText, styles.attendBtnTextOn]}>Asistiré</Text>
                 </View>
               ) : (
@@ -708,13 +715,15 @@ function PostCard({
   onSendReply: () => void;
   onMenuPress: () => void;
 }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const summaryFor = (emoji: ReactionEmoji): ReactionSummary =>
     post.reactions.find((r) => r.emoji === emoji) ?? { emoji, count: 0, userReacted: false };
 
   return (
     <View style={styles.msgCard}>
       <View style={styles.msgHead}>
-        <View style={[styles.avatar, { backgroundColor: Colors.teal400 }]}>
+        <View style={[styles.avatar, { backgroundColor: c.teal400 }]}>
           <Text style={styles.avatarLetter}>{initial(post.authorName)}</Text>
         </View>
         <View style={styles.flex}>
@@ -727,7 +736,7 @@ function PostCard({
           accessibilityRole="button"
           accessibilityLabel="Opciones del mensaje"
         >
-          <Icon name="ellipsis" size={20} color={Colors.fg2} />
+          <Icon name="ellipsis" size={20} color={c.fg2} />
         </Touchable>
       </View>
 
@@ -749,7 +758,7 @@ function PostCard({
               accessibilityState={{ selected: !!s.userReacted, disabled }}
               activeOpacity={0.7}
             >
-              <Icon name={REACTION_ICON_MAP[emoji]} size={14} color={s.userReacted ? Colors.primary : Colors.fg2} />
+              <Icon name={REACTION_ICON_MAP[emoji]} size={14} color={s.userReacted ? c.primary : c.fg2} />
               {s.count > 0 && <Text style={styles.reactCount}>{s.count}</Text>}
             </Touchable>
           );
@@ -772,12 +781,12 @@ function PostCard({
       {expanded && (
         <View style={styles.repliesWrap}>
           {replies === undefined ? (
-            <ActivityIndicator size="small" color={Colors.primary} style={styles.replyLoader} />
+            <ActivityIndicator size="small" color={c.primaryText} style={styles.replyLoader} />
           ) : (
             replies.map((r) => (
               <View key={r.id} style={styles.reply}>
                 <View style={styles.replyHead}>
-                  <View style={[styles.avatarSm, { backgroundColor: Colors.sage500 }]}>
+                  <View style={[styles.avatarSm, { backgroundColor: c.sage500 }]}>
                     <Text style={styles.avatarSmLetter}>{initial(r.authorName)}</Text>
                   </View>
                   <Text style={styles.replyName}>{r.authorName}</Text>
@@ -794,7 +803,7 @@ function PostCard({
                 style={styles.replyInput}
                 accessibilityLabel="Tu respuesta"
                 placeholder="Escribe una respuesta…"
-                placeholderTextColor={Colors.fg2}
+                placeholderTextColor={c.fg2}
                 value={replyDraft}
                 onChangeText={onChangeReplyDraft}
                 multiline
@@ -915,10 +924,10 @@ function formatEventDate(iso: string): string {
   });
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.primary },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.primary },
   flex: { flex: 1 },
-  kav: { backgroundColor: Colors.bg },
+  kav: { backgroundColor: c.bg },
 
   header: {
     flexDirection: 'row',
@@ -926,72 +935,72 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 14,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     gap: 12,
   },
   headerMeta: { flex: 1, minWidth: 0 },
-  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
-  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onPrimaryMuted, marginTop: 3 },
+  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: c.white },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: c.onPrimaryMuted, marginTop: 3 },
 
   tabs: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: c.border,
   },
   tab: { flex: 1, alignItems: 'center', paddingTop: 14, paddingBottom: 12, minHeight: 48 },
-  tabText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg2 },
-  tabTextActive: { fontFamily: Fonts.bodyBold, color: Colors.primary },
+  tabText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg2 },
+  tabTextActive: { fontFamily: Fonts.bodyBold, color: c.primaryText },
   tabUnderline: {
     position: 'absolute',
     bottom: 0,
     height: 2,
     width: '60%',
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
   },
 
   offlineBanner: {
-    backgroundColor: Colors.amber50,
+    backgroundColor: c.amber50,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.accent,
+    borderBottomColor: c.accent,
     paddingVertical: 11,
     paddingHorizontal: 18,
   },
-  offlineText: { fontFamily: Fonts.bodyBold, color: Colors.primary, fontSize: 13 },
+  offlineText: { fontFamily: Fonts.bodyBold, color: c.primaryText, fontSize: 13 },
 
-  loader: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
+  loader: { flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
 
-  scroll: { flex: 1, backgroundColor: Colors.bg },
+  scroll: { flex: 1, backgroundColor: c.bg },
   scrollContent: { padding: 12, paddingBottom: 24, gap: 12 },
 
   emptyCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 28,
     alignItems: 'center',
     marginTop: 8,
     gap: 12,
   },
-  emptyTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900, marginBottom: 8 },
-  emptyText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, textAlign: 'center', lineHeight: 21 },
+  emptyTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: c.ink900, marginBottom: 8 },
+  emptyText: { fontFamily: Fonts.body, fontSize: 14, color: c.fg2, textAlign: 'center', lineHeight: 21 },
 
   // Anuncios
   pinCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     borderTopWidth: 3,
-    borderTopColor: Colors.primary,
+    borderTopColor: c.primary,
     padding: 14,
-    shadowColor: Colors.shadowSoft,
+    shadowColor: c.shadowSoft,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 6,
     elevation: 2,
   },
-  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
+  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.fg2 },
   pinHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pinTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.primary, marginTop: 11 },
-  pinBody: { fontFamily: Fonts.body, fontSize: 15, color: Colors.ink900, lineHeight: 22, marginTop: 6 },
+  pinTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.primaryText, marginTop: 11 },
+  pinBody: { fontFamily: Fonts.body, fontSize: 15, color: c.ink900, lineHeight: 22, marginTop: 6 },
   annCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -999,58 +1008,58 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
     gap: 10,
     flexWrap: 'wrap',
   },
-  annDate: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
+  annDate: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.fg2 },
   attendBtn: {
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
+    borderColor: c.primary,
     borderRadius: 9999,
     paddingHorizontal: 14,
     paddingVertical: 7,
   },
-  attendBtnOn: { backgroundColor: Colors.primary },
-  attendBtnText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.primary },
-  attendBtnTextOn: { color: Colors.white },
+  attendBtnOn: { backgroundColor: c.primary },
+  attendBtnText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.primaryText },
+  attendBtnTextOn: { color: c.white },
 
   // Avatares y autores
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
-  authorName: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink900 },
-  authorMeta: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 1 },
+  avatarLetter: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 16 },
+  authorName: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.ink900 },
+  authorMeta: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, marginTop: 1 },
   roleChip: {
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderRadius: 9999,
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  roleChipAdmin: { backgroundColor: Colors.amber50 },
-  roleChipText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.primary },
-  roleChipTextAdmin: { color: Colors.fg1 },
+  roleChipAdmin: { backgroundColor: c.amber50 },
+  roleChipText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.primaryText },
+  roleChipTextAdmin: { color: c.fg1 },
 
   // Foro
   msgCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 14,
-    shadowColor: Colors.shadowSoft,
+    shadowColor: c.shadowSoft,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 6,
     elevation: 2,
   },
   msgHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  msgBody: { fontFamily: Fonts.body, fontSize: 15, color: Colors.ink900, lineHeight: 22, paddingTop: 10 },
+  msgBody: { fontFamily: Fonts.body, fontSize: 15, color: c.ink900, lineHeight: 22, paddingTop: 10 },
 
   reactRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
     paddingTop: 9,
     marginTop: 10,
   },
@@ -1058,16 +1067,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 9999,
     paddingHorizontal: 11,
     paddingVertical: 5,
   },
-  reactChipOn: { backgroundColor: Colors.sage50, borderColor: Colors.primary },
-  reactCount: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.ink900 },
-  replyLink: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.primary, paddingVertical: 5 },
+  reactChipOn: { backgroundColor: c.sage50, borderColor: c.primary },
+  reactCount: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.ink900 },
+  replyLink: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.primaryText, paddingVertical: 5 },
 
   // Respuestas
   repliesWrap: { marginTop: 8 },
@@ -1077,14 +1086,14 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
     paddingVertical: 8,
     borderLeftWidth: 2,
-    borderLeftColor: Colors.border,
+    borderLeftColor: c.border,
   },
   replyHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   avatarSm: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  avatarSmLetter: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
-  replyName: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.ink900 },
-  replyTime: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2 },
-  replyBody: { fontFamily: Fonts.body, fontSize: 13, color: Colors.ink900, lineHeight: 20, marginTop: 5, marginLeft: 36 },
+  avatarSmLetter: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 12 },
+  replyName: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.ink900 },
+  replyTime: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
+  replyBody: { fontFamily: Fonts.body, fontSize: 13, color: c.ink900, lineHeight: 20, marginTop: 5, marginLeft: 36 },
 
   replyComposer: {
     flexDirection: 'row',
@@ -1096,23 +1105,23 @@ const styles = StyleSheet.create({
   replyInput: {
     fontFamily: Fonts.body,
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 13,
-    color: Colors.ink900,
+    color: c.ink900,
     maxHeight: 90,
   },
   replySendBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-  replySendText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 13 },
+  replySendText: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 13 },
 
   // Composer foro
   composer: {
@@ -1122,53 +1131,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 14,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
   },
   composerOff: { opacity: 0.7 },
   composerInput: {
     fontFamily: Fonts.body,
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 11,
     fontSize: 14,
-    color: Colors.ink900,
+    color: c.ink900,
     maxHeight: 110,
   },
   sendBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: Colors.border },
+  sendBtnDisabled: { backgroundColor: c.border },
 
   readonlyNote: {
     alignItems: 'center',
     paddingVertical: 14,
   },
-  readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2 },
+  readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: c.fg2 },
 
   // Menú de la publicación
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheetCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingHorizontal: 18,
     paddingTop: 18,
     paddingBottom: 26,
   },
-  sheetTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.ink900, marginBottom: 6 },
+  sheetTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: c.ink900, marginBottom: 6 },
   sheetItem: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 8 },
-  sheetItemText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
+  sheetItemText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1 },
 
   // Modal de reporte (CA5.3)
   modalBackdrop: {
@@ -1180,47 +1189,47 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: '100%',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 18,
     padding: 20,
     gap: 12,
   },
-  modalTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900 },
-  modalText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, lineHeight: 20 },
+  modalTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: c.ink900 },
+  modalText: { fontFamily: Fonts.body, fontSize: 14, color: c.fg2, lineHeight: 20 },
   modalInput: {
     fontFamily: Fonts.body,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: Colors.ink900,
-    backgroundColor: Colors.bg,
+    color: c.ink900,
+    backgroundColor: c.bg,
     minHeight: 90,
     textAlignVertical: 'top',
   },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
   modalCancel: { paddingHorizontal: 18, paddingVertical: 11 },
-  modalCancelText: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: Colors.fg2 },
+  modalCancelText: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: c.fg2 },
   modalSubmit: {
-    backgroundColor: Colors.danger,
+    backgroundColor: c.danger,
     borderRadius: 9999,
     paddingHorizontal: 22,
     paddingVertical: 11,
     minWidth: 110,
     alignItems: 'center',
   },
-  modalSubmitDisabled: { backgroundColor: Colors.border },
-  modalSubmitText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
+  modalSubmitDisabled: { backgroundColor: c.border },
+  modalSubmitText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.white },
   finishedChip: {
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: 9999,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
-  finishedText: { fontFamily: Fonts.bodyBold, fontSize: 12.5, color: Colors.fg2 },
+  finishedText: { fontFamily: Fonts.bodyBold, fontSize: 12.5, color: c.fg2 },
 
 });

@@ -17,7 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useTheme, useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { AuthContext } from '../context/AuthContext';
 
@@ -26,6 +27,9 @@ type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 type FormState = 'idle' | 'loading' | 'error';
 
 export function LoginScreen({ navigation }: Props) {
+  const { isDark } = useTheme();
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { signIn } = useContext(AuthContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -51,7 +55,7 @@ export function LoginScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -64,7 +68,7 @@ export function LoginScreen({ navigation }: Props) {
           {/* Botón volver */}
           <View style={styles.headerRow}>
             <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={12} accessibilityRole="button">
-              <Icon name="arrow-left" size={18} color={Colors.primary} />
+              <Icon name="arrow-left" size={18} color={c.primaryText} />
               <Text style={styles.backText}>Volver</Text>
             </Pressable>
           </View>
@@ -97,7 +101,7 @@ export function LoginScreen({ navigation }: Props) {
                   accessibilityLabel="Correo electrónico"
                   // "tucorreo@ajuter.cl" hacía creer que el paciente tiene correo de AJUTER
                   placeholder="tu@correo.cl"
-                  placeholderTextColor={Colors.fg2}
+                  placeholderTextColor={c.fg2}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   autoComplete="email"
@@ -119,7 +123,7 @@ export function LoginScreen({ navigation }: Props) {
                   onChangeText={setPassword}
                   accessibilityLabel="Contraseña"
                   placeholder="Tu contraseña"
-                  placeholderTextColor={Colors.fg2}
+                  placeholderTextColor={c.fg2}
                   ref={passwordRef}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
@@ -138,7 +142,7 @@ export function LoginScreen({ navigation }: Props) {
                   <Icon
                     name={showPassword ? 'eye-off' : 'eye'}
                     size={20}
-                    color={Colors.fg2}
+                    color={c.fg2}
                   />
                 </Pressable>
               </View>
@@ -154,7 +158,7 @@ export function LoginScreen({ navigation }: Props) {
               accessibilityState={{ busy: isLoading }}
             >
               {isLoading
-                ? <ActivityIndicator color={Colors.white} size="small" />
+                ? <ActivityIndicator color={c.white} size="small" />
                 : <Text style={styles.btnPrimaryText}>Iniciar sesión</Text>
               }
             </Pressable>
@@ -183,10 +187,10 @@ export function LoginScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
   },
   flex: {
     flex: 1,
@@ -210,7 +214,7 @@ const styles = StyleSheet.create({
   backText: {
     fontSize: 15,
     fontFamily: Fonts.bodyBold,
-    color: Colors.primary,
+    color: c.primaryText,
   },
   brand: {
     alignItems: 'center',
@@ -224,15 +228,15 @@ const styles = StyleSheet.create({
   tagline: {
     fontFamily: Fonts.body,
     fontSize: 14,
-    color: Colors.fg2,
+    color: c.fg2,
     marginTop: 10,
     textAlign: 'center',
   },
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     padding: 24,
-    shadowColor: '#2A2624',
+    shadowColor: c.shadowMedium,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.10,
     shadowRadius: 16,
@@ -241,13 +245,13 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 22,
     fontFamily: Fonts.headingBold,
-    color: Colors.ink900,
+    color: c.ink900,
     marginBottom: 4,
   },
   cardSubtitle: {
     fontFamily: Fonts.body,
     fontSize: 14,
-    color: Colors.fg2,
+    color: c.fg2,
     marginBottom: 22,
   },
   field: {
@@ -256,7 +260,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 13,
     fontFamily: Fonts.bodyBold,
-    color: Colors.fg1,
+    color: c.fg1,
     marginBottom: 7,
   },
   inputRow: {
@@ -265,13 +269,13 @@ const styles = StyleSheet.create({
     height: 50,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: c.border,
     paddingHorizontal: 14,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
   },
   inputRowError: {
-    borderColor: Colors.danger,
-    shadowColor: Colors.danger,
+    borderColor: c.danger,
+    shadowColor: c.danger,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.12,
     shadowRadius: 4,
@@ -281,7 +285,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     flex: 1,
     fontSize: 15,
-    color: Colors.ink900,
+    color: c.ink900,
     paddingVertical: 0,
     // todo el alto de la caja es tocable, no solo la línea de texto
     alignSelf: 'stretch',
@@ -297,7 +301,7 @@ const styles = StyleSheet.create({
   btnPrimary: {
     height: 52,
     borderRadius: 9999,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
@@ -308,12 +312,12 @@ const styles = StyleSheet.create({
   btnPrimaryText: {
     fontSize: 16,
     fontFamily: Fonts.bodyBold,
-    color: Colors.white,
+    color: c.white,
   },
   errorBanner: {
     marginTop: 12,
     borderRadius: 10,
-    backgroundColor: Colors.dangerSurface,
+    backgroundColor: c.dangerSurface,
     borderWidth: 1,
     borderColor: 'rgba(184,50,50,0.22)',
     padding: 12,
@@ -322,7 +326,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 13,
     fontFamily: Fonts.bodyBold,
-    color: Colors.danger,
+    color: c.dangerText,
   },
   forgotBtn: {
     alignItems: 'center',
@@ -333,6 +337,6 @@ const styles = StyleSheet.create({
   forgotText: {
     fontSize: 13.5,
     fontFamily: Fonts.bodyBold,
-    color: Colors.primary,
+    color: c.primaryText,
   },
 });

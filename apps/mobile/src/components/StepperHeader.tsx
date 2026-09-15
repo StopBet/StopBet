@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
@@ -14,6 +15,8 @@ interface Props {
 type StepState = 'done' | 'active' | 'todo';
 
 export function StepperHeader({ current, labels = ['Datos', 'Sede'] }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const steps = labels.map((_, i) => i + 1);
   const state = (step: number): StepState => {
     if (step < current) return 'done';
@@ -30,7 +33,7 @@ export function StepperHeader({ current, labels = ['Datos', 'Sede'] }: Props) {
             <View style={styles.item}>
               <View style={[styles.dot, s === 'active' && styles.dotActive, s === 'done' && styles.dotDone]}>
                 {s === 'done' ? (
-                  <Icon name="check" size={15} color={Colors.white} />
+                  <Icon name="check" size={15} color={c.white} />
                 ) : (
                   <Text style={[styles.dotNum, s === 'active' && styles.dotNumActive]}>{step}</Text>
                 )}
@@ -53,7 +56,7 @@ export function StepperHeader({ current, labels = ['Datos', 'Sede'] }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   wrapper: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -73,45 +76,45 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
   dotActive: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
+    backgroundColor: c.primary,
+    borderColor: c.primary,
   },
   dotDone: {
-    backgroundColor: Colors.sage500,
-    borderColor: Colors.sage500,
+    backgroundColor: c.sage500,
+    borderColor: c.sage500,
   },
   dotNum: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.fg2,
+    color: c.fg2,
   },
   dotNumActive: {
-    color: Colors.white,
+    color: c.white,
   },
   cap: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.fg2,
+    color: c.fg2,
   },
   capActive: {
-    color: Colors.primary,
+    color: c.primaryText,
   },
   capDone: {
-    color: Colors.greenText,
+    color: c.greenText,
   },
   line: {
     flex: 1,
     height: 2,
-    backgroundColor: Colors.border,
+    backgroundColor: c.border,
     marginTop: 15,
     borderRadius: 2,
   },
   lineDone: {
-    backgroundColor: Colors.sage500,
+    backgroundColor: c.sage500,
   },
 });

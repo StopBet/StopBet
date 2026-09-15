@@ -1,7 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
@@ -11,6 +12,8 @@ interface Props {
 }
 
 export function DayCounter({ days, milestone }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const pct = Math.min(days / milestone, 1);
   const daysLeft = milestone - days;
 
@@ -28,7 +31,7 @@ export function DayCounter({ days, milestone }: Props) {
               cx={70}
               cy={70}
               r={RADIO}
-              stroke={Colors.border}
+              stroke={c.border}
               strokeWidth={GROSOR}
               fill="none"
             />
@@ -36,7 +39,7 @@ export function DayCounter({ days, milestone }: Props) {
               cx={70}
               cy={70}
               r={RADIO}
-              stroke={Colors.sage500}
+              stroke={c.sage500}
               strokeWidth={GROSOR}
               fill="none"
               strokeLinecap="round"
@@ -62,20 +65,20 @@ export function DayCounter({ days, milestone }: Props) {
         <Text style={styles.daysLeftText}>
           {daysLeft} días para tu próxima insignia
         </Text>
-        <Icon name="medal" size={15} color={Colors.greenText} />
+        <Icon name="medal" size={15} color={c.greenText} />
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     paddingHorizontal: 18,
     paddingVertical: 16,
     marginHorizontal: 16,
-    shadowColor: Colors.shadowMedium,
+    shadowColor: c.shadowMedium,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 12,
@@ -88,7 +91,7 @@ const styles = StyleSheet.create({
     width: 140,
     height: 140,
     borderRadius: 70,
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -96,12 +99,12 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.headingBold,
     fontSize: 44,
     lineHeight: 48,
-    color: Colors.primary,
+    color: c.primaryText,
   },
   daysText: {
     fontFamily: Fonts.body,
     fontSize: 12,
-    color: Colors.fg2,
+    color: c.fg2,
     marginTop: 4,
   },
   milestoneRow: {
@@ -114,22 +117,22 @@ const styles = StyleSheet.create({
   milestoneLabel: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.fg2,
+    color: c.fg2,
   },
   milestonePercent: {
     fontFamily: Fonts.bodyBold,
     fontSize: 13,
-    color: Colors.greenText,
+    color: c.greenText,
   },
   progressBg: {
     height: 8,
     borderRadius: 9999,
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.sage500,
+    backgroundColor: c.sage500,
     borderRadius: 9999,
   },
   daysLeftRow: {
@@ -142,7 +145,7 @@ const styles = StyleSheet.create({
   daysLeftText: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.fg2,
+    color: c.fg2,
     textAlign: 'center',
   },
 });

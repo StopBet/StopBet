@@ -1,9 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useStyles } from '../context/ThemeContext';
 import { useReduceMotion } from '../hooks/useReduceMotion';
 
 export function TypingIndicator() {
+  const styles = useStyles(makeStyles);
   const reduceMotion = useReduceMotion();
   const dots = [
     useRef(new Animated.Value(0)).current,
@@ -57,12 +59,12 @@ export function TypingIndicator() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: Colors.border,
+    backgroundColor: c.border,
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 13,
@@ -72,6 +74,6 @@ const styles = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
-    backgroundColor: Colors.fg2,
+    backgroundColor: c.fg2,
   },
 });

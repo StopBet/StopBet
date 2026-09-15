@@ -1,7 +1,8 @@
 import React from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import type { CrisisSignal, CrisisSuggestion, SponsorInfo } from '@stopbet/shared-types';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
@@ -23,6 +24,8 @@ const LABELS: Record<CrisisSuggestion, { text: string; icon: IconName }> = {
 };
 
 export function CrisisCard({ crisis, sponsor, onPanic, onOpenSupportNetwork }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   // "Contactar a mi padrino" abría la pantalla de pánico: en una crisis, prometer
   // contacto y entregar navegación es la diferencia entre llamar y perder el impulso.
   const canCallSponsor = Boolean(sponsor?.phone);
@@ -49,7 +52,7 @@ export function CrisisCard({ crisis, sponsor, onPanic, onOpenSupportNetwork }: P
   return (
     <View style={styles.card} accessibilityLiveRegion="polite">
       <View style={styles.header}>
-        <Icon name="triangle-alert" size={18} color={Colors.danger} />
+        <Icon name="triangle-alert" size={18} color={c.dangerText} />
         <Text style={styles.title} accessibilityRole="header">
           {crisis.sustained ? 'Llevas un rato difícil' : 'Estoy aquí contigo'}
         </Text>
@@ -61,7 +64,7 @@ export function CrisisCard({ crisis, sponsor, onPanic, onOpenSupportNetwork }: P
         const { text, icon } = labelFor(s);
         return (
           <Touchable key={s} style={styles.action} onPress={() => handle(s)} accessibilityRole="button">
-            <Icon name={icon} size={16} color={Colors.danger} />
+            <Icon name={icon} size={16} color={c.dangerText} />
             <Text style={styles.actionText}>{text}</Text>
           </Touchable>
         );
@@ -70,19 +73,19 @@ export function CrisisCard({ crisis, sponsor, onPanic, onOpenSupportNetwork }: P
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: Colors.danger,
+    borderColor: c.danger,
     padding: 14,
     marginHorizontal: 16,
     marginBottom: 10,
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  title: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.danger },
-  body: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, marginBottom: 12, lineHeight: 20 },
+  title: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.dangerText },
+  body: { fontFamily: Fonts.body, fontSize: 14, color: c.fg2, marginBottom: 12, lineHeight: 20 },
   action: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -91,8 +94,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
-    backgroundColor: Colors.dangerSurface,
+    backgroundColor: c.dangerSurface,
     marginBottom: 6,
   },
-  actionText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg1 },
+  actionText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg1 },
 });

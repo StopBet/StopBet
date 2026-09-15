@@ -20,6 +20,47 @@ está.
 
 ---
 
+## 2026-09-15 — La app ya tiene tema oscuro: no uses `Colors` directo
+
+**A quién le pega:** a cualquiera que escriba UI en mobile.
+
+**Qué cambió.** La app sigue el tema del teléfono. `StyleSheet.create` corre una sola vez al
+cargar el módulo, así que una hoja de estilos fija no puede cambiar de tema. El patrón nuevo:
+
+```tsx
+const makeStyles = (c: Palette) => StyleSheet.create({
+  card: { backgroundColor: c.surface, borderColor: c.border },
+  title: { color: c.fg1 },
+});
+
+export function MiPantalla() {
+  const c = useColors();               // solo si usas colores en el JSX
+  const styles = useStyles(makeStyles);
+  ...
+}
+```
+
+**Tres reglas para no romperlo:**
+
+1. **No importes `Colors`.** Sigue existiendo apuntando a la paleta clara, pero un color
+   leído así se queda claro en modo oscuro. Usa `useColors()` / `makeStyles(c)`.
+2. **Para texto e íconos usa `c.primaryText` y `c.dangerText`, no `c.primary` ni `c.danger`.**
+   El azul y el rojo del manual son para **rellenos**: como texto sobre fondo oscuro dan
+   3,16:1 y 2,72:1, bajo el mínimo. Es el mismo criterio que ya existía con `greenText`.
+3. **Si agregas un color, agrégalo a las dos paletas.** El tipo `Palette` obliga a que la
+   oscura tenga las mismas llaves, así que el type-check te avisa.
+
+**El manual de marca no se tocó:** el azul, el verde y el rojo son los mismos en los dos
+temas como relleno. Un botón azul con texto blanco da 5,09:1 en claro y en oscuro.
+
+Los 12 pares de contraste principales están medidos: **cero por debajo de 4,5:1 en ambos
+temas**. Si cambias un color, vuelve a medir.
+
+**Lo que sigue en claro a propósito:** los diálogos nativos (`Alert`), porque el tema de
+Android se fijó claro con los colores de marca — ver el aviso de la segunda tanda.
+
+---
+
 ## 2026-09-15 — Deslizar entre secciones, avisos que no interrumpen y onda al tocar: `pnpm install` y recompilar
 
 **A quién le pega:** a todo el que corra la app mobile. Y si tocas navegación —**Matías

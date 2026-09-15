@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import type { TechniqueType } from '@stopbet/shared-types';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
@@ -52,6 +53,8 @@ interface Props {
 }
 
 export function TechniqueCard({ type }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const t = TECHNIQUES[type];
   // null: la guía no ha empezado · steps.length: la guía terminó
   const [step, setStep] = useState<number | null>(null);
@@ -77,7 +80,7 @@ export function TechniqueCard({ type }: Props) {
   return (
     <View style={styles.card}>
       <View style={styles.titleRow}>
-        <Icon name={t.icon} size={16} color={Colors.primary} />
+        <Icon name={t.icon} size={16} color={c.primaryText} />
         <Text style={styles.title}>{t.title}</Text>
       </View>
 
@@ -89,7 +92,7 @@ export function TechniqueCard({ type }: Props) {
             <View key={i} style={[styles.stepRow, active && styles.stepRowActive]}>
               <View style={[styles.num, done && styles.numDone]}>
                 {done ? (
-                  <Icon name="check" size={12} color={Colors.white} />
+                  <Icon name="check" size={12} color={c.white} />
                 ) : (
                   <Text style={styles.numText}>{i + 1}</Text>
                 )}
@@ -117,7 +120,7 @@ export function TechniqueCard({ type }: Props) {
         {step === null && (
           <Touchable
       rippleColor="rgba(255,255,255,0.28)" activeOpacity={0.85} onPress={next} style={styles.cta} accessibilityRole="button">
-            <Icon name={t.icon} size={15} color={Colors.white} />
+            <Icon name={t.icon} size={15} color={c.white} />
             <Text style={styles.ctaText}>Iniciar guía</Text>
           </Touchable>
         )}
@@ -125,7 +128,7 @@ export function TechniqueCard({ type }: Props) {
           <Touchable
       rippleColor="rgba(255,255,255,0.28)" activeOpacity={0.85} onPress={next} style={styles.cta} accessibilityRole="button">
             <Text style={styles.ctaText}>{step === t.steps.length - 1 ? 'Terminar' : 'Siguiente'}</Text>
-            <Icon name="arrow-right" size={15} color={Colors.white} />
+            <Icon name="arrow-right" size={15} color={c.white} />
           </Touchable>
         )}
         {current && current.secs && (
@@ -143,11 +146,11 @@ export function TechniqueCard({ type }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   card: {
-    backgroundColor: Colors.amber50,
+    backgroundColor: c.amber50,
     borderWidth: 1,
-    borderColor: Colors.primary,
+    borderColor: c.primary,
     borderRadius: 16,
     padding: 14,
   },
@@ -159,7 +162,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.bodyBold,
     fontSize: 15,
-    color: Colors.primary,
+    color: c.primaryText,
   },
   steps: {
     marginTop: 12,
@@ -174,29 +177,29 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   stepRowActive: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
   },
   num: {
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   numDone: {
-    backgroundColor: Colors.fg2,
+    backgroundColor: c.fg2,
   },
   numText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.white,
+    color: c.white,
   },
   stepLabel: {
     fontFamily: Fonts.body,
     flex: 1,
     fontSize: 13.5,
-    color: Colors.ink900,
+    color: c.ink900,
   },
   stepLabelActive: {
     fontFamily: Fonts.bodyBold,
@@ -204,19 +207,19 @@ const styles = StyleSheet.create({
   secs: {
     fontFamily: Fonts.bodyBold,
     fontSize: 12,
-    color: Colors.fg2,
+    color: c.fg2,
     minWidth: 44,
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
   secsActive: {
-    color: Colors.primary,
+    color: c.primaryText,
     fontSize: 14,
   },
   status: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.fg1,
+    color: c.fg1,
     marginTop: 10,
   },
   actions: {
@@ -228,7 +231,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingHorizontal: 18,
     minHeight: 48,
@@ -236,20 +239,20 @@ const styles = StyleSheet.create({
   ctaText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.white,
+    color: c.white,
   },
   ctaGhost: {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 9999,
     borderWidth: 1,
-    borderColor: Colors.primary,
+    borderColor: c.primary,
     paddingHorizontal: 18,
     minHeight: 48,
   },
   ctaGhostText: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.primary,
+    color: c.primaryText,
   },
 });

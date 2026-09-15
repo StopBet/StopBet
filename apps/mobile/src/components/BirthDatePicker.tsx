@@ -7,7 +7,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 import { Touchable } from './Touchable';
@@ -44,6 +45,8 @@ function parse(value: string): { d: number; m: number; y: number } | null {
 }
 
 export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const today = useMemo(() => new Date(), []);
   const maxYear = today.getFullYear();
   const minYear = today.getFullYear() - MAX_AGE;
@@ -101,7 +104,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
             <Text style={styles.title} accessibilityRole="header">Fecha de nacimiento</Text>
             <Touchable onPress={onClose} hitSlop={14} accessibilityRole="button" accessibilityLabel="Cerrar">
 
-              <Icon name="x" size={20} color={Colors.fg2} />
+              <Icon name="x" size={20} color={c.fg2} />
             </Touchable>
           </View>
 
@@ -113,7 +116,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
               accessibilityLabel={step === 'year' ? `Año ${year}` : `Año ${year}, cambiar`}
               accessibilityState={{ selected: step === 'year' }}
               style={[styles.crumbPill, step === 'year' && styles.crumbPillOn]}>
-              {step !== 'year' && <Icon name="chevron-left" size={14} color={Colors.primary} />}
+              {step !== 'year' && <Icon name="chevron-left" size={14} color={c.primaryText} />}
               <Text style={[styles.crumb, step === 'year' && styles.crumbActive]}>{year}</Text>
             </Touchable>
             {step !== 'year' && (
@@ -123,7 +126,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
                 accessibilityLabel={step === 'month' ? `Mes ${MONTHS[month]}` : `Mes ${MONTHS[month]}, cambiar`}
                 accessibilityState={{ selected: step === 'month' }}
                 style={[styles.crumbPill, step === 'month' && styles.crumbPillOn]}>
-                {step === 'day' && <Icon name="chevron-left" size={14} color={Colors.primary} />}
+                {step === 'day' && <Icon name="chevron-left" size={14} color={c.primaryText} />}
                 <Text style={[styles.crumb, step === 'month' && styles.crumbActive]}>
                   {MONTHS[month]}
                 </Text>
@@ -209,7 +212,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -217,7 +220,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   sheet: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -230,7 +233,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  title: { fontFamily: Fonts.headingBold, fontSize: 16.5, color: Colors.fg1 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 16.5, color: c.fg1 },
   crumbs: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,14 +247,14 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 11,
     borderRadius: 9999,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
-  crumbPillOn: { borderColor: Colors.primary, backgroundColor: Colors.surface },
-  crumb: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
-  crumbActive: { fontFamily: Fonts.bodyBold, color: Colors.primary },
-  crumbHint: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2, marginLeft: 'auto' },
+  crumbPillOn: { borderColor: c.primary, backgroundColor: c.surface },
+  crumb: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.primaryText },
+  crumbActive: { fontFamily: Fonts.bodyBold, color: c.primaryText },
+  crumbHint: { fontFamily: Fonts.body, fontSize: 12.5, color: c.fg2, marginLeft: 'auto' },
   scroll: { maxHeight: 320 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell3: {
@@ -267,17 +270,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: 10,
   },
-  cellOn: { backgroundColor: Colors.primary },
+  cellOn: { backgroundColor: c.primary },
   cellOff: { opacity: 0.28 },
-  cellText: { fontFamily: Fonts.body, fontSize: 15, color: Colors.fg1 },
-  cellTextOn: { fontFamily: Fonts.bodyBold, color: Colors.white },
-  cellTextOff: { color: Colors.fg2 },
+  cellText: { fontFamily: Fonts.body, fontSize: 15, color: c.fg1 },
+  cellTextOn: { fontFamily: Fonts.bodyBold, color: c.white },
+  cellTextOff: { color: c.fg2 },
   weekRow: { flexDirection: 'row', marginBottom: 6 },
   weekday: {
     fontFamily: Fonts.bodyBold,
     width: '14.28%',
     textAlign: 'center',
     fontSize: 12,
-    color: Colors.fg2,
+    color: c.fg2,
   },
 });
