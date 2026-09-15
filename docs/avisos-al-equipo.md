@@ -20,6 +20,32 @@ está.
 
 ---
 
+## 2026-09-15 — La auditoría UX de la web ya está hecha: no la repitas
+
+**A quién le pega:** a quien tome el dashboard web (y a quien vaya a tocar mobile).
+
+**Qué cambió.** Las dos auditorías de UX quedaron cerradas y documentadas. Antes de
+auditar nada por tu cuenta, lee la sección de arriba del archivo que te toque:
+
+- **Web** — `docs/auditoria-ux-web-2026-09-14.md` → «Estado al cierre y traspaso». **39 de 42
+  hallazgos arreglados y mergeados (PR #95).** Quedan tres (SIS-09 colores a mano, SIS-13
+  fuentes de respaldo, SHL-03 el logo de AJUTER que se carga desde ajuter.org), con el porqué
+  de cada uno. Esa sección también lista **lo que cambió después de la auditoría** —para que
+  no lo reportes como bug— y los huecos que la auditoría UX no cubre (Finanzas y
+  Configuración con datos mock, los 14 controladores sin guard, los vínculos de familiar que
+  nadie aprueba).
+- **Mobile** — `docs/auditoria-ux-mobile-2026-09-14.md` → «Estado al cierre». **72 de 76
+  cerrados (PRs #90–#101)**, con la tabla de qué cerró cada PR.
+
+**Lo que falta en las dos no es código: son decisiones.** Están juntas y con nombre en
+`docs/ASUNCIONES-PENDIENTES.md`, sección «2026-09-15». Empieza por ahí si vas a hablar con
+AJUTER o con el cliente: la pasarela de pago y quién paga, el texto de privacidad del
+asistente, el tono de la cuenta suspendida y el género de «compañero de viaje».
+
+**No hace falta correr nada** después de pullear esto: son solo documentos.
+
+---
+
 ## 2026-09-15 — El término del programa es «compañero de viaje», no «padrino»
 
 **A quién le pega:** a quien escriba textos en mobile, en la web o en correos.
