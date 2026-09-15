@@ -286,7 +286,7 @@ export function PanicScreen({ navigation }: Props) {
   const handleLeaveWaiting = useCallback(() => {
     showDialog({
       title: 'Tu alerta sigue activa',
-      message: 'Si vuelves al inicio, la alerta ya enviada sigue en pie y tu padrino puede responderla. Puedes volver a esta pantalla cuando quieras.',
+      message: 'Si vuelves al inicio, la alerta ya enviada sigue en pie y tu compañero de viaje puede responderla. Puedes volver a esta pantalla cuando quieras.',
       actions: [
         { label: 'Ir al inicio', onPress: () => navigation.navigate('MainTabs', { screen: 'Home' }) },
         { label: 'Seguir esperando', tone: 'cancel' },
@@ -414,11 +414,11 @@ export function PanicScreen({ navigation }: Props) {
             <Pressable
               style={styles.callRow}
               onPress={() => Linking.openURL(`tel:${state.sponsor?.phone ?? ''}`)}
-              accessibilityLabel={`Llamar a tu padrino, ${state.sponsor.firstName}`}
+              accessibilityLabel={`Llamar a ${state.sponsor.firstName}, tu compañero de viaje`}
             >
               <View style={styles.callIcon}><Icon name="phone" size={20} color={c.primaryText} /></View>
               <View style={styles.callMeta}>
-                <Text style={styles.callLabel}>Llama directamente a {state.sponsor.firstName}, tu padrino</Text>
+                <Text style={styles.callLabel}>Llama directamente a {state.sponsor.firstName}</Text>
                 <Text style={styles.callNumber}>{formatPhone(state.sponsor.phone)}</Text>
               </View>
               <Icon name="chevron-right" size={20} color={c.fg2} />
@@ -492,7 +492,7 @@ export function PanicScreen({ navigation }: Props) {
                 </View>
                 <View style={styles.sponsorMeta}>
                   <Text style={styles.sponsorName}>{sponsor.firstName} {sponsor.lastName}</Text>
-                  <Text style={styles.sponsorStatus}>Tu padrino</Text>
+                  <Text style={styles.sponsorStatus}>Tu compañero de viaje</Text>
                 </View>
                 <Icon name="handshake" size={24} color={c.sage500} />
               </View>
@@ -568,7 +568,7 @@ export function PanicScreen({ navigation }: Props) {
           </View>
 
           <Text style={styles.waitTitle}>
-            Alerta enviada a {sponsor?.firstName ?? 'tu padrino'}
+            Alerta enviada a {sponsor?.firstName ?? 'tu compañero de viaje'}
           </Text>
           <View style={styles.waitingDotsRow}>
             <Text style={styles.waitSub}>Esperando respuesta </Text>
@@ -587,7 +587,7 @@ export function PanicScreen({ navigation }: Props) {
                 {/* "está siendo notificado" concuerda en masculino con cualquier nombre:
                     a Daniela le decía "notificado". El género del padrino no se conoce. */}
                 <Text style={styles.sponsorName}>
-                  {sponsor ? `Avisando a ${sponsor.firstName}` : 'Avisando a tu padrino…'}
+                  {sponsor ? `Avisando a ${sponsor.firstName}` : 'Avisando a tu compañero de viaje…'}
                 </Text>
                 <Text style={styles.notifTime}>hace un momento</Text>
               </View>
@@ -661,7 +661,7 @@ export function PanicScreen({ navigation }: Props) {
         {/* Pregunta */}
         <View style={styles.topSection}>
           <Text style={styles.title}>¿Necesitas ayuda ahora?</Text>
-          <Text style={styles.subtitle}>Tu padrino recibirá una alerta inmediata</Text>
+          <Text style={styles.subtitle}>Tu compañero de viaje recibirá una alerta inmediata</Text>
         </View>
 
         {/* Botón hold */}
@@ -682,7 +682,7 @@ export function PanicScreen({ navigation }: Props) {
                 onPressOut={onPressOut}
                 android_ripple={null}
                 accessibilityLabel="Botón de pánico"
-                accessibilityHint="Avisa a tu padrino. Mantén presionado 2 segundos o, con TalkBack, toca dos veces."
+                accessibilityHint="Avisa a tu compañero de viaje. Mantén presionado 2 segundos o, con TalkBack, toca dos veces."
                 accessibilityRole="button"
                 accessibilityActions={[{ name: 'activate', label: 'Enviar alerta de pánico' }]}
                 onAccessibilityAction={(e) => {
@@ -702,7 +702,7 @@ export function PanicScreen({ navigation }: Props) {
 
         {/* Sponsor card */}
         <View style={[styles.card, styles.sponsorCard]}>
-          <Text style={styles.sponsorCardLabel}>Tu padrino asignado</Text>
+          <Text style={styles.sponsorCardLabel}>Tu compañero de viaje asignado</Text>
           <View style={styles.avatarRow}>
             {sponsor ? (
               <>
@@ -729,7 +729,7 @@ export function PanicScreen({ navigation }: Props) {
                 )}
               </>
             ) : (
-              <Text style={styles.noSponsorText}>Sin padrino asignado — contacta a tu psicólogo</Text>
+              <Text style={styles.noSponsorText}>Sin compañero de viaje asignado — contacta a tu psicólogo</Text>
             )}
           </View>
         </View>

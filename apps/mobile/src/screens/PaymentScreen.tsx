@@ -33,7 +33,7 @@ const PAYMENT_METHODS: { id: PaymentMethod; icon: IconName; label: string }[] = 
 
 const PLAN_FEATURES = [
   'Asistente virtual IA 24/7',
-  'Botón de pánico y red de padrinos',
+  'Botón de pánico y red de compañeros de viaje',
   'Seguimiento de logros y progreso',
   'Comunidad de tu sede',
   'Sesiones de seguimiento con psicólogo',

@@ -177,8 +177,8 @@ export const INITIAL_REQUESTS: RegistrationRequest[] = [
 ]
 
 export const PADRINOS: Record<string, string[]> = {
-  Santiago:       ['Asignar padrino…', 'Jorge Aravena · 6 años limpio', 'Patricio Núñez · 4 años limpio', 'Claudia Vera · 8 años limpia'],
-  'Viña del Mar': ['Asignar padrino…', 'Marcelo Díaz · 5 años limpio', 'Sandra Rojas · 3 años limpia'],
+  Santiago:       ['Asignar compañero de viaje…', 'Jorge Aravena · 6 años limpio', 'Patricio Núñez · 4 años limpio', 'Claudia Vera · 8 años limpia'],
+  'Viña del Mar': ['Asignar compañero de viaje…', 'Marcelo Díaz · 5 años limpio', 'Sandra Rojas · 3 años limpia'],
 }
 
 export const REJECT_REASONS = [

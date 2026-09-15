@@ -20,6 +20,34 @@ está.
 
 ---
 
+## 2026-09-15 — El término del programa es «compañero de viaje», no «padrino»
+
+**A quién le pega:** a quien escriba textos en mobile, en la web o en correos.
+
+**Qué cambió.** AJUTER no usa «padrino» ni «madrina»: en su programa la persona que acompaña
+al paciente es su **compañero de viaje**. La app usaba el término equivocado en todas partes.
+Se renombró el **texto visible** en mobile (pánico, comunidad, plan), en el panel web
+(Alertas, Solicitudes) y en los mensajes del backend que llegan al paciente, incluidos los
+de respaldo del asistente.
+
+**En el código NO se renombró nada.** El rol sigue siendo `sponsor`, la tabla
+`sponsor_assignments`, el header, los DTO y Swagger. Cambiar eso sería un refactor de base
+de datos por un tema de vocabulario. **Regla: `sponsor` en el código, «compañero de viaje»
+en la pantalla.**
+
+**Dos cosas que conviene saber:**
+
+- **El término es largo** (19 caracteres contra 7). Si escribes una fila de una línea que lo
+  incluya, pruébala: las de pánico y comunidad se revisaron una por una y entran, pero
+  cualquier fila nueva puede no hacerlo.
+- **Queda una pregunta para AJUTER:** para una mujer sería «compañera de viaje», y el género
+  de quien acompaña no se conoce en el código. Hoy se usa la forma masculina como nombre del
+  rol y, donde se puede, se dice el nombre de la persona en vez del rol («Llamar a Daniela»,
+  «Alerta enviada a Daniela»). Si AJUTER prefiere otra fórmula, es cambiar los textos, no la
+  estructura.
+
+---
+
 ## 2026-09-15 — AJUTER sale del cromo de la app: es un cliente, no la marca
 
 **A quién le pega:** a quien escriba textos de la app mobile.

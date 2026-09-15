@@ -501,7 +501,7 @@ async function seedDemo(): Promise<void> {
     { type: 'info', title: 'Respondieron tu publicación', body: 'Alguien comentó en tu post de la comunidad.' },
     { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.' },
     { type: 'success', title: 'Pago recibido', body: 'Tu mensualidad fue procesada correctamente.' },
-    { type: 'danger', title: 'Alerta de pánico', body: 'Tu padrino fue notificado de tu alerta.' },
+    { type: 'danger', title: 'Alerta de pánico', body: 'Tu compañero de viaje fue notificado de tu alerta.' },
   ], 'Carlos Demo');
   await seedNotifications(PATIENT2_ID, [
     { type: 'info', title: 'Bienvenido a la comunidad', body: 'Ya puedes publicar y reaccionar a otros mensajes.' },
