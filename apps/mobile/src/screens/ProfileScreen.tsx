@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
   Alert,
+  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -141,203 +142,217 @@ export function ProfileScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.avatarCard}>
-          <View style={styles.avatarCircle}>
+          <View style={styles.avatarCircle} importantForAccessibility="no-hide-descendants">
             <Text style={styles.avatarLetter}>C</Text>
           </View>
-          <Text style={styles.userName}>Carlos</Text>
-          <Text style={styles.userSub}>Paciente AJUTER</Text>
+          <View style={styles.avatarText}>
+            <Text style={styles.userName}>Carlos</Text>
+            <Text style={styles.userSub}>Paciente AJUTER</Text>
+          </View>
         </View>
 
-        <View style={styles.menuCard}>
-          {MENU_ITEMS.map((item, i) => (
-            <TouchableOpacity
-              key={item.label}
-              style={[styles.menuRow, i < MENU_ITEMS.length - 1 && styles.menuRowBorder]}
-              activeOpacity={0.7}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Notificaciones</Text>
+          <View style={styles.menuCard}>
+            {/* Toda la fila es el interruptor: el Switch solo mide 46×27 dp */}
+            <Pressable
+              style={[styles.menuRow, { paddingVertical: 14 }]}
+              onPress={() => toggleCommunityMute(!communityMuted)}
+              disabled={muteLoading}
+              accessibilityRole="switch"
+              accessibilityLabel="Silenciar notificaciones de comunidad"
+              accessibilityHint="No te avisaremos cuando alguien reaccione o responda tus publicaciones"
+              accessibilityState={{ checked: communityMuted, disabled: muteLoading }}
             >
               <View style={styles.menuIcon}>
-                <Icon name={item.icon} size={22} color={Colors.primary} />
+                <Icon name="bell" size={22} color={Colors.primary} />
               </View>
               <View style={styles.menuText}>
-                <Text style={styles.menuLabel}>{item.label}</Text>
-                <Text style={styles.menuSub}>{item.sub}</Text>
+                <Text style={styles.menuLabel}>Silenciar notificaciones de comunidad</Text>
+                <Text style={styles.menuSub}>
+                  No te avisaremos cuando alguien reaccione o responda tus publicaciones
+                </Text>
               </View>
-              <Icon name="chevron-right" size={20} color={Colors.fg2} />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.menuCard}>
-          <View style={[styles.menuRow, { paddingVertical: 14 }]}>
-            <View style={styles.menuIcon}>
-              <Icon name="bell" size={22} color={Colors.primary} />
-            </View>
-            <View style={styles.menuText}>
-              <Text style={styles.menuLabel}>Silenciar notificaciones de comunidad</Text>
-              <Text style={styles.menuSub}>
-                No te avisaremos cuando alguien reaccione o responda tus publicaciones
-              </Text>
-            </View>
-            <Switch
-              value={communityMuted}
-              onValueChange={toggleCommunityMute}
-              disabled={muteLoading}
-              trackColor={{ false: Colors.border, true: Colors.primary }}
-              thumbColor={Colors.white}
-            />
-          </View>
-        </View>
-
-        <View style={styles.comingSoonCard}>
-          <Icon name="settings" size={15} color={Colors.fg2} />
-          <Text style={styles.comingSoonText}>
-            Configuración completa disponible próximamente
-          </Text>
-        </View>
-
-        {/* Herramientas de prueba */}
-        <View style={styles.devCard}>
-          <View style={styles.devHeader}>
-            <Icon name="flask-conical" size={14} color={Colors.fg2} />
-            <Text style={styles.devTitle}>Herramientas de prueba</Text>
-          </View>
-          <View style={styles.devRow}>
-            <View style={styles.devText}>
-              <Text style={styles.devLabel}>Simular sin conexión</Text>
-              <Text style={styles.devSub}>
-                Fuerza error de red en todas las llamadas a la API
-              </Text>
-            </View>
-            <Switch
-              value={offline}
-              onValueChange={toggleOffline}
-              trackColor={{ false: Colors.border, true: Colors.danger }}
-              thumbColor={Colors.white}
-            />
-          </View>
-          {offline && (
-            <View style={styles.devBadge}>
-              <Icon name="triangle-alert" size={12} color={Colors.danger} />
-              <Text style={styles.devBadgeText}>Modo sin conexión activo</Text>
-            </View>
-          )}
-
-          <View style={styles.devDivider} />
-
-          <View style={styles.devRow}>
-            <View style={styles.devText}>
-              <Text style={styles.devLabel}>Días sin apostar</Text>
-              <Text style={styles.devSub}>Sobreescribe el contador para la demo</Text>
-            </View>
-            <View style={styles.devDaysRow}>
-              <TextInput
-                style={styles.devDaysInput}
-                value={daysInput}
-                onChangeText={setDaysInput}
-                keyboardType="number-pad"
-                placeholder="—"
-                placeholderTextColor={Colors.fg2}
-                maxLength={4}
-                returnKeyType="done"
-                onSubmitEditing={applyDays}
+              <Switch
+                value={communityMuted}
+                onValueChange={toggleCommunityMute}
+                disabled={muteLoading}
+                importantForAccessibility="no"
+                trackColor={{ false: Colors.border, true: Colors.primary }}
+                thumbColor={Colors.white}
               />
-              <TouchableOpacity style={styles.devApplyBtn} onPress={applyDays}>
-                <Text style={styles.devApplyText}>OK</Text>
-              </TouchableOpacity>
-              {devFlags.overrideDays !== null && (
-                <TouchableOpacity style={styles.devClearBtn} onPress={clearDays}>
-                  <Icon name="x" size={14} color={Colors.fg2} />
-                </TouchableOpacity>
-              )}
-            </View>
+            </Pressable>
           </View>
-          {devFlags.overrideDays !== null && (
-            <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
-              <Icon name="check" size={12} color={Colors.sage500} />
-              <Text style={[styles.devBadgeText, { color: Colors.sage500 }]}>
-                Mostrando {devFlags.overrideDays} días
-                {syncStatus === 'syncing' ? ' · sincronizando…' : ''}
-                {syncStatus === 'ok' ? ' · sincronizado ✓' : ''}
-              </Text>
-            </View>
-          )}
-          {syncStatus === 'error' && (
-            <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
-              <Icon name="triangle-alert" size={12} color={Colors.danger} />
-              <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
-                Error al sincronizar con el servidor
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.devDivider} />
-
-          <View style={styles.devRow}>
-            <View style={styles.devText}>
-              <Text style={styles.devLabel}>Check-in emocional</Text>
-              <Text style={styles.devSub}>Reinicia el check-in de hoy para volver a registrarlo</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.devApplyBtn, checkInResetStatus === 'loading' && { opacity: 0.5 }]}
-              onPress={resetCheckIn}
-              disabled={checkInResetStatus === 'loading'}
-            >
-              <Text style={styles.devApplyText}>
-                {checkInResetStatus === 'loading' ? '…' : 'Reset'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {checkInResetStatus === 'ok' && (
-            <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
-              <Icon name="check" size={12} color={Colors.sage500} />
-              <Text style={[styles.devBadgeText, { color: Colors.sage500 }]}>
-                Check-in borrado — ya puedes registrarlo de nuevo
-              </Text>
-            </View>
-          )}
-          {checkInResetStatus === 'error' && (
-            <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
-              <Icon name="triangle-alert" size={12} color={Colors.danger} />
-              <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
-                Error al borrar el check-in
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.devDivider} />
-
-          <View style={styles.devRow}>
-            <View style={styles.devText}>
-              <Text style={styles.devLabel}>Alerta de pánico</Text>
-              <Text style={styles.devSub}>Cancela la alerta activa para volver al botón idle</Text>
-            </View>
-            <TouchableOpacity
-              style={[styles.devApplyBtn, panicResetStatus === 'loading' && { opacity: 0.5 }]}
-              onPress={resetPanicAlert}
-              disabled={panicResetStatus === 'loading'}
-            >
-              <Text style={styles.devApplyText}>
-                {panicResetStatus === 'loading' ? '…' : 'Reset'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          {panicResetStatus === 'ok' && (
-            <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
-              <Icon name="check" size={12} color={Colors.sage500} />
-              <Text style={[styles.devBadgeText, { color: Colors.sage500 }]}>
-                Alerta cancelada — el botón de pánico vuelve al estado normal
-              </Text>
-            </View>
-          )}
-          {panicResetStatus === 'error' && (
-            <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
-              <Icon name="triangle-alert" size={12} color={Colors.danger} />
-              <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
-                Error al cancelar la alerta
-              </Text>
-            </View>
-          )}
         </View>
+
+        {/* Sin destino todavía: se muestran como lo que viene, no como botones */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Próximamente</Text>
+          <View style={styles.menuCard}>
+            {UPCOMING_ITEMS.map((item, i) => (
+              <View
+                key={item.label}
+                style={[styles.menuRow, i < UPCOMING_ITEMS.length - 1 && styles.menuRowBorder]}
+                accessible
+              >
+                <View style={styles.menuIcon}>
+                  <Icon name={item.icon} size={22} color={Colors.fg2} />
+                </View>
+                <View style={styles.menuText}>
+                  <Text style={styles.menuLabelMuted}>{item.label}</Text>
+                  <Text style={styles.menuSub}>{item.sub}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Herramientas de prueba: solo en builds de desarrollo, nunca en el APK de pacientes */}
+        {__DEV__ && (
+          <View style={styles.devCard}>
+            <View style={styles.devHeader}>
+              <Icon name="flask-conical" size={14} color={Colors.fg2} />
+              <Text style={styles.devTitle}>Herramientas de prueba</Text>
+            </View>
+            <View style={styles.devRow}>
+              <View style={styles.devText}>
+                <Text style={styles.devLabel}>Simular sin conexión</Text>
+                <Text style={styles.devSub}>
+                  Fuerza error de red en todas las llamadas a la API
+                </Text>
+              </View>
+              <Switch
+                value={offline}
+                accessibilityLabel="Simular sin conexión"
+                onValueChange={toggleOffline}
+                trackColor={{ false: Colors.border, true: Colors.danger }}
+                thumbColor={Colors.white}
+              />
+            </View>
+            {offline && (
+              <View style={styles.devBadge}>
+                <Icon name="triangle-alert" size={12} color={Colors.danger} />
+                <Text style={styles.devBadgeText}>Modo sin conexión activo</Text>
+              </View>
+            )}
+
+            <View style={styles.devDivider} />
+
+            <View style={styles.devRow}>
+              <View style={styles.devText}>
+                <Text style={styles.devLabel}>Días sin apostar</Text>
+                <Text style={styles.devSub}>Sobreescribe el contador para la demo</Text>
+              </View>
+              <View style={styles.devDaysRow}>
+                <TextInput
+                  style={styles.devDaysInput}
+                  value={daysInput}
+                  onChangeText={setDaysInput}
+                  keyboardType="number-pad"
+                  placeholder="—"
+                  placeholderTextColor={Colors.fg2}
+                  maxLength={4}
+                  returnKeyType="done"
+                  onSubmitEditing={applyDays}
+                />
+                <TouchableOpacity style={styles.devApplyBtn} onPress={applyDays}>
+                  <Text style={styles.devApplyText}>OK</Text>
+                </TouchableOpacity>
+                {devFlags.overrideDays !== null && (
+                  <TouchableOpacity style={styles.devClearBtn} onPress={clearDays}>
+                    <Icon name="x" size={14} color={Colors.fg2} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+            {devFlags.overrideDays !== null && (
+              <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+                <Icon name="check" size={12} color={Colors.greenText} />
+                <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
+                  Mostrando {devFlags.overrideDays} días
+                  {syncStatus === 'syncing' ? ' · sincronizando…' : ''}
+                  {syncStatus === 'ok' ? ' · sincronizado ✓' : ''}
+                </Text>
+              </View>
+            )}
+            {syncStatus === 'error' && (
+              <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+                <Icon name="triangle-alert" size={12} color={Colors.danger} />
+                <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+                  Error al sincronizar con el servidor
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.devDivider} />
+
+            <View style={styles.devRow}>
+              <View style={styles.devText}>
+                <Text style={styles.devLabel}>Check-in emocional</Text>
+                <Text style={styles.devSub}>Reinicia el check-in de hoy para volver a registrarlo</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.devApplyBtn, checkInResetStatus === 'loading' && { opacity: 0.5 }]}
+                onPress={resetCheckIn}
+                disabled={checkInResetStatus === 'loading'}
+              >
+                <Text style={styles.devApplyText}>
+                  {checkInResetStatus === 'loading' ? '…' : 'Reset'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {checkInResetStatus === 'ok' && (
+              <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+                <Icon name="check" size={12} color={Colors.greenText} />
+                <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
+                  Check-in borrado — ya puedes registrarlo de nuevo
+                </Text>
+              </View>
+            )}
+            {checkInResetStatus === 'error' && (
+              <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+                <Icon name="triangle-alert" size={12} color={Colors.danger} />
+                <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+                  Error al borrar el check-in
+                </Text>
+              </View>
+            )}
+
+            <View style={styles.devDivider} />
+
+            <View style={styles.devRow}>
+              <View style={styles.devText}>
+                <Text style={styles.devLabel}>Alerta de pánico</Text>
+                <Text style={styles.devSub}>Cancela la alerta activa para volver al botón idle</Text>
+              </View>
+              <TouchableOpacity
+                style={[styles.devApplyBtn, panicResetStatus === 'loading' && { opacity: 0.5 }]}
+                onPress={resetPanicAlert}
+                disabled={panicResetStatus === 'loading'}
+              >
+                <Text style={styles.devApplyText}>
+                  {panicResetStatus === 'loading' ? '…' : 'Reset'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {panicResetStatus === 'ok' && (
+              <View style={[styles.devBadge, { backgroundColor: '#EFF9F4' }]}>
+                <Icon name="check" size={12} color={Colors.greenText} />
+                <Text style={[styles.devBadgeText, { color: Colors.greenText }]}>
+                  Alerta cancelada — el botón de pánico vuelve al estado normal
+                </Text>
+              </View>
+            )}
+            {panicResetStatus === 'error' && (
+              <View style={[styles.devBadge, { backgroundColor: '#FEE2E2' }]}>
+                <Icon name="triangle-alert" size={12} color={Colors.danger} />
+                <Text style={[styles.devBadgeText, { color: Colors.danger }]}>
+                  Error al cancelar la alerta
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.signOutBtn}
@@ -345,7 +360,7 @@ export function ProfileScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Cerrar sesión"
         >
-          <Icon name="log-out" size={18} color={Colors.danger} />
+          <Icon name="log-out" size={18} color={Colors.fg1} />
           <Text style={styles.signOutText}>Cerrar sesión</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -363,11 +378,10 @@ export function ProfileScreen({ navigation }: Props) {
   );
 }
 
-const MENU_ITEMS: { icon: IconName; label: string; sub: string }[] = [
-  { icon: 'user',     label: 'Datos personales', sub: 'Nombre, RUT, contacto' },
-  { icon: 'hospital', label: 'Mi sede AJUTER', sub: 'Centro de tratamiento asignado' },
-  { icon: 'bell',     label: 'Notificaciones', sub: 'Recordatorios y alertas' },
-  { icon: 'lock',     label: 'Privacidad', sub: 'Gestión de datos y permisos' },
+const UPCOMING_ITEMS: { icon: IconName; label: string; sub: string }[] = [
+  { icon: 'user',     label: 'Datos personales', sub: 'Nombre, RUT y contacto' },
+  { icon: 'hospital', label: 'Mi sede AJUTER',   sub: 'Tu centro de tratamiento' },
+  { icon: 'lock',     label: 'Privacidad',       sub: 'Tus datos y permisos' },
 ];
 
 const styles = StyleSheet.create({
@@ -380,34 +394,39 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
   },
   headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
-  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.teal400, marginTop: 3 },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.onPrimaryMuted, marginTop: 3 },
 
   scroll: { flex: 1, backgroundColor: Colors.bg },
   scrollContent: { padding: 16, paddingBottom: 24, gap: 16 },
 
   avatarCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 20,
-    padding: 28,
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: Colors.shadowMedium,
-    shadowOffset: { width: 0, height: 4 },
+    gap: 14,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: Colors.shadowSoft,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowRadius: 6,
+    elevation: 2,
   },
   avatarCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14,
   },
-  avatarLetter: { fontFamily: Fonts.headingBold, fontSize: 36, color: Colors.white },
-  userName: { fontFamily: Fonts.headingBold, fontSize: 22, color: Colors.ink900 },
-  userSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, marginTop: 4 },
+  avatarLetter: { fontFamily: Fonts.headingBold, fontSize: 22, color: Colors.white },
+  avatarText: { flex: 1 },
+  userName: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900 },
+  userSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, marginTop: 2 },
+
+  section: { gap: 8 },
+  sectionTitle: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.fg2, marginLeft: 4 },
 
   menuCard: {
     backgroundColor: Colors.surface,
@@ -433,18 +452,8 @@ const styles = StyleSheet.create({
   menuIcon: { width: 28, alignItems: 'center' },
   menuText: { flex: 1 },
   menuLabel: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink900 },
+  menuLabelMuted: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
   menuSub: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 2 },
-
-  comingSoonCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 16,
-  },
-  comingSoonText: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, textAlign: 'center' },
 
   signOutBtn: {
     flexDirection: 'row',
@@ -454,10 +463,11 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.danger,
+    // neutro: el rojo del manual es solo para pánico y alertas críticas
+    borderColor: Colors.border,
     padding: 16,
   },
-  signOutText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.danger },
+  signOutText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.fg1 },
 
   devCard: {
     backgroundColor: Colors.surface,
