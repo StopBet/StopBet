@@ -59,7 +59,7 @@ const REACTION_NAME: Record<ReactionEmoji, string> = {
 const ROLE_LABEL: Record<UserRole, string> = {
   patient: 'Paciente',
   psychologist: 'Psicólogo',
-  sponsor: 'Padrino',
+  sponsor: 'Compañero de viaje',
   family: 'Familiar',
   coordinator: 'Coordinador',
 };

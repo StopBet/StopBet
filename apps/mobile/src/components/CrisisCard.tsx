@@ -19,7 +19,7 @@ interface Props {
 
 const LABELS: Record<CrisisSuggestion, { text: string; icon: IconName }> = {
   panic_button: { text: 'Activar botón de pánico', icon: 'siren' },
-  contact_sponsor: { text: 'Contactar a mi padrino', icon: 'user' },
+  contact_sponsor: { text: 'Contactar a mi compañero de viaje', icon: 'user' },
   crisis_line: { text: `Llamar a ${CRISIS_LINE}`, icon: 'phone' },
 };
 

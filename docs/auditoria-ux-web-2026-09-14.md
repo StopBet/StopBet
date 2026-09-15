@@ -89,17 +89,23 @@ Ningún arreglo de esta lista modifica un color del manual (`#396fb6`, `#93bce5`
 
   | Estado | Etiqueta | Tono | ¿Requiere atención? |
   |---|---|---|---|
-  | `pending` | "Esperando al padrino" | alerta | sí |
+  | `pending` | "Esperando respuesta" | alerta | sí |
   | `escalated` | "Escalada · sin respuesta" | alerta | sí |
-  | `responded` | "El padrino respondió" | azul | no |
+  | `responded` | "Respondida" | azul | no |
   | `cancelled` | "Cerrada" | neutro | no |
+
+  _Las etiquetas de `pending` y `responded` decían "al padrino" y "El padrino respondió";
+  se acortaron al renombrar a «compañero de viaje» (PR #101), que no cabía en la fila._
 
   El paciente queda "En riesgo" si tiene alguna alerta `pending` o `escalated`.
 - **Dueño:** dashboard (HdU04, Eduardo Pacheco), con los datos de pánico (HdU01, Matías Barraza).
 
-## Estado al cierre del 14-09-2026
+## Estado al cierre y traspaso · 15-09-2026
 
-Los arreglos están en local; todavía no se sube nada.
+**Esta auditoría ya está hecha y 39 de sus 42 hallazgos están arreglados y mergeados en
+`main` (PR #95). No hace falta volver a auditar la web: lo que queda es corto y está
+listado acá abajo.** Quien siga con el dashboard puede tomar esta sección como punto de
+partida.
 
 | Métrica | Antes | Después |
 |---|---|---|
@@ -109,10 +115,50 @@ Los arreglos están en local; todavía no se sube nada.
 | Foco visible (login / panel) | 5 de 7 · 11 de 12 | 7 de 7 · 12 de 12 |
 | Desborde lateral a 1280 px | 140 px (Resumen) | 0 en todas las páginas |
 
-Quedan pendientes:
-- **SIS-09** (colores escritos a mano): avance parcial.
-- **SIS-13** (fuentes de respaldo).
-- **SHL-03** (logo de AJUTER): hace falta el archivo del logo para dejar de cargarlo desde ajuter.org.
+### Los 3 que quedan de la auditoría
+
+| # | Qué falta | Dónde | Por qué no se cerró |
+|---|---|---|---|
+| **SIS-09** (P2) | Pasar a tokens los hex y `rgba` escritos a mano | transversal, `apps/web/src/pages/` | **Parcial.** Salieron `#574F4A`, el `#B83232` a mano, el verde azulado del menú (`rgba(30,45,44,…)`) y el `#EAF1F9` del login. Quedan los demás de los 62 hex y 44 `rgba` originales. Es trabajo mecánico, sin decisión de por medio. |
+| **SIS-13** (P3) | Decidir si Inter y Nunito se siguen cargando | `apps/web/src/styles/colors_and_type.css` | Son **solo respaldo** de Chillax y Satoshi, y se descargan siempre. Falta medir cuánto pesa y decidir. |
+| **SHL-03** (P2) | Guardar el logo de AJUTER en el repo | `apps/web/src/components/...` (pie del sidebar) | **Bloqueado por un archivo, no por código:** hoy se carga desde `ajuter.org`. El logo está en `~/Stopbet/marca` (carpeta del PO) — pedirlo y commitearlo. |
+
+### Lo que cambió en la web *después* de la auditoría (no vuelvas a reportarlo)
+
+- **Estados de alerta de pánico.** `escalated` es una alerta **activa**, no una resuelta —
+  esa inversión era el P0 de la auditoría. Los estados salen de `utils/alertStatus.ts`; las
+  etiquetas visibles ahora son «Esperando respuesta» y «Respondida».
+- **«Compañero de viaje», no «padrino»** (PR #101). Es el término del programa de AJUTER.
+  **En el código nada se renombró:** el rol sigue siendo `sponsor`. Regla: `sponsor` en el
+  código, «compañero de viaje» en la pantalla.
+- **Modales propios** vía `hooks/useDialog` — no queda ningún `window.confirm`.
+- **El verde de texto es `--secondary-text`.** El `#c2d66e` del manual no alcanza AA sobre
+  blanco (1,6:1) y por eso existe la versión oscurecida. No lo "corrijas" de vuelta al hex
+  del manual: la marca se respeta en los rellenos.
+- **Finanzas avisa en pantalla que son datos de ejemplo.**
+
+### Huecos conocidos que la auditoría UX no cubre
+
+No son hallazgos de UX, pero quien tome la web se los va a encontrar:
+
+- **`FinanzasPage` y `ConfiguracionPage` siguen con datos mock.** Las demás páginas ya están
+  conectadas a la API real con TanStack Query.
+- **14 de 17 controladores del backend leen `x-user-id` sin verificarlo.** Solo `family`,
+  `metrics` y `users` tienen guard. El cliente HTTP de la web ya manda `Bearer`, pero algunas
+  llamadas siguen con el header viejo porque el endpoint no lo pide. Ver
+  `docs/security/permissions-matrix.md`.
+- **Nadie aprueba los vínculos de familiar.** `requestLink` los crea en `pending` y no hay
+  endpoint ni pantalla que los pase a `active`: en producción un familiar quedaría esperando
+  para siempre. Es una pantalla web que falta.
+- **Vercel Hobby prohíbe el uso comercial.** Funciona porque el repo está público. Ver
+  `ASUNCIONES-PENDIENTES.md`.
+
+### Cómo reproducir la verificación
+
+El recorrido fue con axe sobre las 7 vistas del terapeuta más el portal del familiar, a
+1280 px y a 1920 px, con las cuentas de `pnpm run seed` y `pnpm run seed:family` (clave
+`Stopbet2026!`). Para el teléfono, ojo con Vite: escucha solo en IPv6, hay que levantarlo con
+`pnpm --filter @stopbet/web dev -- --host 0.0.0.0`.
 
 ## Lista de arreglos
 

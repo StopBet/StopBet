@@ -37,6 +37,55 @@ Gravedad: **P0** bloquea o pone en riesgo al paciente · **P1** arreglar antes d
 |  |  | Recuperación de errores | 2/4 |
 |  |  | Ayuda | 1/4 |
 
+## Estado al cierre · 15-09-2026
+
+**76 hallazgos · 72 cerrados · 4 mitigados con una decisión pendiente · 0 sin tocar.**
+Todo está en `main`: PRs **#90 a #100** mergeados, **#101** (compañero de viaje) abierto.
+La app se reverificó en el emulador después de cada tanda.
+
+| PR | Qué cerró |
+|---|---|
+| #90 | Accesibilidad y contraste en toda la app (SIS-01, SIS-02, SIS-04…) |
+| #91 | Ruta de crisis del pánico: compañero de viaje real sin conexión, `*4141`, sin números de prueba |
+| #92 | Privacidad real del asistente y guía de técnicas |
+| #93 | Herramientas de prueba fuera de producción y Perfil ordenado |
+| #94 | AND-01: restauración sin cierres (`super.onCreate(null)`) e ícono adaptativo |
+| #96 | Pagos, pánico, inicio y registro (segunda tanda) |
+| #97 | Deslizar entre secciones (pager real) y cierre de la lista de arreglos |
+| #98 | Modo oscuro completo (SIS-07), con interruptor en Perfil |
+| #99 | Sesión real: login contra `/auth/login`, `Bearer`, caché por paciente |
+| #100 | Diálogos propios en vez del cuadro de Android, y AJUTER fuera del cromo |
+| #101 | «Compañero de viaje» en vez de «padrino» |
+
+**Lo que se agregó y no estaba en la auditoría** (salió al arreglar lo que sí estaba):
+
+- **Sesión real.** La app entraba siempre como el paciente demo con un id fijo. Ahora hay
+  login de verdad, `Authorization: Bearer` con refresh, y los cuatro caminos de error del
+  login están probados. Se encontraron **dos fugas entre cuentas** que solo aparecen cuando
+  hay sesiones reales: la caché local usaba llaves globales (un paciente veía el progreso y
+  el teléfono del compañero del anterior) y un contador de módulo hacía aparecer un falso
+  «tu psicólogo registró una recaída». Las dos están cerradas.
+- **Modo oscuro** con paleta medida: 12 pares de contraste, **ninguno bajo 4,5:1** en los dos
+  temas. La marca no cambió — los azules, verdes y rojos siguen iguales como relleno; lo que
+  se derivó fueron tokens de **texto** (`primaryText`, `dangerText`).
+- **Navegación por deslizamiento** entre Inicio, Comunidad, Logros y Perfil. El pánico queda
+  fuera del gesto a propósito: no se activa por accidente.
+- **Diálogos y avisos propios** (`DialogContext`, `ToastContext`): los 11 `Alert.alert` de
+  Android salieron.
+
+**Los 4 que quedan abiertos y por qué** (los cuatro necesitan que alguien **decida**, no que
+alguien programe — el detalle y la pregunta exacta están en `ASUNCIONES-PENDIENTES.md`):
+
+| # | Qué falta | De quién depende |
+|---|---|---|
+| PAG-01 | Pasarela real y quién paga (paciente o familiar) | Cliente · reunión pendiente |
+| SUS-05 | Validar el tono de la cuenta suspendida | AJUTER |
+| ASI-01 | Validar el texto de privacidad del asistente | AJUTER |
+| INI-05 | Enrutar cada notificación a su pantalla | Backend: `Notification` no trae destino |
+
+**Lo que no se pudo verificar:** teléfono físico, tablet y horizontal. Toda la verificación
+fue en emulador (Android 16, 1080×2400). Es el hueco más grande que queda.
+
 ## Decisiones tomadas (PO, 14-09-2026)
 
 - **Privacidad del asistente: decir la verdad en la app.** Los mensajes se siguen guardando; la tarjeta de privacidad y el resumen deben explicar qué se guarda, cuánto tiempo y quién lo ve (ASI-01).

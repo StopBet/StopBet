@@ -7,6 +7,79 @@
 
 ---
 
+## 2026-09-15 · Lo que quedó esperando una decisión del PO o de AJUTER
+
+Todo lo de abajo salió de las auditorías UX de mobile y web y del trabajo posterior. **No es
+código pendiente: es una pregunta que alguien tiene que responder.** Están en orden de qué
+tan caro sale equivocarse.
+
+### 🔴 Para AJUTER — vocabulario y textos clínicos
+
+**1. «Compañero de viaje» asume género masculino.**
+Se renombró «padrino» por el término del programa (PR #101), pero para una mujer sería
+«compañera de viaje» y **el código no conoce el género de quien acompaña**. Hoy se usa la
+forma masculina como nombre del rol y, donde se puede, se dice el nombre de la persona
+(«Llamar a Daniela») para esquivarlo. Es el mismo problema que ya apareció con «Daniela está
+siendo notificado». **Qué se necesita:** la fórmula que AJUTER quiere usar. Si hay que
+distinguir, habría que guardar el género o el tratamiento en el perfil de quien acompaña —
+eso sí es cambio de estructura.
+
+**2. El texto de privacidad del asistente.**
+Se reescribió para que diga la verdad —el psicólogo no lee la conversación, los mensajes
+quedan guardados mientras exista la cuenta, pasan por la IA de Google sin nombre ni RUT—
+pero **nadie de AJUTER lo ha validado**. Es lo que el paciente lee antes de contarle lo más
+íntimo de su proceso. Va en `PrivacyCard.tsx` y `SessionSummaryModal.tsx`.
+
+**3. El tono de la cuenta suspendida.**
+Se sacó el tono de cobranza («Llevas 3 meses sin pagar», «3 meses de mora»), porque el estrés
+por deudas es un gatillo de recaída. El texto actual es una propuesta del PO, **no una
+validación clínica**.
+
+### 🔴 Para el PO y el cliente — la pasarela de pago
+
+**4. ¿Quién paga: el paciente o el familiar que asignó?**
+No es una pregunta de proveedor, **son dos productos distintos**. Si paga el familiar hay que
+generar un enlace a nombre del paciente para que lo abra otra persona — eso ya existe a
+medias (`GET /billing/family-link`). Perfil anuncia «Portal de pago» en *Próximamente*, sin
+acción, hasta que se decida.
+
+**5. Un paciente suspendido no puede entrar a pagar.**
+El backend rechaza el login de cuentas suspendidas (403) y corta las sesiones ya abiertas.
+Eso deja `SuspendedAccountScreen` —con su «Pagar ahora y reactivar»— **sin forma de
+alcanzarse**. Hoy el login le dice que escriba a `contacto@ajuter.cl`. Hay que decidir si el
+backend le da una sesión limitada para pagar, o si el cobro se resuelve fuera de la app.
+
+**6. `POST /billing/pay` no cobra nada.** Marca las facturas como pagadas y reactiva la
+cuenta. La app ya no afirma lo contrario, pero mientras no exista Webpay el cobro se coordina
+fuera del sistema. Los costos están en `presupuesto-stack-2026-09.md`.
+
+### 🟡 Para el PO — producto y marca
+
+**7. `contacto@ajuter.cl` está escrito en el código.**
+AJUTER es el primer cliente y puede haber más. Cuando llegue el segundo, ese correo tiene que
+venir de la sede, no del código. Lo mismo vale para cualquier otro dato del cliente que
+todavía esté fijo.
+
+**8. Vercel Hobby prohíbe el uso comercial.**
+Hoy funciona porque el repo está público, pero la cláusula sigue ahí y StopBet va a cobrar
+$30.000 mensuales. Las salidas son Pro ($20/usuario/mes) o Cloudflare Pages (gratis, permite
+repos privados y uso comercial).
+
+### 🟡 Para el equipo — deuda que ya está anotada pero conviene no perder
+
+**9. 14 de 17 controladores leen `x-user-id` sin verificarlo.** Mobile ya manda
+`Authorization: Bearer` con el id real, así que el header se puede sacar en cuanto se
+registre `JwtAuthGuard` como guard global. Con el repo público esto pesa más.
+
+**10. No hay migraciones y producción corre con `NODE_ENV=development`** para que TypeORM
+cree el esquema con `synchronize`. Hay que resolverlo **antes de manejar datos de pacientes
+reales**.
+
+**11. Falta probar en un teléfono físico.** Toda la auditoría de mobile se verificó en
+emulador. Es el hueco de verificación más grande que queda.
+
+---
+
 ## 🔴 Importantes (requieren decisión del equipo)
 
 ### 1. Contenido clínico inventado (sin validación de AJUTER)

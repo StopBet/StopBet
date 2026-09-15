@@ -30,7 +30,7 @@ function shortSedeName(name: string): string {
 const FILTER_LABELS: Record<FilterChip, string> = {
   todas: 'Todas',
   atencion: 'Requieren atención',
-  responded: 'El padrino respondió',
+  responded: 'Respondida',
   cancelled: 'Cerradas',
 }
 
@@ -38,8 +38,8 @@ const FILTER_LABELS: Record<FilterChip, string> = {
 // "hechos" siempre y prometía un push al psicólogo y una llamada de emergencia a los 30
 // minutos que el sistema no hace.
 const PROTOCOL = [
-  { title: 'Aviso al padrino', desc: 'Su padrino asignado recibe una notificación en el teléfono. Si el paciente no tiene padrino, la alerta se escala de inmediato.' },
-  { title: 'Espera de 2 minutos', desc: 'Si el padrino no responde, la alerta pasa a «Escalada · sin respuesta» y aparece en «Requieren atención».' },
+  { title: 'Aviso al compañero de viaje', desc: 'Su compañero de viaje asignado recibe una notificación en el teléfono. Si el paciente no tiene uno, la alerta se escala de inmediato.' },
+  { title: 'Espera de 2 minutos', desc: 'Si el compañero de viaje no responde, la alerta pasa a «Escalada · sin respuesta» y aparece en «Requieren atención».' },
   { title: 'Apoyo en la app', desc: 'Mientras tanto, el paciente tiene a mano el asistente y la línea *4141.' },
   { title: 'Seguimiento del equipo', desc: 'El panel no envía avisos al psicólogo: revisa esta lista para contactar a los pacientes con alertas escaladas.' },
 ]
@@ -107,9 +107,9 @@ export function AlertasPage() {
         <MetricCard icon="triangle-alert" label="Total alertas" value={allRows.length} tone="teal"
           sub="historial completo de botones de pánico" />
         <MetricCard icon="circle-alert" label="Requieren atención" value={unresolved.length} tone="red" important
-          sub="esperando al padrino o escaladas" />
-        <MetricCard icon="circle-check" label="El padrino respondió" value={respondedCount} tone="teal"
-          sub="alertas con respuesta del padrino" />
+          sub="esperando respuesta o escaladas" />
+        <MetricCard icon="circle-check" label="Respondidas" value={respondedCount} tone="teal"
+          sub="el compañero de viaje contestó" />
         <MetricCard icon="check" label="Cerradas" value={closedCount} tone="teal"
           sub="por el paciente o reemplazadas por una nueva" />
       </div>

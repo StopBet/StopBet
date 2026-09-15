@@ -27,7 +27,7 @@ export function PanicHeaderButton({ onPress }: { onPress: () => void }) {
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel="Botón de pánico"
-      accessibilityHint="Avisa a tu padrino ahora"
+      accessibilityHint="Avisa a tu compañero de viaje ahora"
     >
       <View style={styles.row}>
         <Icon name="siren" size={16} color={c.white} />
