@@ -48,7 +48,9 @@ export function WelcomeScreen({ navigation }: Props) {
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.btnPrimary}
-          onPress={() => navigation.navigate('SelectInstitution')}
+          // Mientras AJUTER sea la única institución, ese paso solo pedía confirmar lo
+          // único que se podía elegir. La pantalla sigue existiendo para cuando haya más.
+          onPress={() => navigation.navigate('RegisterStep1', { institutionId: 'AJUTER' })}
           accessibilityRole="button"
         >
           <Text style={styles.btnPrimaryText}>Comenzar registro</Text>

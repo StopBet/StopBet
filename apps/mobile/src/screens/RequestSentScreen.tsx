@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  Linking,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -27,7 +28,7 @@ interface TimelineItem {
 const TIMELINE: TimelineItem[] = [
   { state: 'done',    title: 'Registro completado' },
   { state: 'current', title: 'Revisión por psicólogo de AJUTER', meta: 'En revisión · Plazo estimado: 24-48 horas' },
-  { state: 'todo',    title: 'Pago de mensualidad' },
+  { state: 'todo',    title: 'Pago de la mensualidad', meta: 'Lo coordinas con tu sede AJUTER' },
   { state: 'todo',    title: 'Acceso completo activado' },
 ];
 
@@ -96,11 +97,18 @@ export function RequestSentScreen({ navigation, route }: Props) {
         >
           <Text style={styles.btnOutlineText}>Volver al inicio</Text>
         </TouchableOpacity>
-        <Text style={styles.contactText}>
-          ¿Preguntas? Escríbenos a{' '}
-          <Text style={styles.contactLink}>contacto@ajuter.cl</Text>
-        </Text>
-        <Text style={styles.powered}>Powered by StopBet</Text>
+        {/* El correo no era tocable, y "Powered by StopBet" dentro de StopBet no dice nada */}
+        <TouchableOpacity
+          onPress={() => Linking.openURL('mailto:contacto@ajuter.cl?subject=Solicitud%20de%20registro')}
+          style={styles.contactBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Escribir a contacto@ajuter.cl"
+        >
+          <Text style={styles.contactText}>
+            ¿Preguntas? Escríbenos a{' '}
+            <Text style={styles.contactLink}>contacto@ajuter.cl</Text>
+          </Text>
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -179,5 +187,5 @@ const styles = StyleSheet.create({
   btnOutlineText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.primary },
   contactText: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 12 },
   contactLink: { fontFamily: Fonts.bodyBold, color: Colors.primary },
-  powered: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2, marginTop: 6, opacity: 0.6 },
+  contactBtn: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
 });

@@ -5,14 +5,17 @@ import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 
 interface Props {
-  current: 1 | 2 | 3;
-  labels?: [string, string, string];
+  current: number;
+  /** El registro termina en "Solicitud enviada": prometer un paso "Pago" que nadie
+   *  alcanza es un contrato que la app no cumple. Cuando exista la pasarela, se agrega. */
+  labels?: string[];
 }
 
 type StepState = 'done' | 'active' | 'todo';
 
-export function StepperHeader({ current, labels = ['Datos', 'Sede', 'Pago'] }: Props) {
-  const state = (step: 1 | 2 | 3): StepState => {
+export function StepperHeader({ current, labels = ['Datos', 'Sede'] }: Props) {
+  const steps = labels.map((_, i) => i + 1);
+  const state = (step: number): StepState => {
     if (step < current) return 'done';
     if (step === current) return 'active';
     return 'todo';
@@ -20,7 +23,7 @@ export function StepperHeader({ current, labels = ['Datos', 'Sede', 'Pago'] }: P
 
   return (
     <View style={styles.wrapper}>
-      {([1, 2, 3] as const).map((step, idx) => {
+      {steps.map((step, idx) => {
         const s = state(step);
         return (
           <React.Fragment key={step}>
@@ -40,7 +43,7 @@ export function StepperHeader({ current, labels = ['Datos', 'Sede', 'Pago'] }: P
                 {labels[idx]}
               </Text>
             </View>
-            {idx < 2 && (
+            {idx < steps.length - 1 && (
               <View style={[styles.line, s === 'done' && styles.lineDone]} />
             )}
           </React.Fragment>
