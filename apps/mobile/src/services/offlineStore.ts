@@ -106,3 +106,29 @@ export async function readSponsor(): Promise<SponsorInfo | null> {
     return null;
   }
 }
+
+// CA7.4 · El permiso de notificaciones aparecía de golpe apenas iniciada la sesión:
+// Android preguntaba "Allow StopBet to send you notifications?" sin que la app
+// hubiera explicado que es para el recordatorio de las 20:00. Quien decía que no,
+// perdía el recordatorio sin enterarse. Se guarda la decisión para preguntar una
+// sola vez y poder reactivarlo desde Perfil.
+const REMINDER_KEY = '@stopbet/daily-reminder';
+
+export type ReminderChoice = 'accepted' | 'dismissed';
+
+export async function saveReminderChoice(choice: ReminderChoice): Promise<void> {
+  try {
+    await AsyncStorage.setItem(REMINDER_KEY, choice);
+  } catch {
+    // Quedarse sin la preferencia solo significa volver a preguntar
+  }
+}
+
+export async function readReminderChoice(): Promise<ReminderChoice | null> {
+  try {
+    const stored = await AsyncStorage.getItem(REMINDER_KEY);
+    return stored === 'accepted' || stored === 'dismissed' ? stored : null;
+  } catch {
+    return null;
+  }
+}

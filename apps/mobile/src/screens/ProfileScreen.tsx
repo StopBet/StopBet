@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import {
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StatusBar,
@@ -20,6 +21,8 @@ import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { devFlags } from '../store/devFlags';
 import { api } from '../services/api';
+import { registrarParaNotificaciones } from '../services/pushNotifications';
+import { readReminderChoice, saveReminderChoice } from '../services/offlineStore';
 import { AuthContext } from '../context/AuthContext';
 
 // Ajustar cuando se conecte la autenticación real
@@ -32,6 +35,9 @@ export function ProfileScreen({ navigation }: Props) {
   const [offline, setOffline] = useState(devFlags.simulateOffline);
   const [communityMuted, setCommunityMuted] = useState(false);
   const [muteLoading, setMuteLoading] = useState(false);
+  // Quien rechazó el recordatorio de las 20:00 no tenía forma de volver a activarlo
+  const [reminderOn, setReminderOn] = useState(false);
+  const [reminderLoading, setReminderLoading] = useState(false);
   const [daysInput, setDaysInput] = useState(
     devFlags.overrideDays !== null ? String(devFlags.overrideDays) : '',
   );
@@ -48,7 +54,34 @@ export function ProfileScreen({ navigation }: Props) {
     api.getCommunityMute(TEMP_USER_ID)
       .then(({ muted }) => setCommunityMuted(muted))
       .catch(() => {});
+    readReminderChoice().then((choice) => setReminderOn(choice === 'accepted'));
   }, []);
+
+  const toggleReminder = async (v: boolean) => {
+    setReminderLoading(true);
+    try {
+      if (!v) {
+        await saveReminderChoice('dismissed');
+        setReminderOn(false);
+        return;
+      }
+      const { activado } = await registrarParaNotificaciones(TEMP_USER_ID);
+      await saveReminderChoice(activado ? 'accepted' : 'dismissed');
+      setReminderOn(activado);
+      if (!activado) {
+        Alert.alert(
+          'Sin permiso para avisarte',
+          'Android no nos dejó enviarte el recordatorio. Puedes darlo desde los ajustes del teléfono.',
+          [
+            { text: 'Ahora no', style: 'cancel' },
+            { text: 'Abrir ajustes', onPress: () => Linking.openSettings() },
+          ],
+        );
+      }
+    } finally {
+      setReminderLoading(false);
+    }
+  };
 
   const toggleCommunityMute = async (v: boolean) => {
     setMuteLoading(true);
@@ -155,6 +188,34 @@ export function ProfileScreen({ navigation }: Props) {
           <Text style={styles.sectionTitle} accessibilityRole="header">Notificaciones</Text>
           <View style={styles.menuCard}>
             {/* Toda la fila es el interruptor: el Switch solo mide 46×27 dp */}
+            <Pressable
+              style={[styles.menuRow, styles.menuRowBorder, { paddingVertical: 14 }]}
+              onPress={() => toggleReminder(!reminderOn)}
+              disabled={reminderLoading}
+              accessibilityRole="switch"
+              accessibilityLabel="Recordatorio diario de las 20:00"
+              accessibilityHint="Te avisamos cada noche para registrar cómo estuvo tu día"
+              accessibilityState={{ checked: reminderOn, disabled: reminderLoading }}
+            >
+              <View style={styles.menuIcon}>
+                <Icon name="clock" size={22} color={Colors.primary} />
+              </View>
+              <View style={styles.menuText}>
+                <Text style={styles.menuLabel}>Recordatorio diario de las 20:00</Text>
+                <Text style={styles.menuSub}>
+                  Un aviso cada noche para registrar cómo estuvo tu día
+                </Text>
+              </View>
+              <Switch
+                value={reminderOn}
+                onValueChange={toggleReminder}
+                disabled={reminderLoading}
+                importantForAccessibility="no"
+                trackColor={{ false: Colors.border, true: Colors.primary }}
+                thumbColor={Colors.white}
+              />
+            </Pressable>
+
             <Pressable
               style={[styles.menuRow, { paddingVertical: 14 }]}
               onPress={() => toggleCommunityMute(!communityMuted)}

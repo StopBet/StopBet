@@ -37,12 +37,18 @@ async function pedirPermiso(): Promise<boolean> {
  * Nunca lanza: quedarse sin push es molesto, pero no puede impedir que el
  * paciente use la app — y menos el botón de pánico.
  */
+export interface RegistroPush {
+  /** false si el paciente rechazó el permiso o algo falló: la pantalla lo dice. */
+  activado: boolean;
+  detener: () => void;
+}
+
 export async function registrarParaNotificaciones(
   userId: string,
-): Promise<() => void> {
+): Promise<RegistroPush> {
   const sinEfecto = () => {};
   try {
-    if (!(await pedirPermiso())) return sinEfecto;
+    if (!(await pedirPermiso())) return { activado: false, detener: sinEfecto };
 
     const messaging = getMessaging(getApp());
     const token = await getToken(messaging);
@@ -50,10 +56,13 @@ export async function registrarParaNotificaciones(
 
     // FCM rota el token solo (reinstalación, limpieza de datos, restauración).
     // Sin esto el dispositivo deja de recibir avisos en silencio.
-    return onTokenRefresh(messaging, (nuevo) => {
-      api.registrarTokenPush(userId, nuevo).catch(() => {});
-    });
+    return {
+      activado: true,
+      detener: onTokenRefresh(messaging, (nuevo) => {
+        api.registrarTokenPush(userId, nuevo).catch(() => {});
+      }),
+    };
   } catch {
-    return sinEfecto;
+    return { activado: false, detener: sinEfecto };
   }
 }

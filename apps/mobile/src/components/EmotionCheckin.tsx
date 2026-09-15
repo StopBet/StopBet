@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { EmotionType } from '@stopbet/shared-types';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
@@ -23,7 +23,8 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
   return (
     <View style={styles.wrapper}>
       <View style={styles.header}>
-        <Text style={styles.title} accessibilityRole="header">Check emocional diario</Text>
+        {/* "Check emocional diario" era un anglicismo y no decía quién lo lee */}
+        <Text style={styles.title} accessibilityRole="header">¿Cómo te sientes hoy?</Text>
         {done && (
           <View style={styles.badge}>
             <Icon name="check" size={13} color={Colors.greenText} />
@@ -32,11 +33,11 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
         )}
       </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
-      >
+      <Text style={styles.subtitle}>Tu psicólogo verá cómo te sentiste.</Text>
+
+      {/* Cinco columnas flexibles: con la fila desplazable y tarjetas de 64 dp fijos,
+          en pantallas de 360 dp "Bien" —la única opción positiva— quedaba fuera de la vista */}
+      <View style={styles.row}>
         {EMOTIONS.map((o) => {
           const isSelected = done && selected === o.type;
           const dimmed = done && !isSelected;
@@ -63,7 +64,7 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
             </TouchableOpacity>
           );
         })}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -98,13 +99,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.greenText,
   },
-  scrollContent: {
+  subtitle: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.fg2,
     paddingHorizontal: 16,
-    gap: 10,
+    marginBottom: 12,
+    marginTop: -6,
+  },
+  row: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
   },
   emotionCard: {
-    width: 64,
-    minHeight: 84,
+    flex: 1,
+    minWidth: 0,
+    minHeight: 92,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
@@ -113,7 +124,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: 8,
     paddingVertical: 12,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2,
     shadowColor: Colors.shadowSoft,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
@@ -136,6 +147,7 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 11.5,
     color: Colors.fg2,
+    textAlign: 'center',
   },
   labelSelected: {
     fontFamily: Fonts.bodyBold,
