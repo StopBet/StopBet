@@ -29,11 +29,9 @@ import {
   saveReminderChoice,
   type ThemePreference,
 } from '../services/offlineStore';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext, useUserId } from '../context/AuthContext';
 import { Touchable } from '../components/Touchable';
 
-// Ajustar cuando se conecte la autenticación real
-const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 
 // Vive en el navegador de pestañas, pero también navega al stack de arriba
 // (asistente, pánico), así que necesita los dos juegos de props.
@@ -43,6 +41,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function ProfileScreen({ navigation }: Props) {
+  const userId = useUserId();
   const c = useColors();
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
@@ -67,7 +66,7 @@ export function ProfileScreen({ navigation }: Props) {
   };
 
   useEffect(() => {
-    api.getCommunityMute(TEMP_USER_ID)
+    api.getCommunityMute(userId)
       .then(({ muted }) => setCommunityMuted(muted))
       .catch(() => {});
     readReminderChoice().then((choice) => setReminderOn(choice === 'accepted'));
@@ -81,7 +80,7 @@ export function ProfileScreen({ navigation }: Props) {
         setReminderOn(false);
         return;
       }
-      const { activado } = await registrarParaNotificaciones(TEMP_USER_ID);
+      const { activado } = await registrarParaNotificaciones(userId);
       await saveReminderChoice(activado ? 'accepted' : 'dismissed');
       setReminderOn(activado);
       if (!activado) {
@@ -103,8 +102,8 @@ export function ProfileScreen({ navigation }: Props) {
     setMuteLoading(true);
     try {
       const { muted } = v
-        ? await api.muteCommunity(TEMP_USER_ID)
-        : await api.unmuteCommunity(TEMP_USER_ID);
+        ? await api.muteCommunity(userId)
+        : await api.unmuteCommunity(userId);
       setCommunityMuted(muted);
     } catch {
       showToast('Sin conexión: no pudimos guardar tu preferencia.', 'error');

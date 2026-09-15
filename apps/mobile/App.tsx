@@ -3,7 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AppStackParamList, AuthStackParamList } from './src/navigation/types';
-import { AuthContext } from './src/context/AuthContext';
+import { AuthContext, type LoginError } from './src/context/AuthContext';
+import type { AuthUser } from '@stopbet/shared-types';
+import { api, resetRelapseDetection } from './src/services/api';
+import { session } from './src/services/session';
+import { isNetworkError } from './src/services/checkInQueue';
 import { ToastProvider } from './src/context/ToastContext';
 import { ThemeProvider } from './src/context/ThemeContext';
 
@@ -62,12 +66,48 @@ function AppNavigator() {
 }
 
 export default function App() {
-  // Arranca sin sesión para que Welcome, Login y el registro (HdU06) sean alcanzables:
-  // con `true` el AuthNavigator entero quedaba muerto y no había forma de llegar al
-  // formulario desde la app corriendo.
-  // TODO(auth): `signIn` todavía no valida contra POST /auth/login — mobile sigue
-  // identificándose con `x-user-id` y TEMP_USER_ID en 7 pantallas.
-  const [isSignedIn, setIsSignedIn] = React.useState(false);
+  const [user, setUser] = React.useState<AuthUser | null>(null);
+  // Hasta que se lee la sesión guardada no se sabe qué navegador mostrar. Sin esto, quien
+  // ya tenía sesión veía Bienvenida por un instante antes de saltar a Inicio.
+  const [cargandoSesion, setCargandoSesion] = React.useState(true);
+
+  React.useEffect(() => {
+    session.load().then((guardado) => {
+      setUser(guardado);
+      setCargandoSesion(false);
+    });
+    // El cliente HTTP avisa acá cuando el refresh token dejó de servir
+    session.onSessionExpired(() => setUser(null));
+  }, []);
+
+  const signIn = React.useCallback(async (email: string, password: string): Promise<LoginError | null> => {
+    try {
+      // Estado de módulo del cliente: es del paciente anterior
+      resetRelapseDetection();
+      const data = await api.login(email, password);
+      // El backend no filtra por rol en /auth/login: la web decide en su pantalla de
+      // acceso y acá hacemos lo mismo. Esta app es la del paciente.
+      if (data.user.role !== 'patient') {
+        await api.logout();
+        return 'rol';
+      }
+      setUser(data.user);
+      return null;
+    } catch (err) {
+      const msg = (err as Error).message ?? '';
+      if (isNetworkError(err)) return 'red';
+      // `request()` lanza "<status> <cuerpo>"
+      if (msg.startsWith('403')) return 'suspendida';
+      if (msg.startsWith('401')) return 'credenciales';
+      return 'red';
+    }
+  }, []);
+
+  const signOut = React.useCallback(() => {
+    void api.logout();
+    resetRelapseDetection();
+    setUser(null);
+  }, []);
 
   return (
     // Hasta ahora no había SafeAreaProvider propio: los insets venían del que monta
@@ -76,13 +116,10 @@ export default function App() {
     <SafeAreaProvider>
       {/* El tema va lo más arriba posible: el aviso pasajero y las pantallas lo leen */}
       <ThemeProvider>
-        <AuthContext.Provider value={{
-          signIn: () => setIsSignedIn(true),
-          signOut: () => setIsSignedIn(false),
-        }}>
+        <AuthContext.Provider value={{ user, signIn, signOut }}>
           <ToastProvider>
             <NavigationContainer>
-              {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
+              {cargandoSesion ? null : user ? <AppNavigator /> : <AuthNavigator />}
             </NavigationContainer>
           </ToastProvider>
         </AuthContext.Provider>

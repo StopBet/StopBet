@@ -23,9 +23,8 @@ import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
 import { useReduceMotion } from '../hooks/useReduceMotion';
 import { Touchable } from '../components/Touchable';
+import { useCurrentUser, useUserId } from '../context/AuthContext';
 
-const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
-const TEMP_FIRST_NAME = 'Carlos';
 
 const MONTH_LABELS: Record<string, string> = {
   '01': 'Enero',  '02': 'Febrero',   '03': 'Marzo',
@@ -53,6 +52,9 @@ type ScreenState = 'suspended' | 'reactivated';
 type Props = NativeStackScreenProps<AppStackParamList, 'SuspendedAccount'>;
 
 export function SuspendedAccountScreen({ navigation }: Props) {
+  const userId = useUserId();
+  const user = useCurrentUser();
+  const sede = user?.sedeId ?? '';
   const { isDark } = useTheme();
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -76,7 +78,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   const load = useCallback(async () => {
     setLoadState('loading');
     try {
-      const status = await api.getBillingStatus(TEMP_USER_ID);
+      const status = await api.getBillingStatus(userId);
       setBillingStatus(status);
       setLoadState('ready');
     } catch (err) {
@@ -121,7 +123,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
     setPaying(true);
     setPayError(null);
     try {
-      const updated = await api.payOverdue(TEMP_USER_ID);
+      const updated = await api.payOverdue(userId);
       setBillingStatus(updated);
       setScreenState('reactivated');
     } catch (err) {
@@ -139,7 +141,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
   const handleOpenFamilySheet = async () => {
     if (!familyLink) {
       try {
-        const { url } = await api.getFamilyLink(TEMP_USER_ID);
+        const { url } = await api.getFamilyLink(userId);
         setFamilyLink(url);
         setFamilyLinkError(false);
       } catch {
@@ -190,7 +192,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
           <View style={{ alignItems: 'center' }}>
             <Text style={styles.reactivatedTitle}>¡Cuenta reactivada!</Text>
             <Text style={styles.reactivatedSub}>
-              Bienvenido de vuelta, {TEMP_FIRST_NAME}. Tu proceso continúa.
+              Bienvenido de vuelta, {(user?.firstName ?? '')}. Tu proceso continúa.
             </Text>
           </View>
 

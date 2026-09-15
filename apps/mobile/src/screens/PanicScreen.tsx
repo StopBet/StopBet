@@ -26,11 +26,11 @@ import { Icon } from '../components/Icon';
 import { api } from '../services/api';
 import { conReintento } from '../services/reintentoEscritura';
 import { readSponsor, saveSponsor } from '../services/offlineStore';
+import { useUserId } from '../context/AuthContext';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Constantes
 
-const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const HOLD_DURATION_MS = 2000;
 const POLL_INTERVAL_MS = 5000;
 const ESCALATION_SECONDS = 120; // CA1.3: debe coincidir con ESCALATION_MS del backend
@@ -57,6 +57,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'Panic'>;
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function PanicScreen({ navigation }: Props) {
+  const userId = useUserId();
   const { isDark } = useTheme();
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -83,14 +84,14 @@ export function PanicScreen({ navigation }: Props) {
 
   const load = useCallback(async () => {
     // El botón no espera al servidor: aparece de inmediato con el último padrino conocido
-    const cached = await readSponsor();
+    const cached = await readSponsor(userId);
     setState((prev) => (prev.kind === 'loading' ? { kind: 'idle', sponsor: cached } : prev));
     try {
       const [sponsorInfo, activeResp] = await Promise.all([
-        api.getSponsorInfo(TEMP_USER_ID),
-        api.getPanicActiveAlert(TEMP_USER_ID),
+        api.getSponsorInfo(userId),
+        api.getPanicActiveAlert(userId),
       ]);
-      void saveSponsor(sponsorInfo);
+      void saveSponsor(userId, sponsorInfo);
 
       if (activeResp.alert) {
         const { alert, sponsor } = activeResp;
@@ -104,7 +105,7 @@ export function PanicScreen({ navigation }: Props) {
           // Ya navegamos al asistente cuando se escaló. Al volver a esta pantalla
           // no tiene sentido bloquearla con "Asistente IA listo" — ir directo a idle.
           setState({ kind: 'idle', sponsor: sponsorInfo });
-          api.cancelPanicAlert(TEMP_USER_ID, alert.id).catch(() => {});
+          api.cancelPanicAlert(userId, alert.id).catch(() => {});
         } else {
           setState({ kind: 'idle', sponsor: sponsorInfo });
         }
@@ -114,7 +115,7 @@ export function PanicScreen({ navigation }: Props) {
     } catch (err) {
       const isNetworkError = (err as Error).message?.includes('Network request failed') ||
         (err as Error).message?.includes('Failed to fetch');
-      setState(isNetworkError ? { kind: 'offline', sponsor: await readSponsor() } : { kind: 'idle', sponsor: null });
+      setState(isNetworkError ? { kind: 'offline', sponsor: await readSponsor(userId) } : { kind: 'idle', sponsor: null });
     }
   }, []);
 
@@ -136,7 +137,7 @@ export function PanicScreen({ navigation }: Props) {
     if (pollRef.current) return;
     pollRef.current = setInterval(async () => {
       try {
-        const resp = await api.getPanicActiveAlert(TEMP_USER_ID);
+        const resp = await api.getPanicActiveAlert(userId);
         if (!resp.alert) return;
         const { alert, sponsor } = resp;
         if (alert.status === 'responded') {
@@ -199,7 +200,7 @@ export function PanicScreen({ navigation }: Props) {
     setState({ kind: 'idle', sponsor: sponsorForIdle });
     navigation.navigate('MainTabs', { screen: 'Home' });
     try {
-      await api.cancelPanicAlert(TEMP_USER_ID, alertId);
+      await api.cancelPanicAlert(userId, alertId);
     } catch {
       // Best effort: el backend la cierra igual cuando el paciente abre una nueva
     }
@@ -238,7 +239,7 @@ export function PanicScreen({ navigation }: Props) {
       // de vuelta. En una pantalla de pánico eso es lo peor que puede pasar: el
       // padrino ya fue avisado y el paciente cree que no. Se reintenta antes de
       // rendirse; el backend reutiliza la alerta abierta, así que no duplica.
-      const alert = await conReintento(() => api.createPanicAlert(TEMP_USER_ID));
+      const alert = await conReintento(() => api.createPanicAlert(userId));
       if (!alert) throw new Error('sin respuesta de la alerta');
 
       // CA1.2: sin padrino activo el backend devuelve la alerta ya escalada.
@@ -248,7 +249,7 @@ export function PanicScreen({ navigation }: Props) {
         return;
       }
 
-      const resp = await api.getPanicActiveAlert(TEMP_USER_ID);
+      const resp = await api.getPanicActiveAlert(userId);
       setCountdown(ESCALATION_SECONDS);
       setState({ kind: 'waiting', alert, sponsor: resp.sponsor });
       startCountdown(new Date(alert.createdAt));
@@ -256,7 +257,7 @@ export function PanicScreen({ navigation }: Props) {
     } catch (err) {
       const isNetworkError = (err as Error).message?.includes('Network request failed') ||
         (err as Error).message?.includes('Failed to fetch');
-      if (isNetworkError) setState({ kind: 'offline', sponsor: await readSponsor() });
+      if (isNetworkError) setState({ kind: 'offline', sponsor: await readSponsor(userId) });
     } finally {
       isActivating.current = false;
       holdProgress.setValue(0);
@@ -274,7 +275,7 @@ export function PanicScreen({ navigation }: Props) {
     setCountdown(ESCALATION_SECONDS);
     setState({ kind: 'idle', sponsor: state.sponsor });
     try {
-      await api.cancelPanicAlert(TEMP_USER_ID, state.alert.id);
+      await api.cancelPanicAlert(userId, state.alert.id);
     } catch {
       // Best effort — el estado local ya volvió a idle
     }
@@ -295,7 +296,7 @@ export function PanicScreen({ navigation }: Props) {
   const handleAlertCommunity = useCallback(async () => {
     if (state.kind !== 'waiting') return;
     try {
-      const { communityNotified } = await api.notifyCommunity(TEMP_USER_ID, state.alert.id);
+      const { communityNotified } = await api.notifyCommunity(userId, state.alert.id);
       // CA5.1: el backend responde 200 con `false` cuando no hay foro donde publicar
       // (paciente sin sede asignada). Marcarlo igual ocultaba la tarjeta y el botón
       // —ambos se pintan con este flag—, así que el paciente en crisis se quedaba sin
@@ -323,7 +324,7 @@ export function PanicScreen({ navigation }: Props) {
     const { id: alertId, } = state.alert;
     const sponsor = state.sponsor;
     try {
-      await api.escalatePanicAlert(TEMP_USER_ID, alertId);
+      await api.escalatePanicAlert(userId, alertId);
     } catch {
       // Si falla la escalada igual redirigimos al asistente
     }

@@ -42,11 +42,8 @@ import {
 import { conReintento } from '../services/reintentoEscritura';
 import { useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
+import { useCurrentUser, useUserId } from '../context/AuthContext';
 
-// Ajustar cuando se conecte la autenticación real
-const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
-const TEMP_FIRST_NAME = 'Carlos';
-const TEMP_SEDE = 'Santiago';
 const REFRESH_MS = 3 * 60 * 1000;
 
 // Vive en el navegador de pestañas, pero también navega al stack de arriba
@@ -69,6 +66,9 @@ function formatEventDate(iso: string): string {
 }
 
 export function HomeScreen({ navigation }: Props) {
+  const userId = useUserId();
+  const user = useCurrentUser();
+  const sede = user?.sedeId ?? '';
   const c = useColors();
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
@@ -90,17 +90,17 @@ export function HomeScreen({ navigation }: Props) {
     setLoadFailed(false);
     try {
       // Verifica suspensión antes de cargar el resto
-      const billing = await api.getBillingStatus(TEMP_USER_ID);
+      const billing = await api.getBillingStatus(userId);
       if (billing.accountStatus === 'suspended') {
         navigation.replace('SuspendedAccount');
         return;
       }
 
       const [achData, checkIn, notifs, anns] = await Promise.all([
-        api.getAchievements(TEMP_USER_ID),
-        api.getTodayCheckIn(TEMP_USER_ID),
-        api.getNotifications(TEMP_USER_ID),
-        api.getAnnouncements(TEMP_USER_ID, TEMP_SEDE),
+        api.getAchievements(userId),
+        api.getTodayCheckIn(userId),
+        api.getNotifications(userId),
+        api.getAnnouncements(userId, sede),
       ]);
 
       // Solo eventos que todavía no ocurren; si no hay ninguno, no se muestra nada
@@ -114,13 +114,13 @@ export function HomeScreen({ navigation }: Props) {
       const HOME_MILESTONES = [30, 60, 90, 180, 365];
       const nextMilestone = HOME_MILESTONES.find(m => m > days) ?? 365;
       setProgress({
-        userId: TEMP_USER_ID,
+        userId: userId,
         daysStreak: days,
         nextMilestone,
         lastCheckIn: checkIn,
       });
       setOffline(false);
-      void saveProgress(days, nextMilestone);
+      void saveProgress(userId, days, nextMilestone);
 
       if (checkIn) {
         setTodayEmotion(checkIn.emotion);
@@ -152,10 +152,10 @@ export function HomeScreen({ navigation }: Props) {
         // Se recupera el último progreso conocido: mostrar 0 días le diría al
         // paciente que perdió su racha cuando solo se cayó la red.
         setOffline(true);
-        const cached = await readProgress();
+        const cached = await readProgress(userId);
         if (cached) {
           setProgress(prev => prev ?? {
-            userId: TEMP_USER_ID,
+            userId: userId,
             daysStreak: cached.daysStreak,
             nextMilestone: cached.nextMilestone,
             lastCheckIn: null,
@@ -194,7 +194,7 @@ export function HomeScreen({ navigation }: Props) {
         return;
       }
       if (choice === 'accepted') {
-        registrarParaNotificaciones(TEMP_USER_ID).then((r) => {
+        registrarParaNotificaciones(userId).then((r) => {
           detener = r.detener;
         });
       }
@@ -208,7 +208,7 @@ export function HomeScreen({ navigation }: Props) {
   const handleActivarRecordatorio = async () => {
     setAskReminder(false);
     await saveReminderChoice('accepted');
-    const { activado } = await registrarParaNotificaciones(TEMP_USER_ID);
+    const { activado } = await registrarParaNotificaciones(userId);
     if (!activado) {
       Alert.alert(
         'Sin permiso para avisarte',
@@ -248,7 +248,7 @@ export function HomeScreen({ navigation }: Props) {
       // procesado. Se reintenta antes de darla por fallida: encolar un check-in
       // que en realidad ya está guardado solo produce un aviso falso de "sin
       // conexión" y un 409 más tarde.
-      await conReintento(() => api.createCheckIn(TEMP_USER_ID, emotion));
+      await conReintento(() => api.createCheckIn(userId, emotion));
       setTodayEmotion(emotion);
       setCheckInDone(true);
     } catch (err) {
@@ -258,7 +258,7 @@ export function HomeScreen({ navigation }: Props) {
       }
       // CA7.3: sin conexión el ánimo no se descarta — queda en cola y se
       // reintenta solo al volver la red.
-      await savePending(TEMP_USER_ID, emotion);
+      await savePending(userId, emotion);
       setTodayEmotion(emotion);
       setCheckInDone(true);
       showToast('Sin conexión: guardamos tu check-in y lo enviaremos cuando vuelvas a tener internet.');
@@ -267,7 +267,7 @@ export function HomeScreen({ navigation }: Props) {
 
   const handleMarkRead = async (id: string) => {
     try {
-      await api.markNotificationRead(TEMP_USER_ID, id);
+      await api.markNotificationRead(userId, id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
       );
@@ -290,7 +290,7 @@ export function HomeScreen({ navigation }: Props) {
       <View style={styles.header}>
         <View style={styles.headerText}>
           <View style={styles.greetingRow}>
-            <Text style={styles.greeting}>Hola, {TEMP_FIRST_NAME}</Text>
+            <Text style={styles.greeting}>Hola, {(user?.firstName ?? '')}</Text>
             <Icon name="hand" size={20} color={c.white} />
           </View>
           <Text style={styles.subtitle}>
@@ -305,7 +305,7 @@ export function HomeScreen({ navigation }: Props) {
           accessibilityLabel="Mi perfil"
         >
           <Text style={styles.avatarLetter}>
-            {TEMP_FIRST_NAME.charAt(0).toUpperCase()}
+            {(user?.firstName ?? '').charAt(0).toUpperCase()}
           </Text>
         </Pressable>
       </View>

@@ -1,6 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AchievementsData, CommunityPost, SponsorInfo } from '@stopbet/shared-types';
 
+// Las cachés se guardan POR PACIENTE. Antes la clave era una sola para toda la app, lo
+// que no importaba mientras hubiera un único usuario fijo; con sesiones reales, entrar
+// con otra cuenta y quedarse sin red mostraba el progreso —y el teléfono del padrino— del
+// paciente anterior. Eso es una fuga entre pacientes de la misma sede.
+function claveDe(base: string, userId: string): string {
+  return `${base}/${userId}`;
+}
+
 // Sin red, la pantalla de inicio mostraba "0 días sin apostar": el estado parte
 // vacío y la carga falla, así que el contador caía a cero. A un paciente eso le
 // dice que perdió su racha cuando lo único que pasó es que se cayó el wifi.
@@ -14,22 +22,22 @@ export interface CachedProgress {
   savedAt: string;
 }
 
-export async function saveProgress(daysStreak: number, nextMilestone: number): Promise<void> {
+export async function saveProgress(userId: string, daysStreak: number, nextMilestone: number): Promise<void> {
   const entry: CachedProgress = {
     daysStreak,
     nextMilestone,
     savedAt: new Date().toISOString(),
   };
   try {
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(entry));
+    await AsyncStorage.setItem(claveDe(CACHE_KEY, userId), JSON.stringify(entry));
   } catch {
     // El caché es una mejora, no un requisito: si el disco falla se sigue igual.
   }
 }
 
-export async function readProgress(): Promise<CachedProgress | null> {
+export async function readProgress(userId: string): Promise<CachedProgress | null> {
   try {
-    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    const raw = await AsyncStorage.getItem(claveDe(CACHE_KEY, userId));
     return raw ? (JSON.parse(raw) as CachedProgress) : null;
   } catch {
     return null;
@@ -41,17 +49,17 @@ export async function readProgress(): Promise<CachedProgress | null> {
 // ya ganadas a alguien que solo se quedó sin señal.
 const ACHIEVEMENTS_KEY = '@stopbet/last-achievements';
 
-export async function saveAchievements(data: AchievementsData): Promise<void> {
+export async function saveAchievements(userId: string, data: AchievementsData): Promise<void> {
   try {
-    await AsyncStorage.setItem(ACHIEVEMENTS_KEY, JSON.stringify(data));
+    await AsyncStorage.setItem(claveDe(ACHIEVEMENTS_KEY, userId), JSON.stringify(data));
   } catch {
     // Ver saveProgress: el caché es una mejora, no un requisito.
   }
 }
 
-export async function readAchievements(): Promise<AchievementsData | null> {
+export async function readAchievements(userId: string): Promise<AchievementsData | null> {
   try {
-    const raw = await AsyncStorage.getItem(ACHIEVEMENTS_KEY);
+    const raw = await AsyncStorage.getItem(claveDe(ACHIEVEMENTS_KEY, userId));
     return raw ? (JSON.parse(raw) as AchievementsData) : null;
   } catch {
     return null;
@@ -68,17 +76,17 @@ export interface CachedCommunity {
   posts: CommunityPost[];
 }
 
-export async function saveCommunity(data: CachedCommunity): Promise<void> {
+export async function saveCommunity(userId: string, data: CachedCommunity): Promise<void> {
   try {
-    await AsyncStorage.setItem(COMMUNITY_KEY, JSON.stringify(data));
+    await AsyncStorage.setItem(claveDe(COMMUNITY_KEY, userId), JSON.stringify(data));
   } catch {
     // Ver saveProgress: el caché es una mejora, no un requisito.
   }
 }
 
-export async function readCommunity(): Promise<CachedCommunity | null> {
+export async function readCommunity(userId: string): Promise<CachedCommunity | null> {
   try {
-    const raw = await AsyncStorage.getItem(COMMUNITY_KEY);
+    const raw = await AsyncStorage.getItem(claveDe(COMMUNITY_KEY, userId));
     return raw ? (JSON.parse(raw) as CachedCommunity) : null;
   } catch {
     return null;
@@ -89,18 +97,18 @@ export async function readCommunity(): Promise<CachedCommunity | null> {
 // seed) a cualquier paciente. Se guarda el padrino real de la última carga.
 const SPONSOR_KEY = '@stopbet/last-sponsor';
 
-export async function saveSponsor(sponsor: SponsorInfo | null): Promise<void> {
+export async function saveSponsor(userId: string, sponsor: SponsorInfo | null): Promise<void> {
   try {
-    if (sponsor) await AsyncStorage.setItem(SPONSOR_KEY, JSON.stringify(sponsor));
-    else await AsyncStorage.removeItem(SPONSOR_KEY);
+    if (sponsor) await AsyncStorage.setItem(claveDe(SPONSOR_KEY, userId), JSON.stringify(sponsor));
+    else await AsyncStorage.removeItem(claveDe(SPONSOR_KEY, userId));
   } catch {
     // Ver saveProgress: el caché es una mejora, no un requisito.
   }
 }
 
-export async function readSponsor(): Promise<SponsorInfo | null> {
+export async function readSponsor(userId: string): Promise<SponsorInfo | null> {
   try {
-    const raw = await AsyncStorage.getItem(SPONSOR_KEY);
+    const raw = await AsyncStorage.getItem(claveDe(SPONSOR_KEY, userId));
     return raw ? (JSON.parse(raw) as SponsorInfo) : null;
   } catch {
     return null;

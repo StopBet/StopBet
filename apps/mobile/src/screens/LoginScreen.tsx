@@ -20,11 +20,22 @@ import { Icon } from '../components/Icon';
 import type { Palette } from '../constants/colors';
 import { useTheme, useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
-import { AuthContext } from '../context/AuthContext';
+import { AuthContext, type LoginError } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 type FormState = 'idle' | 'loading' | 'error';
+
+// El backend distingue credenciales incorrectas (401) de cuenta suspendida (403). Decir
+// "correo o contraseña incorrectos" cuando el problema es la mensualidad manda al paciente
+// a probar claves que sí son correctas.
+const MENSAJES: Record<LoginError, string> = {
+  credenciales: 'Correo o contraseña incorrectos',
+  suspendida:
+    'Tu cuenta está suspendida por mensualidades pendientes. Escribe a contacto@ajuter.cl para reactivarla.',
+  rol: 'Esta app es para pacientes. Si eres del equipo clínico, entra por el panel web.',
+  red: 'No pudimos conectar. Revisa tu conexión e inténtalo de nuevo.',
+};
 
 export function LoginScreen({ navigation }: Props) {
   const { isDark } = useTheme();
@@ -35,6 +46,7 @@ export function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [formState, setFormState] = useState<FormState>('idle');
+  const [errorMsg, setErrorMsg] = useState('');
   // El teclado no pasaba del correo a la contraseña ni enviaba: había que salir del
   // teclado y tocar el botón para cada paso.
   const passwordRef = useRef<TextInput>(null);
@@ -44,10 +56,10 @@ export function LoginScreen({ navigation }: Props) {
   const handleLogin = async () => {
     if (!canSubmit || formState === 'loading') return;
     setFormState('loading');
-    // TODO: POST /auth/login cuando el módulo de auth esté implementado en el backend
-    // Por ahora, cualquier credencial entra en modo demo (usuario hardcodeado TEMP_USER_ID)
-    await new Promise<void>(resolve => setTimeout(() => resolve(), 900));
-    signIn();
+    const error = await signIn(email.trim(), password);
+    if (!error) return; // el cambio de navegador lo hace App.tsx al haber sesión
+    setErrorMsg(MENSAJES[error]);
+    setFormState('error');
   };
 
   const isLoading = formState === 'loading';
@@ -166,7 +178,7 @@ export function LoginScreen({ navigation }: Props) {
             {/* Banner error */}
             {isError && (
               <View style={styles.errorBanner} accessibilityLiveRegion="polite">
-                <Text style={styles.errorText}>Correo o contraseña incorrectos</Text>
+                <Text style={styles.errorText}>{errorMsg}</Text>
               </View>
             )}
 

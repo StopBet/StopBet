@@ -36,10 +36,8 @@ import { readCommunity, saveCommunity } from '../services/offlineStore';
 import { devFlags } from '../store/devFlags';
 import { toast, useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
+import { useCurrentUser, useUserId } from '../context/AuthContext';
 
-// Ajustar cuando se conecte la autenticación real
-const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
-const TEMP_SEDE = 'Santiago';
 
 const REACTION_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];
 
@@ -68,7 +66,13 @@ const ROLE_LABEL: Record<UserRole, string> = {
 // Caché en memoria de lo último cargado, para mostrarlo sin conexión (CA4).
 // Sobrevive a navegar entre pantallas, pero no al reinicio de la app: para eso
 // se respalda en disco con saveCommunity/readCommunity.
-const offlineCache: { announcements: CommunityPost[]; posts: CommunityPost[] } = {
+const offlineCache: {
+  userId: string | null;
+  announcements: CommunityPost[];
+  posts: CommunityPost[];
+} = {
+  // Sin el id, al cambiar de cuenta el foro de la sede anterior se mostraba como propio
+  userId: null,
   announcements: [],
   posts: [],
 };
@@ -83,6 +87,9 @@ type Props = CompositeScreenProps<
 >;
 
 export function CommunityScreen({ navigation, route }: Props) {
+  const userId = useUserId();
+  const user = useCurrentUser();
+  const sede = user?.sedeId ?? '';
   const c = useColors();
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
@@ -119,23 +126,30 @@ export function CommunityScreen({ navigation, route }: Props) {
   const load = useCallback(async () => {
     try {
       const [anns, forum] = await Promise.all([
-        api.getAnnouncements(TEMP_USER_ID, TEMP_SEDE),
-        api.getForumPosts(TEMP_USER_ID, TEMP_SEDE),
+        api.getAnnouncements(userId, sede),
+        api.getForumPosts(userId, sede),
       ]);
       setAnnouncements(anns);
       setPosts(forum.data);
       setOffline(false);
       // Guarda lo cargado para poder mostrarlo sin conexión (CA4)
+      offlineCache.userId = userId;
       offlineCache.announcements = anns;
       offlineCache.posts = forum.data;
-      void saveCommunity({ announcements: anns, posts: forum.data });
+      void saveCommunity(userId, { announcements: anns, posts: forum.data });
     } catch (err) {
       // Sin conexión: caemos al último contenido cacheado (CA4)
       setOffline(true);
       // El caché en memoria se vacía al reiniciar la app, y ahí el feed salía
       // vacío como si nadie hubiera publicado. Se completa desde disco.
+      // Si el caché en memoria es de otra cuenta, no sirve: se descarta y se lee el de disco
+      if (offlineCache.userId !== userId) {
+        offlineCache.userId = userId;
+        offlineCache.announcements = [];
+        offlineCache.posts = [];
+      }
       if (offlineCache.posts.length === 0 && offlineCache.announcements.length === 0) {
-        const stored = await readCommunity();
+        const stored = await readCommunity(userId);
         if (stored) {
           offlineCache.announcements = stored.announcements;
           offlineCache.posts = stored.posts;
@@ -176,7 +190,7 @@ export function CommunityScreen({ navigation, route }: Props) {
   // ── Asistencia a eventos ───────────────────────────────────────────────
   const handleToggleAttendance = async (announcementId: string) => {
     try {
-      const { attends } = await withRetry(() => api.toggleAttendance(TEMP_USER_ID, announcementId));
+      const { attends } = await withRetry(() => api.toggleAttendance(userId, announcementId));
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === announcementId ? { ...a, userAttends: attends } : a)),
       );
@@ -191,8 +205,8 @@ export function CommunityScreen({ navigation, route }: Props) {
     const reacting = !current?.userReacted;
     try {
       const { reactions } = reacting
-        ? await withRetry(() => api.addReaction(TEMP_USER_ID, post.id, emoji))
-        : await withRetry(() => api.removeReaction(TEMP_USER_ID, post.id, emoji));
+        ? await withRetry(() => api.addReaction(userId, post.id, emoji))
+        : await withRetry(() => api.removeReaction(userId, post.id, emoji));
       setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, reactions } : p)));
     } catch (err) {
       alertFailure('registrar tu reacción', err);
@@ -209,7 +223,7 @@ export function CommunityScreen({ navigation, route }: Props) {
     setPendingPost({ id: requestId, body });
     setPosting(true);
     try {
-      const created = await withRetry(() => api.createForumPost(TEMP_USER_ID, TEMP_SEDE, body, requestId));
+      const created = await withRetry(() => api.createForumPost(userId, sede, body, requestId));
       setPosts((prev) => [created, ...prev]);
       setDraft('');
       setPendingPost(null);
@@ -226,7 +240,7 @@ export function CommunityScreen({ navigation, route }: Props) {
     setExpanded((prev) => ({ ...prev, [postId]: willExpand }));
     if (willExpand && !repliesByPost[postId]) {
       try {
-        const replies = await api.getReplies(TEMP_USER_ID, postId);
+        const replies = await api.getReplies(userId, postId);
         setRepliesByPost((prev) => ({ ...prev, [postId]: replies }));
       } catch {
         setRepliesByPost((prev) => ({ ...prev, [postId]: [] }));
@@ -241,7 +255,7 @@ export function CommunityScreen({ navigation, route }: Props) {
     const requestId = pending?.body === body ? pending.id : newRequestId();
     setPendingReply((prev) => ({ ...prev, [postId]: { id: requestId, body } }));
     try {
-      const created = await withRetry(() => api.createReply(TEMP_USER_ID, postId, body, requestId));
+      const created = await withRetry(() => api.createReply(userId, postId, body, requestId));
       // Si el envío anterior sí había llegado, el backend devuelve aquella misma
       // respuesta: se descarta el duplicado local en vez de mostrarla dos veces.
       setRepliesByPost((prev) => {
@@ -275,7 +289,7 @@ export function CommunityScreen({ navigation, route }: Props) {
     if (!reason || !reportPostId || reportSending) return;
     setReportSending(true);
     try {
-      await withRetry(() => api.reportPost(TEMP_USER_ID, reportPostId, reason));
+      await withRetry(() => api.reportPost(userId, reportPostId, reason));
       // CA5.3: el backend ya deja de devolvérselo a quien reportó, pero
       // la pantalla carga una sola vez y el post seguía a la vista hasta
       // salir y volver. Se quita del feed apenas se confirma.
@@ -302,7 +316,7 @@ export function CommunityScreen({ navigation, route }: Props) {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.deletePost(TEMP_USER_ID, postId);
+              await api.deletePost(userId, postId);
               setPosts((prev) => prev.filter((p) => p.id !== postId));
             } catch (err) {
               alertFailure('eliminar tu publicación', err);
@@ -327,7 +341,7 @@ export function CommunityScreen({ navigation, route }: Props) {
       <View style={styles.header}>
         <View style={styles.headerMeta}>
           <Text style={styles.headerTitle}>Comunidad</Text>
-          <Text style={styles.headerSub}>Sede {TEMP_SEDE}</Text>
+          <Text style={styles.headerSub}>Sede {sede}</Text>
         </View>
         {/* Acá había una segunda entrada al pánico: el SOS de la barra de abajo está
             en esta misma pantalla, más grande y en el mismo lugar de siempre. */}
@@ -503,7 +517,7 @@ export function CommunityScreen({ navigation, route }: Props) {
         >
           <View style={styles.sheetCard}>
             <Text style={styles.sheetTitle}>Opciones de la publicación</Text>
-            {menuPost?.authorId === TEMP_USER_ID ? (
+            {menuPost?.authorId === userId ? (
               <Touchable
                 style={styles.sheetItem}
                 accessibilityRole="button"

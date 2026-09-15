@@ -37,9 +37,9 @@ import { devFlags } from '../store/devFlags';
 import { isNetworkError } from '../services/checkInQueue';
 import { readAchievements, saveAchievements } from '../services/offlineStore';
 import { Touchable } from '../components/Touchable';
+import { useUserId } from '../context/AuthContext';
 
 // Ajustar cuando se conecte autenticación real
-const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
 const REFRESH_MS = 3 * 60 * 1000;
 
 const MONTHS_LONG = [
@@ -117,6 +117,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function AchievementsScreen({ navigation }: Props) {
+  const userId = useUserId();
   const c = useColors();
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
@@ -134,13 +135,13 @@ export function AchievementsScreen({ navigation }: Props) {
 
   const load = useCallback(async () => {
     try {
-      const result = await api.getAchievements(TEMP_USER_ID);
+      const result = await api.getAchievements(userId);
       // El poll corre cada 5 s y casi siempre trae lo mismo. Sin esta guarda,
       // cada vuelta reemplaza el estado por un objeto nuevo y vuelve a pintar
       // todos los períodos con sus insignias, lo que se nota en el dispositivo.
       setData((prev) => (sameAchievements(prev, result) ? prev : result));
       setOffline(false);
-      void saveAchievements(result);
+      void saveAchievements(userId, result);
       if (hasPendingExternalRelapse()) {
         acknowledgePendingRelapse();
         shownMilestones.clear();
@@ -161,7 +162,7 @@ export function AchievementsScreen({ navigation }: Props) {
         // Sin esto la pantalla queda en EMPTY_DATA: cero días y todas las
         // insignias con candado, como si el paciente no hubiera avanzado nada.
         setOffline(true);
-        const cached = await readAchievements();
+        const cached = await readAchievements(userId);
         if (cached) setData((prev) => (prev.currentPeriod.id ? prev : cached));
       } else {
         console.error('[AchievementsScreen] load error', (err as Error).message);
@@ -197,7 +198,7 @@ export function AchievementsScreen({ navigation }: Props) {
                 ? new Date(Date.now() - devFlags.overrideDays * 86_400_000).toISOString().split('T')[0]
                 : undefined;
               suppressNextExternalRelapseDetection();
-              const { message } = await api.reportRelapse(TEMP_USER_ID, devStartDate);
+              const { message } = await api.reportRelapse(userId, devStartDate);
               shownMilestones.clear();
               devFlags.setOverrideDays(null);
               await load();
@@ -216,7 +217,7 @@ export function AchievementsScreen({ navigation }: Props) {
   const handleShare = async () => {
     if (!shareMilestone) return;
     try {
-      await api.shareBadge(TEMP_USER_ID, shareMilestone);
+      await api.shareBadge(userId, shareMilestone);
       setData((prev) => ({
         ...prev,
         currentPeriod: {
