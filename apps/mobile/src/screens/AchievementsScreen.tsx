@@ -32,6 +32,7 @@ import {
   acknowledgePendingRelapse,
   suppressNextExternalRelapseDetection,
 } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import { devFlags } from '../store/devFlags';
 import { isNetworkError } from '../services/checkInQueue';
 import { readAchievements, saveAchievements } from '../services/offlineStore';
@@ -115,6 +116,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function AchievementsScreen({ navigation }: Props) {
+  const { showToast } = useToast();
   const [data, setData] = useState<AchievementsData>(EMPTY_DATA);
   // Arranca en true: hasta que llegue la primera respuesta, EMPTY_DATA diría
   // "0 días" y se leería como un contador reiniciado, no como una carga.
@@ -200,7 +202,7 @@ export function AchievementsScreen({ navigation }: Props) {
               setRelapseMessage(message);
               setRelapseModal(true);
             } catch (err) {
-              Alert.alert('Error', 'No se pudo registrar la recaída. Inténtalo de nuevo.');
+              showToast('No pudimos registrar la recaída. Inténtalo de nuevo.', 'error');
             }
           },
         },
@@ -227,7 +229,7 @@ export function AchievementsScreen({ navigation }: Props) {
       // mismo, así que veía su logro dos veces: el anuncio publicado y el borrador.
       navigation.navigate('Community', { initialTab: 'forum' });
     } catch {
-      Alert.alert('Error', 'No se pudo compartir la insignia.');
+      showToast('No pudimos compartir tu insignia. Inténtalo de nuevo.', 'error');
     }
   };
 

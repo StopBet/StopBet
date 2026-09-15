@@ -39,6 +39,7 @@ import {
   saveReminderChoice,
 } from '../services/offlineStore';
 import { conReintento } from '../services/reintentoEscritura';
+import { useToast } from '../context/ToastContext';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -53,6 +54,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function HomeScreen({ navigation }: Props) {
+  const { showToast } = useToast();
   const [progress, setProgress] = useState<PatientProgress | null>(null);
   const [todayEmotion, setTodayEmotion] = useState<EmotionType | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
@@ -223,7 +225,7 @@ export function HomeScreen({ navigation }: Props) {
       setCheckInDone(true);
     } catch (err) {
       if (!isNetworkError(err)) {
-        Alert.alert('Error', 'No se pudo guardar el check-in. Inténtalo de nuevo.');
+        showToast('No pudimos guardar tu check-in. Inténtalo de nuevo.', 'error');
         return;
       }
       // CA7.3: sin conexión el ánimo no se descarta — queda en cola y se
@@ -231,10 +233,7 @@ export function HomeScreen({ navigation }: Props) {
       await savePending(TEMP_USER_ID, emotion);
       setTodayEmotion(emotion);
       setCheckInDone(true);
-      Alert.alert(
-        'Sin conexión',
-        'Guardamos tu check-in en el teléfono y lo enviaremos solo cuando vuelvas a tener internet.',
-      );
+      showToast('Sin conexión: guardamos tu check-in y lo enviaremos cuando vuelvas a tener internet.');
     }
   };
 

@@ -19,6 +19,7 @@ import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
+import { useToast } from '../context/ToastContext';
 import { AuthContext } from '../context/AuthContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Payment'>;
@@ -38,6 +39,7 @@ const PLAN_FEATURES = [
 ];
 
 export function PaymentScreen({ navigation, route }: Props) {
+  const { showToast } = useToast();
   const { userId } = route.params;
   const { signIn } = useContext(AuthContext);
   const [method, setMethod] = useState<PaymentMethod>('card');
@@ -55,7 +57,7 @@ export function PaymentScreen({ navigation, route }: Props) {
         [{ text: 'Entrar', onPress: signIn }],
       );
     } catch {
-      Alert.alert('No se pudo activar', 'Inténtalo de nuevo en unos minutos.');
+      showToast('No pudimos activar tu cuenta. Inténtalo de nuevo en unos minutos.', 'error');
     } finally {
       setPaying(false);
     }

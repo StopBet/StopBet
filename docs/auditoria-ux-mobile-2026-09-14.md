@@ -12,7 +12,7 @@
 |---|---|
 | Salud técnica (impeccable, auditoría nativa) | **6/20** · Pobre, requiere trabajo mayor |
 | Heurísticas de Nielsen (impeccable, crítica) | **21/40** · Aceptable, mejoras importantes |
-| Hallazgos | **75** · 3 P0 · 18 P1 · 41 P2 · 13 P3 _(SUS-07 y PAN-11 se sumaron el 15-09 al verificar los arreglos)_ |
+| Hallazgos | **76** · 3 P0 · 18 P1 · 42 P2 · 13 P3 _(SUS-07, PAN-11 y SIS-14 se sumaron el 15-09 al verificar los arreglos)_ |
 
 Gravedad: **P0** bloquea o pone en riesgo al paciente · **P1** arreglar antes de lanzar · **P2** próxima pasada · **P3** pulido.
 
@@ -138,11 +138,12 @@ Para ir marcando. El detalle de cada punto está en la sección siguiente, por p
 - [x] **SUS-03** · Se comparte un enlace de pago roto. **Arreglo:** bloquear "Compartir" hasta tener enlace real. _(billing · sin dueño en Sprint 1)_ — **Resuelto en local 15-09:** si `GET /billing/family-link` falla ya no se rellena con `stopbet.cl/pago/...`; la hoja avisa que no se pudo generar y «Compartir enlace de pago» queda deshabilitado. Verificado en emulador con el enlace real.
 - [x] **SUS-04** · «Pagar ahora» cobra sin confirmar y falla en silencio. **Arreglo:** confirmación con monto y método, y error visible. _(billing · sin dueño en Sprint 1)_ — **Resuelto en local 15-09:** confirmación previa con el monto exacto («Vas a registrar el pago de $90.000…») y un error visible con `accessibilityLiveRegion` cuando falla. Verificado en emulador cortando el backend: sale «No pudimos registrar el pago. No se cobró nada; inténtalo de nuevo» donde antes no pasaba nada.
 
-### P2 · próxima pasada (41)
+### P2 · próxima pasada (42)
 
 - [x] **AND-02** · Los diálogos del sistema no llevan la marca y se ponen oscuros. **Arreglo:** fijar `colorPrimary`/`colorAccent` de marca y un tema claro fijo (o soportar oscuro de verdad, ver SIS-07). _(Tech Leader · config nativa)_ — **Resuelto en local 15-09:** `styles.xml` pasa de `Theme.AppCompat.DayNight` a `.Light` con `colorPrimary`, `colorAccent`, texto y fondo de marca (`colors.xml`). Verificado en emulador con el teléfono en modo oscuro: el diálogo de cerrar sesión sale blanco con botones azul StopBet, donde antes salía gris oscuro con botones verde azulado. **Requiere recompilar**, no basta con recargar el bundle.
-- [ ] **SIS-05** · Avisos de sistema para todo, incluso lo pasajero. **Arreglo:** snackbar o aviso en línea para lo pasajero; diálogo solo para decisiones. _(cada dueño en su pantalla)_
+- [x] **SIS-05** · Avisos de sistema para todo, incluso lo pasajero. **Arreglo:** snackbar o aviso en línea para lo pasajero; diálogo solo para decisiones. _(cada dueño en su pantalla)_ — **Resuelto en local 15-09:** `context/ToastContext.tsx` con `useToast()` y un emisor suelto (`toast()`) para los ayudantes que viven fuera de un componente, como `alertFailure` de Comunidad. De los 24 `Alert.alert`, **13 pasaron a aviso en línea** y **11 se quedaron como diálogo porque sí son decisiones**: eliminar una publicación, cerrar sesión, registrar una recaída, terminar la conversación, salir de una alerta de pánico activa, el correo ya registrado, el permiso de notificaciones denegado, la recaída que registró el psicólogo y la cuenta recién activada. El aviso dura 4 s, no bloquea, se anuncia con `accessibilityLiveRegion` y respeta «quitar animaciones». Verificado en emulador en los dos tonos. **De paso:** hubo que agregar un `SafeAreaProvider` en la raíz —no había ninguno, los insets venían del que monta React Navigation dentro de cada navegador.
 - [x] **SIS-06** · Restos del tema anterior y colores fuera de los tokens. **Arreglo:** mover todo a tokens y borrar los restos. _(cada dueño en su pantalla)_ — **Resuelto en local 15-09:** 57 colores escritos a mano pasaron a tokens. Convivían seis rojos pálidos distintos para lo mismo (`#FEE2E2`, `#FFF5F5`, `#FFF0F0`, `#FBF0F0`, `#FEECEC`, `#F7E7E7`) y cuatro verdes azulados del tema AJUTER anterior (`#EAF3F2`, `#E6F4F2`, `#EFF9F4`, `#EAF5F3`), más el naranja `#E8883A`. Se agregaron cinco tokens de superficie (`dangerSurface`, `dangerBorder`, `successSurface`, `infoSurface`, `infoBorder`), que además son la base para el tema oscuro (SIS-07).
+- [x] **SIS-14** · Un servidor que no responde se trataba como error de verdad. **Arreglo:** que `isNetworkError` reconozca `AbortError` y `Aborted`. _(cada dueño en su pantalla)_ — **Hallazgo nuevo del 15-09**, encontrado al verificar SIS-05 con el backend detenido. Resuelto y verificado: el LogBox dejó de aparecer.
 - [ ] **SIS-07** · Sin modo oscuro. **Arreglo:** tema oscuro por tokens. _(cada dueño en su pantalla)_
 - [x] **SIS-08** · No respeta «reducir movimiento». **Arreglo:** leer el ajuste y usar fundidos simples. _(cada dueño en su pantalla)_ — **Resuelto en local 15-09:** `hooks/useReduceMotion.ts` lee `AccessibilityInfo.isReduceMotionEnabled()` y escucha sus cambios. Con el ajuste activo, el modal de insignia aparece completo y quieto (sin las 12 chispas, la onda ni el rebote), los tres puntos del asistente quedan fijos y el halo de la cuenta reactivada deja de latir. **El progreso del botón de pánico se mantiene animado a propósito:** no es decoración, es la señal de que llevas 2 segundos apretando. Verificado en emulador con las escalas de animación del sistema en 0.
 - [x] **SIS-09** · 19 textos de menos de 12 px. **Arreglo:** piso de 12 px y probar con letra del sistema al 130 % (una vez resuelto AND-01). _(cada dueño en su pantalla)_ — **Resuelto en local 15-09:** 18 textos subidos al piso de 12 px (los días de cada insignia estaban en 9 px, la hora de los mensajes y las etiquetas del resumen en 10). Queda cero por debajo de 12. Falta la pasada con letra del sistema al 130 % en un teléfono físico.
@@ -246,6 +247,13 @@ Dueño: cada dueño en su pantalla
 - **Dónde:** ~27 `Alert.alert`: Comunidad 5, Asistente 4, Perfil 4, Logros 3, Pago 3, Inicio 3
 - **Qué pasa:** "Gracias, el equipo revisará", "Sin conexión, guardamos tu check-in": interrumpen con un diálogo nativo que además no lleva la marca (AND-02).
 - **Qué arreglar:** snackbar o aviso en línea para lo pasajero; diálogo solo para decisiones.
+
+#### [P2] SIS-14 · Un servidor que no responde se trataba como error de verdad _(hallazgo nuevo, 15-09)_
+
+- **Dónde:** `services/checkInQueue.ts` · `isNetworkError()`
+- **Qué pasa:** `request()` corta con `AbortController` a los 25 s y eso llega como `"Aborted"`, que no calzaba con ninguna de las cadenas que la función reconoce (`Network request failed`, `Failed to fetch`, `timeout`). Resultado: un backend caído —o una red muy lenta— **no contaba como falta de conexión**. En Inicio mostraba «No pudimos cargar tu progreso» en vez del mensaje de sin conexión con los datos guardados, y en Comunidad levantaba el LogBox encima de la pantalla con `load error Aborted`.
+- **Qué arreglar:** reconocer `AbortError` y `Aborted`. Un timeout es exactamente quedarse sin conexión al servidor.
+- **Resuelto en local 15-09.** Encontrado al verificar SIS-05 deteniendo el backend: el LogBox tapó la pantalla.
 
 #### [P2] SIS-06 · Restos del tema anterior y colores fuera de los tokens
 

@@ -36,6 +36,7 @@ import { SessionSummaryModal } from '../components/SessionSummaryModal';
 import { Icon } from '../components/Icon';
 import type { AppStackParamList } from '../navigation/types';
 import { readSponsor } from '../services/offlineStore';
+import { useToast } from '../context/ToastContext';
 
 const PLACEHOLDER_USER_ID = '11111111-1111-1111-1111-111111111111'; // TODO: reemplazar con ID real del contexto de auth
 const INACTIVITY_MS = 10 * 60 * 1000;
@@ -52,6 +53,7 @@ interface ListItem {
 }
 
 export function AssistantScreen() {
+  const { showToast } = useToast();
   const navigation = useNavigation<Nav>();
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -241,7 +243,7 @@ export function AssistantScreen() {
               setSummary(result);
               setSummaryVisible(true);
             } catch {
-              Alert.alert('Error', 'No se pudo cerrar la sesión correctamente.');
+              showToast('No pudimos guardar el resumen de la conversación.', 'error');
             }
           },
         },

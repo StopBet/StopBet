@@ -19,10 +19,12 @@ import { Icon, type IconName } from '../components/Icon';
 import { Colors } from '../constants/colors';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterStep2'>;
 
 export function RegisterStep2Screen({ navigation, route }: Props) {
+  const { showToast } = useToast();
   const { institutionId, basicData } = route.params;
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [selectedSedeId, setSelectedSedeId] = useState<string | null>(null);
@@ -76,10 +78,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         );
         return;
       }
-      Alert.alert(
-        'No pudimos enviar tu solicitud',
-        'Revisa tu conexión e inténtalo de nuevo. Tus datos siguen acá.',
-      );
+      showToast('No pudimos enviar tu solicitud. Tus datos siguen acá; inténtalo de nuevo.', 'error');
     } finally {
       setSubmitting(false);
     }

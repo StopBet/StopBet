@@ -23,6 +23,7 @@ import { Fonts } from '../constants/typography';
 import { devFlags } from '../store/devFlags';
 import { api } from '../services/api';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
+import { useToast } from '../context/ToastContext';
 import { readReminderChoice, saveReminderChoice } from '../services/offlineStore';
 import { AuthContext } from '../context/AuthContext';
 
@@ -37,6 +38,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function ProfileScreen({ navigation }: Props) {
+  const { showToast } = useToast();
   const { signOut } = useContext(AuthContext);
   const [offline, setOffline] = useState(devFlags.simulateOffline);
   const [communityMuted, setCommunityMuted] = useState(false);
@@ -97,7 +99,7 @@ export function ProfileScreen({ navigation }: Props) {
         : await api.unmuteCommunity(TEMP_USER_ID);
       setCommunityMuted(muted);
     } catch {
-      Alert.alert('Sin conexión', 'No se pudo actualizar tu preferencia de notificaciones.');
+      showToast('Sin conexión: no pudimos guardar tu preferencia.', 'error');
     } finally {
       setMuteLoading(false);
     }
@@ -130,7 +132,7 @@ export function ProfileScreen({ navigation }: Props) {
         setTimeout(() => setPanicResetStatus('idle'), 2500);
       } else {
         setPanicResetStatus('idle');
-        Alert.alert('Sin alerta', 'No había ninguna alerta de pánico activa.');
+        showToast('No había ninguna alerta de pánico activa.');
       }
     } catch {
       setPanicResetStatus('error');
@@ -147,7 +149,7 @@ export function ProfileScreen({ navigation }: Props) {
         setTimeout(() => setCheckInResetStatus('idle'), 2500);
       } else {
         setCheckInResetStatus('idle');
-        Alert.alert('Sin check-in', 'No había check-in registrado hoy.');
+        showToast('No había check-in registrado hoy.');
       }
     } catch {
       setCheckInResetStatus('error');

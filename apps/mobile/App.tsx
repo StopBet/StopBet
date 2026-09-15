@@ -1,8 +1,10 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import type { AppStackParamList, AuthStackParamList } from './src/navigation/types';
 import { AuthContext } from './src/context/AuthContext';
+import { ToastProvider } from './src/context/ToastContext';
 
 // Auth screens
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
@@ -67,13 +69,20 @@ export default function App() {
   const [isSignedIn, setIsSignedIn] = React.useState(false);
 
   return (
-    <AuthContext.Provider value={{
-      signIn: () => setIsSignedIn(true),
-      signOut: () => setIsSignedIn(false),
-    }}>
-      <NavigationContainer>
-        {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
-      </NavigationContainer>
-    </AuthContext.Provider>
+    // Hasta ahora no había SafeAreaProvider propio: los insets venían del que monta
+    // React Navigation dentro de cada navegador. El aviso pasajero vive por fuera, así
+    // que necesita uno en la raíz.
+    <SafeAreaProvider>
+      <AuthContext.Provider value={{
+        signIn: () => setIsSignedIn(true),
+        signOut: () => setIsSignedIn(false),
+      }}>
+        <ToastProvider>
+          <NavigationContainer>
+            {isSignedIn ? <AppNavigator /> : <AuthNavigator />}
+          </NavigationContainer>
+        </ToastProvider>
+      </AuthContext.Provider>
+    </SafeAreaProvider>
   );
 }

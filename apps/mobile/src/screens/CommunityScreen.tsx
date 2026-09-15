@@ -34,6 +34,7 @@ import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
 import { readCommunity, saveCommunity } from '../services/offlineStore';
 import { devFlags } from '../store/devFlags';
+import { toast, useToast } from '../context/ToastContext';
 
 // Ajustar cuando se conecte la autenticación real
 const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
@@ -81,6 +82,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function CommunityScreen({ navigation, route }: Props) {
+  const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'announcements');
   const [announcements, setAnnouncements] = useState<CommunityPost[]>([]);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -277,7 +279,7 @@ export function CommunityScreen({ navigation, route }: Props) {
       setPosts((prev) => prev.filter((p) => p.id !== reportPostId));
       setAnnouncements((prev) => prev.filter((p) => p.id !== reportPostId));
       setReportPostId(null);
-      Alert.alert('Gracias', 'El equipo clínico revisará esta publicación.');
+      showToast('Gracias. El equipo clínico revisará esta publicación.');
     } catch (err) {
       alertFailure('enviar el reporte', err);
     } finally {
@@ -867,26 +869,25 @@ function alertFailure(action: string, err: unknown) {
   console.warn(`[Comunidad] falló ${action}:`, err);
 
   if (devFlags.simulateOffline) {
-    Alert.alert(
-      'Modo sin conexión simulado',
-      `No se intentó ${action}: tienes activado "Simular sin conexión" en Perfil → ` +
-        'Herramientas de prueba. Apágalo para volver a la normalidad.',
+    toast(
+      `No se intentó ${action}: tienes "Simular sin conexión" activado en Perfil.`,
+      'error',
     );
     return;
   }
 
   if (isNetworkError(err)) {
-    Alert.alert('Sin conexión', `No se pudo ${action}. Revisa tu conexión e inténtalo de nuevo.`);
+    toast(`Sin conexión: no se pudo ${action}. Inténtalo de nuevo.`, 'error');
     return;
   }
 
   // `request()` lanza "<status> <cuerpo>" ante una respuesta no OK.
   const status = parseInt((err as Error)?.message ?? '', 10);
-  Alert.alert(
-    'No se pudo completar',
+  toast(
     Number.isFinite(status)
       ? `No se pudo ${action}. El servidor respondió ${status}.`
       : `No se pudo ${action}. Inténtalo de nuevo.`,
+    'error',
   );
 }
 
