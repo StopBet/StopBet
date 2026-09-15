@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useMemo } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import { darkColors, lightColors, type Palette } from '../constants/colors';
+import {
+  readThemePreference,
+  saveThemePreference,
+  type ThemePreference,
+} from '../services/offlineStore';
 
 /**
  * El tema claro u oscuro según el ajuste del teléfono.
@@ -17,14 +22,41 @@ import { darkColors, lightColors, type Palette } from '../constants/colors';
 interface ThemeValue {
   colors: Palette;
   isDark: boolean;
+  /** Lo que eligió el paciente: seguir al teléfono, o forzar claro u oscuro. */
+  preference: ThemePreference;
+  setPreference: (pref: ThemePreference) => void;
 }
 
-const ThemeContext = createContext<ThemeValue>({ colors: lightColors, isDark: false });
+const ThemeContext = createContext<ThemeValue>({
+  colors: lightColors,
+  isDark: false,
+  preference: 'system',
+  setPreference: () => {},
+});
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark';
-  const value = useMemo(() => ({ colors: isDark ? darkColors : lightColors, isDark }), [isDark]);
+  const [preference, setPref] = useState<ThemePreference>('system');
+
+  // Hasta que se lea la preferencia guardada se sigue al teléfono, que es el valor por
+  // omisión: así no hay un parpadeo de claro a oscuro al abrir la app.
+  useEffect(() => {
+    let vigente = true;
+    readThemePreference().then((p) => { if (vigente) setPref(p); });
+    return () => { vigente = false; };
+  }, []);
+
+  const setPreference = useCallback((pref: ThemePreference) => {
+    setPref(pref);
+    void saveThemePreference(pref);
+  }, []);
+
+  const isDark = preference === 'system' ? scheme === 'dark' : preference === 'dark';
+
+  const value = useMemo(
+    () => ({ colors: isDark ? darkColors : lightColors, isDark, preference, setPreference }),
+    [isDark, preference, setPreference],
+  );
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 

@@ -18,13 +18,17 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { Icon, type IconName } from '../components/Icon';
 import type { Palette } from '../constants/colors';
-import { useColors, useStyles } from '../context/ThemeContext';
+import { useColors, useStyles, useTheme } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { devFlags } from '../store/devFlags';
 import { api } from '../services/api';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
 import { useToast } from '../context/ToastContext';
-import { readReminderChoice, saveReminderChoice } from '../services/offlineStore';
+import {
+  readReminderChoice,
+  saveReminderChoice,
+  type ThemePreference,
+} from '../services/offlineStore';
 import { AuthContext } from '../context/AuthContext';
 import { Touchable } from '../components/Touchable';
 
@@ -42,6 +46,7 @@ export function ProfileScreen({ navigation }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
+  const { preference, setPreference } = useTheme();
   const { signOut } = useContext(AuthContext);
   const [offline, setOffline] = useState(devFlags.simulateOffline);
   const [communityMuted, setCommunityMuted] = useState(false);
@@ -192,6 +197,40 @@ export function ProfileScreen({ navigation }: Props) {
           <View style={styles.avatarText}>
             <Text style={styles.userName}>Carlos</Text>
             <Text style={styles.userSub}>Paciente AJUTER</Text>
+          </View>
+        </View>
+
+        {/* Antes el tema solo seguía al teléfono. Alguien puede tener el teléfono en
+            claro y querer la app oscura para el check-in de la noche, así que se elige
+            acá; "Automático" sigue siendo lo de siempre. */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle} accessibilityRole="header">Apariencia</Text>
+          <View style={styles.menuCard}>
+            <View style={styles.themeRow} accessibilityRole="radiogroup">
+              {THEME_OPTIONS.map((opt) => {
+                const selected = preference === opt.id;
+                return (
+                  <Touchable
+                    key={opt.id}
+                    style={[styles.themeOption, selected && styles.themeOptionOn]}
+                    onPress={() => setPreference(opt.id)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    accessibilityLabel={opt.label}
+                    accessibilityHint={opt.hint}
+                  >
+                    <Icon
+                      name={opt.icon}
+                      size={20}
+                      color={selected ? c.primaryText : c.fg2}
+                    />
+                    <Text style={[styles.themeLabel, selected && styles.themeLabelOn]}>
+                      {opt.label}
+                    </Text>
+                  </Touchable>
+                );
+              })}
+            </View>
           </View>
         </View>
 
@@ -444,6 +483,12 @@ export function ProfileScreen({ navigation }: Props) {
   );
 }
 
+const THEME_OPTIONS: { id: ThemePreference; icon: IconName; label: string; hint: string }[] = [
+  { id: 'system', icon: 'smartphone', label: 'Automático', hint: 'Sigue el ajuste de tu teléfono' },
+  { id: 'light',  icon: 'sunrise',    label: 'Claro',      hint: 'La app siempre en claro' },
+  { id: 'dark',   icon: 'moon',       label: 'Oscuro',     hint: 'La app siempre en oscuro' },
+];
+
 const UPCOMING_ITEMS: { icon: IconName; label: string; sub: string }[] = [
   { icon: 'user',     label: 'Datos personales', sub: 'Nombre, RUT y contacto' },
   { icon: 'hospital', label: 'Mi sede AJUTER',   sub: 'Tu centro de tratamiento' },
@@ -595,4 +640,20 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  themeRow: { flexDirection: 'row', padding: 8, gap: 8 },
+  themeOption: {
+    flex: 1,
+    minHeight: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: c.border,
+  },
+  themeOptionOn: { borderColor: c.primaryText, backgroundColor: c.infoSurface },
+  themeLabel: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2 },
+  themeLabelOn: { fontFamily: Fonts.bodyBold, color: c.primaryText },
+
 });

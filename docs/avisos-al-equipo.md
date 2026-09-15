@@ -24,7 +24,7 @@ está.
 
 **A quién le pega:** a cualquiera que escriba UI en mobile.
 
-**Qué cambió.** La app sigue el tema del teléfono. `StyleSheet.create` corre una sola vez al
+**Qué cambió.** La app sigue el tema del teléfono, o el que el paciente elija en **Perfil → Apariencia** (Automático / Claro / Oscuro; se guarda en `AsyncStorage`). `StyleSheet.create` corre una sola vez al
 cargar el módulo, así que una hoja de estilos fija no puede cambiar de tema. El patrón nuevo:
 
 ```tsx
