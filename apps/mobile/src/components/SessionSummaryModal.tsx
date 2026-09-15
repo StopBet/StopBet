@@ -38,7 +38,7 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number): Summary
       bg: Colors.sage50,
       icon: 'leaf',
       iconColor: Colors.sage500,
-      label: 'Hoy fue intenso',
+      label: 'Cómo te vas',
       value: aiVal(summary.progressNote, 'Estás avanzando'),
       valueColor: Colors.sage500,
     },
@@ -64,7 +64,6 @@ interface Props {
   summary: AiSessionSummary | null;
   durationMinutes: number;
   onContinue: () => void;
-  onViewHistory: () => void;
 }
 
 export function SessionSummaryModal({
@@ -72,7 +71,6 @@ export function SessionSummaryModal({
   summary,
   durationMinutes,
   onContinue,
-  onViewHistory,
 }: Props) {
   if (!summary) return null;
 
@@ -128,9 +126,6 @@ export function SessionSummaryModal({
             <Text style={styles.btnText}>Continuar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={onViewHistory} style={styles.linkBtn} accessibilityRole="button">
-            <Text style={styles.linkText}>Ver historial de sesiones</Text>
-          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -231,6 +226,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
-  linkBtn: { marginTop: 12, minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
-  linkText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
 });

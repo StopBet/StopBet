@@ -87,8 +87,16 @@ export class AiAssistantService {
 
     const aiVal = (v: string | null | undefined) => (!v || v.toLowerCase() === 'null' || v.trim() === '') ? null : v.trim();
     const hasMeaningfulSummary = lastSummary && (aiVal(lastSummary.mood) || aiVal(lastSummary.trigger) || aiVal(lastSummary.techniqueUsed));
+    // Antes esto se le mostraba al paciente tal cual: 'Última sesión: estado "Cansancio",
+    // técnica "Mindfulness", detonante "trabajo".' — un registro técnico con comillas, no una
+    // frase que alguien le diría a otra persona. El texto se arma en lenguaje natural con lo
+    // que exista; los campos vacíos simplemente no aparecen.
     const previousContext = hasMeaningfulSummary
-      ? `Última sesión: estado "${aiVal(lastSummary.mood) ?? 'no registrado'}", técnica "${aiVal(lastSummary.techniqueUsed) ?? 'ninguna'}", detonante "${aiVal(lastSummary.trigger) ?? 'no identificado'}".`
+      ? buildPreviousContext(
+          aiVal(lastSummary.mood),
+          aiVal(lastSummary.trigger),
+          aiVal(lastSummary.techniqueUsed),
+        )
       : null;
 
     const session = await this.sessionRepo.save(
@@ -522,4 +530,28 @@ export class AiAssistantService {
       createdAt: m.createdAt.toISOString(),
     };
   }
+}
+
+/** Convierte el resumen de la sesión anterior en una frase leíble por el paciente. */
+function buildPreviousContext(
+  mood: string | null,
+  trigger: string | null,
+  technique: string | null,
+): string {
+  const lower = (v: string) => (v.charAt(0).toLowerCase() + v.slice(1)).replace(/\.$/, '');
+  const partes: string[] = [];
+
+  if (mood) partes.push(`La última vez hablamos de ${lower(mood)}`);
+  if (trigger) {
+    partes.push(
+      partes.length > 0
+        ? `, que apareció con ${lower(trigger)}`
+        : `La última vez hablamos de lo que te detonó: ${lower(trigger)}`,
+    );
+  }
+  if (technique) {
+    partes.push(partes.length > 0 ? ` y probaste ${lower(technique)}` : `La última vez probaste ${lower(technique)}`);
+  }
+
+  return `${partes.join('')}.`;
 }
