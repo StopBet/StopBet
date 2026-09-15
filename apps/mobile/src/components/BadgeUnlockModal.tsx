@@ -22,31 +22,36 @@ interface BadgeDef {
 interface Props {
   milestone: BadgeMilestone | null;
   badgeDef: BadgeDef | null;
+  /** El mismo modal sirve para celebrar una insignia recién ganada y para volver a
+   *  compartir una vieja: sin esto, cualquier insignia decía "¡Nueva insignia!". */
+  isNew: boolean;
   onShare: () => void;
   onClose: () => void;
 }
 
 // Spark particles — pre-computed angles/distances so they're stable across renders
+// Eran naranjas AJUTER (#E8883A) y oros inventados, de un tema que ya no existe.
+// Ahora salen del manual de marca: verde, azul claro y lila.
 const SPARKS = [
-  { angle: 0,   dist: 78, color: '#F0B040', size: 10 },
-  { angle: 35,  dist: 92, color: '#E8883A', size: 7 },
-  { angle: 72,  dist: 68, color: '#FFD060', size: 12 },
-  { angle: 112, dist: 84, color: '#C9954A', size: 8 },
-  { angle: 155, dist: 76, color: '#F0B040', size: 10 },
-  { angle: 198, dist: 88, color: '#E8883A', size: 7 },
-  { angle: 242, dist: 72, color: '#FFD060', size: 9 },
-  { angle: 285, dist: 82, color: '#C9954A', size: 8 },
-  { angle: 328, dist: 70, color: '#F0B040', size: 11 },
-  { angle: 50,  dist: 96, color: '#C9954A', size: 5 },
-  { angle: 150, dist: 94, color: '#F0B040', size: 5 },
-  { angle: 250, dist: 98, color: '#E8883A', size: 5 },
+  { angle: 0,   dist: 78, color: Colors.green,  size: 10 },
+  { angle: 35,  dist: 92, color: Colors.accent, size: 7 },
+  { angle: 72,  dist: 68, color: Colors.purple,  size: 12 },
+  { angle: 112, dist: 84, color: Colors.green,  size: 8 },
+  { angle: 155, dist: 76, color: Colors.accent, size: 10 },
+  { angle: 198, dist: 88, color: Colors.purple,  size: 7 },
+  { angle: 242, dist: 72, color: Colors.green,  size: 9 },
+  { angle: 285, dist: 82, color: Colors.accent, size: 8 },
+  { angle: 328, dist: 70, color: Colors.purple,  size: 11 },
+  { angle: 50,  dist: 96, color: Colors.green,  size: 5 },
+  { angle: 150, dist: 94, color: Colors.accent, size: 5 },
+  { angle: 250, dist: 98, color: Colors.purple,  size: 5 },
 ] as const;
 
 // Container big enough so sparks stay within bounds (center=100, max dist=98 → max reach=198 < 200)
 const AREA = 200;
 const CENTER = AREA / 2;
 
-export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Props) {
+export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose }: Props) {
   const visible = milestone !== null && badgeDef !== null;
 
   // ── Animated values ────────────────────────────────────────────────────────
@@ -207,7 +212,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
             <Animated.View
               style={[styles.badgeDisc, { transform: [{ scale: badgeScale }] }]}
             >
-              <Icon name={badgeDef.icon} size={42} color="#C9954A" />
+              <Icon name={badgeDef.icon} size={42} color={Colors.greenText} />
             </Animated.View>
           </View>
 
@@ -215,9 +220,11 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
           <Animated.View
             style={{ opacity: textOp, transform: [{ translateY: textY }], alignItems: 'center', width: '100%' }}
           >
-            <Text style={styles.headline}>¡Nueva insignia desbloqueada!</Text>
+            <Text style={styles.headline}>
+              {isNew ? '¡Nueva insignia desbloqueada!' : 'Comparte tu insignia'}
+            </Text>
             <Text style={styles.days}>{milestone}</Text>
-            <Text style={styles.daysUnit}>días sin apostar</Text>
+            <Text style={styles.daysUnit}>día{milestone === 1 ? '' : 's'} sin apostar</Text>
             <Text style={styles.label}>{badgeDef.label}</Text>
             <Text style={styles.sub}>Compártela con quienes te acompañan en tu sede.</Text>
           </Animated.View>
@@ -284,12 +291,12 @@ const styles = StyleSheet.create({
     width: 108,
     height: 108,
     borderRadius: 54,
-    backgroundColor: '#FDF8E1',
+    backgroundColor: Colors.sage50,
     borderWidth: 3,
-    borderColor: '#C9954A',
+    borderColor: Colors.green,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#C9954A',
+    shadowColor: Colors.green,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.55,
     shadowRadius: 18,

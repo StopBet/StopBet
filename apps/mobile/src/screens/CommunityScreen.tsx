@@ -39,10 +39,11 @@ const TEMP_SEDE = 'Santiago';
 
 const REACTION_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];
 
+// La "mano con corazón" no se lee como fuerza y la carita no se lee como abrazo
 const REACTION_ICON_MAP: Record<ReactionEmoji, IconName> = {
-  '💪': 'hand-heart',
+  '💪': 'flame',
   '❤️': 'heart',
-  '🤗': 'smile',
+  '🤗': 'hand-heart',
 };
 
 // TalkBack lee el ícono como nada y el contador suelto como "2": cada reacción necesita nombre
@@ -617,6 +618,9 @@ function AnnouncementCard({
   onToggleAttendance: () => void;
 }) {
   const isPsychologist = announcement.authorRole === 'psychologist';
+  // La sesión de junio seguía pidiendo "Confirmar asistencia" en septiembre
+  const eventPassed =
+    !!announcement.eventDate && new Date(announcement.eventDate).getTime() < Date.now();
   return (
     <View style={styles.pinCard}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
@@ -634,8 +638,9 @@ function AnnouncementCard({
           </Text>
         </View>
         <View style={[styles.roleChip, !isPsychologist && styles.roleChipAdmin]}>
+          {/* Decía "Admin": el paciente ve a un coordinador de AJUTER, no a un administrador */}
           <Text style={[styles.roleChipText, !isPsychologist && styles.roleChipTextAdmin]}>
-            {isPsychologist ? 'Psicólogo' : 'Admin'}
+            {ROLE_LABEL[announcement.authorRole]}
           </Text>
         </View>
       </View>
@@ -647,24 +652,32 @@ function AnnouncementCard({
             <Icon name="calendar" size={12} color={Colors.fg2} />
             <Text style={styles.annDate}>{formatEventDate(announcement.eventDate)}</Text>
           </View>
-          <TouchableOpacity
-            style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
-            onPress={onToggleAttendance}
-            disabled={disabled}
-            accessibilityRole="button"
-            accessibilityState={{ selected: !!announcement.userAttends }}
-            hitSlop={{ top: 7, bottom: 7 }}
-            activeOpacity={0.85}
-          >
-            {announcement.userAttends ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Icon name="check" size={14} color={Colors.white} />
-                <Text style={[styles.attendBtnText, styles.attendBtnTextOn]}>Asistiré</Text>
-              </View>
-            ) : (
-              <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
-            )}
-          </TouchableOpacity>
+          {eventPassed ? (
+            <View style={styles.finishedChip}>
+              <Text style={styles.finishedText}>
+                {announcement.userAttends ? 'Finalizado · asististe' : 'Finalizado'}
+              </Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
+              onPress={onToggleAttendance}
+              disabled={disabled}
+              accessibilityRole="button"
+              accessibilityState={{ selected: !!announcement.userAttends }}
+              hitSlop={{ top: 7, bottom: 7 }}
+              activeOpacity={0.85}
+            >
+              {announcement.userAttends ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Icon name="check" size={14} color={Colors.white} />
+                  <Text style={[styles.attendBtnText, styles.attendBtnTextOn]}>Asistiré</Text>
+                </View>
+              ) : (
+                <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </View>
@@ -890,10 +903,12 @@ function timeAgo(iso: string): string {
 function formatEventDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
+  // "jue 12 jun" al lado de un cuerpo que dice "miércoles" hace dudar de la fecha;
+  // el día completo deja claro cuál manda
   return d.toLocaleDateString('es-CL', {
-    weekday: 'short',
+    weekday: 'long',
     day: 'numeric',
-    month: 'short',
+    month: 'long',
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -1204,4 +1219,14 @@ const styles = StyleSheet.create({
   },
   modalSubmitDisabled: { backgroundColor: Colors.border },
   modalSubmitText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
+  finishedChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9999,
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  finishedText: { fontFamily: Fonts.bodyBold, fontSize: 12.5, color: Colors.fg2 },
+
 });
