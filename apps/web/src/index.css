@@ -2,6 +2,7 @@
 @import "./styles/colors_and_type.css";
 @import "./styles/stopbet-brand.css";
 @import "./styles/stopbet-theme.css";
+@import "./styles/stopbet-dark.css";
 
 /* ============================================================
    Tailwind v4 — Mapeo de tokens de diseño a clases utilitarias
@@ -62,7 +63,7 @@ body {
    el estilo en línea le gana a cualquier selector: sin esto, navegando con teclado no se
    veía dónde estaba el foco. En la barra lateral azul el anillo va en blanco. */
 :focus-visible {
-  outline: 2px solid var(--primary) !important;
+  outline: 2px solid var(--primary-text) !important;
   outline-offset: 2px;
 }
 aside :focus-visible {

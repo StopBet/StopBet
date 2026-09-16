@@ -81,7 +81,7 @@ function AttendanceToggle({
             width: 22,
             height: 22,
             borderRadius: '50%',
-            background: '#fff',
+            background: 'var(--surface)',
             boxShadow: '0 1px 3px rgba(0,0,0,.28)',
             display: 'grid',
             placeItems: 'center',
@@ -156,7 +156,7 @@ export function SessionCard({
                   alignItems: 'center',
                   gap: 5,
                   background: 'var(--surface-alt)',
-                  color: 'var(--primary)',
+                  color: 'var(--primary-text)',
                   border: '1px solid var(--primary)',
                   borderRadius: 999,
                   padding: '2px 10px',
@@ -209,7 +209,7 @@ export function SessionCard({
             padding: '11px 13px',
           }}
         >
-          <span style={{ flexShrink: 0, color: 'var(--primary)', marginTop: 1 }}>
+          <span style={{ flexShrink: 0, color: 'var(--primary-text)', marginTop: 1 }}>
             <WIcon name="circle-alert" size={15} />
           </span>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--fg2)', lineHeight: 1.55 }}>

@@ -1,5 +1,6 @@
 import { WIcon } from './WIcon'
 import isotipo from '../assets/isotipo-blanco.png'
+import logoAjuter from '../assets/logo-ajuter.png'
 import type { AuthUser } from '../services/api'
 
 type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
@@ -17,7 +18,7 @@ interface SidebarProps {
 // ahora se ven como lo que viene, sin prometer una pantalla al hacer clic.
 const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string; soon?: boolean }> = [
   { id: 'overview',  icon: 'house',          label: 'Resumen' },
-  { id: 'patients',  icon: 'users',          label: 'Mis pacientes', soon: true },
+  { id: 'patients',  icon: 'users',          label: 'Mis pacientes' },
   { id: 'alerts',    icon: 'triangle-alert', label: 'Alertas de pánico' },
   { id: 'requests',  icon: 'inbox',          label: 'Solicitudes' },
   { id: 'familySessions', icon: 'heart-handshake', label: 'Sesiones de familiares' },
@@ -37,7 +38,7 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
     // bloque del usuario y "Cerrar sesión" quedaban fuera de pantalla sin forma de
     // llegar a ellos.
     <aside style={{
-      width: 240, flexShrink: 0, background: 'var(--primary)', color: '#fff',
+      width: 240, flexShrink: 0, background: 'var(--primary)', color: 'var(--fg-on-primary)',
       display: 'flex', flexDirection: 'column', position: 'sticky', top: 0,
       height: '100vh', overflowY: 'auto',
     }}>
@@ -62,7 +63,7 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
         <div style={{
           marginTop: 9, display: 'inline-block', fontSize: 12, fontWeight: 600,
           letterSpacing: '0.1em', textTransform: 'uppercase',
-          color: '#fff', background: 'var(--primary-hover)',
+          color: 'var(--fg-on-primary)', background: 'var(--primary-hover)',
           borderRadius: 9999, padding: '3px 10px',
         }}>
           Panel clínico
@@ -107,22 +108,22 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
                 // Activo y hover oscurecen en vez de aclarar: un velo blanco sobre el azul
                 // bajaba el texto blanco a 3,8:1. Con el azul oscuro de la marca queda en 6,5:1.
                 background: on ? 'var(--primary-hover)' : 'transparent',
-                color: '#fff', fontFamily: 'var(--font-body)',
+                color: 'var(--fg-on-primary)', fontFamily: 'var(--font-body)',
                 fontWeight: on ? 700 : 500, fontSize: 14.5,
-                borderLeft: on ? '3px solid #fff' : '3px solid transparent',
+                borderLeft: on ? '3px solid var(--fg-on-primary)' : '3px solid transparent',
                 position: 'relative',
               }}
               onMouseEnter={e => { if (!on) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.10)' }}
               onMouseLeave={e => { if (!on) (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
             >
-              <WIcon name={it.icon} size={19} color={on ? '#fff' : 'rgba(255,255,255,0.82)'} />
+              <WIcon name={it.icon} size={19} color={on ? 'var(--fg-on-primary)' : 'rgba(255,255,255,0.82)'} />
               {/* nowrap: la negrita del ítem activo, más el contador, partía "Alertas de pánico" en dos líneas */}
               <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.label}</span>
               {it.id === 'alerts' && alertCount > 0 && (
-                <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 9999, fontSize: 12, fontWeight: 700, padding: '1px 7px' }}>{alertCount}</span>
+                <span style={{ background: 'var(--danger)', color: 'var(--fg-on-primary)', borderRadius: 9999, fontSize: 12, fontWeight: 700, padding: '1px 7px' }}>{alertCount}</span>
               )}
               {it.id === 'requests' && reqCount > 0 && (
-                <span style={{ background: 'var(--danger)', color: '#fff', borderRadius: 9999, fontSize: 12, fontWeight: 700, padding: '1px 7px' }}>{reqCount}</span>
+                <span style={{ background: 'var(--danger)', color: 'var(--fg-on-primary)', borderRadius: 9999, fontSize: 12, fontWeight: 700, padding: '1px 7px' }}>{reqCount}</span>
               )}
             </button>
           )
@@ -135,13 +136,13 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
         <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
           <div style={{
             width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-            background: 'var(--primary-hover)', color: '#fff',
+            background: 'var(--primary-hover)', color: 'var(--fg-on-primary)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15,
           }}>{initials}</div>
           <div style={{ lineHeight: 1.35, minWidth: 0 }}>
             <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-heading)', whiteSpace: 'nowrap' }}>{displayName}</div>
-            <div style={{ fontSize: 12, color: '#fff' }}>{roleLabel}</div>
+            <div style={{ fontSize: 12, color: 'var(--fg-on-primary)' }}>{roleLabel}</div>
           </div>
         </div>
         <button
@@ -152,7 +153,7 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
             cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center',
             gap: 6, fontFamily: 'var(--font-body)', whiteSpace: 'nowrap',
           }}
-          onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--fg-on-primary)')}
           onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.92)')}
         >
           {/* Antes usaba el salvavidas, que en esta app significa ayuda en una crisis */}
@@ -163,10 +164,13 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
             Antes ocupaba dos separadores más y empujaba al usuario fuera de la
             pantalla en ventanas de poca altura. */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 16 }}>
-          <span style={{ fontSize: 12, color: '#fff', flexShrink: 0 }}>Para</span>
+          <span style={{ fontSize: 12, color: 'var(--fg-on-primary)', flexShrink: 0 }}>Para</span>
           <div style={{ background: 'rgba(255,255,255,0.92)', borderRadius: 6, padding: '3px 7px', display: 'inline-block' }}>
+            {/* Servido desde el repo, no desde ajuter.org: si el sitio del cliente cambia
+                o se cae, el panel pierde el logo, y cada carga quedaba registrada en un
+                servidor de terceros. */}
             <img
-              src="https://ajuter.org/wp-content/uploads/2025/04/Logo-Ajuter-con-texto.png"
+              src={logoAjuter}
               alt="AJUTER"
               style={{ display: 'block', maxWidth: 76, height: 'auto' }}
             />

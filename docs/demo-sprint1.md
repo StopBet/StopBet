@@ -86,7 +86,7 @@ Clave de **todas** las cuentas: `Stopbet2026!`.
 | **Ana Pérez** | 28 check-ins en mejora, 93 días de racha, alerta de hoy (respondida) — evolución completa (**CA 4.4**) |
 | **Pedro Álvarez** | Check-ins irregulares con huecos |
 | **Jorge Morales** | Check-ins en deterioro, alerta de hoy (escalada), asignado a Valentina |
-| **Lucía Vega** | Check-ins estables, **cuenta suspendida por mora** — usar solo desde el móvil (`SuspendedAccountScreen`, factura vencida $30.000). **No sirve para el dashboard**: `/auth/login` la rechaza con 403 ("cuenta suspendida") |
+| **Lucía Vega** | Check-ins estables, **cuenta suspendida por mora** — usar solo desde el móvil (`SuspendedAccountScreen`, **3 cuotas vencidas, $90.000**). **No sirve para el dashboard**: `/auth/login` la rechaza con 403 ("cuenta suspendida"). Los 3 meses no son decorativos: es la regla del cliente — la cuenta se suspende **al cumplir el tercer mes** de no pago, así que con una sola cuota vencida una cuenta suspendida sería un dato imposible |
 
 ## 3. Orden sugerido de la demo
 
@@ -159,4 +159,4 @@ arriba); dura hasta 120 s antes de escalar solo, tiempo de sobra para mostrarlo 
 | `panic_alerts` | 3 "de hoy", siempre `escalated`/`responded` (nunca `pending`, ver §4). Se refrescan en cada corrida |
 | `notifications` | 6 para Carlos, 2 para Pedro (solo la primera vez) |
 | Comunidad | Post de Carlos (para 5.4/5.5 en vivo), anuncio con evento futuro + 3 confirmaciones, 2 posts limpios (para reportar en vivo), 1 post con 1 reporte (segundo caso de moderación) |
-| `subscriptions`/`invoices` | Carlos y Pedro al día; Lucía suspendida con factura vencida |
+| `subscriptions`/`invoices` | Carlos y Pedro al día; Lucía suspendida con **3 cuotas vencidas** ($90.000), que es el umbral en que el cliente suspende |

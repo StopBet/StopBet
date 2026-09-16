@@ -12,17 +12,21 @@ de protección hoy.
 | Símbolo | Significa |
 |---|---|
 | ✅ Protegido | Pasa por `JwtAuthGuard` + `RolesGuard` — el rol se verifica contra un token firmado |
+| ✅ Autenticado | Pasa por `JwtAuthGuard` sin `@Roles()` — la identidad viene de un token firmado y el servicio decide qué puede hacer cada quien |
 | ⚠️ Verificado sin guard | El servicio compara el rol, pero contra el header `x-user-id` — **falsificable**, cualquiera puede mandar el UUID que quiera |
 | ⚠️ Scoped por dueño | No verifica rol, pero la query solo devuelve/modifica filas de ese `userId` — limita el daño, no es control de acceso real |
 | ❌ Abierto | Sin identidad de ningún tipo. Cualquiera en internet puede llamarlo |
 | 🔓 Público (correcto) | Diseñado para ser público (login, catálogo de sedes, registro de pacientes) |
 
-**Resumen (actualizado):** de los 56 endpoints originales, **19 ya están protegidos de
-verdad** con `JwtAuthGuard` + `RolesGuard` — `family` (7, Alex), `psychologists` (5, Matías
-Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, José), `metrics`
-(1, Eduardo), `panic` (1, José). El resto sigue documentado como deuda cruzada (ver
-[Huecos críticos](#huecos-críticos)), que ya se achicó: `registration/pending`, `approve` y
-`reject` se cerraron después de la primera versión de esta matriz.
+**Resumen (actualizado 16-09-2026):** de los 56 endpoints originales, **20 están protegidos
+de verdad** con `JwtAuthGuard` + `RolesGuard` — `family` (7, Alex), `psychologists` (5,
+Matías Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, José),
+`community` (1, anuncios), `metrics` (1, Eduardo), `panic` (1, José) — **más 2 con
+`JwtAuthGuard` solo** (`moderation/flagged` y `DELETE /posts/:id`, donde el servicio ya
+distingue autor de psicólogo). El resto sigue documentado como deuda cruzada (ver
+[Huecos críticos](#huecos-críticos)), que ya se achicó tres veces: `registration/pending`,
+`approve` y `reject` primero; `panic/alerts/history` después; y los tres de `community` el
+16-09.
 
 ---
 
@@ -38,8 +42,15 @@ Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, 
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /users/patients` | `psychologist`, `coordinator` | ✅ Protegido |
+| `GET /users/patients` | `psychologist` (los suyos), `coordinator` (todos) | ✅ Protegido |
 | `GET /users/:id/progress` | `psychologist`, `coordinator` | ✅ Protegido |
+
+> **Alcance por rol (16-09-2026):** `GET /users/patients` ya no devuelve la lista completa a
+> cualquiera de los dos roles. Un **psicólogo** recibe solo los pacientes con una asignación
+> activa en `patient_assignments`; un **coordinador** los recibe todos, porque es un rol
+> administrativo y si también filtrara, una sede sin psicólogos no tendría quién la mire.
+> Antes, el panel le mostraba a cada psicólogo el correo y el historial de los pacientes de
+> sus colegas.
 
 > `POST /users/login` existía acá — se **eliminó** en el PR #44 (nunca comparaba la
 > contraseña; el dashboard web ya usa `/auth/login`, que sí es role-agnostic y verifica bcrypt).
@@ -87,7 +98,7 @@ Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
 | `GET /community/announcements` | `patient`, `sponsor` (de la sede) | ⚠️ Sin verificación de rol ni sede |
-| `POST /community/announcements` | `psychologist`, `coordinator` | ❌ **Abierto — el summary dice "psicólogo o admin" pero no hay ningún check** |
+| `POST /community/announcements` | `psychologist`, `coordinator` | ✅ Protegido |
 | `POST /community/announcements/:id/attend` | `patient`, `family` | ⚠️ Sin verificación |
 | `GET /community/posts` | `patient`, `sponsor` (de la sede) | ⚠️ Sin verificación |
 | `POST /community/posts` | `patient`, `sponsor` | ⚠️ Sin verificación |
@@ -96,13 +107,18 @@ Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, 
 | `GET /community/posts/:id/replies` | `patient`, `sponsor` | ❌ **Abierto — sin ninguna identidad** |
 | `POST /community/posts/:id/replies` | `patient`, `sponsor` | ⚠️ Sin verificación |
 | `POST /community/posts/:id/report` | `patient`, `sponsor` | ⚠️ Sin verificación |
-| `GET /community/moderation/flagged` | `psychologist` | ✅ Verificado (pero sin guard — ver nota) |
-| `DELETE /community/posts/:id` | `psychologist` | ✅ Verificado (pero sin guard — ver nota) |
+| `GET /community/moderation/flagged` | `psychologist` | ✅ Autenticado |
+| `DELETE /community/posts/:id` | `psychologist`, o el autor sobre su propia publicación | ✅ Autenticado |
 
-> Nota sobre los dos ✅: `community.service.ts` sí compara `user.role !== 'psychologist'`
-> (`assertPsychologist`, línea 216), la única lógica de rol real del backend hoy — pero
-> consulta el rol del UUID que llega en `x-user-id`, no de un token firmado. Sigue siendo
-> falsificable: cualquiera que sepa el UUID de un psicólogo pasa el check.
+> **Los tres se cerraron el 16-09-2026** (vista del psicólogo en mobile). Antes,
+> `POST /announcements` **no verificaba nada**: con el `x-user-id` de un psicólogo y sin
+> ninguna credencial se publicaba un anuncio firmado con su nombre a toda la sede. Ahora el
+> autor sale del token.
+>
+> Los otros dos llevan `JwtAuthGuard` **sin `@Roles()`** a propósito: `community.service.ts`
+> ya distingue autor de psicólogo (`assertPsychologist`), y un guard de rol le quitaría al
+> paciente el borrado de sus propias publicaciones. La identidad ya no es falsificable
+> —viene del token—, que era el problema real.
 
 ## `ai-assistant` — `/ai`
 
@@ -128,7 +144,7 @@ Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, 
 |---|---|---|
 | `GET /achievements` | `patient` (dueño) | ⚠️ Scoped por dueño |
 | `POST /achievements/relapse` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /achievements/dev-set-days` | Ninguno — es una puerta trasera de desarrollo | ❌ **Abierto en el build de producción, sin flag de entorno** |
+| `POST /achievements/dev-set-days` | Ninguno — es una puerta trasera de desarrollo | ⚠️ Tras un flag: responde 404 salvo que `ENABLE_DEV_TOOLS=true` |
 | `POST /achievements/badges/:milestone/share` | `patient` (dueño) | ⚠️ Scoped por dueño |
 
 ## `notifications` — `/notifications`
@@ -166,14 +182,16 @@ priorice:
 | Endpoint | Qué expone/permite | Módulo / dueño en este sprint |
 |---|---|---|
 | `POST /panic/assign` | Reasignar el padrino de cualquier paciente | `panic` — Matías Barraza |
-| `POST /community/announcements` | Crear anuncios oficiales de sede sin verificar rol | `community` — Catalina Yáñez |
 | `GET /community/posts/:id/replies` | Contenido del foro clínico, sin identidad | `community` — Catalina Yáñez |
 | `POST /subscriptions` | Activar la cuenta de cualquier paciente (`userId` en el body) | `subscriptions` — sin dueño asignado este sprint |
-| `POST /achievements/dev-set-days` | Puerta trasera de desarrollo, sin flag de entorno | `achievements` — sin dueño asignado este sprint |
 
 **De los propios de José:** `GET /users/patients`, `GET /users/:id/progress` y
 `GET /panic/alerts/history` estaban en esta lista — los tres protegidos, y probados con 403
 real en `test/roles.e2e-spec.ts` (S.5).
+
+**Cerrados después de la primera versión de esta matriz:** `POST /community/announcements`
+(16-09, ahora con guard y rol) y `POST /achievements/dev-set-days` (14-09, detrás de
+`ENABLE_DEV_TOOLS`; no se usó `NODE_ENV` porque Railway corre con `development`).
 
 ---
 

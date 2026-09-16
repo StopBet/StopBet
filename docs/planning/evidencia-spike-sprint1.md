@@ -106,7 +106,7 @@ LLM**, no de lo que se persiste para el historial clínico del paciente.
 [`docs/security/evidencia-spike-jose.md`](../security/evidencia-spike-jose.md#s4--matriz-de-permisos-por-rol).
 
 **Resumen:** [`permissions-matrix.md`](../security/permissions-matrix.md) inventaría los 56
-endpoints por rol objetivo; 19 tienen `@Roles()` respaldado por guard real, verificado
+endpoints por rol objetivo; **20** tienen `@Roles()` respaldado por guard real, verificado
 leyendo cada controller.
 
 **Cómo demostrarlo:**
@@ -114,8 +114,13 @@ leyendo cada controller.
 grep -rn "^\s*@Roles(" apps/backend/src --include=*.controller.ts | wc -l
 ```
 ```
-19
+20
 ```
+
+> **El número sube con el tiempo, y eso está bien.** Cuando se cerró el SPIKE eran **19**; el
+> 16-09-2026 son **20**, porque `POST /community/announcements` sumó guard y rol. Si al correr
+> el comando te da más, no es que la evidencia esté mal: es que alguien cerró otro hueco.
+> Contrástalo con la matriz, que se actualiza en la misma fecha.
 
 ---
 
@@ -197,6 +202,14 @@ conecta también Matías Barraza en `ai-assistant.service.ts`.
 **Verificado ahora — evidencia en vivo, no forzada:** en este ambiente local
 `GEMINI_API_KEY` es el placeholder de ejemplo (`your_gemini_api_key`, sin key real), así que
 cualquier mensaje real dispara el camino de fallback del backend:
+
+> **Sigue siendo reproducible (comprobado el 16-09-2026).** El `.env` local hoy tiene
+> `GEMINI_API_KEY` **vacía** en vez del placeholder, que es el mismo camino: sin key válida el
+> asistente cae al respaldo. Lo que sí cambió desde esta evidencia es el modelo —el
+> `gemini-2.5-flash-lite` de entonces empezó a devolver 404 y hoy es `gemini-3.5-flash-lite`
+> (`ai-assistant.service.ts:33`)— y el `riskLevel` del resumen, que ante un fallo ya no
+> devuelve `'low'` sino `null`. Para reproducir el camino **con** el asistente vivo, hay que
+> poner una key válida; sin ella lo que se demuestra es S.8, no S.2.
 
 ```bash
 curl -s -X POST "http://localhost:3000/ai/sessions/<sessionId>/messages" \
@@ -329,7 +342,7 @@ después de cerrado el SPIKE — no fue una corrida única para la evidencia.
 | S.1 documento de reglas + 3 conversaciones | ✅ | Eduardo | `docs/reglas-asistente.md` |
 | S.2 respuesta ≤5 s, medida | ✅ | Eduardo | 1.4 s medido en vivo + `LatencyInterceptor` |
 | S.3 PII excluida del LLM | ✅ | Alex | `sanitizePii()` en vivo → `[NOMBRE OMITIDO]` / `[RUT OMITIDO]` |
-| S.4 matriz de permisos | ✅ | José | 19 `@Roles()` con guard verificado |
+| S.4 matriz de permisos | ✅ | José | 20 `@Roles()` con guard verificado (eran 19 al cierre del SPIKE) |
 | S.5 403 en ≥4 endpoints | ✅ **5** | José | Tabla 401/403/200 + `roles.e2e-spec.ts` |
 | S.6 cifrado + HTTPS | ✅ | José | RUT ilegible en disco + header HSTS |
 | S.7 alerta de caída | ✅ | José | Webhook configurado en Railway + mensaje real recibido en Discord |

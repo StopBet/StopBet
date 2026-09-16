@@ -49,16 +49,67 @@ Eso deja `SuspendedAccountScreen` —con su «Pagar ahora y reactivar»— **sin
 alcanzarse**. Hoy el login le dice que escriba a `contacto@ajuter.cl`. Hay que decidir si el
 backend le da una sesión limitada para pagar, o si el cobro se resuelve fuera de la app.
 
+**5-bis. Dos reglas de cobro del cliente que el código no conoce.** _(traídas por el PO el
+16-09-2026)_
+
+1. **La cuenta se suspende al cumplir el tercer mes de no pago**, no antes: con una o dos
+   cuotas vencidas el paciente sigue entrando con normalidad.
+2. **Existe «congelar suscripción»**: la mensualidad se congela y, según el cliente, el
+   paciente tampoco entra a la app mientras dure.
+
+**Ninguna de las dos está implementada, y la distancia es mayor de lo que parece:**
+
+- **Nada suspende por mora.** El único lugar que escribe `accountStatus: 'suspended'` fuera de
+  los seeds es desactivar un *psicólogo* (`psychologists.service.ts`). Un paciente moroso hoy
+  **no se suspende nunca solo**: habría que hacerlo a mano en la base. La regla de los 3 meses
+  no existe en ninguna parte del código.
+- **No existe el estado congelado.** `AccountStatus` es `'active' | 'suspended'`
+  (`packages/shared-types/src/index.ts`); cero ocurrencias de frozen/congelar/freeze/pause en
+  backend, web, mobile y shared-types. Agregarlo es cambio de modelo, y sin migraciones en el
+  repo eso arrastra la deuda #10.
+
+**Qué hay que decidir, además de programarlo:**
+
+- **Qué conserva un paciente congelado o suspendido.** `CLAUDE.md` exige que la ruta de
+  escalada del pánico esté *siempre* disponible, incluso sin conexión. Si perder la
+  mensualidad apaga el botón de pánico y el `*4141`, eso choca de frente con la regla clínica
+  del proyecto. Es la pregunta más importante de las dos.
+- **Quién congela y desde dónde.** No hay pantalla ni endpoint: ¿lo hace la coordinación
+  desde el panel, o se coordina fuera del sistema como el resto del cobro?
+- **Si congelar detiene la facturación**, hay que dejar de generar la factura mensual
+  (`billing.service.ts` la crea en `pay()`), o el paciente acumula deuda mientras está
+  congelado.
+
+**Ya aplicado, mientras tanto:**
+
+- El reporte PDF del paciente usa **3 meses** como umbral de gravedad
+  (`MESES_PARA_PERDER_ACCESO` en `generatePatientPDF.ts`). Con 1 o 2 cuotas muestra la deuda
+  en tono neutro y dice cuánto margen queda; recién al tercer mes la marca en rojo. Antes
+  pintaba de rojo desde la primera.
+- **El seed de demo quedó coherente con la regla:** Lucía Vega pasó de 1 cuota vencida a
+  **3** ($90.000). Estar suspendida con una sola cuota era un estado que, con esta regla, el
+  sistema no puede producir.
+
 **6. `POST /billing/pay` no cobra nada.** Marca las facturas como pagadas y reactiva la
 cuenta. La app ya no afirma lo contrario, pero mientras no exista Webpay el cobro se coordina
 fuera del sistema. Los costos están en `presupuesto-stack-2026-09.md`.
 
 ### 🟡 Para el PO — producto y marca
 
-**7. `contacto@ajuter.cl` está escrito en el código.**
-AJUTER es el primer cliente y puede haber más. Cuando llegue el segundo, ese correo tiene que
-venir de la sede, no del código. Lo mismo vale para cualquier otro dato del cliente que
-todavía esté fijo.
+**7. El nombre del cliente está escrito en el código.**
+AJUTER es el primer cliente y puede haber más. Cuando llegue el segundo, `contacto@ajuter.cl`
+tiene que venir de la sede, no del código. Lo mismo vale para cualquier otro dato del cliente
+que todavía esté fijo.
+
+> **Actualizado el 16-09-2026.** El PO pidió sacar AJUTER de las vistas previas a entrar, y en
+> el login ya no aparece. Al hacerlo salió el bloqueo de fondo: **`institutionId` existe en
+> `registration_requests` pero no en `users`**, así que al aprobar un registro el usuario se
+> crea sin institución y **después del login el sistema no sabe a cuál pertenece**. Por eso el
+> portal del familiar y el reporte PDF siguen diciendo «AJUTER» a mano: no hay de dónde sacar
+> el nombre verdadero. **La decisión es cuál de las dos:** escribir esos textos en neutro («tu
+> equipo clínico»), que es barato y sirve para siempre, o agregar la institución al modelo de
+> datos, que es lo que hace falta si algún día el panel tiene que mostrar la marca de cada
+> cliente.
 
 **8. Vercel Hobby prohíbe el uso comercial.**
 Hoy funciona porque el repo está público, pero la cláusula sigue ahí y StopBet va a cobrar
@@ -123,13 +174,22 @@ El backend no compilaba. Para destrabarlo se cambió la arquitectura de build, l
 **Acción sugerida:** que el Tech Leader (Matías Lara) revise el cambio de arquitectura.
 Ya está commiteado en la rama `feature/HU-05-comunidad` (commit `fix:`).
 
-### 4. Co-autoría incorrecta en los commits de la rama
-Todos los commits de la rama `feature/HU-05-comunidad` tienen
-`Co-Authored-By: Claude Opus 4.8`, pero el modelo real es **Sonnet 4.6** y los commits
-previos del repo usan "Claude Sonnet 4.6".
+### 4. ~~Co-autoría incorrecta en los commits de la rama~~ · cerrado el 16-09-2026, sin acción
 
-**Acción sugerida:** reescribir los commits de la rama con el co-autor correcto antes de mergear
-(p. ej. `git rebase --exec` o reescritura interactiva).
+Decía que los commits de `feature/HU-05-comunidad` llevaban `Co-Authored-By: Claude Opus 4.8`
+cuando el modelo real era Sonnet 4.6, y proponía reescribirlos **antes de mergear**.
+
+**Ya no aplica, por dos razones:**
+
+1. **La rama se mergeó hace meses.** En `main` conviven hoy 19 commits con `Sonnet 4.6`, 11
+   con `Opus 4.8` y algunos con `Opus 5` y `Sonnet 5`. Reescribir historia ya compartida por
+   seis personas, por un trailer, cuesta mucho más de lo que arregla: obliga a todos a
+   rebasear sus ramas vivas.
+2. **La regla vigente es no poner el trailer.** `CLAUDE.md` → "Trabajando con Claude Code"
+   dice que el trabajo se atribuye únicamente al autor humano. Los commits nuevos no lo
+   llevan; los viejos quedan como testimonio de cuándo se escribieron.
+
+**Acción:** ninguna. Se deja el registro para que nadie vuelva a proponer el rebase.
 
 ---
 

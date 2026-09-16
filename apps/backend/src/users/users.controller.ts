@@ -1,8 +1,10 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { AuthUser } from '@stopbet/shared-types';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
@@ -14,12 +16,17 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('psychologist', 'coordinator')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Lista de todos los pacientes (vista psicólogo)' })
+  @ApiOperation({
+    summary: 'Pacientes visibles para quien consulta',
+    description:
+      'Un psicólogo ve solo los pacientes que tiene asignados; un coordinador ve todos, ' +
+      'porque es un rol administrativo y una sede sin psicólogos quedaría sin nadie que la mire.',
+  })
   @ApiResponse({ status: 200, description: 'PatientListItem[]' })
   @ApiResponse({ status: 401, description: 'Token ausente o inválido' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso para ver la lista de pacientes' })
-  listPatients() {
-    return this.usersService.listPatients();
+  listPatients(@CurrentUser() user: AuthUser) {
+    return this.usersService.listPatients(user);
   }
 
   @Get(':id/progress')

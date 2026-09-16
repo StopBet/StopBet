@@ -5,11 +5,11 @@ import { useIsNarrow } from '../hooks/useIsNarrow'
 type Tone = 'teal' | 'sage' | 'amber' | 'gold' | 'red'
 
 const TONES: Record<Tone, { bg: string; fg: string }> = {
-  teal:  { bg: 'var(--teal-50)',  fg: 'var(--primary)' },
+  teal:  { bg: 'var(--teal-50)',  fg: 'var(--primary-text)' },
   sage:  { bg: 'var(--sage-50)',  fg: 'var(--secondary-text)' },
-  amber: { bg: 'var(--amber-50)', fg: 'var(--primary)' },
-  gold:  { bg: 'var(--gold-50)',  fg: 'var(--primary)' },
-  red:   { bg: 'var(--red-50)',   fg: 'var(--danger)' },
+  amber: { bg: 'var(--amber-50)', fg: 'var(--primary-text)' },
+  gold:  { bg: 'var(--gold-50)',  fg: 'var(--primary-text)' },
+  red:   { bg: 'var(--red-50)',   fg: 'var(--danger-text)' },
 }
 
 interface MetricCardProps {

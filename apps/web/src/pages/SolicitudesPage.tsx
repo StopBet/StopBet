@@ -39,7 +39,7 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'var(--scrim)', animation: 'sb-scrim-in 0.18s ease' }} />
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-aprobar-titulo" tabIndex={-1} style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 520, maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', animation: 'sb-modal-in 0.28s var(--ease-calm)', zIndex: 1 }}>
         <div style={{ padding: '28px 28px 0' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 22 }}>
@@ -53,7 +53,7 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 13, background: 'var(--teal-50)', borderRadius: 12, padding: '13px 16px', marginBottom: 22 }}>
-            <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>{req.initials}</div>
+            <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--primary)', color: 'var(--fg-on-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>{req.initials}</div>
             <div>
               <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15.5, color: 'var(--fg1)' }}>{req.name}</div>
               <div style={{ fontSize: 12.5, color: 'var(--fg2)', display: 'flex', gap: 12 }}>
@@ -69,7 +69,7 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
               {cargandoPsicologos ? (
                 <div style={{ fontSize: 13, color: 'var(--fg2)', padding: '11px 0' }}>Cargando psicólogos…</div>
               ) : disponibles.length === 0 ? (
-                <div style={{ fontSize: 12.5, color: 'var(--danger)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', lineHeight: 1.45 }}>
+                <div style={{ fontSize: 12.5, color: 'var(--danger-text)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', lineHeight: 1.45 }}>
                   No hay psicólogos activos en la sede {req.sede}. Asigna uno desde <strong>Equipo</strong> antes de aprobar esta solicitud.
                 </div>
               ) : (
@@ -96,8 +96,8 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
             Cancelar
           </button>
           <button onClick={() => onConfirm(psicoElegido)} disabled={!psicoElegido}
-            style={{ height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: psicoElegido ? 'var(--primary)' : 'var(--border)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: psicoElegido ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <WIcon name="circle-check" size={17} color="#fff" /> Confirmar aprobación
+            style={{ height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: psicoElegido ? 'var(--primary)' : 'var(--border)', color: 'var(--fg-on-primary)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: psicoElegido ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <WIcon name="circle-check" size={17} color="var(--fg-on-primary)" /> Confirmar aprobación
           </button>
         </div>
       </div>
@@ -110,12 +110,12 @@ function RejectModal({ req, onClose, onConfirm }: { req: RegistrationRequest; on
   const dialogRef = useDialog<HTMLDivElement>(onClose)
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'var(--scrim)', animation: 'sb-scrim-in 0.18s ease' }} />
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-rechazar-titulo" tabIndex={-1} style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 480, maxWidth: '95vw', animation: 'sb-modal-in 0.28s var(--ease-calm)', zIndex: 1 }}>
         <div style={{ padding: '28px 28px 0' }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 22 }}>
             <div>
-              <h2 id="sb-rechazar-titulo" style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 21, color: 'var(--danger)' }}>Rechazar solicitud</h2>
+              <h2 id="sb-rechazar-titulo" style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 21, color: 'var(--danger-text)' }}>Rechazar solicitud</h2>
               <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>Vas a rechazar la solicitud de <strong>{req.name}</strong>.</p>
             </div>
             <button onClick={onClose} aria-label="Cerrar" style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -136,8 +136,8 @@ function RejectModal({ req, onClose, onConfirm }: { req: RegistrationRequest; on
             Cancelar
           </button>
           <button onClick={onConfirm}
-            style={{ height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <WIcon name="x" size={16} color="#fff" /> Confirmar rechazo
+            style={{ height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <WIcon name="x" size={16} color="var(--fg-on-primary)" /> Confirmar rechazo
           </button>
         </div>
       </div>
@@ -150,11 +150,11 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
   const dialogRef = useDialog<HTMLDivElement>(onClose)
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'var(--scrim)', animation: 'sb-scrim-in 0.18s ease' }} />
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-eliminar-titulo" tabIndex={-1} style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 460, maxWidth: '95vw', animation: 'sb-modal-in 0.28s var(--ease-calm)', zIndex: 1, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger)' }} id="sb-eliminar-titulo">Eliminar publicación</h2>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger-text)' }} id="sb-eliminar-titulo">Eliminar publicación</h2>
             <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>Esta acción es permanente y no se puede deshacer.</p>
           </div>
           <button onClick={onClose} aria-label="Cerrar" style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -164,7 +164,7 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
 
         <div style={{ background: 'var(--red-50)', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--danger)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>{initialsOf(post.authorName)}</div>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--danger)', color: 'var(--fg-on-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>{initialsOf(post.authorName)}</div>
             <div>
               <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13.5, color: 'var(--fg1)' }}>{post.authorName ?? 'Usuario'}</span>
               <span style={{ fontSize: 12, color: 'var(--fg2)', marginLeft: 8 }}>Sede {post.sede}</span>
@@ -179,8 +179,8 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
           <button onClick={onClose} disabled={loading} style={{ height: 44, padding: '0 20px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, cursor: 'pointer' }}>
             Cancelar
           </button>
-          <button onClick={onConfirm} disabled={loading} style={{ height: 44, padding: '0 24px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.7 : 1 }}>
-            <WIcon name="trash-2" size={15} color="#fff" /> {loading ? 'Eliminando…' : 'Eliminar publicación'}
+          <button onClick={onConfirm} disabled={loading} style={{ height: 44, padding: '0 24px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.7 : 1 }}>
+            <WIcon name="trash-2" size={15} color="var(--fg-on-primary)" /> {loading ? 'Eliminando…' : 'Eliminar publicación'}
           </button>
         </div>
       </div>
@@ -223,10 +223,10 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--danger)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginTop: 24 }}>
         <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <WIcon name="flag" size={18} color="var(--danger)" />
+            <WIcon name="flag" size={18} color="var(--danger-text)" />
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Posts reportados</h2>
           </div>
-          <span style={{ background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 9999, padding: '4px 14px', fontSize: 13, fontWeight: 700 }}>
+          <span style={{ background: 'var(--red-50)', color: 'var(--danger-text)', borderRadius: 9999, padding: '4px 14px', fontSize: 13, fontWeight: 700 }}>
             {visible.length} pendiente{visible.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -251,12 +251,12 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
               {visible.map(p => (
                 <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--red-50)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{initialsOf(p.authorName)}</div>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--red-50)', color: 'var(--danger-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{initialsOf(p.authorName)}</div>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{p.authorName ?? 'Usuario'}</div>
                       <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{relTime(p.createdAt)}</div>
                     </div>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-50)', color: 'var(--danger-text)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                       <WIcon name="flag" size={12} /> {p.reportCount}
                     </span>
                   </div>
@@ -264,11 +264,11 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
                   <div style={{ fontSize: 13, color: 'var(--fg2)', lineHeight: 1.5 }}>{p.body ?? '-'}</div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                     <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
                       <button onClick={() => setDeleteTarget(p)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        <WIcon name="trash-2" size={13} color="#fff" /> Eliminar
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <WIcon name="trash-2" size={13} color="var(--fg-on-primary)" /> Eliminar
                       </button>
                       <button onClick={() => setDismissed(prev => new Set([...prev, p.id]))}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -297,7 +297,7 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
                 <tr key={p.id} style={{ borderBottom: '1px solid var(--border)', verticalAlign: 'top' }}>
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--red-50)', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{initialsOf(p.authorName)}</div>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--red-50)', color: 'var(--danger-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{initialsOf(p.authorName)}</div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)' }}>{p.authorName ?? 'Usuario'}</div>
                         <div style={{ fontSize: 12.5, color: 'var(--fg2)', marginTop: 3, lineHeight: 1.5 }}>
@@ -307,10 +307,10 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
                     </div>
                   </td>
                   <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                   </td>
                   <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-50)', color: 'var(--danger)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-50)', color: 'var(--danger-text)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 }}>
                       <WIcon name="flag" size={12} /> {p.reportCount}
                     </span>
                   </td>
@@ -320,8 +320,8 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
                   <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => setDeleteTarget(p)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        <WIcon name="trash-2" size={13} color="#fff" /> Eliminar
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <WIcon name="trash-2" size={13} color="var(--fg-on-primary)" /> Eliminar
                       </button>
                       <button onClick={() => setDismissed(prev => new Set([...prev, p.id]))}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -370,7 +370,7 @@ export function SolicitudesPage({ requests, psychId, onApprove, onReject }: Soli
     <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1440, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* Intro banner */}
       <div style={{ background: 'var(--amber-50)', border: '1px solid var(--accent)', borderRadius: 16, padding: '18px 22px', marginBottom: 24, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-        <WIcon name="inbox" size={22} color="var(--primary)" />
+        <WIcon name="inbox" size={22} color="var(--primary-text)" />
         <div>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15.5, color: 'var(--fg1)', marginBottom: 3 }}>
             Tienes {requests.length} solicitud{requests.length !== 1 ? 'es' : ''} de admisión pendiente{requests.length !== 1 ? 's' : ''}
@@ -385,7 +385,7 @@ export function SolicitudesPage({ requests, psychId, onApprove, onReject }: Soli
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Solicitudes de ingreso</h2>
-          <span style={{ background: 'var(--amber-50)', color: 'var(--primary)', borderRadius: 9999, padding: '4px 14px', fontSize: 13, fontWeight: 700 }}>
+          <span style={{ background: 'var(--amber-50)', color: 'var(--primary-text)', borderRadius: 9999, padding: '4px 14px', fontSize: 13, fontWeight: 700 }}>
             {requests.length} pendiente{requests.length !== 1 ? 's' : ''}
           </span>
         </div>
@@ -402,26 +402,26 @@ export function SolicitudesPage({ requests, psychId, onApprove, onReject }: Soli
               {requests.map(r => (
                 <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--amber-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>{r.initials}</div>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--amber-50)', color: 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>{r.initials}</div>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
                       <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
                     </div>
-                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--primary)', flexShrink: 0 }}>{r.amount}</span>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--primary-text)', flexShrink: 0 }}>{r.amount}</span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
+                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
                     <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.date} · {r.rel}</span>
                   </div>
 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => setApproveReq(r)}
-                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
-                      <WIcon name="circle-check" size={14} color="#fff" /> Aprobar
+                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: 'none', background: 'var(--primary)', color: 'var(--fg-on-primary)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+                      <WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Aprobar
                     </button>
                     <button onClick={() => setRejectReq(r)}
-                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger-text)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
                       <WIcon name="x" size={14} /> Rechazar
                     </button>
                   </div>
@@ -441,7 +441,7 @@ export function SolicitudesPage({ requests, psychId, onApprove, onReject }: Soli
                 <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--amber-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>{r.initials}</div>
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--amber-50)', color: 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>{r.initials}</div>
                       {/* Sin acotar, con tableLayout fijo el nombre se desborda de la
                           celda y la columna siguiente le queda encima. */}
                       <div style={{ minWidth: 0 }}>
@@ -451,21 +451,21 @@ export function SolicitudesPage({ requests, psychId, onApprove, onReject }: Soli
                     </div>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
+                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ fontSize: 13, color: 'var(--fg1)' }}>{r.date}</div>
                     <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.rel}</div>
                   </td>
-                  <td style={{ padding: '14px 14px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--primary)' }}>{r.amount}</td>
+                  <td style={{ padding: '14px 14px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--primary-text)' }}>{r.amount}</td>
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => setApproveReq(r)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        <WIcon name="circle-check" size={14} color="#fff" /> Aprobar
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: 'var(--fg-on-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        <WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Aprobar
                       </button>
                       <button onClick={() => setRejectReq(r)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         <WIcon name="x" size={14} /> Rechazar
                       </button>
                     </div>

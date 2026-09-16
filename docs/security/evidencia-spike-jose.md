@@ -54,6 +54,12 @@ Desglose por controller, verificando que cada uno tenga también `JwtAuthGuard`:
 > **a nivel de clase** (`@UseGuards(JwtAuthGuard, RolesGuard)` sobre el `@Controller`), lo que
 > cubre todos sus métodos. Verificado leyendo ambos archivos.
 
+> **Esta tabla es la foto del 28-08-2026, no cambia.** Si hoy corres el comando te va a dar
+> un número mayor: al 16-09 son **20**, porque `community.controller.ts` sumó uno
+> (`POST /announcements`). El inventario al día está en
+> [`permissions-matrix.md`](./permissions-matrix.md); acá se conserva lo medido en la fecha de
+> cierre del SPIKE.
+
 **Demuestra:** existe el inventario por rol exigido por el criterio, y los 19 endpoints que
 declara protegidos lo están de verdad con token firmado, no con el header falsificable.
 

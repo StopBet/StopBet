@@ -63,7 +63,7 @@ function SessionRow({ session }: { session: SedeFamilySession }) {
               padding: '7px 14px',
               fontSize: 13,
               fontWeight: 600,
-              color: total === 0 ? 'var(--fg2)' : 'var(--primary)',
+              color: total === 0 ? 'var(--fg2)' : 'var(--primary-text)',
               cursor: total === 0 ? 'default' : 'pointer',
               opacity: total === 0 ? 0.55 : 1,
             }}

@@ -102,26 +102,48 @@ Ningún arreglo de esta lista modifica un color del manual (`#396fb6`, `#93bce5`
 
 ## Estado al cierre y traspaso · 15-09-2026
 
-**Esta auditoría ya está hecha y 39 de sus 42 hallazgos están arreglados y mergeados en
-`main` (PR #95). No hace falta volver a auditar la web: lo que queda es corto y está
-listado acá abajo.** Quien siga con el dashboard puede tomar esta sección como punto de
-partida.
+**Esta auditoría está cerrada: los 42 hallazgos están resueltos.** 39 se mergearon en
+`main` con el PR #95; los **3 últimos se cerraron en local el 16-09-2026** y se detallan más
+abajo. No hace falta volver a auditar la web.
 
 | Métrica | Antes | Después |
 |---|---|---|
-| Hallazgos resueltos | 0 de 42 | 39 de 42 |
+| Hallazgos resueltos | 0 de 42 | **42 de 42** |
 | axe: textos sin contraste | 225 nodos | 0 |
 | axe: botones · selectores · campos sin nombre | 25 · 10 · 6 | 0 · 0 · 0 |
 | Foco visible (login / panel) | 5 de 7 · 11 de 12 | 7 de 7 · 12 de 12 |
 | Desborde lateral a 1280 px | 140 px (Resumen) | 0 en todas las páginas |
 
-### Los 3 que quedan de la auditoría
+### Los 3 que quedaban · cerrados el 16-09-2026
 
-| # | Qué falta | Dónde | Por qué no se cerró |
-|---|---|---|---|
-| **SIS-09** (P2) | Pasar a tokens los hex y `rgba` escritos a mano | transversal, `apps/web/src/pages/` | **Parcial.** Salieron `#574F4A`, el `#B83232` a mano, el verde azulado del menú (`rgba(30,45,44,…)`) y el `#EAF1F9` del login. Quedan los demás de los 62 hex y 44 `rgba` originales. Es trabajo mecánico, sin decisión de por medio. |
-| **SIS-13** (P3) | Decidir si Inter y Nunito se siguen cargando | `apps/web/src/styles/colors_and_type.css` | Son **solo respaldo** de Chillax y Satoshi, y se descargan siempre. Falta medir cuánto pesa y decidir. |
-| **SHL-03** (P2) | Guardar el logo de AJUTER en el repo | `apps/web/src/components/...` (pie del sidebar) | **Bloqueado por un archivo, no por código:** hoy se carga desde `ajuter.org`. El logo está en `~/Stopbet/marca` (carpeta del PO) — pedirlo y commitearlo. |
+| # | Qué era | Cómo se cerró |
+|---|---|---|
+| **SIS-09** (P2) | Hex y `rgba` escritos a mano | **Cerrado.** Los 56 hex de `.tsx` quedaron en 0: 51 `#fff` pasaron a `--fg-on-primary` (texto e íconos sobre azul o rojo) o `--surface` (fondos y puntos del gráfico), que resuelven al mismo blanco — el cambio es semántico, sin efecto visual. Los 13 `rgba` con color de marca pasaron a `var(--scrim)` (token nuevo, el velo de los modales, que estaba repetido en 6 archivos) o a `color-mix()` sobre `--primary`, `--primary-hover` y `--danger`. **Quedan 27 `rgba` de blanco y negro puros con alfa**, los velos del sidebar: no son colores del design system y tokenizar cada alfa agregaba ruido sin ganancia. |
+| **SIS-13** (P3) | ¿Inter y Nunito se siguen cargando? | **Cerrado: se quedan.** Se midió, y la premisa era falsa — **no se descargan nunca.** Ver "La medición de SIS-13" abajo. |
+| **SHL-03** (P2) | El logo de AJUTER se carga desde ajuter.org | **Cerrado.** El logo vive ahora en `apps/web/src/assets/logo-ajuter.png` (1063×485, 80 KB) y `Sidebar.tsx` lo importa como módulo. Ya no queda ninguna referencia a `ajuter.org` en el código. **Ojo con el origen:** el archivo **no estaba** en `~/Stopbet/marca` como decía esta auditoría —esa carpeta es la marca StopBet— así que se bajó del sitio público de AJUTER, que es de donde el panel ya lo pedía en cada carga. Conviene que AJUTER confirme que es la versión vigente. |
+
+### La medición de SIS-13
+
+El hallazgo asumía que Inter y Nunito "se descargan siempre". **No es así:** el navegador solo
+baja una `@font-face` cuando algún carácter la necesita, y como fuentes de respaldo solo se
+usarían si Chillax o Satoshi fallaran.
+
+Medido el 16-09-2026 sobre el build de producción, sirviendo `dist/` con un servidor que
+registra cada petición y cargando el login en Firefox headless:
+
+| Pedidas por el navegador | No pedidas |
+|---|---|
+| `Chillax-Bold`, `Satoshi-Regular`, `Satoshi-Bold` | `Inter-400/600/700`, `Nunito-400/600/700`, `Chillax-SemiBold` |
+
+**Decisión: se quedan.** Cuestan **0 bytes** de descarga y son una red de seguridad real si un
+archivo de marca falla. Lo que ocupan (119 KB) es en el repo y el deploy, no en el usuario.
+
+**Hallazgo nuevo que salió de medir esto:** Chillax y Satoshi están en **TTF** (263 KB) y las
+de respaldo en **woff2** (119 KB). O sea: las únicas fuentes que el usuario descarga están en
+el formato más pesado. Convertirlas a woff2 ahorraría del orden de 150 KB en cada primera
+visita — bastante más que borrar las de respaldo, que no ahorraría nada. **No se hizo:** esta
+máquina no tiene `fonttools` ni `woff2_compress`, y cambiar los archivos de la marca pide
+comprobar que rendericen idénticos. Queda propuesto.
 
 ### Lo que cambió en la web *después* de la auditoría (no vuelvas a reportarlo)
 
@@ -136,6 +158,12 @@ partida.
   blanco (1,6:1) y por eso existe la versión oscurecida. No lo "corrijas" de vuelta al hex
   del manual: la marca se respeta en los rellenos.
 - **Finanzas avisa en pantalla que son datos de ejemplo.**
+- **En el login ya no se nombra a AJUTER** (16-09). ING-02 había dejado «Para el equipo
+  clínico de AJUTER y las familias…»; ahora dice «Para los equipos clínicos y las familias…».
+  StopBet es el producto y AJUTER su primer cliente, y quien no ha entrado todavía no tiene
+  sesión: el sistema no sabe a qué institución pertenece. **Dentro del panel el logo de AJUTER
+  se queda** al pie del sidebar. Si vas a escribir texto en una vista previa a entrar, no
+  nombres a ninguna institución.
 
 ### Huecos conocidos que la auditoría UX no cubre
 
@@ -216,12 +244,12 @@ Para ir marcando. El detalle de cada punto está en la sección siguiente, por p
 
 - [x] **SIS-07** · Cinco animaciones con rebote y ningún `prefers-reduced-motion`. **Arreglo:** curvas de desaceleración suave y respetar el ajuste de reducir movimiento. _(transversal)_ — **Resuelto en local 14-09:** Las 5 curvas con rebote pasaron a `--ease-calm`. Un bloque `prefers-reduced-motion` quita los latidos y los desplazamientos, y deja girando el spinner.
 - [x] **SIS-08** · 33 textos de menos de 12 px. **Arreglo:** un mínimo de 12 px. _(transversal)_ — **Resuelto en local 14-09:** Los 24 textos de 10,5 a 11,5 px pasaron a 12 px, incluidas las cabeceras de tabla y los chips.
-- [ ] **SIS-09** · 62 colores hexadecimales y 44 `rgba` escritos a mano, con restos del tema AJUTER. **Arreglo:** pasarlos a tokens. _(transversal)_ — **Parcial 14-09:** se quitaron `#574F4A`, `#B83232` escrito a mano, el fondo verde azulado viejo del menú (`rgba(30,45,44,…)`) y el `#EAF1F9` del login. Siguen pendientes los demás hex y `rgba` escritos a mano.
+- [x] **SIS-09** · 62 colores hexadecimales y 44 `rgba` escritos a mano, con restos del tema AJUTER. **Arreglo:** pasarlos a tokens. _(transversal)_ — **Cerrado en local 16-09:** 0 hex en `.tsx` y 0 `rgba` con color de marca. Token nuevo `--scrim` y `color-mix()` sobre los tokens de marca. Quedan 27 `rgba` de blanco/negro con alfa, a propósito. Ver «Los 3 que quedaban».
 - [x] **SIS-10** · Borde lateral grueso como acento en las tarjetas de métricas y en las alertas. **Arreglo:** marcar la jerarquía de otra forma. _(transversal)_ — **Resuelto en local 14-09:** `MetricCard` ya no pone la franja lateral: solo una tarjeta roja con valor mayor que 0 lleva borde rojo. También se quitó la franja de las alertas en el Resumen y en la ficha.
 - [x] **SIS-11** · El panel no tiene `h1`: el título de la barra superior es un `div`. **Arreglo:** que el título de la página sea el `h1`. _(transversal)_ — **Resuelto en local 14-09:** El título de la barra superior es el `h1`. En pantallas angostas hay un `h1` solo para lectores de pantalla. Equipo y Configuración pasaron su título de página a `h2`.
 - [x] **SIS-12** · El aviso emergente (toast) no se anuncia y se sale de la pantalla en el teléfono. **Arreglo:** `role="status"` y que el texto pueda partirse en líneas. _(HdU04 · Eduardo Pacheco)_ — **Resuelto en local 14-09:** Ahora tiene `role="status"` y `aria-live`, y un ancho máximo que deja que el texto pase a otra línea.
 - [x] **SHL-02** · "Cerrar sesión" usa el ícono de salvavidas. **Arreglo:** ícono de salida y 13 px como mínimo. _(HdU04 · Eduardo Pacheco)_ — **Resuelto en local 14-09:** Usa el ícono `log-out` (agregado a `WIcon`), a 13 px.
-- [ ] **SHL-03** · El logo de AJUTER se carga desde ajuter.org. **Arreglo:** guardarlo como imagen del repo. _(HdU04 · Eduardo Pacheco)_
+- [x] **SHL-03** · El logo de AJUTER se carga desde ajuter.org. **Arreglo:** guardarlo como imagen del repo. _(HdU04 · Eduardo Pacheco)_ — **Cerrado en local 16-09:** `assets/logo-ajuter.png`, importado como módulo. Cero referencias a `ajuter.org` en el código.
 - [x] **SHL-04** · "Alertas de pánico", cuando está activa, se parte en dos líneas en la barra lateral. **Arreglo:** que la negrita no cambie el ancho, o una etiqueta más corta. _(HdU04 · Eduardo Pacheco)_ — **Resuelto en local 14-09:** La etiqueta va en una sola línea y se recorta si no cabe (`nowrap` + `ellipsis`).
 - [x] **RES-03** · Punto rojo que late aunque haya 0 alertas. **Arreglo:** mostrarlo solo si hay alertas activas. _(HdU04 · Eduardo Pacheco)_ — **Resuelto en local 14-09:** `MetricCard` solo hace latir el punto cuando el valor es mayor que 0.
 - [x] **RES-04** · El reporte PDF viene con fechas de mayo de 2026 y un ícono que no existe. **Arreglo:** proponer los últimos 30 días; usar un ícono del mapa. _(HdU04 · Eduardo Pacheco)_ — **Resuelto en local 14-09:** El reporte propone los últimos 30 días, en fecha local. El ícono `loader` se agregó al mapa de `WIcon` y ahora gira.
@@ -236,7 +264,7 @@ Para ir marcando. El detalle de cada punto está en la sección siguiente, por p
 
 ### P3 · pulido (5)
 
-- [ ] **SIS-13** · Inter y Nunito, que son solo fuentes de respaldo, se cargan siempre. **Arreglo:** evaluar si hace falta cargarlas. _(transversal)_
+- [x] **SIS-13** · Inter y Nunito, que son solo fuentes de respaldo, se cargan siempre. **Arreglo:** evaluar si hace falta cargarlas. _(transversal)_ — **Cerrado en local 16-09: la premisa era falsa.** Medido en el navegador: no se descargan nunca. Se quedan. De paso salió que Chillax y Satoshi están en TTF y convendría pasarlas a woff2.
 - [x] **SHL-05** · `icons.css` sigue importado aunque ya nadie lo usa. **Arreglo:** borrarlo. _(transversal)_ — **Resuelto en local 14-09:** Se quitó el import en `index.css`: ningún componente usa las clases `.ico` (comprobado con un grep estricto). El archivo `styles/icons.css` sigue en el repo y se puede borrar.
 - [x] **RES-06** · Flecha de tendencia en "Pacientes activos" sin ningún dato de tendencia detrás. **Arreglo:** quitarla. _(HdU04 · Eduardo Pacheco)_ — **Resuelto en local 14-09:** La tarjeta dice solo «en tu sede».
 - [x] **ALE-04** · La columna "Tipo" repite "Botón de pánico" en todas las filas. **Arreglo:** quitar la columna. _(HdU04 · Eduardo Pacheco)_ — **Resuelto en local 14-09:** Se quitó la columna, tanto en la tabla como en la tarjeta del teléfono.

@@ -9,12 +9,12 @@ import { useDialog } from '../hooks/useDialog'
 const fieldStyle: CSSProperties = { height: 42, width: '100%', boxSizing: 'border-box', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--bg)', padding: '0 12px', fontSize: 13.5, color: 'var(--fg1)', outline: 'none' }
 const labelStyle: CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--fg2)', display: 'block', marginBottom: 5 }
 const overlayStyle: CSSProperties = { position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }
-const scrimStyle: CSSProperties = { position: 'absolute', inset: 0, background: 'rgba(45,90,158,0.32)', animation: 'sb-scrim-in 0.18s ease', border: 'none', padding: 0, cursor: 'pointer' }
+const scrimStyle: CSSProperties = { position: 'absolute', inset: 0, background: 'var(--scrim)', animation: 'sb-scrim-in 0.18s ease', border: 'none', padding: 0, cursor: 'pointer' }
 const cardStyle: CSSProperties = { position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', maxWidth: '95vw', maxHeight: '90vh', overflowY: 'auto', animation: 'sb-modal-in 0.28s var(--ease-calm)', zIndex: 1 }
 const closeBtnStyle: CSSProperties = { width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }
-const primaryBtnStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 8, height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer' }
+const primaryBtnStyle: CSSProperties = { display: 'inline-flex', alignItems: 'center', gap: 8, height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: 'var(--fg-on-primary)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: 'pointer' }
 const secondaryBtnStyle: CSSProperties = { height: 46, padding: '0 22px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, cursor: 'pointer' }
-const linkBtnStyle: CSSProperties = { border: 'none', background: 'none', padding: 0, fontSize: 13, fontWeight: 600, color: 'var(--primary)', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }
+const linkBtnStyle: CSSProperties = { border: 'none', background: 'none', padding: 0, fontSize: 13, fontWeight: 600, color: 'var(--primary-text)', cursor: 'pointer', textDecoration: 'underline', textAlign: 'left' }
 const noticeStyle: CSSProperties = { display: 'flex', gap: 10, alignItems: 'flex-start', borderRadius: 12, padding: '13px 15px', marginBottom: 16, fontSize: 13, lineHeight: 1.45, color: 'var(--fg1)' }
 
 // El scrim cierra el modal al hacer clic. Como <div> no lo alcanza el teclado ni lo anuncia
@@ -102,7 +102,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
             </div>
           ) : (
             <div style={{ ...noticeStyle, background: 'var(--red-50)' }}>
-              <span style={{ color: 'var(--danger)', flexShrink: 0, marginTop: 1 }}><WIcon name="circle-alert" size={17} /></span>
+              <span style={{ color: 'var(--danger-text)', flexShrink: 0, marginTop: 1 }}><WIcon name="circle-alert" size={17} /></span>
               <div>No se pudo enviar el correo. La cuenta quedó creada igual: entrégale tú la contraseña.</div>
             </div>
           )}
@@ -114,7 +114,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
                 {created.email}
               </div>
               <div style={{ fontSize: 12, color: 'var(--fg2)', marginBottom: 4 }}>Contraseña temporal</div>
-              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 16, color: 'var(--primary)', letterSpacing: '0.03em' }}>
+              <div style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: 16, color: 'var(--primary-text)', letterSpacing: '0.03em' }}>
                 {created.temporaryPassword}
               </div>
             </div>
@@ -152,7 +152,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
         </div>
 
         {error && (
-          <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--danger)' }}>
+          <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--danger-text)' }}>
             {error}
           </div>
         )}
@@ -169,7 +169,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
         </div>
         <div style={{ marginBottom: 14 }}>
           <label htmlFor="sb-psico-correo" style={labelStyle}>Correo</label>
-          <input id="sb-psico-correo" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="fernanda.fuentes@ajuter.cl" style={fieldStyle} />
+          <input id="sb-psico-correo" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nombre.apellido@tuinstitucion.cl" style={fieldStyle} />
         </div>
         <div style={{ marginBottom: 14 }}>
           <label htmlFor="sb-psico-rut" style={labelStyle}>RUT</label>
@@ -182,7 +182,7 @@ function CreatePsychologistModal({ sedes, onClose, onDone }: { sedes: Sede[]; on
               const on = selectedSedes.has(s.id)
               return (
                 <button key={s.id} type="button" aria-pressed={on} onClick={() => toggleSede(s.id)}
-                  style={{ height: 34, padding: '0 14px', borderRadius: 9999, border: on ? '1.5px solid var(--primary)' : '1.5px solid var(--border)', background: on ? 'var(--teal-50)' : 'var(--surface)', color: on ? 'var(--primary)' : 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ height: 34, padding: '0 14px', borderRadius: 9999, border: on ? '1.5px solid var(--primary)' : '1.5px solid var(--border)', background: on ? 'var(--teal-50)' : 'var(--surface)', color: on ? 'var(--primary-text)' : 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {s.name}
                 </button>
               )
@@ -232,7 +232,7 @@ function DeactivateModal({
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Desactivar psicólogo" tabIndex={-1} style={{ ...cardStyle, width: 480, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger)' }}>Desactivar psicólogo</h2>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger-text)' }}>Desactivar psicólogo</h2>
             <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>
               {psychologist.firstName} {psychologist.lastName} · {psychologist.sedes.map(s => s.name).join(', ') || 'sin sedes'}
             </p>
@@ -243,7 +243,7 @@ function DeactivateModal({
         </div>
 
         {error && (
-          <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--danger)' }}>
+          <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--danger-text)' }}>
             {error}
           </div>
         )}
@@ -258,7 +258,7 @@ function DeactivateModal({
                     {g.sedeName} — {g.count} paciente{g.count !== 1 ? 's' : ''}
                   </label>
                   {targets.length === 0 ? (
-                    <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--danger)' }}>
+                    <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--danger-text)' }}>
                       Ningún psicólogo activo atiende {g.sedeName}. Asígnale esa sede a alguien
                       antes de dar de baja a {psychologist.firstName}.
                     </div>
@@ -284,7 +284,7 @@ function DeactivateModal({
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
           <button onClick={onClose} disabled={mutation.isPending} style={secondaryBtnStyle}>Cancelar</button>
           <button onClick={() => mutation.mutate()} disabled={mutation.isPending || blocked.length > 0 || !allChosen}
-            style={{ height: 46, padding: '0 24px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: '#fff', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: mutation.isPending || blocked.length > 0 || !allChosen ? 'not-allowed' : 'pointer', opacity: mutation.isPending || blocked.length > 0 || !allChosen ? 0.6 : 1 }}>
+            style={{ height: 46, padding: '0 24px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: mutation.isPending || blocked.length > 0 || !allChosen ? 'not-allowed' : 'pointer', opacity: mutation.isPending || blocked.length > 0 || !allChosen ? 0.6 : 1 }}>
             {mutation.isPending ? 'Desactivando…' : 'Desactivar'}
           </button>
         </div>
@@ -380,7 +380,7 @@ function EditSedesModal({
           <div style={{ marginBottom: 22 }}>
             <label htmlFor="sb-reasignar-destino" style={labelStyle}>Reasignar a</label>
             {eligibleTargets.length === 0 ? (
-              <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--danger)' }}>
+              <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--danger-text)' }}>
                 Ningún otro psicólogo activo atiende {pendingSedeName}. Asígnale esa sede a
                 alguien antes de quitársela a {psychologist.firstName}.
               </div>
@@ -420,7 +420,7 @@ function EditSedesModal({
         </div>
 
         {error && (
-          <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--danger)' }}>
+          <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: 'var(--danger-text)' }}>
             {error}
           </div>
         )}
@@ -432,7 +432,7 @@ function EditSedesModal({
               const on = selectedSedes.has(s.id)
               return (
                 <button key={s.id} type="button" aria-pressed={on} onClick={() => toggleSede(s.id)}
-                  style={{ height: 34, padding: '0 14px', borderRadius: 9999, border: on ? '1.5px solid var(--primary)' : '1.5px solid var(--border)', background: on ? 'var(--teal-50)' : 'var(--surface)', color: on ? 'var(--primary)' : 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+                  style={{ height: 34, padding: '0 14px', borderRadius: 9999, border: on ? '1.5px solid var(--primary)' : '1.5px solid var(--border)', background: on ? 'var(--teal-50)' : 'var(--surface)', color: on ? 'var(--primary-text)' : 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                   {s.name}
                 </button>
               )
@@ -478,7 +478,7 @@ export function EquipoPage() {
           <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--fg2)' }}>Cuentas de psicólogo y sus sedes asignadas.</p>
         </div>
         <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>
-          <WIcon name="users" size={16} color="#fff" /> Crear psicólogo
+          <WIcon name="users" size={16} color="var(--fg-on-primary)" /> Crear psicólogo
         </button>
       </div>
 
@@ -489,7 +489,7 @@ export function EquipoPage() {
           /* Sin esta rama un 401 se veia igual que "no hay psicologos": el coordinador creia
              que la clinica estaba vacia en vez de que su sesion habia caducado. */
           <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--fg2)' }}>
-            <WIcon name="triangle-alert" size={40} color="var(--danger)" />
+            <WIcon name="triangle-alert" size={40} color="var(--danger-text)" />
             <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 16, color: 'var(--fg1)' }}>No se pudo cargar el equipo</div>
             <div style={{ marginTop: 4, fontSize: 13 }}>{errorMessage(error, 'Revisa tu conexión o vuelve a iniciar sesión.')}</div>
             <button onClick={() => refetch()} style={{ ...secondaryBtnStyle, marginTop: 18 }}>Reintentar</button>
@@ -508,7 +508,7 @@ export function EquipoPage() {
               {psychologists.map((p) => (
                 <div key={p.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                    <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>
                       {initialsOf(p.firstName, p.lastName)}
                     </div>
                     <div style={{ minWidth: 0, flex: 1 }}>
@@ -518,7 +518,7 @@ export function EquipoPage() {
                     <span style={{
                       flexShrink: 0,
                       background: p.accountStatus === 'active' ? 'var(--sage-50)' : 'var(--red-50)',
-                      color: p.accountStatus === 'active' ? 'var(--secondary-text)' : 'var(--danger)',
+                      color: p.accountStatus === 'active' ? 'var(--secondary-text)' : 'var(--danger-text)',
                       borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600,
                     }}>
                       {p.accountStatus === 'active' ? 'Activo' : 'Inactivo'}
@@ -529,7 +529,7 @@ export function EquipoPage() {
                     {p.sedes.length === 0
                       ? <span style={{ fontSize: 12.5, color: 'var(--fg2)' }}>Sin sedes</span>
                       : p.sedes.map((s) => (
-                          <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{s.name}</span>
+                          <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{s.name}</span>
                         ))}
                   </div>
 
@@ -540,7 +540,7 @@ export function EquipoPage() {
                         <WIcon name="map-pin" size={14} /> Sedes
                       </button>
                       <button onClick={() => setDeactivateTarget(p)}
-                        style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
+                        style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger-text)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
                         <WIcon name="x" size={14} /> Desactivar
                       </button>
                     </div>
@@ -570,7 +570,7 @@ export function EquipoPage() {
                 <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>
                         {initialsOf(p.firstName, p.lastName)}
                       </div>
                       <div style={{ minWidth: 0 }}>
@@ -593,14 +593,14 @@ export function EquipoPage() {
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {p.sedes.map((s) => (
-                        <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{s.name}</span>
+                        <span key={s.id} style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{s.name}</span>
                       ))}
                     </div>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
                     <span style={{
                       background: p.accountStatus === 'active' ? 'var(--sage-50)' : 'var(--red-50)',
-                      color: p.accountStatus === 'active' ? 'var(--secondary-text)' : 'var(--danger)',
+                      color: p.accountStatus === 'active' ? 'var(--secondary-text)' : 'var(--danger-text)',
                       borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600,
                     }}>
                       {p.accountStatus === 'active' ? 'Activo' : 'Inactivo'}
@@ -614,7 +614,7 @@ export function EquipoPage() {
                           <WIcon name="map-pin" size={14} /> Sedes
                         </button>
                         <button onClick={() => setDeactivateTarget(p)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                           <WIcon name="x" size={14} /> Desactivar
                         </button>
                       </div>

@@ -7,9 +7,9 @@ export type PanicStatus = AlertHistoryItem['status']
 // "Resuelto con IA" y `cancelled` como "Sin resolver": el psicólogo veía cerrada justo la
 // crisis sin atender y perseguía las que el paciente ya había cerrado.
 export const ALERT_STATUS: Record<PanicStatus, { label: string; fg: string; bg: string; icon: string; needsAttention: boolean }> = {
-  pending:   { label: 'Esperando respuesta',     fg: 'var(--danger)',        bg: 'var(--red-50)',  icon: 'clock',        needsAttention: true },
-  escalated: { label: 'Escalada · sin respuesta', fg: 'var(--danger)',        bg: 'var(--red-50)',  icon: 'circle-alert', needsAttention: true },
-  responded: { label: 'Respondida',     fg: 'var(--primary-hover)', bg: 'var(--teal-50)', icon: 'circle-check', needsAttention: false },
+  pending:   { label: 'Esperando respuesta',     fg: 'var(--danger-text)',   bg: 'var(--red-50)',  icon: 'clock',        needsAttention: true },
+  escalated: { label: 'Escalada · sin respuesta', fg: 'var(--danger-text)',   bg: 'var(--red-50)',  icon: 'circle-alert', needsAttention: true },
+  responded: { label: 'Respondida',     fg: 'var(--primary-text)',  bg: 'var(--teal-50)', icon: 'circle-check', needsAttention: false },
   cancelled: { label: 'Cerrada',                  fg: 'var(--fg2)',           bg: 'var(--bg)',      icon: 'check',        needsAttention: false },
 }
 

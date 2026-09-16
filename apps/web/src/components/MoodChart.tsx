@@ -25,6 +25,18 @@ export function MoodChart({ data }: { data: MoodPoint[] }) {
   const linePtsFinal = data.map((d, i) => `${xFor(i).toFixed(1)},${yFor(d.mood).toFixed(1)}`).join(' ')
   const areaPtsFinal = `${padL},${padT + ih} ${linePtsFinal} ${padL + iw},${padT + ih}`
 
+  // Una etiqueta por punto es ilegible: con 30 días de check-ins, las 30 fechas se
+  // apilaban unas sobre otras en el eje. Se eligen los índices **desde el final** para
+  // que la fecha más reciente siempre aparezca y las anteriores queden a una distancia
+  // pareja; forzar la última encima de una serie calculada desde el principio la hacía
+  // chocar con su vecina.
+  const ANCHO_ETIQUETA = 56
+  const sepPuntos = data.length > 1 ? iw / (data.length - 1) : iw
+  const cadaCuantos = Math.max(1, Math.ceil(ANCHO_ETIQUETA / sepPuntos))
+  const ultimo = data.length - 1
+  const conEtiqueta = new Set<number>()
+  for (let i = ultimo; i >= 0; i -= cadaCuantos) conEtiqueta.add(i)
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="230" style={{ display: 'block', overflow: 'visible' }}>
       {[1, 2, 3, 4, 5].map(m => (
@@ -35,17 +47,18 @@ export function MoodChart({ data }: { data: MoodPoint[] }) {
             fontSize="11" fill="var(--fg2)" fontFamily="var(--font-body)">{m}</text>
         </g>
       ))}
-      <polygon points={areaPtsFinal} fill="rgba(57,111,182,0.10)" />
+      <polygon points={areaPtsFinal} fill="color-mix(in srgb, var(--primary) 10%, transparent)" />
       <polyline points={linePtsFinal} fill="none"
-        stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        stroke="var(--primary-text)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       {data.map((d, i) => (
         <g key={i}>
           <circle cx={xFor(i)} cy={yFor(d.mood)} r={d.alert ? 5.5 : 3.5}
-            fill={d.alert ? 'var(--danger)' : '#fff'}
-            stroke={d.alert ? '#fff' : 'var(--primary)'} strokeWidth={2} />
-          {d.label && (
-            <text x={xFor(i)} y={H - 9} textAnchor="middle"
-              fontSize="10.5" fill="var(--fg2)" fontFamily="var(--font-body)">{d.label}</text>
+            fill={d.alert ? 'var(--danger)' : 'var(--surface)'}
+            stroke={d.alert ? 'var(--surface)' : 'var(--primary-text)'} strokeWidth={2} />
+          {d.label && conEtiqueta.has(i) && (
+            <text x={xFor(i)} y={H - 9}
+              textAnchor={i === ultimo && data.length > 1 ? 'end' : 'middle'}
+              fontSize="12" fill="var(--fg2)" fontFamily="var(--font-body)">{d.label}</text>
           )}
         </g>
       ))}

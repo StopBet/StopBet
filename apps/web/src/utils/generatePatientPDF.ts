@@ -1,269 +1,524 @@
 import jsPDF from 'jspdf'
 import type { Patient } from '../data/mockData'
 import { ALERT_STATUS, needsAttention } from './alertStatus'
+import type { BillingStatus, PatientMetrics } from '../services/api'
+import { isDarkActive } from './theme'
 
-const ORANGE = [232, 136, 58] as const   // #E8883A — primary AJUTER
-const DARK   = [42,  38,  36] as const   // #2A2624 — fg1
-const GRAY   = [87,  79,  74] as const   // #574F4A — fg2
-const RED    = [184, 50,  50] as const   // #B83232 — danger
-const CREAM  = [250, 247, 244] as const  // #FAF7F4 — bg
-const BORDER = [220, 213, 207] as const  // subtle border
+// Las tipografías del manual. Vite devuelve la URL del asset, así que no entran al
+// bundle inicial: se descargan solo cuando alguien exporta un reporte.
+import chillaxBold from '../styles/fonts/Chillax-Bold.ttf'
+import satoshiRegular from '../styles/fonts/Satoshi-Regular.ttf'
+import satoshiBold from '../styles/fonts/Satoshi-Bold.ttf'
+import isotipo from '../assets/isotipo-blanco.png'
 
-function setColor(doc: jsPDF, rgb: readonly [number, number, number], type: 'fill' | 'text' | 'draw' = 'text') {
-  if (type === 'fill')  doc.setFillColor(rgb[0], rgb[1], rgb[2])
-  if (type === 'text')  doc.setTextColor(rgb[0], rgb[1], rgb[2])
-  if (type === 'draw')  doc.setDrawColor(rgb[0], rgb[1], rgb[2])
+// jsPDF necesita RGB numérico, así que los tokens del tema se leen del CSS y se
+// convierten una vez por documento. Escribirlos a mano es lo que dejó este informe
+// con la paleta naranja de AJUTER meses después de que el panel pasara al azul StopBet.
+type Rgb = readonly [number, number, number]
+
+const FALLBACK: Record<string, Rgb> = {
+  '--primary':       [57, 111, 182],
+  '--primary-hover': [45, 90, 158],
+  '--fg1':           [58, 57, 57],
+  '--fg2':           [107, 106, 106],
+  '--danger':        [184, 50, 50],
+  '--bg':            [244, 244, 233],
+  '--border-200':    [226, 226, 214],
+  '--teal-50':       [236, 243, 250],
+  '--secondary-text':[91, 115, 36],
+  '--sage-50':       [242, 247, 226],
+  '--red-50':        [252, 236, 236],
 }
 
-export function generatePatientPDF(patient: Patient, from: string, to: string): void {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
-  const W = 210
-  let y = 0
+function hexToRgb(hex: string): Rgb | null {
+  const h = hex.trim().replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return null
+  return [
+    parseInt(full.slice(0, 2), 16),
+    parseInt(full.slice(2, 4), 16),
+    parseInt(full.slice(4, 6), 16),
+  ] as const
+}
 
-  // ── Header band ──────────────────────────────────────────────────────────
-  setColor(doc, ORANGE, 'fill')
-  doc.rect(0, 0, W, 26, 'F')
+// El informe se imprime sobre papel blanco: siempre va con la paleta CLARA. Con el panel
+// en modo oscuro, leer el CSS devolvería texto casi blanco y fondos oscuros, así que en ese
+// caso se usa la paleta de respaldo, que es la clara de la marca.
+function token(name: string): Rgb {
+  if (typeof window === 'undefined' || isDarkActive()) return FALLBACK[name]
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(name)
+  return hexToRgb(raw) ?? FALLBACK[name]
+}
 
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(16)
-  setColor(doc, [255, 255, 255], 'text')
-  doc.text('StopBet', 14, 11)
+// Se cargan al generar cada documento, no al importar el módulo: si se leyeran una sola vez,
+// un cambio de tema después de abrir el panel dejaría el informe con la paleta vieja.
+let PRIMARY: Rgb, DARK: Rgb, GRAY: Rgb, RED: Rgb, BORDER: Rgb
+let TEAL_50: Rgb, GREEN_TXT: Rgb, SAGE_50: Rgb, RED_50: Rgb
 
-  doc.setFontSize(9)
-  doc.setFont('helvetica', 'normal')
-  doc.text('Dashboard Clínico - AJUTER', 14, 18)
+function cargarPaleta() {
+  PRIMARY   = token('--primary')
+  DARK      = token('--fg1')
+  GRAY      = token('--fg2')
+  RED       = token('--danger')
+  BORDER    = token('--border-200')
+  TEAL_50   = token('--teal-50')
+  GREEN_TXT = token('--secondary-text')
+  SAGE_50   = token('--sage-50')
+  RED_50    = token('--red-50')
+}
+const WHITE     = [255, 255, 255] as const
+const NEUTRAL   = [245, 245, 240] as const
 
+// El detalle completo de alertas vive en el panel; el informe muestra las recientes.
+const MAX_ALERTS = 3
+
+// Regla del cliente: el paciente pierde el acceso a la app recién a los 3 meses de no
+// pago. Antes de eso hay deuda, pero no es una urgencia — pintarla de rojo desde el
+// primer mes le enseña al psicólogo a ignorar el rojo, que está reservado a la crisis.
+// Ojo: hoy NADA suspende por mora automáticamente; ver docs/ASUNCIONES-PENDIENTES.md.
+const MESES_PARA_PERDER_ACCESO = 3
+
+// ── Tipografías de marca ────────────────────────────────────────────────────
+// Si la descarga falla, el informe sale en Helvetica en vez de no salir: un reporte
+// clínico con la fuente equivocada sigue sirviendo, uno que no se genera no.
+type Family = 'heading' | 'body'
+let fontsReady = false
+
+function bufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let bin = ''
+  for (let i = 0; i < bytes.length; i += 8192) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 8192))
+  }
+  return btoa(bin)
+}
+
+async function loadBrandFonts(doc: jsPDF): Promise<boolean> {
+  const defs: Array<[string, string, string, string]> = [
+    [chillaxBold,    'Chillax-Bold.ttf',    'Chillax', 'bold'],
+    [satoshiRegular, 'Satoshi-Regular.ttf', 'Satoshi', 'normal'],
+    [satoshiBold,    'Satoshi-Bold.ttf',    'Satoshi', 'bold'],
+  ]
+  try {
+    for (const [url, file, family, style] of defs) {
+      const res = await fetch(url)
+      if (!res.ok) return false
+      doc.addFileToVFS(file, bufferToBase64(await res.arrayBuffer()))
+      doc.addFont(file, family, style)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function loadIsotipo(): Promise<string | null> {
+  try {
+    const res = await fetch(isotipo)
+    if (!res.ok) return null
+    return 'data:image/png;base64,' + bufferToBase64(await res.arrayBuffer())
+  } catch {
+    return null
+  }
+}
+
+function setFont(doc: jsPDF, family: Family, bold = false) {
+  if (!fontsReady) {
+    doc.setFont('helvetica', bold || family === 'heading' ? 'bold' : 'normal')
+    return
+  }
+  if (family === 'heading') doc.setFont('Chillax', 'bold')
+  else doc.setFont('Satoshi', bold ? 'bold' : 'normal')
+}
+
+function setColor(doc: jsPDF, rgb: Rgb, type: 'fill' | 'text' | 'draw' = 'text') {
+  if (type === 'fill') doc.setFillColor(rgb[0], rgb[1], rgb[2])
+  if (type === 'text') doc.setTextColor(rgb[0], rgb[1], rgb[2])
+  if (type === 'draw') doc.setDrawColor(rgb[0], rgb[1], rgb[2])
+}
+
+function chipWidth(doc: jsPDF, text: string): number {
+  setFont(doc, 'body', true)
   doc.setFontSize(8)
-  doc.text('Reporte de Seguimiento del Paciente', W - 14, 14, { align: 'right' })
+  return doc.getTextWidth(text) + 7
+}
+
+// Chip con fondo suave y texto oscuro, igual que los estados del panel.
+function chip(doc: jsPDF, x: number, y: number, text: string, bg: Rgb, fg: Rgb): number {
+  const w = chipWidth(doc, text)
+  setColor(doc, bg, 'fill')
+  doc.roundedRect(x, y, w, 6.2, 3.1, 3.1, 'F')
+  setColor(doc, fg, 'text')
+  doc.text(text, x + w / 2, y + 4.2, { align: 'center' })
+  return w
+}
+
+export async function generatePatientPDF(
+  patient: Patient,
+  from: string,
+  to: string,
+  billing?: BillingStatus | null,
+  metrics?: PatientMetrics | null,
+): Promise<void> {
+  cargarPaleta()
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  fontsReady = await loadBrandFonts(doc)
+  const mark = await loadIsotipo()
+
+  const W = 210
+  const M = 16               // margen lateral
+  const CW = W - M * 2       // ancho útil
+  let y = 0
 
   const now = new Date()
   const dateStr = now.toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' })
-  doc.text(`Generado el ${dateStr}`, W - 14, 20, { align: 'right' })
-  y = 36
-
-  // ── Section helper ───────────────────────────────────────────────────────
-  function sectionTitle(title: string) {
-    setColor(doc, DARK, 'text')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(11)
-    doc.text(title, 14, y)
-    setColor(doc, ORANGE, 'draw')
-    doc.setLineWidth(0.6)
-    doc.line(14, y + 2, W - 14, y + 2)
-    y += 10
+  const clp = (n: number) => '$' + n.toLocaleString('es-CL')
+  const fmtISO = (d: string) => {
+    const [yy, mm, dd] = d.split('-')
+    return `${dd}-${mm}-${yy}`
   }
-
-  function row(label: string, value: string) {
-    setColor(doc, GRAY, 'text')
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(9)
-    doc.text(label, 14, y)
-    setColor(doc, DARK, 'text')
-    doc.setFont('helvetica', 'bold')
-    doc.text(value, 75, y)
-    y += 7
-  }
-
-  // ── 1. Datos del paciente ─────────────────────────────────────────────────
-  sectionTitle('Datos del Paciente')
-  row('Nombre completo:', patient.name)
-  row('Sede AJUTER:', patient.sede)
-  row('Correo electrónico:', patient.email)
-  row('Días de abstinencia:', `${patient.days} días`)
-  row('Estado clínico:', patient.status === 'riesgo' ? 'En riesgo' : 'Normal')
-
-  y += 4
-  sectionTitle('Período Consultado')
   const fmt = (d: string) => {
-    if (!d) return '-'
-    const [y, m, day] = d.split('-')
-    return `${day}/${m}/${y}`
+    if (!d) return '—'
+    const [yy, mm, dd] = d.split('-')
+    return `${dd}-${mm}-${yy}`
   }
-  row('Desde:', fmt(from))
-  row('Hasta:', fmt(to))
 
-  // ── 2. Gráfico de evolución anímica ───────────────────────────────────────
-  y += 4
-  sectionTitle('Evolución Anímica')
+  // ── Cabecera ──────────────────────────────────────────────────────────────
+  setColor(doc, PRIMARY, 'fill')
+  doc.rect(0, 0, W, 28, 'F')
 
-  const evolution = patient.evolution
+  // El isotipo es blanco: va sobre el azul de marca, nunca sobre el crema.
+  const markSize = 11
+  const textX = mark ? M + markSize + 4 : M
+  if (mark) doc.addImage(mark, 'PNG', M, 8.5, markSize, markSize * (388 / 396))
 
-  if (evolution.length === 0) {
-    setColor(doc, GRAY, 'text')
-    doc.setFont('helvetica', 'italic')
-    doc.setFontSize(9)
-    doc.text('Sin datos de evolución anímica registrados para este paciente.', 14, y)
-    y += 14
-  } else {
-    const chartX = 18
-    const chartY = y
-    const chartW = W - 36
-    const chartH = 48
-    const moodMin = 1
-    const moodMax = 5
-    const points = evolution.length
+  setFont(doc, 'heading')
+  doc.setFontSize(17)
+  setColor(doc, WHITE, 'text')
+  doc.text('StopBet', textX, 14)
 
-    // Background
-    setColor(doc, CREAM, 'fill')
+  setFont(doc, 'body')
+  doc.setFontSize(8.5)
+  doc.text('Panel clínico', textX, 20)
+
+  setFont(doc, 'body', true)
+  doc.setFontSize(9)
+  doc.text('Reporte de seguimiento', W - M, 13, { align: 'right' })
+  setFont(doc, 'body')
+  doc.setFontSize(8)
+  doc.text(dateStr, W - M, 19.5, { align: 'right' })
+
+  // ── Identificación del paciente ───────────────────────────────────────────
+  y = 42
+  setFont(doc, 'heading')
+  doc.setFontSize(19)
+  setColor(doc, DARK, 'text')
+  doc.text(patient.name, M, y)
+
+  // Chips de sede y estado, alineados a la derecha del nombre
+  const enRiesgo = patient.status === 'riesgo'
+  const estadoTxt = enRiesgo ? 'En riesgo' : 'Normal'
+  const estadoW = chipWidth(doc, estadoTxt)
+  const sedeW = chipWidth(doc, patient.sede)
+  chip(doc, W - M - estadoW, y - 4.5, estadoTxt,
+       enRiesgo ? RED_50 : SAGE_50, enRiesgo ? RED : GREEN_TXT)
+  chip(doc, W - M - estadoW - sedeW - 3, y - 4.5, patient.sede, TEAL_50, PRIMARY)
+
+  y += 6.5
+  setFont(doc, 'body')
+  doc.setFontSize(9)
+  setColor(doc, GRAY, 'text')
+  doc.text(patient.email, M, y)
+
+  y += 5.5
+  doc.setFontSize(8.5)
+  doc.text(`Período del reporte:  ${fmt(from)}  —  ${fmt(to)}`, M, y)
+
+  // ── Tarjetas de métricas ──────────────────────────────────────────────────
+  y += 8
+  const cards: Array<{ value: string; label: string; alarm?: boolean }> = [
+    { value: String(patient.days),             label: 'días sin apostar' },
+    // Las dos cifras salen de /metrics (últimos 30 días, lo mismo que muestra la ficha) y la
+    // etiqueta dice eso. Antes «check-ins registrados» contaba los puntos del gráfico, que
+    // agrupa por SEMANA: a una paciente con 28 check-ins le ponía 5. Y «alertas del período»
+    // era el total histórico. Sin métricas, se dice el total histórico con su nombre real.
+    metrics
+      ? { value: String(metrics.panicCount), label: 'alertas en los últimos 30 días', alarm: metrics.panicCount > 0 }
+      : { value: String(patient.panicTotal), label: 'alertas registradas en total', alarm: patient.panicTotal > 0 },
+    metrics
+      ? { value: String(metrics.totalCheckIns), label: 'check-ins en los últimos 30 días' }
+      : { value: '—', label: 'check-ins (sin datos)' },
+  ]
+  const gap = 4
+  const cardW = (CW - gap * (cards.length - 1)) / cards.length
+  const cardH = 25
+
+  cards.forEach((c, i) => {
+    const x = M + i * (cardW + gap)
+    setColor(doc, WHITE, 'fill')
     setColor(doc, BORDER, 'draw')
     doc.setLineWidth(0.3)
-    doc.rect(chartX, chartY, chartW, chartH, 'FD')
+    doc.roundedRect(x, y, cardW, cardH, 2.5, 2.5, 'FD')
 
-    // Grid lines (5 horizontal, one per mood level)
-    doc.setLineWidth(0.15)
+    setFont(doc, 'heading')
+    doc.setFontSize(18)
+    setColor(doc, c.alarm ? RED : PRIMARY, 'text')
+    doc.text(c.value, x + 5, y + 12.5)
+
+    setFont(doc, 'body')
+    doc.setFontSize(7.5)
+    setColor(doc, GRAY, 'text')
+    doc.text(c.label, x + 5, y + 19, { maxWidth: cardW - 9 })
+  })
+  y += cardH + 15
+
+  // Título de sección sin subrayado: el peso tipográfico ya marca la jerarquía.
+  function sectionTitle(title: string, x: number) {
+    setFont(doc, 'heading')
+    doc.setFontSize(12)
+    setColor(doc, DARK, 'text')
+    doc.text(title, x, y)
+    y += 8
+  }
+
+  function emptyBox(text: string, h: number, x: number, w: number) {
     setColor(doc, BORDER, 'draw')
-    for (let level = moodMin; level <= moodMax; level++) {
-      const gy = chartY + chartH - ((level - moodMin) / (moodMax - moodMin)) * chartH
+    doc.setLineWidth(0.3)
+    doc.roundedRect(x, y, w, h, 2.5, 2.5, 'D')
+    setFont(doc, 'body')
+    doc.setFontSize(8)
+    setColor(doc, GRAY, 'text')
+    doc.text(text, x + w / 2, y + h / 2 + 1.2, { align: 'center', maxWidth: w - 8 })
+    y += h + 6
+  }
+
+  // ── Dos columnas: la curva a la izquierda, las alertas a la derecha ───────
+  const colGap = 7
+  const chartColW = (CW - colGap) * 0.62
+  const alertColW = CW - colGap - chartColW
+  const alertColX = M + chartColW + colGap
+  const topY = y
+
+  // Columna izquierda ── evolución del ánimo
+  sectionTitle('Evolución del ánimo', M)
+  const evolution = patient.evolution
+  if (evolution.length === 0) {
+    emptyBox('Sin check-ins en este período.', 46, M, chartColW)
+  } else {
+    const chartX = M + 7
+    const chartY = y
+    const chartW = chartColW - 7
+    const chartH = 46
+    const MOOD_MIN = 1
+    const MOOD_MAX = 5
+
+    doc.setLineWidth(0.15)
+    for (let level = MOOD_MIN; level <= MOOD_MAX; level++) {
+      const gy = chartY + chartH - ((level - MOOD_MIN) / (MOOD_MAX - MOOD_MIN)) * chartH
+      setColor(doc, BORDER, 'draw')
       doc.line(chartX, gy, chartX + chartW, gy)
-      // Y-axis labels
+      setFont(doc, 'body')
+      doc.setFontSize(6.5)
       setColor(doc, GRAY, 'text')
-      doc.setFont('helvetica', 'normal')
-      doc.setFontSize(7)
-      doc.text(String(level), chartX - 5, gy + 1, { align: 'right' })
+      doc.text(String(level), chartX - 2.5, gy + 1, { align: 'right' })
     }
 
-    // X-axis labels and line chart
-    const xStep = chartW / (points - 1)
-
-    const coords: { x: number; y: number; alert?: boolean }[] = evolution.map((pt, i) => ({
-      x: chartX + i * xStep,
-      y: chartY + chartH - ((pt.mood - moodMin) / (moodMax - moodMin)) * chartH,
+    const n = evolution.length
+    const xStep = n > 1 ? chartW / (n - 1) : 0
+    const coords = evolution.map((pt, i2) => ({
+      x: n > 1 ? chartX + i2 * xStep : chartX + chartW / 2,
+      y: chartY + chartH - ((pt.mood - MOOD_MIN) / (MOOD_MAX - MOOD_MIN)) * chartH,
       alert: pt.alert,
     }))
 
-    // Fill area under curve
-    setColor(doc, [255, 235, 215], 'fill')
-    const areaPath: number[] = []
-    coords.forEach(c => areaPath.push(c.x, c.y))
-    // Draw filled polygon (area under line)
-    doc.setFillColor(255, 235, 215)
-    doc.setLineWidth(0)
     if (coords.length >= 2) {
-      // Build path manually using lines
-      doc.setFillColor(255, 235, 215)
-      // jsPDF doesn't have polygon fill natively — use rect approximation per segment
-      for (let i = 0; i < coords.length - 1; i++) {
-        const x1 = coords[i].x, y1 = coords[i].y
-        const x2 = coords[i + 1].x, y2 = coords[i + 1].y
-        const bottom = chartY + chartH
-        // Draw trapezoid as two triangles via fillable rect (simple fill strip)
-        doc.setFillColor(255, 235, 215)
-        doc.triangle(x1, y1, x2, y2, x1, bottom, 'F')
-        doc.triangle(x2, y2, x2, bottom, x1, bottom, 'F')
+      setColor(doc, TEAL_50, 'fill')
+      const bottom = chartY + chartH
+      for (let i2 = 0; i2 < coords.length - 1; i2++) {
+        const a = coords[i2], b = coords[i2 + 1]
+        doc.triangle(a.x, a.y, b.x, b.y, a.x, bottom, 'F')
+        doc.triangle(b.x, b.y, b.x, bottom, a.x, bottom, 'F')
       }
     }
 
-    // Main line
-    setColor(doc, ORANGE, 'draw')
-    doc.setLineWidth(1.2)
-    for (let i = 0; i < coords.length - 1; i++) {
-      doc.line(coords[i].x, coords[i].y, coords[i + 1].x, coords[i + 1].y)
+    setColor(doc, PRIMARY, 'draw')
+    doc.setLineWidth(0.9)
+    for (let i2 = 0; i2 < coords.length - 1; i2++) {
+      doc.line(coords[i2].x, coords[i2].y, coords[i2 + 1].x, coords[i2 + 1].y)
     }
 
-    // Data points
-    coords.forEach((c, i) => {
+    // En media columna las fechas se pisan antes: se muestran menos.
+    const every = n > 8 ? Math.ceil(n / 6) : 1
+    coords.forEach((c, i2) => {
       if (c.alert) {
-        // Panic alert — red filled circle
-        setColor(doc, RED, 'fill')
-        setColor(doc, RED, 'draw')
-        doc.setLineWidth(0.3)
-        doc.circle(c.x, c.y, 2.2, 'FD')
-      } else {
-        // Normal point — orange filled circle
-        setColor(doc, ORANGE, 'fill')
-        setColor(doc, [255, 255, 255], 'draw')
+        setColor(doc, RED, 'fill'); setColor(doc, WHITE, 'draw')
         doc.setLineWidth(0.5)
-        doc.circle(c.x, c.y, 1.8, 'FD')
+        doc.circle(c.x, c.y, 1.7, 'FD')
+      } else {
+        setColor(doc, WHITE, 'fill'); setColor(doc, PRIMARY, 'draw')
+        doc.setLineWidth(0.55)
+        doc.circle(c.x, c.y, 1.25, 'FD')
       }
-
-      // X-axis label
-      const label = evolution[i].label
-      if (label) {
+      const label = evolution[i2].label
+      if (label && (i2 % every === 0 || i2 === n - 1)) {
+        setFont(doc, 'body')
+        doc.setFontSize(6)
         setColor(doc, GRAY, 'text')
-        doc.setFont('helvetica', 'normal')
-        doc.setFontSize(6.5)
-        doc.text(label, c.x, chartY + chartH + 5, { align: 'center' })
+        doc.text(label, c.x, chartY + chartH + 4.5, { align: 'center' })
       }
     })
 
-    y = chartY + chartH + 12
+    y = chartY + chartH + 10
 
-    // Legend
-    // Orange dot = estado anímico
-    setColor(doc, ORANGE, 'fill')
-    doc.circle(chartX + 2, y, 1.8, 'F')
+    setColor(doc, WHITE, 'fill'); setColor(doc, PRIMARY, 'draw')
+    doc.setLineWidth(0.55)
+    doc.circle(chartX + 1.2, y, 1.25, 'FD')
+    setFont(doc, 'body')
+    doc.setFontSize(6.8)
     setColor(doc, GRAY, 'text')
-    doc.setFontSize(7.5)
-    doc.setFont('helvetica', 'normal')
-    doc.text('Estado anímico', chartX + 6, y + 0.8)
-
-    // Red dot = alerta de pánico
-    setColor(doc, RED, 'fill')
-    doc.circle(chartX + 50, y, 1.8, 'F')
-    doc.text('Alerta de pánico', chartX + 54, y + 0.8)
-
-    y += 10
+    doc.text('Check-in', chartX + 4.2, y + 0.8)
+    const legendGap = 4.2 + doc.getTextWidth('Check-in') + 7
+    setColor(doc, RED, 'fill'); setColor(doc, WHITE, 'draw')
+    doc.setLineWidth(0.5)
+    doc.circle(chartX + legendGap, y, 1.7, 'FD')
+    setColor(doc, GRAY, 'text')
+    doc.text('Día con alerta', chartX + legendGap + 3.6, y + 0.8)
+    y += 6
   }
+  const leftEnd = y
 
-  // ── 3. Alertas de pánico ──────────────────────────────────────────────────
-  y += 2
-  sectionTitle('Alertas de Botón de Pánico')
+  // Columna derecha ── alertas de pánico
+  y = topY
+  sectionTitle('Alertas de pánico', alertColX)
 
-  // Count box
-  const boxX = 14
-  const boxW = 80
-  const boxH = 22
-  setColor(doc, [255, 240, 240], 'fill')
-  setColor(doc, RED, 'draw')
-  doc.setLineWidth(0.4)
-  doc.rect(boxX, y, boxW, boxH, 'FD')
+  if (patient.alerts.length === 0) {
+    emptyBox('Sin alertas en este período.', 22, alertColX, alertColW)
+  } else {
+    // Solo las más recientes: el detalle completo vive en el panel, y la tarjeta de
+    // arriba ya dice cuántas hubo en total.
+    const shown = patient.alerts.slice(0, MAX_ALERTS)
+    shown.forEach(a => {
+      setColor(doc, WHITE, 'fill')
+      setColor(doc, BORDER, 'draw')
+      doc.setLineWidth(0.3)
+      doc.roundedRect(alertColX, y, alertColW, 15, 2.5, 2.5, 'FD')
 
-  setColor(doc, RED, 'text')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(26)
-  doc.text(String(patient.panicTotal), boxX + boxW / 2, y + 14, { align: 'center' })
-
-  setColor(doc, GRAY, 'text')
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text('alertas de pánico registradas', boxX + boxW + 8, y + 8)
-  doc.text(`en el período consultado`, boxX + boxW + 8, y + 15)
-
-  y += boxH + 10
-
-  // Detail rows if available
-  if (patient.alerts.length > 0) {
-    setColor(doc, GRAY, 'text')
-    doc.setFont('helvetica', 'bold')
-    doc.setFontSize(8)
-    doc.text('Detalle de alertas:', 14, y)
-    y += 5
-
-    patient.alerts.forEach(a => {
-      const status = ALERT_STATUS[a.status].label
-      setColor(doc, DARK, 'text')
-      doc.setFont('helvetica', 'normal')
+      setFont(doc, 'body', true)
       doc.setFontSize(8)
-      doc.text(`• ${a.time}`, 18, y)
-      setColor(doc, needsAttention(a.status) ? [184, 50, 50] : a.status === 'responded' ? [45, 90, 158] : [107, 106, 106], 'text')
-      doc.text(status, 80, y)
-      y += 5.5
+      setColor(doc, DARK, 'text')
+      doc.text(a.time, alertColX + 4, y + 5.5, { maxWidth: alertColW - 8 })
+
+      const atiende = needsAttention(a.status)
+      const resp = a.status === 'responded'
+      chip(doc, alertColX + 4, y + 7.6, ALERT_STATUS[a.status].label,
+           atiende ? RED_50 : resp ? TEAL_50 : NEUTRAL,
+           atiende ? RED : resp ? PRIMARY : GRAY)
+      y += 18
     })
+
+    const rest = patient.alerts.length - shown.length
+    if (rest > 0) {
+      setFont(doc, 'body')
+      doc.setFontSize(6.8)
+      setColor(doc, GRAY, 'text')
+      doc.text(`+ ${rest} ${rest === 1 ? 'anterior' : 'anteriores'} en el panel`, alertColX, y + 0.5)
+      y += 5
+    }
   }
 
-  // ── Footer ────────────────────────────────────────────────────────────────
-  const footerY = 287
+  y = Math.max(leftEnd, y) + 12
+
+  // ── Estado de pagos ───────────────────────────────────────────────────────
+  sectionTitle('Estado de pagos', M)
+
+  if (!billing) {
+    emptyBox('Sin información de pagos para este paciente.', 20, M, CW)
+  } else {
+    const alDia = billing.overdueMonths === 0
+    const critico = billing.overdueMonths >= MESES_PARA_PERDER_ACCESO
+    const boxH = 26
+    setColor(doc, WHITE, 'fill')
+    setColor(doc, critico ? RED : BORDER, 'draw')
+    doc.setLineWidth(0.3)
+    doc.roundedRect(M, y, CW, boxH, 2.5, 2.5, 'FD')
+
+    const estadoTxt2 = alDia
+      ? 'Al día'
+      : `${billing.overdueMonths} ${billing.overdueMonths === 1 ? 'mes pendiente' : 'meses pendientes'}`
+    chip(doc, M + 5, y + 5, estadoTxt2,
+         alDia ? SAGE_50 : critico ? RED_50 : NEUTRAL,
+         alDia ? GREEN_TXT : critico ? RED : DARK)
+
+    setFont(doc, 'body')
+    doc.setFontSize(8)
+    setColor(doc, GRAY, 'text')
+    if (alDia) {
+      doc.text(
+        billing.nextPaymentDate
+          ? `Próximo pago: ${fmtISO(billing.nextPaymentDate)}`
+          : 'Sin cobros pendientes.',
+        M + 5, y + 18,
+      )
+    } else {
+      setFont(doc, 'heading')
+      doc.setFontSize(13)
+      setColor(doc, critico ? RED : DARK, 'text')
+      doc.text(clp(billing.totalOwedCLP), M + 5, y + 20)
+
+      setFont(doc, 'body')
+      doc.setFontSize(8)
+      setColor(doc, GRAY, 'text')
+      const desde = billing.firstOverdueDate ? `desde el ${fmtISO(billing.firstOverdueDate)}` : ''
+      doc.text(`adeudado ${desde} · ${billing.daysOverdue} días`, M + 5 + doc.getTextWidth(clp(billing.totalOwedCLP)) + 16, y + 20)
+
+      // Lo que el psicólogo necesita saber: cuánto margen queda antes de que el
+      // paciente quede fuera de la app. No aplica si ya está suspendido —y los dos
+      // textos ocupaban la misma línea, así que se pisaban.
+      const faltan = MESES_PARA_PERDER_ACCESO - billing.overdueMonths
+      if (faltan > 0 && billing.accountStatus !== 'suspended') {
+        setFont(doc, 'body')
+        doc.setFontSize(7.5)
+        setColor(doc, GRAY, 'text')
+        doc.text(
+          `Pierde el acceso a la app a los ${MESES_PARA_PERDER_ACCESO} meses: ${faltan === 1 ? 'queda 1 mes' : `quedan ${faltan} meses`}.`,
+          M + CW - 5, y + 20, { align: 'right', maxWidth: CW / 2 - 6 },
+        )
+      }
+    }
+
+    // El plan es mensual y del mismo monto para todos; el detalle por cuota
+    // solo aporta cuando hay mora.
+    if (!alDia && billing.overdueInvoices.length > 0) {
+      const meses = billing.overdueInvoices.map(i2 => i2.month).join(' · ')
+      setFont(doc, 'body')
+      doc.setFontSize(7.5)
+      setColor(doc, GRAY, 'text')
+      doc.text(`Cuotas impagas: ${meses}`, M + CW - 5, y + 10, { align: 'right', maxWidth: CW / 2 })
+    }
+
+    if (billing.accountStatus === 'suspended') {
+      setFont(doc, 'body', true)
+      doc.setFontSize(7.5)
+      setColor(doc, RED, 'text')
+      doc.text('Cuenta suspendida: el paciente no puede entrar a la app.',
+               M + CW - 5, y + 20, { align: 'right', maxWidth: CW / 2 - 6 })
+    }
+
+    y += boxH + 10
+  }
+
+  // ── Pie ───────────────────────────────────────────────────────────────────
+  const footerY = 284
   setColor(doc, BORDER, 'draw')
   doc.setLineWidth(0.3)
-  doc.line(14, footerY, W - 14, footerY)
+  doc.line(M, footerY, W - M, footerY)
 
-  setColor(doc, GRAY, 'text')
-  doc.setFont('helvetica', 'normal')
+  setFont(doc, 'body')
   doc.setFontSize(7)
-  doc.text('StopBet · Dashboard Clínico AJUTER · Documento de uso interno', 14, footerY + 5)
-  doc.text(`${dateStr}`, W - 14, footerY + 5, { align: 'right' })
+  setColor(doc, GRAY, 'text')
+  doc.text('StopBet · Panel clínico · Documento de uso interno', M, footerY + 5)
+  doc.text(dateStr, W - M, footerY + 5, { align: 'right' })
 
-  // ── Save ──────────────────────────────────────────────────────────────────
   const filename = `reporte_${patient.name.replace(/\s+/g, '_').toLowerCase()}_${from}_${to}.pdf`
   doc.save(filename)
 }
