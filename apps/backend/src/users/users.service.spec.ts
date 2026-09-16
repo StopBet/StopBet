@@ -8,6 +8,7 @@ describe('UsersService', () => {
   let userRepo: { findOne: jest.Mock; find: jest.Mock };
   let checkInRepo: { findOne: jest.Mock; find: jest.Mock };
   let periodRepo: { findOne: jest.Mock };
+  let assignmentRepo: { find: jest.Mock };
 
   beforeAll(() => {
     jest.useFakeTimers();
@@ -22,11 +23,13 @@ describe('UsersService', () => {
     userRepo = { findOne: jest.fn(), find: jest.fn() };
     checkInRepo = { findOne: jest.fn(), find: jest.fn() };
     periodRepo = { findOne: jest.fn() };
+    assignmentRepo = { find: jest.fn().mockResolvedValue([]) };
 
     service = new UsersService(
       userRepo as any,
       checkInRepo as any,
       periodRepo as any,
+      assignmentRepo as any,
     );
   });
 
@@ -34,6 +37,60 @@ describe('UsersService', () => {
     it('devuelve arreglo vacío cuando no hay pacientes', async () => {
       userRepo.find.mockResolvedValue([]);
       expect(await service.listPatients()).toEqual([]);
+    });
+
+    // El psicólogo solo puede ver a los suyos: antes la lista completa se le entregaba a
+    // cualquiera de los dos roles, con correo e historial de pacientes ajenos.
+    it('a un psicólogo le filtra por sus asignaciones activas', async () => {
+      assignmentRepo.find.mockResolvedValue([
+        { patientId: 'patient-1' },
+        { patientId: 'patient-2' },
+      ]);
+      userRepo.find.mockResolvedValue([]);
+
+      await service.listPatients({ id: 'psy-1', role: 'psychologist' } as any);
+
+      expect(assignmentRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { psychologistId: 'psy-1', active: true } }),
+      );
+      const where = userRepo.find.mock.calls[0][0].where as Array<{ id?: unknown }>;
+      expect(where.every(w => w.id !== undefined)).toBe(true);
+    });
+
+    it('un psicólogo sin pacientes asignados no consulta usuarios', async () => {
+      assignmentRepo.find.mockResolvedValue([]);
+
+      expect(
+        await service.listPatients({ id: 'psy-sin', role: 'psychologist' } as any),
+      ).toEqual([]);
+      expect(userRepo.find).not.toHaveBeenCalled();
+    });
+
+    // Rol administrativo: si también filtrara, una sede sin psicólogos no tendría quién la mire.
+    it('a un coordinador no le filtra nada', async () => {
+      userRepo.find.mockResolvedValue([]);
+
+      await service.listPatients({ id: 'coord-1', role: 'coordinator' } as any);
+
+      expect(assignmentRepo.find).not.toHaveBeenCalled();
+      const where = userRepo.find.mock.calls[0][0].where;
+      expect(where.every((w: { role: string; id?: unknown }) => w.role === 'patient' && w.id === undefined)).toBe(true);
+    });
+
+    // `registration.submit` crea el usuario con rol patient antes de la revisión: sin
+    // excluirlo, un postulante aparecía como paciente en el panel del coordinador.
+    it('excluye a quien todavía espera la aprobación de su solicitud', async () => {
+      userRepo.find.mockResolvedValue([]);
+
+      await service.listPatients({ id: 'coord-1', role: 'coordinator' } as any);
+
+      const where = userRepo.find.mock.calls[0][0].where as Array<Record<string, any>>;
+      const excluyePendientes = where.some(
+        w => w.onboardingStatus?._type === 'not' && w.onboardingStatus?._value === 'approval_pending',
+      );
+      const conservaNulos = where.some(w => w.onboardingStatus?._type === 'isNull');
+      expect(excluyePendientes).toBe(true);
+      expect(conservaNulos).toBe(true);
     });
 
     it('usa daysStreak del período actual cuando existe uno abierto', async () => {
