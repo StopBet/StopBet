@@ -20,6 +20,57 @@ está.
 
 ---
 
+## 2026-09-16 — Si `pnpm install` te falla con "supply-chain policy check", pullea esto
+
+**A quién le pega:** a todo el que pulleara después del PR #96 (navegación por pestañas).
+
+**El síntoma:** `pnpm install` corta antes de instalar nada, con
+
+```
+✗ Lockfile failed supply-chain policy check
+[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] 4 lockfile entries failed verification:
+  @react-navigation/material-top-tabs@7.7.1 ... within the minimumReleaseAge cutoff
+```
+
+**Qué hacer:** pullear y listo, ya está arreglado. No hay comando nuevo.
+
+**Por qué pasaba.** pnpm rechaza paquetes publicados hace muy poco — es una defensa contra
+versiones maliciosas subidas hace horas. Las dependencias de navegación del PR #96 se
+publicaron el 2026-09-15 y quedaron dentro de esa ventana. Se agregaron a
+`minimumReleaseAgeExclude` en `pnpm-workspace.yaml`, **con versión fija**, igual que se hizo
+en su momento con los paquetes de React Native 0.86. Son cuatro: las dos directas
+(`material-top-tabs`, `native`) y dos transitivas que reclama después (`core`, `elements`).
+
+**Ojo con el síntoma engañoso:** mientras el install está bloqueado, el `tsc` del backend tira
+errores que parecen de código (`Cannot find module 'nodemailer'`,
+`Property 'credentialsEmailSent' does not exist`). No son: es el entorno a medias, porque
+`nodemailer` no se instaló y `shared-types` no se pudo recompilar. Con el install arreglado
+desaparecen los cinco.
+
+### ⚠️ Hallazgo aparte, para José: `pnpm.overrides` ya no se lee
+
+Al instalar, pnpm avisa:
+
+```
+[WARN] The "pnpm" field in package.json is no longer read by pnpm.
+       The following keys were ignored: "pnpm.overrides"
+```
+
+Es el pin de `@nestjs/core`/`@nestjs/common` a `10.4.22` que se agregó el 01-09 para que no
+se resolvieran dos instancias de `@nestjs/core` (lo que rompía los 49 tests e2e). **pnpm 11
+lo ignora**: ese ajuste se mudó a `pnpm-workspace.yaml`.
+
+Hoy no está causando daño — verificado con pnpm 11.22: queda **una sola** instancia de
+`@nestjs/core@10.4.22` y los 270 tests unitarios pasan, porque las bajadas de
+`@nestjs/schedule` y `@nestjs/terminus` a versiones de Nest 10 alcanzan por sí solas. Pero el
+pin quedó sin efecto, así que la red de seguridad que se puso en su momento ya no está.
+
+**No se tocó acá a propósito**, porque además tiene un efecto colateral: al instalar con
+pnpm 11 el lockfile se regenera sin la sección `overrides`. Esa regeneración **no se subió**.
+Si alguien la sube sin querer, el diff son ~850 líneas y arranca borrando ese bloque.
+
+---
+
 ## 2026-09-16 — La app móvil ahora también es del psicólogo
 
 **A quién le pega:** a quien toque `apps/mobile`, y a quien toque el módulo `community` del

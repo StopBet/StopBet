@@ -30,3 +30,8 @@ minimumReleaseAgeExclude:
   - '@react-native/typescript-config@0.86.0'
   - '@react-native/virtualized-lists@0.86.0'
   - react-native@0.86.0
+  # Navegacion por pestanas (PR #96): publicadas el 2026-09-15, bloquean el install
+  - '@react-navigation/material-top-tabs@7.7.1'
+  - '@react-navigation/native@7.4.1'
+  - '@react-navigation/core@7.22.1'
+  - '@react-navigation/elements@2.9.42'
