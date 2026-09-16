@@ -630,21 +630,28 @@ async function seedDemo(): Promise<void> {
       paymentMethod: 'transfer', status: 'active', expiresAt: null,
     }));
   }
-  const overdueMonth = (() => {
-    const today = todayInChile();
-    const [y, m] = today.slice(0, 7).split('-').map(Number);
-    const d = new Date(y, m - 2, 1);
+  // Regla del cliente: la cuenta se suspende al cumplir el TERCER mes de no pago, no
+  // antes. Con una sola cuota vencida, una cuenta suspendida es un dato imposible —y
+  // Lucía es justamente el caso de demo de cuenta suspendida.
+  const MESES_DE_MORA = 3;
+  const monthBack = (n: number) => {
+    const [y, m] = todayInChile().slice(0, 7).split('-').map(Number);
+    const d = new Date(y, m - 1 - n, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  })();
-  const luciaInvoice = await invoiceRepo.findOne({ where: { userId: REPORTER2_ID, month: overdueMonth } });
-  if (!luciaInvoice) {
-    await invoiceRepo.save(invoiceRepo.create({
-      userId: REPORTER2_ID, month: overdueMonth, amountCLP: 30000, status: 'overdue',
-      dueDate: `${overdueMonth}-05`, paidAt: null,
-    }));
+  };
+  // Del más antiguo al más reciente, terminando en el mes pasado.
+  const overdueMonths = Array.from({ length: MESES_DE_MORA }, (_, i) => monthBack(MESES_DE_MORA - i));
+  for (const month of overdueMonths) {
+    const existing = await invoiceRepo.findOne({ where: { userId: REPORTER2_ID, month } });
+    if (!existing) {
+      await invoiceRepo.save(invoiceRepo.create({
+        userId: REPORTER2_ID, month, amountCLP: 30000, status: 'overdue',
+        dueDate: `${month}-05`, paidAt: null,
+      }));
+    }
   }
   await userRepo.update(REPORTER2_ID, { accountStatus: 'suspended' });
-  console.log('  ✓ Lucía Vega — cuenta suspendida por mora (factura vencida)');
+  console.log(`  ✓ Lucía Vega — suspendida con ${MESES_DE_MORA} meses de mora (${overdueMonths.join(', ')})`);
 
   // ── 10. --sin-padrino (CA 1.2) ───────────────────────────────────────────
   if (sinPadrino) {
