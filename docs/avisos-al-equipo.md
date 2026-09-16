@@ -20,6 +20,299 @@ está.
 
 ---
 
+## 2026-09-16 — El panel web tiene modo oscuro: usa `--primary-text` y `--danger-text` para texto
+
+**A quién le pega:** a cualquiera que escriba UI en `apps/web`.
+
+**Qué hacer:** nada que instalar. Pero **si escribes un color, fíjate en qué token usas**, o tu
+pantalla va a quedar ilegible en oscuro sin que nada te avise en claro.
+
+**Cómo funciona.** `styles/stopbet-dark.css` redefine los tokens semánticos. Se activa solo si
+el sistema está en oscuro, o se fuerza desde **Configuración → Apariencia** (Automático / Claro /
+Oscuro, igual que Perfil → Apariencia en mobile). La elección se guarda en `localStorage`
+(`sb-theme`) y `index.html` la aplica antes de pintar, para que no destelle. La paleta es la de
+mobile (`darkColors`), así que las dos apps se ven hermanas.
+
+**Las tres reglas para no romperlo:**
+
+1. **Texto e íconos de marca van con `--primary-text` y `--danger-text`**, no con `--primary` ni
+   `--danger`. En claro son el mismo color, así que no vas a notar la diferencia hasta que
+   alguien active el oscuro: ahí `#396fb6` da 3,16:1 y `#B83232` 2,72:1. `--primary` y
+   `--danger` quedan para **rellenos y bordes** (botones, sidebar, bordes de error).
+2. **Sobre un relleno verde (`--secondary`) el texto va con `--fg-on-secondary`**, que es oscuro
+   en los dos temas. `--fg1` en oscuro es casi blanco.
+3. **Si agregas un token de color, defínelo también en `stopbet-dark.css`** — en los dos bloques
+   de ese archivo, que están repetidos a propósito.
+
+**Qué se tocó:** 96 usos de azul y rojo como texto pasaron a los tokens de texto (script que mira
+la propiedad CSS de cada uso, no un reemplazo ciego), más ~20 revisados a mano. También
+`utils/alertStatus.ts`: los chips de estado de alerta.
+
+**Verificado con axe-core** (la herramienta de la auditoría): **0 nodos con contraste
+insuficiente en los dos temas**, en las 8 páginas del panel, el login, el portal del familiar, la
+ficha con sus 4 pestañas y el diálogo del reporte.
+
+**Tres cosas que se arreglaron de paso:**
+
+- **El reporte PDF siempre sale en claro.** Lee los colores del CSS, así que con el panel en
+  oscuro habría impreso texto casi blanco. Además los leía una sola vez al cargar: ahora los
+  lee en cada documento.
+- **Las cifras del PDF estaban mal.** «Check-ins registrados» contaba los puntos del gráfico,
+  que agrupa por semana: a Ana, con 28 check-ins, le ponía 5. Y «alertas del período» era el
+  total histórico. Ahora las dos salen de `/metrics` (últimos 30 días) y la etiqueta lo dice.
+- **El botón «Iniciar sesión» quedaba sin fondo mientras cargaba:** usaba `${BLUE}cc`, que con
+  un token CSS produce `var(--sb-blue)cc`, que no es un color.
+
+⚠️ **Queda una inconsistencia en el PDF, para decidir:** el diálogo pide un rango de fechas y el
+informe lo imprime como «Período del reporte», pero **no filtra nada con él**: las cifras son de
+los últimos 30 días y el gráfico y las alertas, de lo que haya. O se quita el selector de fechas,
+o el backend tiene que aceptar un rango.
+
+---
+
+## 2026-09-16 — El Resumen pasó a ser solo un resumen; la ficha y el PDF se mudaron a «Mis pacientes»
+
+**A quién le pega:** a **Eduardo** (Resumen, `OverviewPage.tsx`), a quien toque la vista del
+psicólogo en **mobile**, y a quien consuma `GET /users/patients`.
+
+**Qué hacer:** nada que instalar. Pero si tenías algo abierto en `OverviewPage.tsx`, el archivo
+se reescribió entero: rebasea antes de seguir.
+
+**El Resumen ya no es una sección de pacientes.** Decisión del PO: un bloque por sección, que
+responde una sola pregunta y lleva a la sección con un clic. El detalle vive en cada sección.
+
+| Bloque | Qué muestra | Lleva a |
+|---|---|---|
+| Alertas que requieren atención | Esperando respuesta o escaladas (no «las de hoy») | Alertas de pánico |
+| Requieren seguimiento | Los 3 primeros con su motivo | Mis pacientes |
+| Por revisar | Solicitudes de ingreso + posts reportados | Solicitudes |
+| Próxima sesión de familiares | Fecha, lugar y confirmaciones | Sesiones de familiares |
+| Equipo *(solo coordinación)* | Psicólogos activos y **sedes sin psicólogo activo** | Equipo |
+
+Las tarjetas de arriba son las cifras de esos bloques. Salió «Promedio abstinencia», que no le
+pedía nada a nadie. **Finanzas no aparece a propósito:** sigue con datos de ejemplo, y un número
+inventado en la pantalla de inicio es justo el problema de confianza que marcó la auditoría.
+
+**Qué se movió:**
+
+- La **tabla de pacientes** salió del Resumen: duplicaba «Mis pacientes».
+- La **ficha** es ahora `components/PatientDrawer.tsx` y la abre «Mis pacientes». El Resumen
+  manda a una ficha puntual con `/pacientes?paciente=<id>`.
+- El **reporte PDF** se genera desde cada fila de «Mis pacientes» (`components/ReportDialog.tsx`),
+  ya sin desplegable para elegir paciente. Valida que el rango de fechas no esté invertido.
+- La lógica de «quién requiere seguimiento» y el armado del paciente viven en
+  `utils/patientView.ts`. **Usala en vez de copiarla:** «Mis pacientes» tenía su propia tabla
+  de ánimo y puntuaba distinto la misma emoción que el Resumen.
+
+**Backend — `GET /users/patients` ya no devuelve postulantes.** `registration.submit` crea el
+usuario con rol `patient` antes de la revisión, así que las solicitudes pendientes
+(`onboardingStatus: 'approval_pending'`) aparecían como pacientes en el panel de la coordinadora,
+duplicando Solicitudes. Ahora se excluyen. Verificado: Sofía pasa de 10 a 7. Con test nuevo;
+274 unitarios y 49 e2e pasando.
+
+⚠️ **Para mobile:** el filtro por psicólogo asignado de la entrada de abajo también le cambió a
+`StaffHomeScreen` lo que cuenta. Antes mostraba todos los pacientes de la sede; ahora, solo los
+asignados al psicólogo. La etiqueta sigue diciendo **«Pacientes activos · en esta sede»**, que
+quedó impreciso — debería decir algo como «tus pacientes en esta sede». No se tocó mobile.
+
+**Pregunta abierta para el PO:** las alertas del Resumen son de toda la sede, la lista de
+pacientes es solo la del psicólogo. Un psicólogo ve nombre y hora de la crisis de pacientes de
+otros colegas (sin poder abrir su ficha). Puede ser deseable por cobertura —si alguien está de
+vacaciones—, pero es una decisión de confidencialidad, no de diseño.
+
+---
+
+## 2026-09-16 — «Mis pacientes» ya existe, y `/users/patients` ahora filtra por psicólogo
+
+**A quién le pega:** a **José** (es su `users.service.ts`), a **Eduardo** (Resumen) y a
+cualquiera que consuma `GET /users/patients`.
+
+**Qué hacer:** nada que instalar. Pero si tenías una pantalla contando pacientes, ojo con el
+cambio de abajo.
+
+**El cambio de fondo.** `GET /users/patients` devolvía **todos** los pacientes del sistema a
+cualquiera de los dos roles. En el panel, «Mis pacientes» le mostraba a Miguel también los de
+Valentina y Tomás, con su correo y su historial de alertas. Ahora:
+
+- un **psicólogo** recibe solo los pacientes con asignación activa en `patient_assignments`;
+- un **coordinador** los sigue recibiendo todos, porque es administrativo — si filtrara, una
+  sede sin psicólogos no tendría quién la mire.
+
+Verificado contra la base del seed: Miguel 3, Valentina 2, Sofía 10. Coincide con lo que
+muestra Equipo. Hay 3 tests nuevos en `users.service.spec.ts` y uno en el del controller; los
+273 unitarios y los 49 e2e siguen pasando.
+
+⚠️ **Esto cambia lo que ves en el Resumen:** consume la misma query, así que un psicólogo pasa
+de ver 7–10 pacientes a ver los suyos. No es que se hayan perdido datos.
+
+**Sección nueva: «Mis pacientes»** (`pages/MisPacientesPage.tsx`, ruta `/pacientes`). Dejó de
+ser «Próximamente». No repite la tabla del Resumen: ordena por **quién necesita atención**, con
+el motivo escrito (`N días sin check-in`, `Nunca hizo check-in`, `Ánimo bajo esta semana`,
+`Registro sin completar`, `Cuenta suspendida`), más adherencia de 28 días, racha y ánimo de la
+semana. Todo sale de lo que `/users/patients` ya mandaba y nadie mostraba.
+
+**Dos cosas que conviene saber si tocás esto:**
+
+- **El umbral de 7 días sin check-in no está validado clínicamente.** Es
+  `DIAS_SIN_CHECKIN_ALERTA` en esa página, y conviene revisarlo con AJUTER. La pantalla dice el
+  motivo en vez de emitir un juicio, justamente por eso.
+- **«Ver ficha» navega a `/?paciente=<id>`.** La ficha sigue siendo un cajón que vive dentro de
+  `OverviewPage`, así que se abre por query param. Cuando tenga su propia ruta
+  (`/pacientes/:id`), eso se reemplaza por navegación normal.
+
+**Para José:** se tocó `users/users.service.ts`, `users.controller.ts` y `users.module.ts`, que
+son tuyos. El cambio es acotado (un filtro por asignación y el `@CurrentUser()` en el
+controller) y quedó con tests, pero avísame si preferís revisarlo antes de que suba.
+
+---
+
+## 2026-09-16 — Regla de cobro del cliente: la cuenta se suspende al TERCER mes · corre `seed:demo`
+
+**A quién le pega:** a quien muestre la demo o toque algo de `billing`.
+
+**Qué tienes que hacer:**
+
+```bash
+pnpm run seed:demo -- --reset
+```
+
+Sin eso, Lucía Vega te queda con **1 cuota vencida y la cuenta suspendida**, que con la regla
+nueva es un estado imposible.
+
+**La regla, traída del cliente por el PO:** el paciente **pierde el acceso a la app al cumplir
+el tercer mes de no pago**, no antes. Con una o dos cuotas vencidas sigue entrando con
+normalidad. Hay además una figura de **«congelar suscripción»** —la mensualidad se detiene y el
+paciente tampoco entra— que **no existe en el código**.
+
+**Ojo con la distancia entre la regla y lo implementado:**
+
+- **Nada suspende por mora.** El único lugar que escribe `accountStatus: 'suspended'` fuera de
+  los seeds es desactivar un *psicólogo*. Un paciente moroso **no se suspende nunca solo**:
+  hoy habría que hacerlo a mano en la base.
+- **No existe el estado congelado.** `AccountStatus` es `'active' | 'suspended'`; cero
+  ocurrencias de frozen/congelar/pause en los cuatro workspaces.
+
+**Qué se ajustó mientras tanto:**
+
+- **El reporte PDF** usa 3 meses como umbral (`MESES_PARA_PERDER_ACCESO`). Con 1 o 2 cuotas la
+  deuda va en tono neutro y dice cuánto margen queda; recién al tercer mes se pone en rojo.
+  Antes alarmaba desde la primera cuota, y el rojo está reservado a la crisis.
+- **El seed de Lucía** pasó de 1 a **3 cuotas vencidas** ($90.000), coherente con estar
+  suspendida.
+
+**Lo que falta decidir con el cliente** (en `ASUNCIONES-PENDIENTES.md`): qué conserva un
+paciente suspendido o congelado. `CLAUDE.md` exige que la ruta de escalada del pánico esté
+**siempre** disponible; si dejar de pagar apaga el botón de pánico y el `*4141`, eso choca con
+la regla clínica del proyecto. Es la pregunta importante, y no es de facturación.
+
+---
+
+## 2026-09-16 — La auditoría UX de la web quedó cerrada: 42 de 42
+
+**A quién le pega:** a quien toque estilos en `apps/web`, y a **Eduardo** (dueño de
+`Sidebar.tsx` y del reporte PDF).
+
+**Qué hacer:** nada que instalar ni correr. Tres cosas que conviene saber si escribes UI:
+
+1. **No escribas `#fff` ni `rgba()` de marca a mano.** Ya no queda ninguno en `.tsx`. Usa
+   `var(--fg-on-primary)` para texto e íconos sobre azul o rojo, `var(--surface)` para
+   fondos blancos, y `var(--scrim)` para el velo de un modal (token nuevo: estaba escrito a
+   mano en 6 archivos, así que cambiar la opacidad obligaba a tocar los seis). Para una
+   opacidad puntual de un color de marca, `color-mix(in srgb, var(--primary) 30%, transparent)`.
+   Los `rgba` de blanco y negro con alfa del sidebar **se dejaron a propósito**: no son
+   colores del design system.
+2. **El logo de AJUTER ya no se pide a `ajuter.org`.** Vive en
+   `apps/web/src/assets/logo-ajuter.png` y `Sidebar.tsx` lo importa como módulo. Si el sitio
+   del cliente cambiaba, el panel perdía el logo, y cada carga quedaba registrada en un
+   servidor de terceros. **Para el PO:** el archivo se bajó del sitio público de AJUTER
+   porque no estaba en la carpeta de marca; conviene que AJUTER confirme que es la versión
+   vigente.
+3. **El reporte PDF salía con la marca naranja de AJUTER.** `generatePatientPDF.ts` tenía la
+   paleta vieja escrita a mano (`#E8883A`, `#574F4A`, `#2A2624`, `#FAF7F4`) desde antes del
+   cambio de marca del 31-08: **el panel era azul y el informe que el psicólogo entrega salía
+   naranja.** Ahora los colores se leen de los tokens del CSS en runtime, con respaldo fijo,
+   así que el PDF no puede volver a desincronizarse del tema.
+
+4. **En el login ya no aparece AJUTER.** El panel de marca decía «Para el equipo clínico de
+   AJUTER y las familias…» y ahora dice «Para los equipos clínicos y las familias…».
+   **Decisión del PO:** StopBet es el producto y AJUTER su primer cliente, pero puede haber
+   más; quien todavía no entró no tiene sesión, así que el sistema no sabe a qué institución
+   pertenece y nombrar una sería adivinar. Dentro del panel el logo de AJUTER **se queda** al
+   pie del sidebar: ahí ya se sabe de quién es la cuenta. Es la misma regla que mobile aplicó
+   en el PR #100.
+
+   ⚠️ **Queda AJUTER escrito a mano en tres lugares post-login** (ver abajo), y sacarlo de uno
+   de ellos no es solo cambiar el texto.
+
+**AJUTER salió también de los textos post-login, en neutro.** Decisión del PO del 16-09: en
+vez de esperar a que exista un campo de institución, los textos se escriben sin nombrar a
+nadie. Qué cambió:
+
+| Dónde | Antes | Ahora |
+|---|---|---|
+| `pages/familiar/FamiliarPortal.tsx` | «Portal de familiares de AJUTER» · «Un profesional de AJUTER debe aprobar tu vínculo…» · «Pídele a tu profesional de AJUTER…» | «Portal de familiares» · «Un profesional del equipo clínico…» · «Pídele al equipo clínico…» |
+| `utils/generatePatientPDF.ts` | «Dashboard Clínico - AJUTER» · «Sede AJUTER:» · pie «StopBet · Dashboard Clínico AJUTER…» | «Panel clínico» · «Sede:» · «StopBet · Panel clínico · Documento de uso interno» |
+| `pages/EquipoPage.tsx` | `placeholder` `fernanda.fuentes@ajuter.cl` | `nombre.apellido@tuinstitucion.cl` |
+
+«Sede AJUTER:» era además redundante: el valor que va al lado ya es la sede.
+
+**Lo único que sigue nombrando a AJUTER es el logo al pie del sidebar**, y se queda: ahí ya hay
+sesión y el panel identifica a la institución dueña de la cuenta.
+
+**Se borró `--ajuter-gradient`** de `stopbet-theme.css`. Era el último resto del tema naranja y
+**no lo usaba ningún archivo** — FAM-01 lo había reemplazado en el portal del familiar.
+
+⚠️ **El bloqueo de fondo sigue en pie, y es bueno saberlo antes de prometer multi-institución:**
+`institutionId` existe en `registration_requests` pero **no en `users`**, así que al aprobar un
+registro el usuario se crea sin institución y **después del login el sistema no sabe a cuál
+pertenece**. Mientras eso no cambie, el panel no puede mostrar la marca de cada cliente: el
+texto neutro es la solución correcta, no un parche. Está anotado en
+`ASUNCIONES-PENDIENTES.md`, ítem 7.
+
+**Un dato para quien mire rendimiento:** Inter y Nunito **no se descargan nunca** — son solo
+respaldo de Chillax y Satoshi, y el navegador solo baja una fuente que se usa. Está medido en
+`docs/auditoria-ux-web-2026-09-14.md`. Lo que sí pesa: **Chillax y Satoshi están en TTF
+(263 KB)**, y pasarlas a woff2 ahorraría del orden de 150 KB por primera visita. Queda
+propuesto, no hecho.
+
+---
+
+## 2026-09-16 — Cinco documentos decían cosas que el código ya no hace
+
+**A quién le pega:** a quien use `docs/` como fuente de verdad — sobre todo **José** (matriz
+de permisos), **Eduardo** y quien consuma `riskLevel` en el panel, y quien toque pánico.
+
+**Qué hacer:** nada que instalar ni correr. Solo saber que estos cinco quedaron al día, todos
+verificados contra el código de `main`, no contra otro documento:
+
+1. **`security/permissions-matrix.md`** — los tres endpoints de `community` que se cerraron el
+   16-09 seguían figurando como abiertos. `POST /announcements` pasó de ❌ a ✅, y
+   `moderation/flagged` y `DELETE /posts/:id` a una categoría nueva, **✅ Autenticado**
+   (`JwtAuthGuard` sin `@Roles`, porque el servicio ya distingue autor de psicólogo). El total
+   protegido pasó de 19 a 20. `dev-set-days` salió de los huecos críticos: está detrás de
+   `ENABLE_DEV_TOOLS` desde el 14-09.
+2. **`reglas-asistente.md` §5** — decía que ante un fallo del LLM el `catch` guardaba
+   `riskLevel: 'low'`. **Ya no:** hoy guarda `null`, y el tipo es `RiskLevel | null`. La
+   distinción importa en pantalla: **`null` es "no se pudo evaluar", `'low'` es "evaluado y
+   sin riesgo"**. Si muestras ese dato, no los pintes igual.
+3. **`superpowers/specs/…-panic-button-design.md`** — el diseño de junio dice 3 minutos de
+   escalada. Manda el criterio CA1.3: **120 s**, que es lo que tienen hoy el backend
+   (`ESCALATION_MS`) y mobile (`ESCALATION_SECONDS`). Se avisa arriba del documento.
+4. **`planning/evidencia-spike-sprint1.md`** — S.4 decía 19 `@Roles()`; ahora dice 20 y explica
+   por qué el número sube. S.8 aclara que su evidencia sigue reproducible (la key local hoy
+   está vacía, mismo camino) pero que el modelo cambió a `gemini-3.5-flash-lite`.
+5. **`ASUNCIONES-PENDIENTES.md` ítem #4** — pedía reescribir commits por un trailer de
+   co-autoría **antes de mergear**. La rama se mergeó hace meses y en `main` conviven cuatro
+   variantes del trailer. Se cerró sin acción: reescribir historia compartida por seis
+   personas obliga a todos a rebasear sus ramas vivas, y la regla vigente de `CLAUDE.md` ya es
+   no ponerlo.
+
+**Lo que NO se tocó, porque sigue siendo verdad:** `POST /panic/assign`,
+`GET /community/posts/:id/replies` y `POST /subscriptions` siguen abiertos sin ninguna
+identidad. Están en "Huecos críticos" de la matriz, cada uno con su dueño.
+
+---
+
 ## 2026-09-16 — Si `pnpm install` te falla con "supply-chain policy check", pullea esto
 
 **A quién le pega:** a todo el que pulleara después del PR #96 (navegación por pestañas).
