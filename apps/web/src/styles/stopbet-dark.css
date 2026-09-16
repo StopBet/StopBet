@@ -1,0 +1,91 @@
+/* ============================================================================
+   Tema oscuro del panel.
+   Se activa de dos formas: automático si el sistema está en oscuro y la persona no eligió
+   «Claro», o forzado con data-theme="dark" en <html> (Configuración → Apariencia).
+   Los valores son los de la app mobile (constants/colors.ts → darkColors), donde cada par
+   de contraste ya se midió: las dos apps tienen que verse hermanas.
+   El bloque se repite porque CSS no deja compartir declaraciones entre un @media y un
+   selector: si cambias un valor, cámbialo en los dos.
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    /* Fondos: ni negro puro ni gris plano — el negro puro con texto claro deja halos en OLED */
+    --bg: #15171C;
+    --cream-50: #15171C;
+    --surface: #1E2128;
+    --surface-alt: #1C2432;
+    --border: #31353F;
+    --border-200: #31353F;
+    --disabled: #4A4F5A;
+    --disabled-300: #4A4F5A;
+
+    /* Texto */
+    --fg1: #F2F3F5;            /* 14,51:1 sobre la superficie */
+    --fg2: #B4B8C2;            /* 8,11:1 sobre la superficie, 9,03:1 sobre el fondo */
+    --ink-900: #F2F3F5;
+    --ink-500: #B4B8C2;
+
+    /* La marca se mantiene como RELLENO: un botón azul con texto blanco da 5,09:1 en los dos
+       temas. Como TEXTO no alcanza (#396fb6 da 3,16:1 y #B83232 2,72:1 sobre oscuro), así que
+       el texto y los íconos usan estos tokens aclarados. Mismo criterio que la app mobile. */
+    --primary-text: #9CC4EE;   /* 8,86:1 */
+    --danger-text: #F08A8A;    /* 6,68:1 */
+    --secondary-text: #c2d66e; /* 10,08:1 */
+
+    /* Tintes de fondo para chips y avisos */
+    --teal-50: #1C2432;
+    --amber-50: #232833;
+    --gold-50: #232A1C;
+    --sage-50: #232A1C;
+    --red-50: #33222A;
+
+    --shadow-soft:   0 2px 8px  rgba(0, 0, 0, 0.30);
+    --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.38);
+    --shadow-strong: 0 8px 32px rgba(0, 0, 0, 0.45);
+    --scrim: rgba(0, 0, 0, 0.62);
+
+    /* Inputs de fecha, selects y barras de desplazamiento nativas en oscuro */
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  /* Fondos: ni negro puro ni gris plano — el negro puro con texto claro deja halos en OLED */
+  --bg: #15171C;
+  --cream-50: #15171C;
+  --surface: #1E2128;
+  --surface-alt: #1C2432;
+  --border: #31353F;
+  --border-200: #31353F;
+  --disabled: #4A4F5A;
+  --disabled-300: #4A4F5A;
+
+  /* Texto */
+  --fg1: #F2F3F5;            /* 14,51:1 sobre la superficie */
+  --fg2: #B4B8C2;            /* 8,11:1 sobre la superficie, 9,03:1 sobre el fondo */
+  --ink-900: #F2F3F5;
+  --ink-500: #B4B8C2;
+
+  /* La marca se mantiene como RELLENO: un botón azul con texto blanco da 5,09:1 en los dos
+     temas. Como TEXTO no alcanza (#396fb6 da 3,16:1 y #B83232 2,72:1 sobre oscuro), así que
+     el texto y los íconos usan estos tokens aclarados. Mismo criterio que la app mobile. */
+  --primary-text: #9CC4EE;   /* 8,86:1 */
+  --danger-text: #F08A8A;    /* 6,68:1 */
+  --secondary-text: #c2d66e; /* 10,08:1 */
+
+  /* Tintes de fondo para chips y avisos */
+  --teal-50: #1C2432;
+  --amber-50: #232833;
+  --gold-50: #232A1C;
+  --sage-50: #232A1C;
+  --red-50: #33222A;
+
+  --shadow-soft:   0 2px 8px  rgba(0, 0, 0, 0.30);
+  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.38);
+  --shadow-strong: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.62);
+
+  /* Inputs de fecha, selects y barras de desplazamiento nativas en oscuro */
+  color-scheme: dark;
+}

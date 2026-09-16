@@ -127,7 +127,7 @@ export function AlertasPage() {
                 const active = filter === f
                 return (
                   <button key={f} aria-pressed={active} onClick={() => { setFilter(f); setHistPage(0) }} style={{
-                    background: active ? 'var(--primary)' : 'var(--bg)', color: active ? '#fff' : 'var(--fg2)',
+                    background: active ? 'var(--primary)' : 'var(--bg)', color: active ? 'var(--fg-on-primary)' : 'var(--fg2)',
                     border: `1.5px solid ${active ? 'var(--primary)' : 'var(--border)'}`,
                     borderRadius: 9999, padding: '6px 14px', fontSize: 12.5, fontWeight: active ? 700 : 500,
                     cursor: 'pointer', fontFamily: 'var(--font-body)',
@@ -156,7 +156,7 @@ export function AlertasPage() {
                       background: unresolved ? 'var(--red-50)' : 'transparent',
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                        <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: unresolved ? 'var(--surface)' : 'var(--teal-50)', color: unresolved ? 'var(--danger)' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
+                        <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: unresolved ? 'var(--surface)' : 'var(--teal-50)', color: unresolved ? 'var(--danger-text)' : 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
                           <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{a.fecha}</div>
@@ -165,7 +165,7 @@ export function AlertasPage() {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
+                        <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
                       </div>
                     </div>
                   )
@@ -189,7 +189,7 @@ export function AlertasPage() {
                   <tr key={a.id} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '14px 14px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: needsAttention(a.status) ? 'var(--red-50)' : 'var(--teal-50)', color: needsAttention(a.status) ? 'var(--danger)' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
+                        <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: needsAttention(a.status) ? 'var(--red-50)' : 'var(--teal-50)', color: needsAttention(a.status) ? 'var(--danger-text)' : 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
                         {/* Sin esto el nombre se desbordaba de la celda (tableLayout
                             fijo no recorta solo) y la etiqueta de sede de la columna
                             siguiente le quedaba encima. */}
@@ -197,7 +197,7 @@ export function AlertasPage() {
                       </div>
                     </td>
                     <td style={{ padding: '14px 14px' }}>
-                      <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
+                      <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
                     </td>
                     <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg2)', whiteSpace: 'nowrap' }}>{a.fecha}</td>
                     <td style={{ padding: '14px 14px' }}><AlertStatusBadge status={a.status} /></td>
@@ -243,13 +243,13 @@ export function AlertasPage() {
             <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1.5px solid var(--danger)', boxShadow: 'var(--shadow-soft)', padding: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 14 }}>
                 <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'var(--danger)', flexShrink: 0, animation: 'sb-pulse 1.8s ease-in-out infinite' }} />
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 16, color: 'var(--danger)' }}>Requieren atención</h2>
+                <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 16, color: 'var(--danger-text)' }}>Requieren atención</h2>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {pagedUnresolved.map(a => (
                   <div key={a.id} style={{ background: 'var(--red-50)', borderRadius: 12, padding: '13px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: '#fff', color: 'var(--danger)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
+                      <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'var(--surface)', color: 'var(--danger-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{a.initials}</div>
                       <div>
                         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13.5, color: 'var(--fg1)' }}>{a.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{a.fecha}</div>
@@ -269,7 +269,7 @@ export function AlertasPage() {
                       onClick={() => setAttnPage(p => p - 1)}
                       aria-label="Alertas anteriores"
                       disabled={attnPage === 0}
-                      style={{ width: 30, height: 30, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: attnPage === 0 ? 'var(--border)' : 'var(--danger)', cursor: attnPage === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ width: 30, height: 30, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: attnPage === 0 ? 'var(--border)' : 'var(--danger-text)', cursor: attnPage === 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       <WIcon name="chevron-left" size={14} />
                     </button>
@@ -277,7 +277,7 @@ export function AlertasPage() {
                       onClick={() => setAttnPage(p => p + 1)}
                       aria-label="Alertas siguientes"
                       disabled={attnPage >= attnTotalPages - 1}
-                      style={{ width: 30, height: 30, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: attnPage >= attnTotalPages - 1 ? 'var(--border)' : 'var(--danger)', cursor: attnPage >= attnTotalPages - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      style={{ width: 30, height: 30, borderRadius: 9999, border: '1px solid var(--border)', background: 'var(--surface)', color: attnPage >= attnTotalPages - 1 ? 'var(--border)' : 'var(--danger-text)', cursor: attnPage >= attnTotalPages - 1 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >
                       <WIcon name="chevron-right" size={14} />
                     </button>

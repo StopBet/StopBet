@@ -250,6 +250,24 @@ export interface PatientsBySede {
   count: number
 }
 
+// Espeja `BillingStatus` de @stopbet/shared-types; la web declara sus tipos aparte
+// (ver la nota de arriba). Solo los campos que usa el reporte.
+export interface BillingInvoice {
+  month: string
+  amountCLP: number
+  dueDate: string
+}
+
+export interface BillingStatus {
+  accountStatus: 'active' | 'suspended' | 'pending'
+  overdueInvoices: BillingInvoice[]
+  totalOwedCLP: number
+  overdueMonths: number
+  firstOverdueDate: string | null
+  daysOverdue: number
+  nextPaymentDate: string | null
+}
+
 export interface PsychologistListItem {
   id: string
   firstName: string
@@ -324,6 +342,12 @@ export const api = {
 
   getPatientMetrics: (patientId: string) =>
     get<PatientMetrics>(`/metrics/patients/${patientId}`),
+
+  // Estado de cuotas del paciente, para el reporte PDF. El endpoint lee `x-user-id`
+  // sin verificarlo (ver docs/security/permissions-matrix.md): acá se le pasa el id
+  // del paciente consultado, no el del psicólogo.
+  getPatientBilling: (patientId: string) =>
+    get<BillingStatus>('/billing/status', { 'x-user-id': patientId }),
 
   // ── Portal del familiar (HU-11) ─────────────────────────────────────────────
 

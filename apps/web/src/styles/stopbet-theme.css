@@ -39,6 +39,17 @@
      blanco; este da 5,35:1. Es un derivado, no reemplaza a ningún color del manual. */
   --secondary-text: #5B7324;
 
+  /* Tokens de TEXTO para la marca. En claro son el mismo azul y el mismo rojo; en oscuro se
+     aclaran (ver stopbet-dark.css). Úsalos para texto e íconos; --primary y --danger quedan
+     para rellenos y bordes. */
+  --primary-text: #396fb6;
+  --danger-text: #B83232;
+
+  /* Texto sobre el verde de relleno (--secondary). Es oscuro en los DOS temas: el verde no
+     cambia con el tema, así que el texto encima tampoco puede cambiar. En oscuro, --fg1
+     pasa a casi blanco y sobre el verde daba 2,16:1. */
+  --fg-on-secondary: #3a3939;
+
   /* ---- Fondo y texto ---- */
   --cream-50: #f4f4e9;
   --ink-900:  #3a3939;   /* 504f4f oscurecido para títulos */
@@ -52,14 +63,16 @@
           el botón de pánico y las alertas críticas. ---- */
 
   /* ---- Sombras: azuladas en vez de cálidas ---- */
+  /* Velo de los modales: el azul oscuro de marca al 32 %. Estaba escrito a mano
+     en 6 archivos; un cambio de opacidad obligaba a tocar los seis. */
+  --scrim: rgba(45, 90, 158, 0.32);
+
   --shadow-soft:   0 2px 8px  rgba(45, 90, 158, 0.08);
   --shadow-medium: 0 4px 16px rgba(45, 90, 158, 0.11);
   --shadow-strong: 0 8px 32px rgba(45, 90, 158, 0.18);
 
   --glow-gold: 0 0 0 4px rgba(147, 188, 229, 0.22),
                0 4px 16px rgba(57, 111, 182, 0.26);
-
-  --ajuter-gradient: linear-gradient(90deg, #93bce5 0%, #396fb6 55%, #2d5a9e 100%);
 
   /* ---- Tipografías del manual. Las @font-face viven en
           stopbet-brand.css; Nunito e Inter quedan de respaldo. ---- */

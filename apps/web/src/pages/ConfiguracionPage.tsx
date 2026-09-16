@@ -3,13 +3,15 @@ import { useQuery } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { api, type AuthUser } from '../services/api'
+import { readThemePref, saveThemePref, type ThemePref } from '../utils/theme'
 
-type ConfigSection = 'perfil' | 'notificaciones' | 'sede' | 'seguridad'
+type ConfigSection = 'perfil' | 'apariencia' | 'notificaciones' | 'sede' | 'seguridad'
 
 function SectionNav({ active, onSelect }: { active: ConfigSection; onSelect: (s: ConfigSection) => void }) {
   const isNarrow = useIsNarrow()
   const sections: Array<{ id: ConfigSection; icon: string; label: string }> = [
     { id: 'perfil',         icon: 'user-round',    label: 'Perfil clínico'   },
+    { id: 'apariencia',     icon: 'sparkles',      label: 'Apariencia'       },
     { id: 'notificaciones', icon: 'bell',          label: 'Notificaciones'   },
     { id: 'sede',           icon: 'map-pin',       label: 'Sede y equipo'    },
     { id: 'seguridad',      icon: 'shield',        label: 'Seguridad'        },
@@ -40,7 +42,7 @@ function SectionNav({ active, onSelect }: { active: ConfigSection; onSelect: (s:
               flexShrink: 0, whiteSpace: 'nowrap',
               border: 'none',
               background: isNarrow ? 'transparent' : (on ? 'var(--teal-50)' : 'transparent'),
-              color: on ? 'var(--primary)' : 'var(--fg2)',
+              color: on ? 'var(--primary-text)' : 'var(--fg2)',
               fontFamily: 'var(--font-body)', fontSize: isNarrow ? 13.5 : 14.5,
               fontWeight: on ? 700 : 500, cursor: 'pointer', textAlign: 'left',
               // Angosto: subrayado bajo la activa. Ancho: la barra vertical de siempre.
@@ -75,7 +77,7 @@ function PerfilSection({ user }: { user: AuthUser }) {
 
   return (
     <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-      <div style={{ width: 72, height: 72, borderRadius: '50%', flexShrink: 0, background: 'var(--primary)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26 }}>
+      <div style={{ width: 72, height: 72, borderRadius: '50%', flexShrink: 0, background: 'var(--primary)', color: 'var(--fg-on-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26 }}>
         {initials}
       </div>
       <div style={{ flex: 1, minWidth: isNarrow ? 0 : 280 }}>
@@ -95,12 +97,55 @@ function PerfilSection({ user }: { user: AuthUser }) {
   )
 }
 
+// Mismas tres opciones que la app mobile (Perfil → Apariencia). No alcanza con seguir al
+// sistema: alguien puede tener el computador en claro y preferir el panel oscuro de noche.
+function AparienciaSection() {
+  const [pref, setPref] = useState<ThemePref>(readThemePref)
+  const opciones: Array<{ id: ThemePref; titulo: string; desc: string }> = [
+    { id: 'auto',  titulo: 'Automático', desc: 'Sigue la configuración de tu sistema.' },
+    { id: 'light', titulo: 'Claro',      desc: 'Fondo crema, siempre.' },
+    { id: 'dark',  titulo: 'Oscuro',     desc: 'Fondo oscuro, más cómodo de noche.' },
+  ]
+  return (
+    <div role="radiogroup" aria-label="Tema del panel" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {opciones.map(o => {
+        const on = pref === o.id
+        return (
+          <button
+            key={o.id}
+            role="radio"
+            aria-checked={on}
+            onClick={() => { setPref(o.id); saveThemePref(o.id) }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left', cursor: 'pointer',
+              padding: '14px 16px', borderRadius: 12, background: on ? 'var(--surface-alt)' : 'var(--surface)',
+              border: `1.5px solid ${on ? 'var(--primary)' : 'var(--border)'}`,
+            }}
+          >
+            <span aria-hidden style={{
+              width: 18, height: 18, borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box',
+              border: `2px solid ${on ? 'var(--primary-text)' : 'var(--fg2)'}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {on && <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--primary-text)' }} />}
+            </span>
+            <span>
+              <span style={{ display: 'block', fontWeight: 700, fontSize: 14.5, color: 'var(--fg1)' }}>{o.titulo}</span>
+              <span style={{ display: 'block', fontSize: 13, color: 'var(--fg2)', marginTop: 2 }}>{o.desc}</span>
+            </span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 // Estas secciones no tienen backend. Antes eran interruptores que no guardaban nada o barras
 // grises que parecían una carga que nunca terminaba.
 function ComingSoon({ desc }: { desc: string }) {
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: 'var(--surface-alt)', borderRadius: 12, padding: '16px 18px' }}>
-      <WIcon name="clock" size={18} color="var(--primary)" />
+      <WIcon name="clock" size={18} color="var(--primary-text)" />
       <div>
         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, color: 'var(--fg1)' }}>Próximamente</div>
         <div style={{ fontSize: 13, color: 'var(--fg2)', marginTop: 3, lineHeight: 1.5 }}>{desc}</div>
@@ -114,6 +159,7 @@ export function ConfiguracionPage({ user }: { user: AuthUser }) {
   const [section, setSection] = useState<ConfigSection>('perfil')
   const titles: Record<ConfigSection, string> = {
     perfil: 'Perfil clínico',
+    apariencia: 'Apariencia',
     notificaciones: 'Notificaciones',
     sede: 'Sede y equipo',
     seguridad: 'Seguridad',
@@ -130,6 +176,7 @@ export function ConfiguracionPage({ user }: { user: AuthUser }) {
           <h2 style={{ margin: '0 0 20px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)' }}>{titles[section]}</h2>
 
           {section === 'perfil'         && <PerfilSection user={user} />}
+          {section === 'apariencia'     && <AparienciaSection />}
           {section === 'notificaciones' && <ComingSoon desc="Aquí vas a poder elegir qué avisos recibir." />}
           {section === 'sede'           && <ComingSoon desc="Aquí vas a poder ver a los integrantes de tu sede." />}
           {section === 'seguridad'      && <ComingSoon desc="Aquí vas a poder cambiar tu contraseña y cerrar tus sesiones abiertas." />}

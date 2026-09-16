@@ -9,9 +9,9 @@ type PayStatus = PaymentData['status']
 function PayStatusChip({ status }: { status: PayStatus }) {
   const map: Record<PayStatus, { bg: string; fg: string; label: string }> = {
     pagado:    { bg: 'var(--sage-50)',  fg: 'var(--secondary-text)', label: 'Pagado'   },
-    pendiente: { bg: 'var(--amber-50)', fg: 'var(--primary)',   label: 'Pendiente' },
-    vencido:   { bg: 'var(--red-50)',   fg: 'var(--danger)',   label: 'Vencido'  },
-    exento:    { bg: 'var(--teal-50)',  fg: 'var(--primary)',  label: 'Exento'   },
+    pendiente: { bg: 'var(--amber-50)', fg: 'var(--primary-text)',   label: 'Pendiente' },
+    vencido:   { bg: 'var(--red-50)',   fg: 'var(--danger-text)',   label: 'Vencido'  },
+    exento:    { bg: 'var(--teal-50)',  fg: 'var(--primary-text)',  label: 'Exento'   },
   }
   const s = map[status]
   return (
@@ -46,7 +46,7 @@ export function FinanzasPage() {
       {/* Toda la página sale de mockData. Sin este aviso se leía como la contabilidad real
           de la sede, con nombres de pacientes y montos inventados. */}
       <div role="note" style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'var(--surface-alt)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', marginBottom: isNarrow ? 16 : 20 }}>
-        <WIcon name="circle-alert" size={18} color="var(--primary)" />
+        <WIcon name="circle-alert" size={18} color="var(--primary-text)" />
         <div style={{ fontSize: 13.5, color: 'var(--fg1)', lineHeight: 1.5 }}>
           <strong>Datos de ejemplo.</strong> Finanzas todavía no está conectada a los pagos reales: las cifras y los nombres de esta página son ficticios.
         </div>
@@ -75,10 +75,10 @@ export function FinanzasPage() {
               {/* Sede filter */}
               <div style={{ position: 'relative' }}>
                 <select value={sedeFilter} onChange={e => setSedeFilter(e.target.value)} aria-label="Filtrar pagos por sede"
-                  style={{ appearance: 'none', background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '7px 28px 7px 10px', fontSize: 12, fontWeight: 600, border: '1.5px solid var(--primary)', cursor: 'pointer', outline: 'none' }}>
+                  style={{ appearance: 'none', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '7px 28px 7px 10px', fontSize: 12, fontWeight: 600, border: '1.5px solid var(--primary)', cursor: 'pointer', outline: 'none' }}>
                   {SEDES.map(s => <option key={s}>{s === 'Todas' ? 'Todas las sedes' : `Sede: ${s}`}</option>)}
                 </select>
-                <span style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--primary)' }}>
+                <span style={{ position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: 'var(--primary-text)' }}>
                   <WIcon name="chevron-down" size={13} />
                 </span>
               </div>
@@ -113,10 +113,10 @@ export function FinanzasPage() {
                     background: overdue ? 'var(--red-50)' : 'transparent',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12.5 }}>{p.initials}</div>
+                      <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12.5 }}>{p.initials}</div>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-                        <div style={{ fontSize: 12, color: overdue ? 'var(--danger)' : 'var(--fg2)', fontWeight: overdue ? 600 : 400 }}>
+                        <div style={{ fontSize: 12, color: overdue ? 'var(--danger-text)' : 'var(--fg2)', fontWeight: overdue ? 600 : 400 }}>
                           Vence {p.dueDate}
                         </div>
                       </div>
@@ -125,7 +125,7 @@ export function FinanzasPage() {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <PayStatusChip status={p.status} />
-                      <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                      <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                       <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{p.permanencia} mes{p.permanencia !== 1 ? 'es' : ''}</span>
                     </div>
                   </div>
@@ -145,17 +145,17 @@ export function FinanzasPage() {
                 <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
                   <td style={{ padding: '13px 14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 11, minWidth: 0 }}>
-                      <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12 }}>{p.initials}</div>
+                      <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: 'var(--teal-50)', color: 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12 }}>{p.initials}</div>
                       <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={p.name}>{p.name}</span>
                     </div>
                   </td>
                   <td style={{ padding: '13px 14px' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                   </td>
                   <td style={{ padding: '13px 14px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)' }}>{fmt(p.amount)}</td>
-                  <td style={{ padding: '13px 14px', fontSize: 13, color: p.status === 'vencido' ? 'var(--danger)' : 'var(--fg2)', fontWeight: p.status === 'vencido' ? 600 : 400 }}>{p.dueDate}</td>
+                  <td style={{ padding: '13px 14px', fontSize: 13, color: p.status === 'vencido' ? 'var(--danger-text)' : 'var(--fg2)', fontWeight: p.status === 'vencido' ? 600 : 400 }}>{p.dueDate}</td>
                   <td style={{ padding: '13px 14px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'var(--teal-50)', color: 'var(--primary)', fontSize: 12, fontWeight: 700 }}>{p.permanencia}</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 26, height: 26, borderRadius: '50%', background: 'var(--teal-50)', color: 'var(--primary-text)', fontSize: 12, fontWeight: 700 }}>{p.permanencia}</span>
                   </td>
                   <td style={{ padding: '13px 14px' }}><PayStatusChip status={p.status} /></td>
                 </tr>
@@ -173,12 +173,12 @@ export function FinanzasPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {UPCOMING_PAYMENTS.map((p, i) => (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, background: p.urgent ? 'var(--red-50)' : 'var(--bg)', borderRadius: 12, padding: '11px 13px', borderLeft: p.urgent ? '3px solid var(--danger)' : '3px solid transparent' }}>
-                  <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: p.urgent ? '#fff' : 'var(--teal-50)', color: p.urgent ? 'var(--danger)' : 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12 }}>{p.initials}</div>
+                  <div style={{ width: 34, height: 34, borderRadius: '50%', flexShrink: 0, background: p.urgent ? 'var(--surface)' : 'var(--teal-50)', color: p.urgent ? 'var(--danger-text)' : 'var(--primary-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 12 }}>{p.initials}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                    <div style={{ fontSize: 12, color: p.urgent ? 'var(--danger)' : 'var(--fg2)', fontWeight: p.urgent ? 600 : 400 }}>{p.date}</div>
+                    <div style={{ fontSize: 12, color: p.urgent ? 'var(--danger-text)' : 'var(--fg2)', fontWeight: p.urgent ? 600 : 400 }}>{p.date}</div>
                   </div>
-                  <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: p.urgent ? 'var(--danger)' : 'var(--primary)', flexShrink: 0 }}>{p.amount}</span>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: p.urgent ? 'var(--danger-text)' : 'var(--primary-text)', flexShrink: 0 }}>{p.amount}</span>
                 </div>
               ))}
             </div>

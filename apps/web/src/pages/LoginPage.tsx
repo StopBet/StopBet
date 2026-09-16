@@ -64,7 +64,8 @@ function RecoveryPath() {
 
 type FormState = 'idle' | 'loading' | 'error' | 'forbidden' | 'offline'
 
-const BLUE = 'var(--sb-blue)'
+const BLUE = 'var(--sb-blue)'              // relleno: botón, interruptor
+const BLUE_TEXT = 'var(--primary-text)'      // texto e íconos: en oscuro el azul de marca no se lee
 const BLUE_LIGHT = 'var(--teal-50)'
 
 // /auth/login autentica a cualquier rol, así que el filtro de quién entra a la
@@ -123,12 +124,18 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
 
       {/* Panel izquierdo — marca StopBet. Se oculta en pantallas angostas.
           El login es la puerta común al panel clínico y al portal del familiar, así
-          que lleva la marca del producto; el shell del psicólogo sigue en AJUTER. */}
+          que lleva la marca del producto.
+
+          Acá no va el nombre de ninguna institución: StopBet es el producto y AJUTER es
+          su primer cliente, pero puede haber más. Quien todavía no entró no tiene sesión,
+          así que el sistema no sabe a qué institución pertenece — nombrar una sería
+          adivinar. Dentro del panel sí aparece (el logo al pie del sidebar), porque ahí
+          ya se sabe de quién es la cuenta. */}
       {!isNarrow && <div style={{
         width: '50%', flexShrink: 0,
         background: 'linear-gradient(160deg, var(--sb-blue) 0%, var(--sb-blue-dark) 100%)',
         display: 'flex', flexDirection: 'column',
-        padding: '44px 52px', color: '#fff',
+        padding: '44px 52px', color: 'var(--fg-on-primary)',
         position: 'relative', overflow: 'hidden',
       }}>
         {/* Logo */}
@@ -162,7 +169,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             margin: '0 0 30px', maxWidth: 380,
           }}>
             {/* Por esta puerta entran el equipo clínico y los familiares: antes el texto solo le hablaba al primero */}
-            Para el equipo clínico de AJUTER y las familias que acompañan el tratamiento.
+            Para los equipos clínicos y las familias que acompañan el tratamiento.
           </p>
           <ul style={{
             listStyle: 'none', padding: 0, margin: 0,
@@ -220,7 +227,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             <div style={{ lineHeight: 1.2 }}>
               <div style={{
                 fontFamily: 'var(--sb-font-heading)', fontWeight: 700,
-                fontSize: 25, letterSpacing: -0.5, color: 'var(--sb-blue)',
+                fontSize: 25, letterSpacing: -0.5, color: 'var(--primary-text)',
               }}>
                 StopBet
               </div>
@@ -234,11 +241,11 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             // En el flujo, no en posición absoluta: en el teléfono tapaba la cabecera con el logo.
             width: '100%', maxWidth: 440, boxSizing: 'border-box', marginBottom: 16,
             display: 'flex', alignItems: 'center', gap: 10,
-            background: 'var(--amber-50)', border: '1px solid rgba(57,111,182,0.30)',
+            background: 'var(--amber-50)', border: '1px solid color-mix(in srgb, var(--primary) 30%, transparent)',
             borderRadius: 12, padding: '12px 16px',
           }}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-              stroke="var(--primary)" strokeWidth="2" strokeLinecap="round">
+              stroke="var(--primary-text)" strokeWidth="2" strokeLinecap="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
             <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--primary-hover)' }}>
@@ -274,11 +281,11 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
             padding: '7px 12px', marginBottom: 24,
           }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-              stroke={BLUE} strokeWidth="2.5" strokeLinecap="round">
+              stroke={BLUE_TEXT} strokeWidth="2.5" strokeLinecap="round">
               <rect x="3" y="11" width="18" height="11" rx="2"/>
               <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
             </svg>
-            <span style={{ fontSize: 12, fontWeight: 600, color: BLUE }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: BLUE_TEXT }}>
               Acceso para equipo clínico y familiares
             </span>
           </div>
@@ -294,7 +301,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                 borderRadius: 'var(--r-sm)', height: 50,
                 border: `1.5px solid ${isError ? 'var(--danger)' : 'var(--border)'}`,
                 padding: '0 14px', background: 'var(--surface)',
-                boxShadow: isError ? '0 0 0 3px rgba(184,50,50,0.08)' : 'none',
+                boxShadow: isError ? '0 0 0 3px color-mix(in srgb, var(--danger) 8%, transparent)' : 'none',
               }}>
                 <input
                   type="email"
@@ -322,7 +329,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                 <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg1)' }}>Contraseña</span>
                 {/* Enlazaba a "#": no hay flujo de recuperación todavía, así que lleva al
                     mismo contacto que ya aparece al pie del formulario. */}
-                <a href="mailto:admin@stopbet.cl?subject=Recuperar%20contrase%C3%B1a" style={{ fontSize: 12.5, fontWeight: 600, color: BLUE, textDecoration: 'none' }}>
+                <a href="mailto:admin@stopbet.cl?subject=Recuperar%20contrase%C3%B1a" style={{ fontSize: 12.5, fontWeight: 600, color: BLUE_TEXT, textDecoration: 'none' }}>
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
@@ -331,7 +338,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                 borderRadius: 'var(--r-sm)', height: 50,
                 border: `1.5px solid ${isError ? 'var(--danger)' : 'var(--border)'}`,
                 padding: '0 14px', background: 'var(--surface)',
-                boxShadow: isError ? '0 0 0 3px rgba(184,50,50,0.08)' : 'none',
+                boxShadow: isError ? '0 0 0 3px color-mix(in srgb, var(--danger) 8%, transparent)' : 'none',
               }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -386,8 +393,8 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   position: 'absolute', top: 3,
                   left: keepSession ? 21 : 3,
                   width: 18, height: 18, borderRadius: '50%',
-                  background: '#fff',
-                  boxShadow: '0 1px 3px rgba(45,90,158,0.22)',
+                  background: 'var(--surface)',
+                  boxShadow: '0 1px 3px color-mix(in srgb, var(--primary-hover) 22%, transparent)',
                   transition: 'left 0.2s var(--ease-soft)',
                 }} />
               </div>
@@ -401,8 +408,10 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
               style={{
                 width: '100%', height: 52,
                 borderRadius: 'var(--r-full)',
-                background: isLoading ? `${BLUE}cc` : BLUE,
-                color: '#fff', border: 'none',
+                // Era `${BLUE}cc`: con un token CSS eso da «var(--sb-blue)cc», que no es un color, y el
+                // botón quedaba sin fondo mientras cargaba.
+                background: isLoading ? 'color-mix(in srgb, var(--sb-blue) 80%, transparent)' : BLUE,
+                color: 'var(--fg-on-primary)', border: 'none',
                 cursor: isLoading ? 'default' : 'pointer',
                 fontFamily: 'var(--sb-font-body)', fontWeight: 700, fontSize: 16,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -415,7 +424,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                     <span style={{
                       width: 16, height: 16,
                       border: '2px solid rgba(255,255,255,0.35)',
-                      borderTopColor: '#fff',
+                      borderTopColor: 'var(--fg-on-primary)',
                       borderRadius: '50%',
                       display: 'inline-block',
                       animation: 'sb-spin 0.7s linear infinite',
@@ -432,16 +441,16 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
               <div style={{
                 display: 'flex', alignItems: 'center', gap: 9,
                 background: 'var(--red-50)',
-                border: '1px solid rgba(184,50,50,0.22)',
+                border: '1px solid color-mix(in srgb, var(--danger) 22%, transparent)',
                 borderRadius: 10, padding: '10px 14px',
               }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                  stroke="var(--danger)" strokeWidth="2.5" strokeLinecap="round">
+                  stroke="var(--danger-text)" strokeWidth="2.5" strokeLinecap="round">
                   <circle cx="12" cy="12" r="10"/>
                   <line x1="12" y1="8" x2="12" y2="12"/>
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger-text)' }}>
                   {formState === 'offline'
                     ? 'No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.'
                     : formState === 'forbidden'
@@ -456,7 +465,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
 
           <p style={{ fontSize: 12, color: 'var(--fg2)', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
             ¿No tienes acceso? Contacta a{' '}
-            <a href="mailto:admin@stopbet.cl" style={{ color: BLUE, fontWeight: 600, textDecoration: 'none' }}>
+            <a href="mailto:admin@stopbet.cl" style={{ color: BLUE_TEXT, fontWeight: 600, textDecoration: 'none' }}>
               admin@stopbet.cl
             </a>
           </p>

@@ -5,6 +5,7 @@ import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
 import { WIcon } from './components/WIcon'
 import { useIsNarrow } from './hooks/useIsNarrow'
+import { MisPacientesPage } from './pages/MisPacientesPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { AlertasPage } from './pages/AlertasPage'
 import { FinanzasPage } from './pages/FinanzasPage'
@@ -174,7 +175,7 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
           {isNarrow && (
             <div
               onClick={() => setMenuOpen(false)}
-              style={{ position: 'fixed', inset: 0, background: 'rgba(45,90,158,0.32)', zIndex: 40 }}
+              style={{ position: 'fixed', inset: 0, background: 'var(--scrim)', zIndex: 40 }}
             />
           )}
           <div
@@ -202,7 +203,7 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
             aria-label="Abrir menú"
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              background: 'var(--primary)', color: '#fff', border: 'none',
+              background: 'var(--primary)', color: 'var(--fg-on-primary)', border: 'none',
               // Este botón hace de cabecera de la página, no de control secundario:
               // con 15px el título se leía más chico que el contenido de abajo.
               padding: '14px 16px', fontSize: 20, fontWeight: 700, cursor: 'pointer',
@@ -220,14 +221,14 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
               que no puede contener un h1: la página quedaba sin título para lectores de pantalla. */}
           {isNarrow && <h1 className="sb-sr-only">{PAGE_TITLES[nav]}</h1>}
           <Routes>
-            <Route path="/" element={<OverviewPage onNav={handleNav} reqCount={requests.length} />} />
+            <Route path="/" element={<OverviewPage user={user} psychId={psychId} />} />
             <Route path="/alertas" element={<AlertasPage />} />
             <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} psychId={psychId} />} />
             <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
             <Route path="/equipo" element={<EquipoPage />} />
             <Route path="/finanzas" element={<FinanzasPage />} />
             <Route path="/configuracion" element={<ConfiguracionPage user={user} />} />
-            <Route path="/pacientes" element={<PlaceholderPage title={PAGE_TITLES.patients} />} />
+            <Route path="/pacientes" element={<MisPacientesPage />} />
             <Route path="/reportes" element={<PlaceholderPage title={PAGE_TITLES.reports} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
@@ -237,7 +238,7 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
       {toast && (
         <div role="status" aria-live="polite" style={{
           position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
-          background: 'var(--ink-900)', color: '#fff', borderRadius: 12,
+          background: 'var(--ink-900)', color: 'var(--fg-on-primary)', borderRadius: 12,
           padding: '13px 22px', fontSize: 13.5, fontWeight: 500,
           display: 'flex', alignItems: 'center', gap: 10,
           boxShadow: 'var(--shadow-strong)', zIndex: 60, maxWidth: 'calc(100vw - 32px)', boxSizing: 'border-box',

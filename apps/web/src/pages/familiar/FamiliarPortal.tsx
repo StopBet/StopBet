@@ -27,11 +27,11 @@ function Shell({
       <header style={{ background: 'linear-gradient(90deg, var(--primary-hover) 0%, var(--primary) 100%)', padding: '26px 24px' }}>
         <div style={{ maxWidth, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
           <div>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 22, color: '#fff' }}>
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 22, color: 'var(--fg-on-primary)' }}>
               Hola, {user.firstName}
             </h1>
             <p style={{ margin: '3px 0 0', fontSize: 13.5, color: 'rgba(255,255,255,0.88)' }}>
-              Portal de familiares de AJUTER
+              Portal de familiares
             </p>
           </div>
           <button
@@ -39,7 +39,7 @@ function Shell({
             style={{
               background: 'rgba(255,255,255,0.18)',
               border: '1px solid rgba(255,255,255,0.45)',
-              color: '#fff',
+              color: 'var(--fg-on-primary)',
               borderRadius: 999,
               padding: '8px 16px',
               fontSize: 13.5,
@@ -87,7 +87,7 @@ function Notice({
           height: 42,
           borderRadius: '50%',
           background: 'var(--surface-alt)',
-          color: 'var(--primary)',
+          color: 'var(--primary-text)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -155,7 +155,7 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
           Revisa tu conexión y vuelve a intentarlo.{' '}
           <button
             onClick={() => refetch()}
-            style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: 14 }}
+            style={{ background: 'none', border: 'none', color: 'var(--primary-text)', fontWeight: 600, cursor: 'pointer', padding: 0, textDecoration: 'underline', fontSize: 14 }}
           >
             Reintentar
           </button>
@@ -169,8 +169,8 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
     return (
       <Shell user={user} onLogout={onLogout}>
         <Notice icon="clock" title="Tu cuenta está pendiente de vinculación">
-          Un profesional de AJUTER debe aprobar tu vínculo con el paciente. Cuando lo haga verás aquí
-          las sesiones grupales de su sede.
+          Un profesional del equipo clínico debe aprobar tu vínculo con el paciente. Cuando lo haga
+          verás aquí las sesiones grupales de su sede.
         </Notice>
       </Shell>
     )
@@ -180,7 +180,7 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
     return (
       <Shell user={user} onLogout={onLogout}>
         <Notice icon="circle-alert" title="Todavía no estás vinculado a un paciente">
-          Pídele a tu profesional de AJUTER que registre el vínculo con tu correo. Sin esa
+          Pídele al equipo clínico que registre el vínculo con tu correo. Sin esa
           vinculación no podemos mostrarte las sesiones.
         </Notice>
       </Shell>
@@ -296,7 +296,7 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
                 alignItems: 'flex-start',
               }}
             >
-              <span style={{ flexShrink: 0, color: 'var(--primary)', marginTop: 1 }}>
+              <span style={{ flexShrink: 0, color: 'var(--primary-text)', marginTop: 1 }}>
                 <WIcon name="calendar" size={20} />
               </span>
               <p style={{ margin: 0, fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>
