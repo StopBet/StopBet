@@ -436,9 +436,10 @@ export function CommunityScreen({ navigation, route }: Props) {
                   monta solo lo que está a la vista. */}
               <FlatList
                 style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={styles.forumContent}
                 showsVerticalScrollIndicator={false}
                 data={posts}
+                inverted={posts.length > 0}
                 keyExtractor={(p) => p.id}
                 initialNumToRender={6}
                 maxToRenderPerBatch={8}
@@ -452,9 +453,13 @@ export function CommunityScreen({ navigation, route }: Props) {
                     text="Comparte cómo te sientes o anima a quienes están en el mismo camino."
                   />
                 }
-                renderItem={({ item: p }) => (
+                renderItem={({ item: p, index }) => (
                   <PostCard
                     post={p}
+                    isOwn={p.authorId === userId}
+                    // La lista llega de la más nueva a la más vieja y se pinta
+                    // invertida, así que la de arriba en pantalla es index + 1.
+                    showAuthor={posts[index + 1]?.authorId !== p.authorId}
                     disabled={offline}
                     expanded={!!expanded[p.id]}
                     replies={repliesByPost[p.id]}
@@ -710,6 +715,8 @@ function AnnouncementCard({
 
 function PostCard({
   post,
+  isOwn,
+  showAuthor,
   disabled,
   expanded,
   replies,
@@ -721,6 +728,8 @@ function PostCard({
   onMenuPress,
 }: {
   post: CommunityPost;
+  isOwn: boolean;
+  showAuthor: boolean;
   disabled: boolean;
   expanded: boolean;
   replies?: CommunityReply[];
@@ -737,29 +746,65 @@ function PostCard({
     post.reactions.find((r) => r.emoji === emoji) ?? { emoji, count: 0, userReacted: false };
 
   return (
-    <View style={styles.msgCard}>
-      <View style={styles.msgHead}>
-        <View style={[styles.avatar, { backgroundColor: c.teal400 }]}>
-          <Text style={styles.avatarLetter}>{initial(post.authorName)}</Text>
-        </View>
-        <View style={styles.flex}>
-          <Text style={styles.authorName}>{post.authorName}</Text>
-          <Text style={styles.authorMeta}>{timeAgo(post.createdAt)}</Text>
-        </View>
+    <View style={isOwn ? styles.msgBlockOwn : styles.msgBlockOther}>
+      <View style={[styles.bubbleRow, isOwn ? styles.msgRowOwn : styles.msgRowOther]}>
+        {/* El avatar solo acompaña al primero de una tanda; en el resto va un hueco
+            del mismo ancho para que las burbujas queden alineadas entre sí. */}
+        {!isOwn && (
+          showAuthor ? (
+            <View style={[styles.avatarSm, { backgroundColor: c.teal400 }]}>
+              <Text style={styles.avatarSmLetter}>{initial(post.authorName)}</Text>
+            </View>
+          ) : (
+            <View style={styles.avatarSpacer} />
+          )
+        )}
+
+        <View style={[styles.bubbleCol, isOwn ? styles.bubbleColOwn : styles.bubbleColOther]}>
+        {/* El toque largo abre el menú, como en un chat; el botón "···" se queda
+            porque un gesto invisible no lo encuentra TalkBack ni quien no lo sabe. */}
         <Touchable
-          onPress={onMenuPress}
-          hitSlop={14}
+          onLongPress={onMenuPress}
+          delayLongPress={300}
+          activeOpacity={0.9}
           accessibilityRole="button"
-          accessibilityLabel="Opciones del mensaje"
+          accessibilityLabel={`Publicación de ${isOwn ? 'tu autoría' : post.authorName}. Mantén pulsado para ver opciones.`}
         >
-          <Icon name="ellipsis" size={20} color={c.fg2} />
+          <View
+            style={[
+              styles.bubble,
+              isOwn ? styles.bubbleOwn : styles.bubbleOther,
+              showAuthor && (isOwn ? styles.bubbleOwnFirst : styles.bubbleOtherFirst),
+            ]}
+          >
+            {!isOwn && showAuthor && (
+              <Text style={styles.bubbleAuthor}>{post.authorName}</Text>
+            )}
+
+            <Text style={[styles.bubbleBody, isOwn && styles.bubbleBodyOwn]}>{post.body}</Text>
+
+            <View style={styles.bubbleFoot}>
+              <Text style={[styles.bubbleTime, isOwn && styles.bubbleTimeOwn]}>
+                {timeAgo(post.createdAt)}
+              </Text>
+              <Touchable
+                onPress={onMenuPress}
+                hitSlop={14}
+                accessibilityRole="button"
+                accessibilityLabel="Opciones del mensaje"
+              >
+                <Icon name="ellipsis" size={16} color={isOwn ? c.onPrimaryMuted : c.fg2} />
+              </Touchable>
+            </View>
+          </View>
         </Touchable>
+        </View>
       </View>
 
-      <Text style={styles.msgBody}>{post.body}</Text>
-
-      {/* Reacciones */}
-      <View style={styles.reactRow}>
+      {/* Reacciones: fuera de la burbuja, como en WhatsApp. Así no hay que
+          resolver el contraste de los chips sobre el azul de las propias. */}
+      <View style={[styles.afterBubble, isOwn ? styles.afterBubbleOwn : styles.afterBubbleOther]}>
+        <View style={[styles.reactRow, isOwn && styles.reactRowOwn]}>
         {REACTION_EMOJIS.map((emoji) => {
           const s = summaryFor(emoji);
           return (
@@ -779,7 +824,6 @@ function PostCard({
             </Touchable>
           );
         })}
-        <View style={styles.flex} />
         <Touchable
           onPress={onToggleReplies}
           activeOpacity={0.7}
@@ -788,7 +832,9 @@ function PostCard({
           accessibilityState={{ expanded }}
         >
           <Text style={styles.replyLink}>
-            {post.replyCount > 0 ? `${post.replyCount} respuestas` : 'Responder'}
+            {post.replyCount > 0
+              ? `${post.replyCount} ${post.replyCount === 1 ? 'respuesta' : 'respuestas'}`
+              : 'Responder'}
           </Text>
         </Touchable>
       </View>
@@ -838,6 +884,7 @@ function PostCard({
           )}
         </View>
       )}
+      </View>
     </View>
   );
 }
@@ -988,6 +1035,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
 
   scroll: { flex: 1, backgroundColor: c.bg },
   scrollContent: { padding: 12, paddingBottom: 24, gap: 12 },
+  // Con la lista invertida, el padding de abajo se ve arriba: va parejo.
+  // El hueco chico es lo que agrupa visualmente una tanda del mismo autor.
+  forumContent: { paddingHorizontal: 12, paddingVertical: 12, gap: 4 },
 
   emptyCard: {
     backgroundColor: c.surface,
@@ -1057,45 +1107,93 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   roleChipTextAdmin: { color: c.fg1 },
 
   // Foro
-  msgCard: {
-    backgroundColor: c.surface,
+  // ── Foro estilo chat ──────────────────────────────────────────────────
+  msgBlockOwn: { alignItems: 'flex-end' },
+  msgBlockOther: { alignItems: 'flex-start' },
+
+  // El avatar se alinea con la burbuja, no con la columna entera: si no, quedaba
+  // a la altura de las reacciones y parecía pertenecer al mensaje de arriba.
+  bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, maxWidth: '100%' },
+  msgRowOwn: { justifyContent: 'flex-end' },
+  msgRowOther: { justifyContent: 'flex-start' },
+
+  // Reacciones y respuestas cuelgan de la burbuja, sangradas para calzar con ella
+  afterBubble: { width: '86%' },
+  afterBubbleOwn: { alignItems: 'flex-end' },
+  afterBubbleOther: { alignItems: 'flex-start', paddingLeft: 36 },
+
+  // Mantiene alineadas las burbujas de una misma tanda, donde no va el avatar
+  avatarSpacer: { width: 28 },
+
+  // 82% deja ver que hay un lado libre, que es lo que hace legible de quién es
+  // cada mensaje antes de leer el nombre.
+  bubbleCol: { maxWidth: '76%' },
+  bubbleColOwn: { alignItems: 'flex-end' },
+  bubbleColOther: { alignItems: 'flex-start' },
+
+  bubble: {
     borderRadius: 16,
-    padding: 14,
+    paddingHorizontal: 13,
+    paddingTop: 9,
+    paddingBottom: 6,
     shadowColor: c.shadowSoft,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 2,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  msgHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  msgBody: { fontFamily: Fonts.body, fontSize: 15, color: c.ink900, lineHeight: 22, paddingTop: 10 },
+  bubbleOwn: { backgroundColor: c.primary },
+  bubbleOther: { backgroundColor: c.surface },
+  // La esquina recta marca el inicio de la tanda, como la "cola" de un chat
+  bubbleOwnFirst: { borderTopRightRadius: 4 },
+  bubbleOtherFirst: { borderTopLeftRadius: 4 },
+
+  bubbleAuthor: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: c.primaryText,
+    marginBottom: 3,
+  },
+  bubbleBody: { fontFamily: Fonts.body, fontSize: 15, color: c.ink900, lineHeight: 21 },
+  // Blanco sobre el azul de marca: 5,09:1
+  bubbleBodyOwn: { color: c.white },
+
+  bubbleFoot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 3,
+  },
+  bubbleTime: { fontFamily: Fonts.body, fontSize: 11, color: c.fg2 },
+  // onPrimaryMuted sobre el azul: 4,57:1 (el azul claro daría 2,56:1)
+  bubbleTimeOwn: { color: c.onPrimaryMuted },
 
   reactRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
-    borderTopWidth: 1,
-    borderTopColor: c.border,
-    paddingTop: 9,
-    marginTop: 10,
+    gap: 2,
+    marginTop: 2,
   },
+  reactRowOwn: { justifyContent: 'flex-end' },
   reactChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: c.bg,
+    gap: 4,
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: c.border,
+    borderColor: 'transparent',
     borderRadius: 9999,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
+  // Con una reacción encima sí toma cuerpo: es el estado que hay que distinguir
   reactChipOn: { backgroundColor: c.sage50, borderColor: c.primary },
   reactCount: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.ink900 },
-  replyLink: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.primaryText, paddingVertical: 5 },
+  replyLink: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, paddingVertical: 3, marginLeft: 6 },
 
   // Respuestas
-  repliesWrap: { marginTop: 8 },
+  repliesWrap: { marginTop: 8, alignSelf: 'stretch' },
   replyLoader: { alignSelf: 'flex-start', marginLeft: 12, marginVertical: 6 },
   reply: {
     marginLeft: 10,
@@ -1121,7 +1219,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   replyInput: {
     fontFamily: Fonts.body,
     flex: 1,
-    backgroundColor: c.bg,
+    backgroundColor: c.surface,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: 16,
