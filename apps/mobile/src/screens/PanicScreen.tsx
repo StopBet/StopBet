@@ -104,7 +104,7 @@ export function PanicScreen({ navigation }: Props) {
           setState({ kind: 'responded', alert, sponsor });
         } else if (alert.status === 'escalated') {
           // Ya navegamos al asistente cuando se escaló. Al volver a esta pantalla
-          // no tiene sentido bloquearla con "Asistente IA listo" — ir directo a idle.
+          // no tiene sentido bloquearla con "Asistente IA listo" - ir directo a idle.
           setState({ kind: 'idle', sponsor: sponsorInfo });
           api.cancelPanicAlert(userId, alert.id).catch(() => {});
         } else {
@@ -154,7 +154,7 @@ export function PanicScreen({ navigation }: Props) {
           }
         }
       } catch {
-        // Red fluctuante — seguir intentando
+        // Red fluctuante - seguir intentando
       }
     }, POLL_INTERVAL_MS);
   }, [navigation]);
@@ -194,8 +194,8 @@ export function PanicScreen({ navigation }: Props) {
     }
   };
 
-  // La pantalla de respuesta se borraba sola a los 30 s —podía desaparecer mientras
-  // el paciente todavía la leía— y de paso marcaba como cancelada una alerta que sí
+  // La pantalla de respuesta se borraba sola a los 30 s - podía desaparecer mientras
+  // el paciente todavía la leía - y de paso marcaba como cancelada una alerta que sí
   // había sido respondida. Ahora la cierra el paciente cuando quiere.
   const handleCloseResponded = useCallback(async (alertId: string, sponsorForIdle: SponsorInfo | null) => {
     setState({ kind: 'idle', sponsor: sponsorForIdle });
@@ -278,7 +278,7 @@ export function PanicScreen({ navigation }: Props) {
     try {
       await api.cancelPanicAlert(userId, state.alert.id);
     } catch {
-      // Best effort — el estado local ya volvió a idle
+      // Best effort - el estado local ya volvió a idle
     }
   }, [state]);
 
@@ -300,7 +300,7 @@ export function PanicScreen({ navigation }: Props) {
       const { communityNotified } = await api.notifyCommunity(userId, state.alert.id);
       // CA5.1: el backend responde 200 con `false` cuando no hay foro donde publicar
       // (paciente sin sede asignada). Marcarlo igual ocultaba la tarjeta y el botón
-      // —ambos se pintan con este flag—, así que el paciente en crisis se quedaba sin
+      // ambos se pintan con este flag, así que el paciente en crisis se quedaba sin
       // la opción y creyendo que su red ya sabía, cuando nadie había visto nada.
       if (!communityNotified) {
         showDialog({
@@ -312,7 +312,7 @@ export function PanicScreen({ navigation }: Props) {
       }
       setState({ kind: 'waiting', alert: { ...state.alert, communityNotified: true }, sponsor: state.sponsor });
     } catch {
-      // Silencioso — navegar igual
+      // Silencioso - navegar igual
     }
     const draft = 'Hola 🚨 no me encuentro muy bien, ¿alguien podría ayudarme conversando?';
     navigation.navigate('MainTabs', {
@@ -729,7 +729,7 @@ export function PanicScreen({ navigation }: Props) {
                 )}
               </>
             ) : (
-              <Text style={styles.noSponsorText}>Sin compañero de viaje asignado — contacta a tu psicólogo</Text>
+              <Text style={styles.noSponsorText}>Sin compañero de viaje asignado. Contacta a tu psicólogo</Text>
             )}
           </View>
         </View>

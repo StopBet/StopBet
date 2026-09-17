@@ -370,7 +370,7 @@ export function ProfileScreen({ navigation }: Props) {
                   value={daysInput}
                   onChangeText={setDaysInput}
                   keyboardType="number-pad"
-                  placeholder="—"
+                  placeholder="-"
                   placeholderTextColor={c.fg2}
                   maxLength={4}
                   returnKeyType="done"
@@ -428,7 +428,7 @@ export function ProfileScreen({ navigation }: Props) {
               <View style={[styles.devBadge, { backgroundColor: c.successSurface }]}>
                 <Icon name="check" size={12} color={c.greenText} />
                 <Text style={[styles.devBadgeText, { color: c.greenText }]}>
-                  Check-in borrado — ya puedes registrarlo de nuevo
+                  Check-in borrado. Ya puedes registrarlo de nuevo
                 </Text>
               </View>
             )}
@@ -463,7 +463,7 @@ export function ProfileScreen({ navigation }: Props) {
               <View style={[styles.devBadge, { backgroundColor: c.successSurface }]}>
                 <Icon name="check" size={12} color={c.greenText} />
                 <Text style={[styles.devBadgeText, { color: c.greenText }]}>
-                  Alerta cancelada — el botón de pánico vuelve al estado normal
+                  Alerta cancelada. El botón de pánico vuelve al estado normal
                 </Text>
               </View>
             )}

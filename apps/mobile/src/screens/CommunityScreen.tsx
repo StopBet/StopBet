@@ -894,8 +894,8 @@ function PostCard({
 // Android reutiliza conexiones de un pool. Si el servidor cerró una que quedó
 // ociosa y la app manda un POST justo por ahí, la petición llega y se procesa,
 // pero la respuesta se pierde: el cliente ve "Network request failed" con el
-// cambio ya hecho. OkHttp reintenta solo los GET —nunca un POST, porque no sabe
-// si es seguro repetirlo—, y por eso el feed carga bien y solo fallan las
+// cambio ya hecho. OkHttp reintenta solo los GET - nunca un POST, porque no sabe
+// si es seguro repetirlo, y por eso el feed carga bien y solo fallan las
 // escrituras.
 //
 // Verificado en la tablet: `curl` al mismo endpoint responde 200 en 0,5 s

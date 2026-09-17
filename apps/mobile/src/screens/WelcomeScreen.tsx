@@ -85,7 +85,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 30,
   },
-  // Los anillos venían en rgba(232,136,58) — el naranja AJUTER de la paleta
+  // Los anillos venían en rgba(232,136,58) - el naranja AJUTER de la paleta
   // anterior. Ahora derivan del azul principal del manual (#396fb6).
   ringOuter: {
     width: 200,

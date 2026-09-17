@@ -42,7 +42,7 @@ export function SelectInstitutionScreen({ navigation }: Props) {
           Elige el centro al que perteneces para conectarte con su equipo clínico y su comunidad.
         </Text>
 
-        {/* AJUTER — seleccionada */}
+        {/* AJUTER - seleccionada */}
         <Touchable
           activeOpacity={0.85}
           onPress={() => setSelected(INSTITUTION_ID)}

@@ -40,7 +40,7 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
       <Text style={styles.subtitle}>Tu psicólogo verá cómo te sentiste.</Text>
 
       {/* Cinco columnas flexibles: con la fila desplazable y tarjetas de 64 dp fijos,
-          en pantallas de 360 dp "Bien" —la única opción positiva— quedaba fuera de la vista */}
+          en pantallas de 360 dp "Bien" - la única opción positiva - quedaba fuera de la vista */}
       <View style={styles.row}>
         {EMOTIONS.map((o) => {
           const isSelected = done && selected === o.type;

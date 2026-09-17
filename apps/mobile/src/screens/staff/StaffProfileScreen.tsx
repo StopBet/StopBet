@@ -61,7 +61,7 @@ export function StaffProfileScreen() {
           <Text style={styles.tarjetaTitulo} accessibilityRole="header">Tu cuenta</Text>
           <View style={styles.fila}>
             <Text style={styles.filaLabel}>Correo</Text>
-            <Text style={styles.filaValor} numberOfLines={2}>{usuario?.email ?? '—'}</Text>
+            <Text style={styles.filaValor} numberOfLines={2}>{usuario?.email ?? '-'}</Text>
           </View>
           <View style={styles.fila}>
             <Text style={styles.filaLabel}>
@@ -101,7 +101,7 @@ export function StaffProfileScreen() {
         <View style={styles.nota}>
           <Icon name="chart-column" size={16} color={c.primaryText} />
           <Text style={styles.notaTexto}>
-            El panel completo —solicitudes, finanzas, equipo, informes y el historial clínico—
+            El panel completo - solicitudes, finanzas, equipo, informes y el historial clínico -
             vive en la web. Esta app es para mirar rápido y publicar anuncios.
           </Text>
         </View>

@@ -72,7 +72,7 @@ function StaffPager() {
 
 /**
  * La app del equipo clínico: un resumen para mirar rápido y la comunidad de la sede.
- * No monta el stack del paciente —pánico, asistente, check-in— porque nada de eso
+ * No monta el stack del paciente - pánico, asistente, check-in - porque nada de eso
  * significa algo en la sesión de un psicólogo.
  */
 export function StaffTabs() {

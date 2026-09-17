@@ -31,7 +31,7 @@ interface Props {
   onClose: () => void;
 }
 
-// Spark particles — pre-computed angles/distances so they're stable across renders
+// Spark particles - pre-computed angles/distances so they're stable across renders
 // Eran naranjas AJUTER (#E8883A) y oros inventados, de un tema que ya no existe.
 // Ahora salen del manual de marca: verde, azul claro y lila.
 const makeSparks = (c: Palette) => [
@@ -111,7 +111,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
       return;
     }
 
-    // Phase 1 — overlay + modal slide-up
+    // Phase 1 - overlay + modal slide-up
     Animated.parallel([
       Animated.timing(overlayOp, {
         toValue: 1, duration: 240,
@@ -126,7 +126,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
         easing: Easing.out(Easing.back(1.6)), useNativeDriver: true,
       }),
     ]).start(() => {
-      // Phase 2 — badge pop + ring + sparks + text
+      // Phase 2 - badge pop + ring + sparks + text
       Animated.parallel([
         // Shockwave ring
         Animated.parallel([

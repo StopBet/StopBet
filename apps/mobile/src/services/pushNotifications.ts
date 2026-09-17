@@ -35,7 +35,7 @@ async function pedirPermiso(): Promise<boolean> {
  * Devuelve una función para dejar de escuchar la rotación del token.
  *
  * Nunca lanza: quedarse sin push es molesto, pero no puede impedir que el
- * paciente use la app — y menos el botón de pánico.
+ * paciente use la app - y menos el botón de pánico.
  */
 export interface RegistroPush {
   /** false si el paciente rechazó el permiso o algo falló: la pantalla lo dice. */

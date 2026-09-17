@@ -28,7 +28,7 @@ const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 // Solo se acota lo que es objetivo: no se puede haber nacido en el futuro, ni hace mas de
 // 110 años. AJUTER no tiene definida una edad minima de ingreso; mientras no exista esa
-// regla en el proyecto, el selector no la inventa —bloquear en silencio meses que parecen
+// regla en el proyecto, el selector no la inventa - bloquear en silencio meses que parecen
 // validos deja al usuario sin saber que hizo mal.
 const MAX_AGE = 110;
 

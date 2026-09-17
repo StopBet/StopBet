@@ -369,7 +369,7 @@ export function SuspendedAccountScreen({ navigation }: Props) {
           <View style={styles.emDividerLine} />
         </View>
 
-        {/* Tarjeta de pánico — siempre accesible */}
+        {/* Tarjeta de pánico - siempre accesible */}
         <View style={styles.panicCard}>
           <Text style={styles.panicCardLead}>
             Aunque tu cuenta esté suspendida, siempre puedes usar:

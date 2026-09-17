@@ -57,8 +57,8 @@ export function FormInput({
 
   // El realce de foco se pinta con un anillo aparte, hermano de la fila y no ancestro del
   // TextInput, y montado SIEMPRE: solo cambia su color. Aplicar el realce sobre la fila que
-  // contiene al TextInput lo remontaba al enfocarlo —el foco saltaba al campo siguiente y el
-  // teclado se cerraba—, y aplazar el re-render con requestAnimationFrame tampoco bastaba:
+  // contiene al TextInput lo remontaba al enfocarlo - el foco saltaba al campo siguiente y el
+  // teclado se cerraba, y aplazar el re-render con requestAnimationFrame tampoco bastaba:
   // el momento da igual, lo que rompe es tocar el arbol por encima del input. Con el anillo
   // separado el subarbol del TextInput queda intacto y el borde azul vuelve.
   const borderColor = error ? c.danger : c.border;
@@ -81,7 +81,7 @@ export function FormInput({
           )}
           {/* Con la autocorrección encendida el teclado de Android mantiene una región de
               composición sobre lo que se está escribiendo. Un campo que reescribe su propio
-              texto en cada tecla —como el RUT, que se formatea solo— la deja obsoleta, y el
+              texto en cada tecla - como el RUT, que se formatea solo - la deja obsoleta, y el
               teclado vuelve a soltar su buffer entero: tecleando 123 el campo terminaba con
               123123123. Apagar autoCorrect evita esto en Gboard, pero no en todos los
               teclados (probado: el de Samsung lo ignora); ahí hace falta además forzar

@@ -115,7 +115,7 @@ export function EventDatePicker({ visible, value, onSelect, onClose }: Props) {
           </ScrollView>
 
           <Text style={styles.etiqueta}>Hora</Text>
-          {/* Sin esto la lista abre en las 08:00 y la hora elegida —18:00 por omisión—
+          {/* Sin esto la lista abre en las 08:00 y la hora elegida - 18:00 por omisión -
               queda fuera de la pantalla: parecía que no había ninguna seleccionada. */}
           <ScrollView
             horizontal

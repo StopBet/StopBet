@@ -93,7 +93,7 @@ export function PatientSheet({ paciente, alertas, onClose }: Props) {
               </View>
               <View style={styles.cifra}>
                 <Text style={styles.cifraValorEmoji}>
-                  {paciente.lastCheckIn ? (EMOTION_EMOJI[paciente.lastCheckIn.emotion] ?? '–') : '–'}
+                  {paciente.lastCheckIn ? (EMOTION_EMOJI[paciente.lastCheckIn.emotion] ?? '-') : '-'}
                 </Text>
                 <Text style={styles.cifraLabel}>
                   {paciente.lastCheckIn ? timeAgo(paciente.lastCheckIn.date).toLowerCase() : 'sin check-in'}

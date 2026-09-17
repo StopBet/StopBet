@@ -53,7 +53,7 @@ export function PaymentScreen({ navigation, route }: Props) {
     setPaying(true);
     try {
       await api.createSubscription({ userId, paymentMethod: method });
-      // Antes decía "Tu pago fue procesado correctamente" —no se cobra nada todavía— y
+      // Antes decía "Tu pago fue procesado correctamente" - no se cobra nada todavía - y
       // llevaba a Bienvenida. Con sesión real tampoco se puede entrar directo: el registro
       // no pide contraseña, la crea el equipo de AJUTER al aprobar la solicitud y la manda
       // por correo. Así que el paso siguiente honesto es el login.

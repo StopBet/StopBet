@@ -13,7 +13,7 @@ import type { AppStackParamList, MainTabsParamList } from './types';
 const Tabs = createMaterialTopTabNavigator<MainTabsParamList>();
 
 // El orden manda el gesto: deslizar hacia la izquierda avanza en esta lista.
-// Pánico queda fuera a propósito — a la pantalla de crisis se entra apretando,
+// Pánico queda fuera a propósito - a la pantalla de crisis se entra apretando,
 // nunca por un deslizamiento accidental.
 const TAB_ORDER: NavTab[] = ['home', 'community', 'achievements', 'profile'];
 const ROUTE_BY_TAB: Record<NavTab, keyof MainTabsParamList> = {
