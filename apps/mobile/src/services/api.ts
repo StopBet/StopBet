@@ -13,7 +13,6 @@ import type {
   Notification,
   PaginatedResponse,
   PanicAlertDto,
-  PatientProgress,
   PaymentMethod,
   ReactionEmoji,
   ReactionSummary,
@@ -228,13 +227,6 @@ export const api = {
     } finally {
       await session.clear();
     }
-  },
-
-  // ── Progreso del paciente ────────────────────────────────────────────
-  getProgress: async (userId: string) => {
-    const data = await request<PatientProgress>(`/users/${userId}/progress`, { userId });
-    const override = devFlags.overrideDays;
-    return override !== null ? { ...data, daysStreak: override } : data;
   },
 
   // ── Check-in emocional ───────────────────────────────────────────────
