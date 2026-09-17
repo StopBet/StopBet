@@ -1,4 +1,5 @@
 import { Controller, MessageEvent, Sse } from '@nestjs/common';
+import { Public } from '../common/decorators/public.decorator';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Observable, interval, map, switchMap } from 'rxjs';
 import { PanicService } from './panic.service';
@@ -14,6 +15,11 @@ const POLL_INTERVAL_MS = 5_000;
 export class PanicStreamController {
   constructor(private readonly panicService: PanicService) {}
 
+  // Público porque EventSource, la API del navegador para SSE, no permite mandar el header
+  // Authorization. Lo que emite no identifica a nadie: solo cuántas alertas hay, cuántas
+  // esperan y la hora de la más reciente; el panel usa el evento para volver a pedir el
+  // historial, y ESE endpoint sí exige token y rol.
+  @Public()
   @Sse('alerts/stream')
   @ApiOperation({ summary: 'Alertas de pánico en tiempo real (SSE) — vista psicólogo, sin recargar' })
   streamAlerts(): Observable<MessageEvent> {

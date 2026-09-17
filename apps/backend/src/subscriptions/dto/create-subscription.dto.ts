@@ -3,9 +3,13 @@ import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
 import { PaymentMethod } from '@stopbet/shared-types';
 
 export class CreateSubscriptionDto {
-  @ApiProperty({ description: 'UUID del paciente' })
+  // Ya no se usa: el paciente sale del token. Antes venía de acá, y cualquiera podía activar
+  // la suscripción de otro con solo escribir su id. Se acepta y se ignora porque las versiones
+  // de la app ya instaladas lo siguen mandando; quitarlo del DTO les daría 400.
+  @ApiPropertyOptional({ deprecated: true, description: 'Ignorado: el paciente sale del token' })
+  @IsOptional()
   @IsUUID()
-  userId: string;
+  userId?: string;
 
   @ApiProperty({ enum: ['card', 'webpay', 'transfer'] })
   @IsEnum(['card', 'webpay', 'transfer'])

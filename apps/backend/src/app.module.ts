@@ -50,6 +50,7 @@ import { PsychologistsModule } from './psychologists/psychologists.module';
 import { PsychologistSede } from './psychologists/entities/psychologist-sede.entity';
 import { PatientAssignment } from './psychologists/entities/patient-assignment.entity';
 import { MailModule } from './mail/mail.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -128,6 +129,10 @@ import { MailModule } from './mail/mail.module';
   controllers: [],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Todo endpoint exige token salvo los marcados con @Public(). Antes el guard era opcional
+    // por endpoint y 14 de 17 controladores confiaban en el header x-user-id sin verificarlo.
+    // Va después del throttler: el límite de peticiones se aplica también a las rechazadas.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
 export class AppModule {}

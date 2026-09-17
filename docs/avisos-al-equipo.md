@@ -20,6 +20,57 @@ está.
 
 ---
 
+## 2026-09-16 — El backend exige token en todo: `x-user-id` ya no se lee
+
+**A quién le pega:** a **todos** los que toquen el backend, y a cualquiera con scripts,
+colecciones de Postman o pruebas con `curl` que manden `x-user-id` sin token.
+
+**Qué hacer:** nada que instalar. Pero **si llamas a la API a mano, necesitas un token**:
+`POST /auth/login` y después `Authorization: Bearer <accessToken>`. Con solo `x-user-id`,
+ahora recibes **401**.
+
+**Qué cambió:**
+
+- **`JwtAuthGuard` está registrado global** (`app.module.ts`). Todo endpoint exige token
+  salvo los marcados con `@Public()`: login, refresh, logout, `/health`, `GET /sedes`, el envío
+  y la consulta de una solicitud de registro, y el stream de alertas (SSE, porque `EventSource`
+  no puede mandar `Authorization`; solo emite conteos).
+- **La identidad sale del token.** Los 40 `@Headers('x-user-id')` de 9 controladores pasaron a
+  `@UserId()` (`common/decorators/user-id.decorator.ts`). Antes, quien supiera el UUID de un
+  paciente podía leer sus check-ins o sus conversaciones con el asistente sin iniciar sesión.
+- **Tres endpoints que no pedían nada:** `POST /panic/assign` (cualquiera cambiaba el compañero
+  de viaje de cualquier paciente) ahora exige rol de equipo clínico; `POST /subscriptions` toma
+  el paciente del token, no del cuerpo; y `GET /community/posts/:id/replies` quedó cubierto por
+  el guard global.
+- **Guard nuevo `PatientAccessGuard`** para endpoints del equipo clínico sobre un paciente: la
+  coordinación accede a todos y un psicólogo, solo a sus asignados. Se aplica a
+  `GET /metrics/patients/:id` y `GET /users/:id/progress`, que antes dejaban a cualquier
+  psicólogo leer cualquier paciente cambiando el id en la URL.
+- **Dos endpoints nuevos** para que la web deje de hacerse pasar por el paciente:
+  `POST /achievements/patients/:patientId/relapse` (la ficha registraba la recaída mandando el
+  id del paciente en `x-user-id`) y `GET /billing/patients/:patientId/status` (el reporte PDF).
+
+**Si escribes un endpoint nuevo:**
+
+1. **No uses `@Headers('x-user-id')`.** Usa `@UserId()` para quien pregunta.
+2. Si es público, `@Public()` **con un comentario que diga por qué**.
+3. Si el equipo clínico actúa sobre un paciente puntual, `@UseGuards(RolesGuard, PatientAccessGuard)`
+   con el id en la ruta como `:patientId` o `:id`.
+
+**Clientes:** la web y mobile ya mandaban `Authorization: Bearer`, así que siguen funcionando.
+Verificado: las 12 llamadas de la app del paciente responden 200 con token, y la web completa
+con psicólogo, coordinadora y familiar no tiene ningún 401/403 nuevo. **Mobile sigue mandando
+`x-user-id`**: es inofensivo (se ignora) y se puede sacar de `services/api.ts` cuando alguien
+toque ese archivo. ⚠️ Un **APK anterior al 15-09** (sin sesión real) ya no puede hablar con el
+backend: hay que reinstalar.
+
+**Tests:** 5 unitarios nuevos del guard y 15 e2e nuevos en `test/auth-global.e2e-spec.ts`.
+Quedan 279 unitarios y 66 e2e pasando. La matriz de permisos
+(`docs/security/permissions-matrix.md`) está reescrita, con lo que sigue pendiente: sobre todo,
+que varios endpoints autenticados no restringen **qué rol** puede llamarlos.
+
+---
+
 ## 2026-09-16 — El panel web tiene modo oscuro: usa `--primary-text` y `--danger-text` para texto
 
 **A quién le pega:** a cualquiera que escriba UI en `apps/web`.

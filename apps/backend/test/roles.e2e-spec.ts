@@ -7,16 +7,20 @@ import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { User } from '../src/users/entities/user.entity';
 import { RefreshToken } from '../src/auth/entities/refresh-token.entity';
+import { PatientAssignment } from '../src/psychologists/entities/patient-assignment.entity';
 
 // S.5 — 403 verificable en endpoints protegidos por rol, contra una app real (BD real).
 describe('Roles guard (e2e)', () => {
   let app: INestApplication;
   let userRepo: Repository<User>;
   let refreshTokenRepo: Repository<RefreshToken>;
+  let assignmentRepo: Repository<PatientAssignment>;
 
   const TEST_PASSWORD = 'TestE2E2026!';
   let patientId: string;
   let psychologistId: string;
+  // Psicólogo SIN el paciente asignado: los endpoints sobre un paciente puntual le dan 403.
+  let otherPsychologistId: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -28,6 +32,7 @@ describe('Roles guard (e2e)', () => {
 
     userRepo = moduleFixture.get(getRepositoryToken(User));
     refreshTokenRepo = moduleFixture.get(getRepositoryToken(RefreshToken));
+    assignmentRepo = moduleFixture.get(getRepositoryToken(PatientAssignment));
 
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
 
@@ -54,13 +59,32 @@ describe('Roles guard (e2e)', () => {
       }),
     );
     psychologistId = psychologist.id;
+
+    await assignmentRepo.save(
+      assignmentRepo.create({ patientId, psychologistId, sedeId: 'e2e-sede', active: true }),
+    );
+
+    const other = await userRepo.save(
+      userRepo.create({
+        email: `e2e-psych-otro-${Date.now()}@stopbet.cl`,
+        passwordHash,
+        role: 'psychologist',
+        firstName: 'E2E',
+        lastName: 'OtroPsicologo',
+        accountStatus: 'active',
+      }),
+    );
+    otherPsychologistId = other.id;
   });
 
   afterAll(async () => {
     await refreshTokenRepo.delete({ userId: patientId });
     await refreshTokenRepo.delete({ userId: psychologistId });
+    await refreshTokenRepo.delete({ userId: otherPsychologistId });
+    await assignmentRepo.delete({ patientId });
     await userRepo.delete({ id: patientId });
     await userRepo.delete({ id: psychologistId });
+    await userRepo.delete({ id: otherPsychologistId });
     await app.close();
   });
 
@@ -113,7 +137,7 @@ describe('Roles guard (e2e)', () => {
         .expect(403);
     });
 
-    it('con rol psychologist → 200', async () => {
+    it('con rol psychologist y el paciente asignado → 200', async () => {
       const token = await loginAs(
         (await userRepo.findOneOrFail({ where: { id: psychologistId } })).email,
       );
@@ -121,6 +145,17 @@ describe('Roles guard (e2e)', () => {
         .get(`/users/${patientId}/progress`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
+    });
+
+    // Antes cualquier psicólogo leía los datos de cualquier paciente cambiando el id en la URL.
+    it('con rol psychologist SIN el paciente asignado → 403', async () => {
+      const token = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: otherPsychologistId } })).email,
+      );
+      await request(app.getHttpServer())
+        .get(`/users/${patientId}/progress`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
     });
   });
 
@@ -139,7 +174,7 @@ describe('Roles guard (e2e)', () => {
         .expect(403);
     });
 
-    it('con rol psychologist → 200', async () => {
+    it('con rol psychologist y el paciente asignado → 200', async () => {
       const token = await loginAs(
         (await userRepo.findOneOrFail({ where: { id: psychologistId } })).email,
       );
@@ -147,6 +182,17 @@ describe('Roles guard (e2e)', () => {
         .get(`/metrics/patients/${patientId}`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
+    });
+
+    // Antes cualquier psicólogo leía los datos de cualquier paciente cambiando el id en la URL.
+    it('con rol psychologist SIN el paciente asignado → 403', async () => {
+      const token = await loginAs(
+        (await userRepo.findOneOrFail({ where: { id: otherPsychologistId } })).email,
+      );
+      await request(app.getHttpServer())
+        .get(`/metrics/patients/${patientId}`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
     });
   });
 

@@ -189,7 +189,7 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
 }
 
 /* ── Flagged Posts Section ───────────────────────────── */
-function FlaggedPostsSection({ psychId }: { psychId: string }) {
+function FlaggedPostsSection() {
   const isNarrow = useIsNarrow()
   const qc = useQueryClient()
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
@@ -197,11 +197,11 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
 
   const { data: flagged = [], isLoading } = useQuery({
     queryKey: ['flagged-posts'],
-    queryFn: () => api.getFlaggedPosts(psychId),
+    queryFn: () => api.getFlaggedPosts(),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (postId: string) => api.deletePost(postId, psychId),
+    mutationFn: (postId: string) => api.deletePost(postId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['flagged-posts'] })
       setDeleteTarget(null)
@@ -352,12 +352,11 @@ function FlaggedPostsSection({ psychId }: { psychId: string }) {
 /* ── Solicitudes Page ────────────────────────────────── */
 interface SolicitudesPageProps {
   requests: RegistrationRequest[]
-  psychId: string
   onApprove: (id: string, assignedPsychologistId?: string) => void
   onReject: (id: string) => void
 }
 
-export function SolicitudesPage({ requests, psychId, onApprove, onReject }: SolicitudesPageProps) {
+export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPageProps) {
   const isNarrow = useIsNarrow()
   const [approveReq, setApproveReq] = useState<RegistrationRequest | null>(null)
   const [rejectReq, setRejectReq]   = useState<RegistrationRequest | null>(null)
@@ -479,7 +478,7 @@ export function SolicitudesPage({ requests, psychId, onApprove, onReject }: Soli
       </div>
 
       {/* Posts reportados */}
-      <FlaggedPostsSection psychId={psychId} />
+      <FlaggedPostsSection />
 
       {approveReq && (
         <ApproveModal

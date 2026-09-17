@@ -331,23 +331,24 @@ export const api = {
   rejectRequest: (requestId: string) =>
     patch<void>(`/registration/${requestId}/reject`),
 
+  // El equipo clínico registra la recaída con su propio token. Antes mandaba el id del
+  // paciente en x-user-id, haciéndose pasar por él; el backend ya no lee ese header.
   reportRelapse: (patientId: string) =>
-    post<void>('/achievements/relapse', { 'x-user-id': patientId }),
+    post<void>(`/achievements/patients/${patientId}/relapse`),
 
-  getFlaggedPosts: (psychId: string) =>
-    get<FlaggedPost[]>('/community/moderation/flagged', { 'x-user-id': psychId }),
+  getFlaggedPosts: () =>
+    get<FlaggedPost[]>('/community/moderation/flagged'),
 
-  deletePost: (postId: string, psychId: string) =>
-    del<{ deleted: boolean }>(`/community/posts/${postId}`, { 'x-user-id': psychId }),
+  deletePost: (postId: string) =>
+    del<{ deleted: boolean }>(`/community/posts/${postId}`),
 
   getPatientMetrics: (patientId: string) =>
     get<PatientMetrics>(`/metrics/patients/${patientId}`),
 
-  // Estado de cuotas del paciente, para el reporte PDF. El endpoint lee `x-user-id`
-  // sin verificarlo (ver docs/security/permissions-matrix.md): acá se le pasa el id
-  // del paciente consultado, no el del psicólogo.
+  // Estado de cuotas de un paciente, para el reporte PDF. El backend exige rol de equipo
+  // clínico y que el paciente esté asignado a quien pregunta (o que sea coordinación).
   getPatientBilling: (patientId: string) =>
-    get<BillingStatus>('/billing/status', { 'x-user-id': patientId }),
+    get<BillingStatus>(`/billing/patients/${patientId}/status`),
 
   // ── Portal del familiar (HU-11) ─────────────────────────────────────────────
 

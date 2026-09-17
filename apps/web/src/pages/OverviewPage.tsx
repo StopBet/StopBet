@@ -20,7 +20,6 @@ const MAX_ITEMS = 3
 
 interface OverviewPageProps {
   user: AuthUser
-  psychId: string
 }
 
 function Block({ icon, title, count, tone = 'neutral', children, cta, onCta }: {
@@ -87,7 +86,7 @@ function Chip({ text, tone }: { text: string; tone: 'danger' | 'warn' }) {
   )
 }
 
-export function OverviewPage({ user, psychId }: OverviewPageProps) {
+export function OverviewPage({ user }: OverviewPageProps) {
   const navigate = useNavigate()
   const isNarrow = useIsNarrow()
   const esCoordinador = user.role === 'coordinator'
@@ -103,7 +102,7 @@ export function OverviewPage({ user, psychId }: OverviewPageProps) {
   // La moderación es solo de psicólogos: al coordinador el backend le responde 403.
   const { data: flagged = [] } = useQuery({
     queryKey: ['flagged-posts'],
-    queryFn: () => api.getFlaggedPosts(psychId),
+    queryFn: () => api.getFlaggedPosts(),
     enabled: !esCoordinador,
   })
   const { data: psicologos = [] } = useQuery({
