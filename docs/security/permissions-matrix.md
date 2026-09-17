@@ -9,24 +9,23 @@ de protección hoy.
 
 ## Cómo leer la columna "Estado actual"
 
+> **Actualizado el 16-09-2026: `JwtAuthGuard` está registrado global.** Todo endpoint exige
+> un token firmado salvo los marcados con `@Public()`, y la identidad sale del token
+> (`@UserId()`), no del header `x-user-id`, que el backend ya no lee. Las categorías
+> «⚠️ Scoped por dueño» y «❌ Abierto» de las versiones anteriores dejaron de existir.
+
 | Símbolo | Significa |
 |---|---|
-| ✅ Protegido | Pasa por `JwtAuthGuard` + `RolesGuard` — el rol se verifica contra un token firmado |
-| ✅ Autenticado | Pasa por `JwtAuthGuard` sin `@Roles()` — la identidad viene de un token firmado y el servicio decide qué puede hacer cada quien |
-| ⚠️ Verificado sin guard | El servicio compara el rol, pero contra el header `x-user-id` — **falsificable**, cualquiera puede mandar el UUID que quiera |
-| ⚠️ Scoped por dueño | No verifica rol, pero la query solo devuelve/modifica filas de ese `userId` — limita el daño, no es control de acceso real |
-| ❌ Abierto | Sin identidad de ningún tipo. Cualquiera en internet puede llamarlo |
-| 🔓 Público (correcto) | Diseñado para ser público (login, catálogo de sedes, registro de pacientes) |
+| ✅ Protegido | Token firmado + `@Roles()`: solo entran los roles listados |
+| ✅ Protegido + asignación | Además de rol, `PatientAccessGuard`: un psicólogo solo alcanza a sus pacientes asignados; la coordinación, a todos |
+| ✅ Autenticado | Token firmado, sin `@Roles()`. La identidad sale del token, así que el servicio solo toca las filas de quien pregunta, pero **cualquier rol autenticado puede llamarlo** |
+| 🔓 Público | `@Public()`, con la justificación escrita en el endpoint |
 
-**Resumen (actualizado 16-09-2026):** de los 56 endpoints originales, **20 están protegidos
-de verdad** con `JwtAuthGuard` + `RolesGuard` — `family` (7, Alex), `psychologists` (5,
-Matías Lara — módulo nuevo de HdU24), `registration` (3, Matías Lara), `users` (2, José),
-`community` (1, anuncios), `metrics` (1, Eduardo), `panic` (1, José) — **más 2 con
-`JwtAuthGuard` solo** (`moderation/flagged` y `DELETE /posts/:id`, donde el servicio ya
-distingue autor de psicólogo). El resto sigue documentado como deuda cruzada (ver
-[Huecos críticos](#huecos-críticos)), que ya se achicó tres veces: `registration/pending`,
-`approve` y `reject` primero; `panic/alerts/history` después; y los tres de `community` el
-16-09.
+**Resumen (16-09-2026):** 0 endpoints abiertos sin justificación. **8 públicos** (login,
+refresh, logout, health, sedes, envío y consulta de una solicitud de registro, y el stream de
+alertas). Todo lo demás exige token. Lo que queda por endurecer está en
+[Lo que sigue pendiente](#lo-que-sigue-pendiente): sobre todo, que varios endpoints
+autenticados todavía no restringen **qué rol** puede llamarlos.
 
 ---
 
@@ -34,16 +33,16 @@ distingue autor de psicólogo). El resto sigue documentado como deuda cruzada (v
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `POST /auth/login` | Público | 🔓 Público (correcto) |
-| `POST /auth/refresh` | Público (requiere refresh token válido) | 🔓 Público (correcto) |
-| `POST /auth/logout` | Público (requiere refresh token válido) | 🔓 Público (correcto) |
+| `POST /auth/login` | Público | 🔓 Público |
+| `POST /auth/refresh` | Público (requiere refresh token válido) | 🔓 Público |
+| `POST /auth/logout` | Público (requiere refresh token válido) | 🔓 Público |
 
 ## `users` — `/users`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
 | `GET /users/patients` | `psychologist` (los suyos), `coordinator` (todos) | ✅ Protegido |
-| `GET /users/:id/progress` | `psychologist`, `coordinator` | ✅ Protegido |
+| `GET /users/:id/progress` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación |
 
 > **Alcance por rol (16-09-2026):** `GET /users/patients` ya no devuelve la lista completa a
 > cualquiera de los dos roles. Un **psicólogo** recibe solo los pacientes con una asignación
@@ -59,20 +58,20 @@ distingue autor de psicólogo). El resto sigue documentado como deuda cruzada (v
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /health` | Público (lo usa el healthcheck de Railway) | 🔓 Público (correcto) |
+| `GET /health` | Público (lo usa el healthcheck de Railway) | 🔓 Público |
 
 ## `sedes` — `/sedes`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /sedes` | Público (catálogo, sin dato sensible) | 🔓 Público (correcto) |
+| `GET /sedes` | Público (catálogo, sin dato sensible) | 🔓 Público |
 
 ## `registration` — `/registration`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `POST /registration/submit` | Público (onboarding del paciente) | 🔓 Público (correcto) |
-| `GET /registration/:requestId` | Público (el UUID de la solicitud actúa como secreto) | 🔓 Público (aceptable) |
+| `POST /registration/submit` | Público (onboarding del paciente) | 🔓 Público |
+| `GET /registration/:requestId` | Público (el UUID de la solicitud actúa como secreto) | 🔓 Público |
 | `GET /registration/pending` | `psychologist`, `coordinator` | ✅ Protegido |
 | `PATCH /registration/:requestId/approve` | `psychologist`, `coordinator` | ✅ Protegido |
 | `PATCH /registration/:requestId/reject` | `psychologist`, `coordinator` | ✅ Protegido |
@@ -81,32 +80,33 @@ distingue autor de psicólogo). El resto sigue documentado como deuda cruzada (v
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /panic/sponsor` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /panic/assign` | `psychologist`, `coordinator` | ❌ **Abierto — cualquiera reasigna el padrino de cualquier paciente** |
-| `POST /panic/alerts` | `patient` (dueño) | ⚠️ Scoped por dueño |
+| `GET /panic/sponsor` | `patient` (dueño) | ✅ Autenticado |
+| `POST /panic/assign` | `psychologist`, `coordinator` | ✅ Protegido |
+| `POST /panic/alerts` | `patient` (dueño) | ✅ Autenticado |
 | `GET /panic/alerts/history` | `psychologist`, `coordinator` | ✅ Protegido |
-| `GET /panic/alerts/active` | `patient` o `sponsor` (dueño) | ⚠️ Scoped por dueño |
-| `GET /panic/pending` | `sponsor` (dueño) | ⚠️ Scoped por dueño |
-| `POST /panic/alerts/:id/respond` | `sponsor` (dueño) | ⚠️ Scoped por dueño |
-| `DELETE /panic/alerts/active` | `patient` (dueño) — ruta de demo | ⚠️ Scoped por dueño |
-| `POST /panic/alerts/:id/cancel` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /panic/alerts/:id/escalate` | `patient` (dueño) o sistema (automático) | ⚠️ Scoped por dueño |
-| `POST /panic/alerts/:id/community` | `patient` (dueño) | ⚠️ Scoped por dueño |
+| `GET /panic/alerts/stream` (SSE) | `psychologist`, `coordinator` | 🔓 Público: `EventSource` no puede mandar `Authorization`. Solo emite conteos, sin datos de pacientes |
+| `GET /panic/alerts/active` | `patient` o `sponsor` (dueño) | ✅ Autenticado |
+| `GET /panic/pending` | `sponsor` (dueño) | ✅ Autenticado |
+| `POST /panic/alerts/:id/respond` | `sponsor` (dueño) | ✅ Autenticado |
+| `DELETE /panic/alerts/active` | `patient` (dueño) — ruta de demo | ✅ Autenticado |
+| `POST /panic/alerts/:id/cancel` | `patient` (dueño) | ✅ Autenticado |
+| `POST /panic/alerts/:id/escalate` | `patient` (dueño) o sistema (automático) | ✅ Autenticado |
+| `POST /panic/alerts/:id/community` | `patient` (dueño) | ✅ Autenticado |
 
 ## `community` — `/community`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /community/announcements` | `patient`, `sponsor` (de la sede) | ⚠️ Sin verificación de rol ni sede |
+| `GET /community/announcements` | `patient`, `sponsor` (de la sede) | ✅ Autenticado (sin filtro de sede) |
 | `POST /community/announcements` | `psychologist`, `coordinator` | ✅ Protegido |
-| `POST /community/announcements/:id/attend` | `patient`, `family` | ⚠️ Sin verificación |
-| `GET /community/posts` | `patient`, `sponsor` (de la sede) | ⚠️ Sin verificación |
-| `POST /community/posts` | `patient`, `sponsor` | ⚠️ Sin verificación |
-| `POST /community/posts/:id/reactions` | `patient`, `sponsor` | ⚠️ Sin verificación |
-| `DELETE /community/posts/:id/reactions/:emoji` | `patient`, `sponsor` (propia reacción) | ⚠️ Sin verificación |
-| `GET /community/posts/:id/replies` | `patient`, `sponsor` | ❌ **Abierto — sin ninguna identidad** |
-| `POST /community/posts/:id/replies` | `patient`, `sponsor` | ⚠️ Sin verificación |
-| `POST /community/posts/:id/report` | `patient`, `sponsor` | ⚠️ Sin verificación |
+| `POST /community/announcements/:id/attend` | `patient`, `family` | ✅ Autenticado |
+| `GET /community/posts` | `patient`, `sponsor` (de la sede) | ✅ Autenticado |
+| `POST /community/posts` | `patient`, `sponsor` | ✅ Autenticado |
+| `POST /community/posts/:id/reactions` | `patient`, `sponsor` | ✅ Autenticado |
+| `DELETE /community/posts/:id/reactions/:emoji` | `patient`, `sponsor` (propia reacción) | ✅ Autenticado |
+| `GET /community/posts/:id/replies` | `patient`, `sponsor` | ✅ Autenticado |
+| `POST /community/posts/:id/replies` | `patient`, `sponsor` | ✅ Autenticado |
+| `POST /community/posts/:id/report` | `patient`, `sponsor` | ✅ Autenticado |
 | `GET /community/moderation/flagged` | `psychologist` | ✅ Autenticado |
 | `DELETE /community/posts/:id` | `psychologist`, o el autor sobre su propia publicación | ✅ Autenticado |
 
@@ -124,76 +124,87 @@ distingue autor de psicólogo). El resto sigue documentado como deuda cruzada (v
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `POST /ai/sessions` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `GET /ai/sessions/active` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /ai/sessions/:sessionId/messages` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /ai/sessions/:sessionId/close` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `GET /ai/sessions/summaries` | `patient` (dueño); `psychologist` de sus pacientes (no implementado) | ⚠️ Scoped por dueño |
+| `POST /ai/sessions` | `patient` (dueño) | ✅ Autenticado |
+| `GET /ai/sessions/active` | `patient` (dueño) | ✅ Autenticado |
+| `POST /ai/sessions/:sessionId/messages` | `patient` (dueño) | ✅ Autenticado |
+| `POST /ai/sessions/:sessionId/close` | `patient` (dueño) | ✅ Autenticado |
+| `GET /ai/sessions/summaries` | `patient` (dueño); `psychologist` de sus pacientes (no implementado) | ✅ Autenticado |
 
 ## `check-ins` — `/check-ins`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /check-ins/today` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `DELETE /check-ins/today` | `patient` (dueño) — ruta de demo, evaluar removerla en producción | ⚠️ Scoped por dueño |
-| `POST /check-ins` | `patient` (dueño) | ⚠️ Scoped por dueño |
+| `GET /check-ins/today` | `patient` (dueño) | ✅ Autenticado |
+| `DELETE /check-ins/today` | `patient` (dueño) — ruta de demo, evaluar removerla en producción | ✅ Autenticado |
+| `POST /check-ins` | `patient` (dueño) | ✅ Autenticado |
 
 ## `achievements` — `/achievements`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /achievements` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /achievements/relapse` | `patient` (dueño) | ⚠️ Scoped por dueño |
-| `POST /achievements/dev-set-days` | Ninguno — es una puerta trasera de desarrollo | ⚠️ Tras un flag: responde 404 salvo que `ENABLE_DEV_TOOLS=true` |
-| `POST /achievements/badges/:milestone/share` | `patient` (dueño) | ⚠️ Scoped por dueño |
+| `GET /achievements` | `patient` (dueño) | ✅ Autenticado |
+| `POST /achievements/relapse` | `patient` (dueño) | ✅ Autenticado |
+| `POST /achievements/dev-set-days` | Ninguno — es una puerta trasera de desarrollo | ✅ Autenticado + 404 salvo `ENABLE_DEV_TOOLS=true` |
+| `POST /achievements/badges/:milestone/share` | `patient` (dueño) | ✅ Autenticado |
+| `POST /achievements/patients/:patientId/relapse` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación — nuevo 16-09: la ficha registraba la recaída mandando el id del paciente en `x-user-id` |
 
 ## `notifications` — `/notifications`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /notifications` | Cualquier rol autenticado (dueño) | ⚠️ Scoped por dueño |
-| `PATCH /notifications/:id/read` | Cualquier rol autenticado (dueño) | ⚠️ Scoped por dueño |
-| `PATCH /notifications/read-all` | Cualquier rol autenticado (dueño) | ⚠️ Scoped por dueño |
+| `GET /notifications` | Cualquier rol autenticado (dueño) | ✅ Autenticado |
+| `PATCH /notifications/:id/read` | Cualquier rol autenticado (dueño) | ✅ Autenticado |
+| `PATCH /notifications/read-all` | Cualquier rol autenticado (dueño) | ✅ Autenticado |
 
 ## `billing` — `/billing`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `GET /billing/status` | `patient`, `family` (del paciente vinculado) | ⚠️ Scoped por dueño |
-| `POST /billing/pay` | `patient`, `family` | ⚠️ Scoped por dueño |
-| `GET /billing/family-link` | `patient` (dueño) | ⚠️ Scoped por dueño |
+| `GET /billing/status` | `patient`, `family` (del paciente vinculado) | ✅ Autenticado |
+| `POST /billing/pay` | `patient`, `family` | ✅ Autenticado |
+| `GET /billing/family-link` | `patient` (dueño) | ✅ Autenticado |
+| `GET /billing/patients/:patientId/status` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación — nuevo 16-09, para el reporte PDF |
 
 ## `subscriptions` — `/subscriptions`
 
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
-| `POST /subscriptions` | `patient`, `family` | ❌ **Abierto — el `userId` viene del body, cualquiera activa la cuenta de cualquiera** |
-| `GET /subscriptions/me` | `patient` (dueño) | ⚠️ Scoped por dueño |
+| `POST /subscriptions` | `patient` (dueño) | ✅ Autenticado (el paciente sale del token; el `userId` del cuerpo se ignora) |
+| `GET /subscriptions/me` | `patient` (dueño) | ✅ Autenticado |
 
 ---
 
-## Huecos críticos
+## Huecos cerrados el 16-09-2026
 
-Los siguientes endpoints exponen datos clínicos o permiten acciones sensibles **sin ninguna
-verificación de identidad**. Se documentan aquí como deuda de seguridad cruzada — arreglarlos
-no es de José (son de otros módulos), pero deben quedar visibles para que cada dueño los
-priorice:
-
-| Endpoint | Qué expone/permite | Módulo / dueño en este sprint |
+| Endpoint | Qué permitía | Cómo se cerró |
 |---|---|---|
-| `POST /panic/assign` | Reasignar el padrino de cualquier paciente | `panic` — Matías Barraza |
-| `GET /community/posts/:id/replies` | Contenido del foro clínico, sin identidad | `community` — Catalina Yáñez |
-| `POST /subscriptions` | Activar la cuenta de cualquier paciente (`userId` en el body) | `subscriptions` — sin dueño asignado este sprint |
+| `POST /panic/assign` | Cambiarle el compañero de viaje a cualquier paciente, sin credencial | Token + `@Roles('psychologist', 'coordinator')` |
+| `POST /subscriptions` | Activar la suscripción de cualquier paciente escribiendo su id en el cuerpo | El paciente sale del token |
+| `GET /community/posts/:id/replies` | Leer el foro clínico sin identidad | Guard global |
+| Los 40 usos de `x-user-id` en 9 controladores | Leer o escribir como cualquier paciente sabiendo su UUID (check-ins, conversaciones con el asistente, pánico, comunidad, cobros) | `@UserId()` desde el token |
+| `GET /metrics/patients/:id`, `GET /users/:id/progress` | Un psicólogo leía los datos de cualquier paciente cambiando el id en la URL | `PatientAccessGuard` |
 
-**De los propios de José:** `GET /users/patients`, `GET /users/:id/progress` y
-`GET /panic/alerts/history` estaban en esta lista — los tres protegidos, y probados con 403
-real en `test/roles.e2e-spec.ts` (S.5).
-
-**Cerrados después de la primera versión de esta matriz:** `POST /community/announcements`
-(16-09, ahora con guard y rol) y `POST /achievements/dev-set-days` (14-09, detrás de
-`ENABLE_DEV_TOOLS`; no se usó `NODE_ENV` porque Railway corre con `development`).
+Todo con tests: `test/auth-global.e2e-spec.ts` (15 casos), `test/roles.e2e-spec.ts` y
+`common/guards/patient-access.guard.spec.ts`.
 
 ---
+
+## Lo que sigue pendiente
+
+1. **Restringir por rol los endpoints «✅ Autenticado».** El token ya no se puede falsificar,
+   pero cualquier rol autenticado puede llamarlos. Ejemplos: un psicólogo puede crear una
+   alerta de pánico a su propio nombre (`POST /panic/alerts`) o escribir en el foro, y un
+   familiar puede pedir `/ai/sessions`. No expone datos ajenos —el servicio usa el id del
+   token—, pero crea filas que no deberían existir. Es agregar `@Roles()` endpoint por
+   endpoint, con cuidado de no romper la vista del psicólogo en mobile, que sí usa comunidad.
+2. **`GET /community/announcements` y `GET /community/posts` no filtran por sede** del usuario:
+   la sede llega como parámetro.
+3. **Rutas de demo en producción:** `DELETE /check-ins/today` y `DELETE /panic/alerts/active`
+   siguen disponibles para cualquier paciente autenticado. Deberían ir detrás de
+   `ENABLE_DEV_TOOLS`, como `dev-set-days`.
+4. **Moderación para la coordinación:** `GET /community/moderation/flagged` le responde 403 a
+   la coordinación, y la página de Solicitudes lo pide igual. No es un hueco (falla cerrado),
+   pero ensucia la consola.
 
 ## HTTPS (parte de S.6)
 
@@ -213,12 +224,3 @@ column transformer de TypeORM — ver
 `apps/backend/src/common/crypto/encrypted-column.transformer.ts`.
 
 ---
-
-## Próximos pasos (fuera de este sprint)
-
-1. Registrar `JwtAuthGuard` como guard global (con `@Public()` en los endpoints que deben
-   quedar abiertos) — hoy los guards son opt-in por endpoint para no romper a los otros 5
-   integrantes a mitad de sprint. Es el paso que cierra la mayoría de los ⚠️ de esta tabla.
-2. Migrar los endpoints ⚠️ "Scoped por dueño" a leer el `userId` desde `request.user` (el JWT)
-   en vez de aceptar un `userId`/`patientId`/`sponsorId` explícito del cliente.
-3. Cerrar los huecos ❌ listados arriba, cada uno por su dueño de módulo.

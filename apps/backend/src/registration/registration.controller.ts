@@ -6,6 +6,7 @@ import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -28,6 +29,8 @@ export class RegistrationController {
     return this.registrationService.listPending(user);
   }
 
+  // Público: quien se registra todavía no tiene cuenta.
+  @Public()
   @Post('submit')
   @ApiOperation({ summary: 'Envía la solicitud de registro del paciente (pasos 1+2)' })
   @ApiResponse({ status: 201, description: 'Solicitud creada: { userId, requestId, status }' })
@@ -36,6 +39,9 @@ export class RegistrationController {
     return this.registrationService.submit(dto);
   }
 
+  // Público: la pantalla de «solicitud enviada» consulta el estado sin sesión. El UUID de la
+  // solicitud hace de secreto.
+  @Public()
   @Get(':requestId')
   @ApiOperation({ summary: 'Consulta el estado de una solicitud de registro' })
   @ApiParam({ name: 'requestId', description: 'UUID de la solicitud' })

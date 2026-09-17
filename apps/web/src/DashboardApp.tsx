@@ -80,7 +80,7 @@ function shortSedeName(name: string): string {
   return name
 }
 
-export function DashboardApp({ psychId, user, onLogout }: { psychId: string; user: AuthUser; onLogout: () => void }) {
+export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
   const nav: NavId = PATH_TO_NAV[location.pathname] ?? 'overview'
@@ -221,9 +221,9 @@ export function DashboardApp({ psychId, user, onLogout }: { psychId: string; use
               que no puede contener un h1: la página quedaba sin título para lectores de pantalla. */}
           {isNarrow && <h1 className="sb-sr-only">{PAGE_TITLES[nav]}</h1>}
           <Routes>
-            <Route path="/" element={<OverviewPage user={user} psychId={psychId} />} />
+            <Route path="/" element={<OverviewPage user={user} />} />
             <Route path="/alertas" element={<AlertasPage />} />
-            <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} psychId={psychId} />} />
+            <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} />} />
             <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
             <Route path="/equipo" element={<EquipoPage />} />
             <Route path="/finanzas" element={<FinanzasPage />} />

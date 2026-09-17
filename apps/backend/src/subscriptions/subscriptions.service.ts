@@ -23,8 +23,8 @@ export class SubscriptionsService {
     private readonly notifRepo: Repository<Notification>,
   ) {}
 
-  async create(dto: CreateSubscriptionDto): Promise<Subscription> {
-    const user = await this.userRepo.findOne({ where: { id: dto.userId } });
+  async create(userId: string, dto: CreateSubscriptionDto): Promise<Subscription> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
     if (user.onboardingStatus !== 'payment_pending') {
@@ -38,18 +38,18 @@ export class SubscriptionsService {
 
     const subscription = await this.repo.save(
       this.repo.create({
-        userId: dto.userId,
+        userId: userId,
         paymentMethod: dto.paymentMethod,
         status: 'active',
         expiresAt,
       }),
     );
 
-    await this.userRepo.update(dto.userId, { onboardingStatus: 'complete' });
+    await this.userRepo.update(userId, { onboardingStatus: 'complete' });
 
     await this.notifRepo.save(
       this.notifRepo.create({
-        userId: dto.userId,
+        userId: userId,
         type: 'success',
         title: '¡Cuenta activada!',
         body: 'Tu cuenta quedó activa. Bienvenido a StopBet · AJUTER.',

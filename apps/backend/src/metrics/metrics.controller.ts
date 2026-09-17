@@ -2,6 +2,7 @@ import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PatientAccessGuard } from '../common/guards/patient-access.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { MetricsService } from './metrics.service';
 import { PatientMetricsDto } from './dto/patient-metrics.dto';
@@ -12,7 +13,7 @@ export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 
   @Get('patients/:id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PatientAccessGuard)
   @Roles('psychologist', 'coordinator')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Métricas del paciente: evolución 30 días, check-ins y alertas del periodo' })

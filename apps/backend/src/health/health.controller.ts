@@ -1,5 +1,6 @@
 import { Controller, Get } from '@nestjs/common';
 import { HealthCheck, HealthCheckService, TypeOrmHealthIndicator } from '@nestjs/terminus';
+import { Public } from '../common/decorators/public.decorator';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('health')
@@ -10,6 +11,8 @@ export class HealthController {
     private readonly db: TypeOrmHealthIndicator,
   ) {}
 
+  // Público: lo consulta el healthcheck de Railway, que no tiene sesión.
+  @Public()
   @Get('health')
   @HealthCheck()
   @ApiOperation({ summary: 'Health check del servidor — verifica conexión real a la base de datos' })

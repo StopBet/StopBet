@@ -1,25 +1,6 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  HttpCode,
-  Param,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiHeader,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { UserId } from '../common/decorators/user-id.decorator';
 import { AuthUser, ReactionEmoji } from '@stopbet/shared-types';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -33,6 +14,7 @@ import { AddReactionDto } from './dto/add-reaction.dto';
 import { ReportPostDto } from './dto/report-post.dto';
 
 @ApiTags('community')
+@ApiBearerAuth()
 @Controller('community')
 export class CommunityController {
   constructor(private readonly service: CommunityService) {}
@@ -41,11 +23,10 @@ export class CommunityController {
 
   @Get('announcements')
   @ApiOperation({ summary: 'Lista anuncios de una sede AJUTER' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario autenticado' })
   @ApiQuery({ name: 'sede', description: 'Sede (Santiago | Viña del Mar | Concepción)' })
   @ApiResponse({ status: 200, description: 'Array de anuncios con estado de asistencia' })
   findAnnouncements(
-    @Headers('x-user-id') userId: string,
+    @UserId() userId: string,
     @Query('sede') sede: string,
   ) {
     return this.service.findAnnouncements(sede, userId);
@@ -73,13 +54,12 @@ export class CommunityController {
   @Post('announcements/:id/attend')
   @HttpCode(200)
   @ApiOperation({ summary: 'Confirmar o cancelar asistencia a un evento (toggle)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario' })
   @ApiParam({ name: 'id', description: 'UUID del anuncio' })
   @ApiResponse({ status: 200, description: '{ attends: boolean }' })
   @ApiResponse({ status: 404, description: 'Anuncio no encontrado' })
   toggleAttendance(
     @Param('id') id: string,
-    @Headers('x-user-id') userId: string,
+    @UserId() userId: string,
   ) {
     return this.service.toggleAttendance(id, userId);
   }
@@ -88,13 +68,12 @@ export class CommunityController {
 
   @Get('posts')
   @ApiOperation({ summary: 'Lista publicaciones del foro por sede (paginado)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario autenticado' })
   @ApiQuery({ name: 'sede', description: 'Sede (Santiago | Viña del Mar | Concepción)' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiResponse({ status: 200, description: 'PaginatedResponse<CommunityPost>' })
   findPosts(
-    @Headers('x-user-id') userId: string,
+    @UserId() userId: string,
     @Query('sede') sede: string,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
@@ -105,10 +84,9 @@ export class CommunityController {
   @Post('posts')
   @HttpCode(201)
   @ApiOperation({ summary: 'Publica un mensaje en el foro comunitario' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiResponse({ status: 201, description: 'Publicación creada' })
   createPost(
-    @Headers('x-user-id') authorId: string,
+    @UserId() authorId: string,
     @Body() dto: CreatePostDto,
   ) {
     return this.service.createPost(dto, authorId);
@@ -117,13 +95,12 @@ export class CommunityController {
   @Post('posts/:id/reactions')
   @HttpCode(200)
   @ApiOperation({ summary: 'Agrega una reacción emoji a una publicación (idempotente)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario' })
   @ApiParam({ name: 'id', description: 'UUID de la publicación' })
   @ApiResponse({ status: 200, description: 'Resumen actualizado de reacciones' })
   @ApiResponse({ status: 404, description: 'Publicación no encontrada' })
   addReaction(
     @Param('id') id: string,
-    @Headers('x-user-id') userId: string,
+    @UserId() userId: string,
     @Body() dto: AddReactionDto,
   ) {
     return this.service.addReaction(id, dto.emoji as ReactionEmoji, userId);
@@ -132,7 +109,6 @@ export class CommunityController {
   @Delete('posts/:id/reactions/:emoji')
   @HttpCode(200)
   @ApiOperation({ summary: 'Elimina una reacción emoji de una publicación' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario' })
   @ApiParam({ name: 'id', description: 'UUID de la publicación' })
   @ApiParam({ name: 'emoji', description: 'Emoji url-encoded (%F0%9F%92%AA para 💪)' })
   @ApiResponse({ status: 200, description: 'Resumen actualizado de reacciones' })
@@ -140,7 +116,7 @@ export class CommunityController {
   removeReaction(
     @Param('id') id: string,
     @Param('emoji') emoji: string,
-    @Headers('x-user-id') userId: string,
+    @UserId() userId: string,
   ) {
     const VALID_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];
     if (!VALID_EMOJIS.includes(emoji as ReactionEmoji)) {
@@ -161,13 +137,12 @@ export class CommunityController {
   @Post('posts/:id/replies')
   @HttpCode(201)
   @ApiOperation({ summary: 'Responde a una publicación del foro' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario' })
   @ApiParam({ name: 'id', description: 'UUID de la publicación' })
   @ApiResponse({ status: 201, description: 'Respuesta creada' })
   @ApiResponse({ status: 404, description: 'Publicación no encontrada' })
   createReply(
     @Param('id') id: string,
-    @Headers('x-user-id') authorId: string,
+    @UserId() authorId: string,
     @Body() dto: CreateReplyDto,
   ) {
     return this.service.createReply(id, dto, authorId);
@@ -176,13 +151,12 @@ export class CommunityController {
   @Post('posts/:id/report')
   @HttpCode(200)
   @ApiOperation({ summary: 'Reporta una publicación con un motivo (máx 1 reporte por usuario)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del usuario' })
   @ApiParam({ name: 'id', description: 'UUID de la publicación' })
   @ApiResponse({ status: 200, description: '{ reported: true }' })
   @ApiResponse({ status: 404, description: 'Publicación no encontrada' })
   reportPost(
     @Param('id') id: string,
-    @Headers('x-user-id') userId: string,
+    @UserId() userId: string,
     @Body() dto: ReportPostDto,
   ) {
     return this.service.reportPost(id, userId, dto.reason);

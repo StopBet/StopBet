@@ -3,6 +3,7 @@ import { AuthUser } from '@stopbet/shared-types';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PatientAccessGuard } from '../common/guards/patient-access.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { UsersService } from './users.service';
@@ -30,7 +31,7 @@ export class UsersController {
   }
 
   @Get(':id/progress')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, PatientAccessGuard)
   @Roles('psychologist', 'coordinator')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Progreso del paciente: racha, hito, último check-in' })
