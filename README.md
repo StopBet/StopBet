@@ -164,9 +164,9 @@ psql -U postgres -c "CREATE DATABASE stopbet;"
 pnpm run seed
 ```
 
-Crea las tablas (si no existen) y el **usuario demo** que usa la app mobile mientras no hay autenticación real. Es idempotente: si los datos ya existen, no hace nada.
+Crea las tablas (si no existen) y las cuentas de prueba. Es idempotente: si los datos ya existen, no hace nada.
 
-Los 9 usuarios de prueba (paciente, padrino, psicólogo, coordinador, etc.) quedan con la misma **clave de desarrollo: `Stopbet2026!`**, para hacer login vía `POST /auth/login` con cualquiera de los correos que imprime el seed al terminar.
+Los 12 usuarios de prueba (pacientes, compañero de viaje, psicólogos y coordinadora) quedan con la misma **clave de desarrollo: `Stopbet2026!`**, para hacer login vía `POST /auth/login` con cualquiera de los correos que imprime el seed al terminar. Para la app móvil, `demo@stopbet.cl` entra como paciente y `miguel.lara@ajuter.cl` como psicólogo (ver [`apps/mobile/README.md`](apps/mobile/README.md#cuentas-de-prueba)).
 
 Para probar el **portal del familiar** hace falta además:
 
@@ -224,6 +224,24 @@ Es parte del framework — no es opcional ni reemplazable con React Native CLI.
 | `adb` en el PATH | Conexión con el dispositivo/emulador |
 | Variable `ANDROID_HOME` | Apunta al SDK de Android |
 | Variable `JAVA_HOME` | Apunta al JDK 17 |
+| `apps/mobile/android/app/google-services.json` | Configuración de Firebase. **No viene en el repo** (ver aviso abajo) |
+
+> ⚠️ **Sin `google-services.json` la app no compila.** El archivo está en `.gitignore`
+> porque identifica el proyecto de Firebase del equipo, pero el plugin de Google Services
+> lo exige siempre. Sin él, Gradle se detiene con:
+>
+> ```
+> Execution failed for task ':app:processDebugGoogleServices'.
+> > File google-services.json is missing.
+> ```
+>
+> Hay dos formas de conseguirlo y dejarlo en `apps/mobile/android/app/google-services.json`:
+>
+> 1. **Pedírselo al equipo** por un canal privado (no subirlo nunca al repo).
+> 2. **Generar uno propio:** crear un proyecto en la [consola de Firebase](https://console.firebase.google.com),
+>    agregarle una app Android con el nombre de paquete **`com.stopbet`** y descargar el archivo.
+>    La app compila y funciona igual; solo las notificaciones push no llegarán desde el backend
+>    del equipo, porque ese backend envía con las credenciales de otro proyecto.
 
 En el MVP la app corre en **dispositivo Android físico** (depuración USB) o emulador. Le pega al backend en `http://localhost:3000`, así que necesita el backend corriendo y los puentes `adb reverse`.
 
