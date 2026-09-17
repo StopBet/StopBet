@@ -1,8 +1,8 @@
 # StopBet Mobile
 
-App del paciente — **React Native CLI 0.86** (sin Expo). Prioridad **Android** en el MVP; iOS pendiente.
+App móvil de StopBet — **React Native CLI 0.86** (sin Expo). Prioridad **Android** en el MVP; iOS pendiente.
 
-> **Estado:** la app **compila y corre en dispositivo Android físico** (probada en Samsung A31, Android 12) conectada al backend local. Mientras no exista módulo de autenticación, usa un **usuario demo fijo** (ver más abajo).
+> **Estado:** la app **compila y corre en dispositivo Android físico y en emulador**. Un mismo binario sirve a dos perfiles: el **paciente** y el **equipo clínico** (psicólogo), cada uno con su propia navegación tras el login (ver [Cuentas de prueba](#cuentas-de-prueba)).
 
 ## Requisitos
 
@@ -11,6 +11,30 @@ App del paciente — **React Native CLI 0.86** (sin Expo). Prioridad **Android**
 - Android Studio con SDK + al menos una plataforma Android instalada
 - `adb` en el PATH
 - En el celular: Opciones de desarrollador → **Depuración USB** activada
+- **`android/app/google-services.json`** (configuración de Firebase) — **no viene en el repo**, ver abajo
+
+### `google-services.json` (obligatorio para compilar)
+
+El archivo está en `.gitignore` porque identifica el proyecto de Firebase del equipo, pero
+`android/app/build.gradle` aplica el plugin `com.google.gms.google-services` siempre. Sin el
+archivo, la compilación se detiene con:
+
+```
+Execution failed for task ':app:processDebugGoogleServices'.
+> File google-services.json is missing.
+  The Google Services Plugin cannot function without it.
+```
+
+Hay dos formas de conseguirlo y dejarlo en `apps/mobile/android/app/google-services.json`:
+
+1. **Pedírselo al equipo** por un canal privado. No se sube nunca al repo.
+2. **Generar uno propio:** en la [consola de Firebase](https://console.firebase.google.com),
+   crear un proyecto, agregarle una app Android con el nombre de paquete **`com.stopbet`** y
+   descargar el `google-services.json`. La app compila y corre igual; lo único que cambia es
+   que las notificaciones push enviadas por el backend del equipo no llegarán, porque ese
+   backend usa las credenciales de otro proyecto de Firebase.
+
+En CI no hace falta el archivo: `mobile-preview.yml` lo arma desde el secret `GOOGLE_SERVICES_JSON`.
 
 ## Cómo correr
 
@@ -71,27 +95,41 @@ Esto ya está resuelto en el repo, pero conviene entenderlo porque es la causa d
 - **`adb reverse` se cae.** Si el daemon de `adb` se reinicia (o tras un crash/OOM), se pierden los puentes y la app queda en gris sin poder alcanzar Metro. Solución: volver a correr los dos `adb reverse`.
 - **Un campo que se reformatea solo (RUT, tarjeta, etc.) puede duplicar lo tecleado en Android.** Si `onChangeText` reescribe el `value` completo (puntos, guiones), un teclado con texto predictivo activado pierde su región de composición y vuelve a soltar el buffer entero: tecleando `123` el campo termina en `123123123...`. Pasó en el RUT del registro (HU-06, PR #86); con predicción apagada, con teclado físico, o con `adb shell input text` (que no pasa por el teclado) **no se reproduce** — para probarlo hay que tocar las teclas en pantalla con texto predictivo encendido. `autoCorrect={false}` no basta en todos los teclados (el de Samsung lo ignora); `keyboardType="visible-password"` sí corta la composición porque Android trata cualquier campo de contraseña como no editable por el predictivo.
 
-## Usuario demo (sin autenticación todavía)
+## Cuentas de prueba
 
-No hay login real aún. La app **arranca en la pantalla de Welcome** (antes entraba directo
-al Home; se cambió para que el flujo de registro fuera alcanzable), y `LoginScreen` deja
-pasar cualquier correo y clave no vacíos sin llamar a `POST /auth/login`.
+La app tiene **login real**: `LoginScreen` valida contra `POST /auth/login`, la sesión (access
+y refresh token) se guarda en `AsyncStorage` y sobrevive a cerrar la app, y el token se renueva
+solo cuando el backend responde 401. Cada pantalla toma el usuario de la sesión, no de un id
+fijo.
 
-Las 7 pantallas que hablan con el backend (`HomeScreen`, `AchievementsScreen`, `PanicScreen`,
-`CommunityScreen`, `SuspendedAccountScreen`, `ProfileScreen`, `LoginScreen`) tienen
-hardcodeado:
-
-```ts
-const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
-```
-
-Ese usuario (Carlos, racha de 45 días) **debe existir en la tabla `users`** de la base `stopbet`. Si los endpoints devuelven **500**, lo más probable es que el usuario demo no esté en la BD — corrígelo con:
+Para tener cuentas con qué entrar, pobla la base desde la raíz del monorepo:
 
 ```bash
 pnpm run seed
 ```
 
-El seed es idempotente; puedes correrlo cuantas veces quieras sin duplicar datos. El backend espera un UUID válido en `users.id`: un string que no sea UUID da 500, no 404.
+Es idempotente: puedes correrlo cuantas veces quieras sin duplicar datos. Todas las cuentas
+quedan con la misma **clave de desarrollo: `Stopbet2026!`**.
+
+| Correo | Rol | Qué ve en la app |
+|---|---|---|
+| `demo@stopbet.cl` | Paciente | Inicio, pánico, check-in, asistente, logros, comunidad y perfil |
+| `miguel.lara@ajuter.cl` | Psicólogo | Resumen de su sede (solo lectura), comunidad con anuncios y moderación, perfil |
+
+**Quién entra y a dónde.** `/auth/login` no filtra por rol; lo decide `App.tsx`:
+
+- `patient` → app del paciente.
+- `psychologist` → vista del equipo clínico (Resumen · Comunidad · Perfil), sin pánico,
+  asistente ni check-in.
+- `coordinator`, `sponsor` y `family` → la app rechaza el acceso. La coordinación y los
+  familiares usan el dashboard web.
+
+Una cuenta suspendida recibe 403 y ve un mensaje propio, no "credenciales incorrectas".
+
+**Contra qué backend.** En modo desarrollo (`__DEV__`) la app le pega a
+`http://localhost:3000` a través de `adb reverse`; en un build de release usa el backend
+desplegado en Railway (`src/services/api.ts`). Si el login dice que no hay conexión con el
+backend local corriendo, revisa primero `adb reverse --list`.
 
 ## Estructura
 
