@@ -255,7 +255,7 @@ function DeactivateModal({
               return (
                 <div key={g.sedeId} style={{ marginBottom: 14 }}>
                   <label htmlFor={`sb-reasignar-${g.sedeId}`} style={labelStyle}>
-                    {g.sedeName} — {g.count} paciente{g.count !== 1 ? 's' : ''}
+                    {g.sedeName} · {g.count} paciente{g.count !== 1 ? 's' : ''}
                   </label>
                   {targets.length === 0 ? (
                     <div style={{ background: 'var(--red-50)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: 'var(--danger-text)' }}>

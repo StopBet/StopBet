@@ -86,7 +86,7 @@ function PatientRow({ row, onOpen, onReport }: { row: FollowUpRow; onOpen: () =>
       <div style={{ minWidth: 70 }}>
         <div style={{ fontSize: 11.5, color: 'var(--fg2)', marginBottom: 3 }}>Ánimo 7d</div>
         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, color: 'var(--fg1)' }}>
-          {moodReciente === null ? '—' : `${moodReciente}`}
+          {moodReciente === null ? '-' : `${moodReciente}`}
           {moodReciente !== null && <span style={{ fontSize: 11.5, fontWeight: 400, color: 'var(--fg2)' }}>/5</span>}
         </div>
       </div>

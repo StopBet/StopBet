@@ -73,7 +73,7 @@ const NEUTRAL   = [245, 245, 240] as const
 const MAX_ALERTS = 3
 
 // Regla del cliente: el paciente pierde el acceso a la app recién a los 3 meses de no
-// pago. Antes de eso hay deuda, pero no es una urgencia — pintarla de rojo desde el
+// pago. Antes de eso hay deuda, pero no es una urgencia. Pintarla de rojo desde el
 // primer mes le enseña al psicólogo a ignorar el rojo, que está reservado a la crisis.
 // Ojo: hoy NADA suspende por mora automáticamente; ver docs/ASUNCIONES-PENDIENTES.md.
 const MESES_PARA_PERDER_ACCESO = 3
@@ -178,7 +178,7 @@ export async function generatePatientPDF(
     return `${dd}-${mm}-${yy}`
   }
   const fmt = (d: string) => {
-    if (!d) return '—'
+    if (!d) return '-'
     const [yy, mm, dd] = d.split('-')
     return `${dd}-${mm}-${yy}`
   }
@@ -232,7 +232,7 @@ export async function generatePatientPDF(
 
   y += 5.5
   doc.setFontSize(8.5)
-  doc.text(`Período del reporte:  ${fmt(from)}  —  ${fmt(to)}`, M, y)
+  doc.text(`Período del reporte:  ${fmt(from)}  -  ${fmt(to)}`, M, y)
 
   // ── Tarjetas de métricas ──────────────────────────────────────────────────
   y += 8
@@ -247,7 +247,7 @@ export async function generatePatientPDF(
       : { value: String(patient.panicTotal), label: 'alertas registradas en total', alarm: patient.panicTotal > 0 },
     metrics
       ? { value: String(metrics.totalCheckIns), label: 'check-ins en los últimos 30 días' }
-      : { value: '—', label: 'check-ins (sin datos)' },
+      : { value: '-', label: 'check-ins (sin datos)' },
   ]
   const gap = 4
   const cardW = (CW - gap * (cards.length - 1)) / cards.length
@@ -472,7 +472,7 @@ export async function generatePatientPDF(
       doc.text(`adeudado ${desde} · ${billing.daysOverdue} días`, M + 5 + doc.getTextWidth(clp(billing.totalOwedCLP)) + 16, y + 20)
 
       // Lo que el psicólogo necesita saber: cuánto margen queda antes de que el
-      // paciente quede fuera de la app. No aplica si ya está suspendido —y los dos
+      // paciente quede fuera de la app. No aplica si ya está suspendido. Y los dos
       // textos ocupaban la misma línea, así que se pisaban.
       const faltan = MESES_PARA_PERDER_ACCESO - billing.overdueMonths
       if (faltan > 0 && billing.accountStatus !== 'suspended') {

@@ -10,7 +10,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    /* Fondos: ni negro puro ni gris plano — el negro puro con texto claro deja halos en OLED */
+    /* Fondos: ni negro puro ni gris plano. El negro puro con texto claro deja halos en OLED */
     --bg: #15171C;
     --cream-50: #15171C;
     --surface: #1E2128;
@@ -51,7 +51,7 @@
 }
 
 :root[data-theme="dark"] {
-  /* Fondos: ni negro puro ni gris plano — el negro puro con texto claro deja halos en OLED */
+  /* Fondos: ni negro puro ni gris plano. El negro puro con texto claro deja halos en OLED */
   --bg: #15171C;
   --cream-50: #15171C;
   --surface: #1E2128;

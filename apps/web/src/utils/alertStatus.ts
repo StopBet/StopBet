@@ -17,7 +17,7 @@ export function needsAttention(status: PanicStatus): boolean {
   return ALERT_STATUS[status].needsAttention
 }
 
-// Se compara el día local: con toISOString() el día UTC ya es mañana desde las 20–21 h de
+// Se compara el día local: con toISOString() el día UTC ya es mañana desde las 20-21 h de
 // Chile, y "Alertas hoy" quedaba en 0 con alertas de esa misma tarde.
 export function isToday(iso: string): boolean {
   const d = new Date(iso)

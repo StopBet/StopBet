@@ -12,7 +12,7 @@ pnpm run web        # http://localhost:5173
 
 ## Design System
 
-El dashboard usa la marca **StopBet** — azul sobre crema. Hasta el 2026-08-31 el shell iba
+El dashboard usa la marca **StopBet** - azul sobre crema. Hasta el 2026-08-31 el shell iba
 con la paleta AJUTER (naranja) y solo el login era azul; ahora todo el panel va con la marca
 del producto y el logo de AJUTER vive al pie del sidebar.
 
@@ -32,10 +32,10 @@ src/styles/
 
 | Token | Clase Tailwind | Hex | Uso |
 |---|---|---|---|
-| primary | `bg-primary` `text-primary` | `#396fb6` | Azul StopBet — acciones, headers |
-| primary-hover | `text-primary-hover` | `#2d5a9e` | Azul oscuro — hover states |
-| accent | `bg-accent` `text-accent` | `#93bce5` | Azul claro — CTAs, highlights, badges |
-| secondary | `bg-secondary` | `#97b23f` | Verde del manual — progreso, positivo |
+| primary | `bg-primary` `text-primary` | `#396fb6` | Azul StopBet - acciones, headers |
+| primary-hover | `text-primary-hover` | `#2d5a9e` | Azul oscuro - hover states |
+| accent | `bg-accent` `text-accent` | `#93bce5` | Azul claro - CTAs, highlights, badges |
+| secondary | `bg-secondary` | `#97b23f` | Verde del manual - progreso, positivo |
 | danger | `bg-danger` `text-danger` | `#B83232` | **Solo** botón de pánico y alertas críticas |
 | bg | `bg-bg` | `#f4f4e9` | Fondo principal |
 | surface | `bg-surface` | `#FFFFFF` | Tarjetas, modales |
@@ -70,7 +70,7 @@ background: var(--ajuter-gradient);
 
 ### Regla de uso
 
-Usar siempre los tokens semánticos — nunca colores Tailwind genéricos:
+Usar siempre los tokens semánticos. Nunca colores Tailwind genéricos:
 
 ```tsx
 // ✅
