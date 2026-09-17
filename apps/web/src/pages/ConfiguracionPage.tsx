@@ -72,7 +72,7 @@ function PerfilSection({ user }: { user: AuthUser }) {
     ['Nombre', `${user.firstName} ${user.lastName}`.trim()],
     ['Correo', user.email],
     ['Rol', user.role === 'coordinator' ? 'Coordinación' : 'Psicólogo/a'],
-    ['Sede', user.sedeId ? (sedeName ?? '—') : 'Sin sede asignada'],
+    ['Sede', user.sedeId ? (sedeName ?? '-') : 'Sin sede asignada'],
   ]
 
   return (

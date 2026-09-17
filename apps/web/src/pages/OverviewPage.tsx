@@ -12,7 +12,7 @@ import { needsAttention } from '../utils/alertStatus'
 import { followUp, relTime, shortSedeName } from '../utils/patientView'
 
 // El Resumen es un vistazo, no un lugar de trabajo: un bloque por sección, que responde una
-// sola pregunta y lleva a la sección con un clic. El detalle —tablas, fichas, reportes—
+// sola pregunta y lleva a la sección con un clic. El detalle - tablas, fichas, reportes -
 // vive en cada sección. Antes esta página tenía la tabla completa de pacientes y el
 // generador de PDF, y se leía como una sección de pacientes más que como un resumen.
 
@@ -122,7 +122,7 @@ export function OverviewPage({ user, psychId }: OverviewPageProps) {
 
   const sedeName = (id: string | null) => {
     const s = sedes.find(x => x.id === id)
-    return shortSedeName(s?.name ?? id ?? '—')
+    return shortSedeName(s?.name ?? id ?? '-')
   }
   const misIds = new Set(patients.map(p => p.id))
   const abrirPaciente = (id: string) => navigate(`/pacientes?paciente=${id}`)
@@ -172,7 +172,7 @@ export function OverviewPage({ user, psychId }: OverviewPageProps) {
           sub={esCoordinador
             ? `${pending.length} ${pending.length === 1 ? 'solicitud' : 'solicitudes'}`
             : `${pending.length} ${pending.length === 1 ? 'solicitud' : 'solicitudes'} · ${flagged.length} ${flagged.length === 1 ? 'post' : 'posts'}`} />
-        <MetricCard icon="calendar" label="Próxima sesión familiar" value={proxima ? fechaCorta(proxima.sessionDate) : '—'}
+        <MetricCard icon="calendar" label="Próxima sesión familiar" value={proxima ? fechaCorta(proxima.sessionDate) : '-'}
           sub={proxima ? `${proxima.confirmedCount} ${proxima.confirmedCount === 1 ? 'confirmación' : 'confirmaciones'}` : 'sin sesiones programadas'} />
       </div>
 

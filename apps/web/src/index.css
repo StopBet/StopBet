@@ -5,7 +5,7 @@
 @import "./styles/stopbet-dark.css";
 
 /* ============================================================
-   Tailwind v4 — Mapeo de tokens de diseño a clases utilitarias
+   Tailwind v4 - Mapeo de tokens de diseño a clases utilitarias
    Usa @theme inline para que los valores sean CSS vars en runtime.
    ============================================================ */
 @theme inline {

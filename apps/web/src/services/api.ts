@@ -94,7 +94,7 @@ async function request(
   const isAuthRoute = path.startsWith('/auth/')
 
   // Sin refresh token el 401 se ignoraba y la sesión nunca se daba por caída: el dashboard
-  // se quedaba abierto mostrando ceros —"0 pacientes", "0 alertas hoy"— que en una
+  // se quedaba abierto mostrando ceros - "0 pacientes", "0 alertas hoy" - que en una
   // plataforma clínica se leen como "nadie está en crisis", no como "no tienes sesión".
   if (res.status === 401 && !isAuthRoute) {
     if (refreshToken && (await refreshOnce())) {
@@ -320,7 +320,7 @@ export const api = {
   getSedes:           () => get<Sede[]>('/sedes'),
 
   // Ya no mandan `x-user-id`: ambos endpoints tienen guard y el backend saca al revisor del
-  // token. `assignedPsychologistId` es opcional — sin él queda asignado quien aprueba.
+  // token. `assignedPsychologistId` es opcional. Sin él queda asignado quien aprueba.
   approveRequest: (requestId: string, assignedPsychologistId?: string) =>
     patch<void>(
       `/registration/${requestId}/approve`,
@@ -432,8 +432,8 @@ export interface SedeFamilySession {
 }
 
 // ── Auth Bearer para /psychologists ─────────────────────────────────────────────
-// Estas llamadas arman su propio fetch —necesitan el cuerpo del error de Nest, que
-// failed() descarta— y por eso no pasan por buildHeaders(): tienen que poner el Bearer
+// Estas llamadas arman su propio fetch - necesitan el cuerpo del error de Nest, que
+// failed() descarta - y por eso no pasan por buildHeaders(): tienen que poner el Bearer
 // a mano. Sale de `session`, la misma fuente que usa el resto del cliente; leerlo de
 // otra clave dejaba las mutaciones sin Authorization y el backend respondía 401 siempre.
 function authHeaders(): Record<string, string> {
@@ -443,7 +443,7 @@ function authHeaders(): Record<string, string> {
 
 export interface ApiError extends Error {
   status: number
-  // Cuerpo JSON del error de Nest — trae `message`, y en los 409 de /psychologists
+  // Cuerpo JSON del error de Nest. Trae `message`, y en los 409 de /psychologists
   // también `patientIds` / `sedeId` (ver PsychologistsService)
   body: { message?: string; [key: string]: unknown } | undefined
 }

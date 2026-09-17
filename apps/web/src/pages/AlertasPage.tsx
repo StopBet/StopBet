@@ -210,7 +210,7 @@ export function AlertasPage() {
 
           <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, color: 'var(--fg2)' }}>
-              Mostrando {histPage * HIST_PAGE_SIZE + 1}–{Math.min((histPage + 1) * HIST_PAGE_SIZE, rows.length)} de {rows.length} alertas
+              Mostrando {histPage * HIST_PAGE_SIZE + 1}-{Math.min((histPage + 1) * HIST_PAGE_SIZE, rows.length)} de {rows.length} alertas
             </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <button

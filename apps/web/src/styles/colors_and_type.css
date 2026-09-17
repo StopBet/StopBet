@@ -1,7 +1,7 @@
 /* ============================================================
-   StopBet Design System — Core Tokens
+   StopBet Design System - Core Tokens
    Colors, Typography, Spacing, Radius, Shadow, Motion
-   Warm, safe, human — the opposite of a casino.
+   Warm, safe, human. The opposite of a casino.
    ============================================================ */
 
 /* ---------- Fuentes self-hosted (woff2 en ./fonts/) ---------- */
@@ -37,7 +37,7 @@
 }
 
 :root {
-  /* ============ COLOR — RAW PALETTE ============ */
+  /* ============ COLOR - RAW PALETTE ============ */
   --teal-700: #1E7A6E;
   --teal-400: #4AADA0;
   --sage-500: #6A9E6A;

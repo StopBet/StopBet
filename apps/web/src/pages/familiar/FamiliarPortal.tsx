@@ -164,7 +164,7 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
     )
   }
 
-  // CA 11.6 — la cuenta existe pero todavía no está asociada a un paciente
+  // CA 11.6 - la cuenta existe pero todavía no está asociada a un paciente
   if (data.linkStatus === 'pending') {
     return (
       <Shell user={user} onLogout={onLogout}>
@@ -187,7 +187,7 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
     )
   }
 
-  // CA 11.5 — sin ninguna sesión dentro de las próximas 4 semanas
+  // CA 11.5 - sin ninguna sesión dentro de las próximas 4 semanas
   if (!data.hasUpcoming) {
     return (
       <Shell user={user} onLogout={onLogout}>
@@ -217,7 +217,7 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
     )
   }
 
-  // CA 11.1 + 11.3 + 11.4 — sesiones de la sede, ordenadas por proximidad.
+  // CA 11.1 + 11.3 + 11.4 - sesiones de la sede, ordenadas por proximidad.
   // Se muestran en dos bloques: arriba la agenda de la sede, donde se responde;
   // abajo, en calendario, la agenda propia del familiar. Las obligatorias entran
   // aunque no haya respondido: le corresponden igual, esa es la diferencia.

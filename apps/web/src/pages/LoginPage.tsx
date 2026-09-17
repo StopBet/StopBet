@@ -122,13 +122,13 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
       fontFamily: 'var(--sb-font-body)',
     }}>
 
-      {/* Panel izquierdo — marca StopBet. Se oculta en pantallas angostas.
+      {/* Panel izquierdo - marca StopBet. Se oculta en pantallas angostas.
           El login es la puerta común al panel clínico y al portal del familiar, así
           que lleva la marca del producto.
 
           Acá no va el nombre de ninguna institución: StopBet es el producto y AJUTER es
           su primer cliente, pero puede haber más. Quien todavía no entró no tiene sesión,
-          así que el sistema no sabe a qué institución pertenece — nombrar una sería
+          así que el sistema no sabe a qué institución pertenece. Nombrar una sería
           adivinar. Dentro del panel sí aparece (el logo al pie del sidebar), porque ahí
           ya se sabe de quién es la cuenta. */}
       {!isNarrow && <div style={{

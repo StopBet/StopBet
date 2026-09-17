@@ -1,10 +1,10 @@
-/* Marca StopBet — paleta y tipografías del manual (docs/manual-marca.md).
+/* Marca StopBet - paleta y tipografías del manual (docs/manual-marca.md).
  *
  * Acá viven las @font-face de Chillax y Satoshi, y los tokens con prefijo --sb-
  * que consume el login. La paleta del shell la define stopbet-theme.css, que se
  * importa después y sobrescribe los tokens semánticos.
  *
- * Las fuentes son .ttf en vez de .woff2 como el resto: pesan 60–74 KB cada una y
+ * Las fuentes son .ttf en vez de .woff2 como el resto: pesan 60-74 KB cada una y
  * es lo que hay en el repo. Si alguien las convierte a woff2, cambiar acá la ruta. */
 
 @font-face {
