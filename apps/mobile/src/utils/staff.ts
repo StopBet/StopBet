@@ -20,7 +20,7 @@ export function needsAttention(status: PanicStatus): boolean {
 
 /**
  * Se compara el día local, no el UTC: con `toISOString()` el día ya es mañana desde las
- * 20–21 h de Chile y "Alertas hoy" quedaba en 0 con alertas de esa misma tarde.
+ * 20-21 h de Chile y "Alertas hoy" quedaba en 0 con alertas de esa misma tarde.
  */
 export function isToday(iso: string): boolean {
   const d = new Date(iso);
@@ -92,7 +92,7 @@ export function enRiesgo(paciente: StaffPatient, porPaciente: Record<string, Sta
  * cuentas del seed y las anteriores tienen el nombre ("Santiago") y las creadas desde el
  * registro tienen el UUID. `panic_alerts` no tiene sede propia: copia la del paciente, así
  * que arrastra lo mismo. Comparar solo por id dejaría fuera a media sede sin que nada lo
- * delate —la lista sale vacía, no rota—, así que se aceptan las dos formas.
+ * delate - la lista sale vacía, no rota, así que se aceptan las dos formas.
  *
  * No es el arreglo: el arreglo es normalizar la columna, y eso es una migración.
  */

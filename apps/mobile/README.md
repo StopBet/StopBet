@@ -1,6 +1,6 @@
 # StopBet Mobile
 
-App móvil de StopBet — **React Native CLI 0.86** (sin Expo). Prioridad **Android** en el MVP; iOS pendiente.
+App móvil de StopBet - **React Native CLI 0.86** (sin Expo). Prioridad **Android** en el MVP; iOS pendiente.
 
 > **Estado:** la app **compila y corre en dispositivo Android físico y en emulador**. Un mismo binario sirve a dos perfiles: el **paciente** y el **equipo clínico** (psicólogo), cada uno con su propia navegación tras el login (ver [Cuentas de prueba](#cuentas-de-prueba)).
 
@@ -11,7 +11,7 @@ App móvil de StopBet — **React Native CLI 0.86** (sin Expo). Prioridad **Andr
 - Android Studio con SDK + al menos una plataforma Android instalada
 - `adb` en el PATH
 - En el celular: Opciones de desarrollador → **Depuración USB** activada
-- **`android/app/google-services.json`** (configuración de Firebase) — **no viene en el repo**, ver abajo
+- **`android/app/google-services.json`** (configuración de Firebase) - **no viene en el repo**, ver abajo
 
 ### `google-services.json` (obligatorio para compilar)
 
@@ -69,17 +69,17 @@ pnpm run android:device:fresh   # si Metro se comporta raro (resetea caché)
 El script de arriba es **PowerShell, solo Windows**. En Linux/Mac los pasos son manuales, en terminales separadas:
 
 ```bash
-# Terminal 1 — backend (desde la raíz del monorepo)
+# Terminal 1 - backend (desde la raíz del monorepo)
 pnpm run backend
 
-# Terminal 2 — Metro bundler (desde apps/mobile/)
+# Terminal 2 - Metro bundler (desde apps/mobile/)
 npx react-native start
 
-# Terminal 3 — puentes para que el dispositivo alcance el localhost del PC
+# Terminal 3 - puentes para que el dispositivo alcance el localhost del PC
 adb reverse tcp:8081 tcp:8081   # Metro
 adb reverse tcp:3000 tcp:3000   # Backend
 
-# Terminal 3 — compilar e instalar el APK (primera vez / cambios nativos)
+# Terminal 3 - compilar e instalar el APK (primera vez / cambios nativos)
 npx react-native run-android
 ```
 
@@ -93,7 +93,7 @@ Esto ya está resuelto en el repo, pero conviene entenderlo porque es la causa d
 - **Gradle y las rutas hoisteadas.** Los `build.gradle` / `settings.gradle` apuntan a `../../../node_modules` (raíz del monorepo) para encontrar `@react-native/gradle-plugin` y el codegen. El `.npmrc` raíz tiene `public-hoist-pattern[]=*react-native*` por lo mismo.
 - **RAM ajustada.** `metro.config.js` fija `maxWorkers: 2`. En máquinas con ~8 GB, los 8 workers por defecto saturan la RAM en la serialización final del bundle y el SO mata procesos. Además: **levantar el backend después** de que Metro termine el bundle pesado, no antes.
 - **`adb reverse` se cae.** Si el daemon de `adb` se reinicia (o tras un crash/OOM), se pierden los puentes y la app queda en gris sin poder alcanzar Metro. Solución: volver a correr los dos `adb reverse`.
-- **Un campo que se reformatea solo (RUT, tarjeta, etc.) puede duplicar lo tecleado en Android.** Si `onChangeText` reescribe el `value` completo (puntos, guiones), un teclado con texto predictivo activado pierde su región de composición y vuelve a soltar el buffer entero: tecleando `123` el campo termina en `123123123...`. Pasó en el RUT del registro (HU-06, PR #86); con predicción apagada, con teclado físico, o con `adb shell input text` (que no pasa por el teclado) **no se reproduce** — para probarlo hay que tocar las teclas en pantalla con texto predictivo encendido. `autoCorrect={false}` no basta en todos los teclados (el de Samsung lo ignora); `keyboardType="visible-password"` sí corta la composición porque Android trata cualquier campo de contraseña como no editable por el predictivo.
+- **Un campo que se reformatea solo (RUT, tarjeta, etc.) puede duplicar lo tecleado en Android.** Si `onChangeText` reescribe el `value` completo (puntos, guiones), un teclado con texto predictivo activado pierde su región de composición y vuelve a soltar el buffer entero: tecleando `123` el campo termina en `123123123...`. Pasó en el RUT del registro (HU-06, PR #86); con predicción apagada, con teclado físico, o con `adb shell input text` (que no pasa por el teclado) **no se reproduce**. Para probarlo hay que tocar las teclas en pantalla con texto predictivo encendido. `autoCorrect={false}` no basta en todos los teclados (el de Samsung lo ignora); `keyboardType="visible-password"` sí corta la composición porque Android trata cualquier campo de contraseña como no editable por el predictivo.
 
 ## Cuentas de prueba
 

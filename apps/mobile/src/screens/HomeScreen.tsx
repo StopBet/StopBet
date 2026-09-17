@@ -128,7 +128,7 @@ export function HomeScreen({ navigation }: Props) {
         setCheckInDone(true);
       }
       // Antes solo se asignaba si venía algo, así que con la lista vacía quedaban
-      // 4 notificaciones de demo hardcodeadas — una de ellas afirmaba que la
+      // 4 notificaciones de demo hardcodeadas - una de ellas afirmaba que la
       // psicóloga había revisado el check-in del paciente. Datos clínicos falsos.
       setNotifications(notifs);
 
@@ -144,7 +144,7 @@ export function HomeScreen({ navigation }: Props) {
         });
       }
     } catch (err) {
-      // Quedarse sin red es un estado esperado —hay un simulador en Perfil— y no
+      // Quedarse sin red es un estado esperado - hay un simulador en Perfil - y no
       // un fallo. Con console.error React Native levanta el LogBox encima de la
       // pantalla; los errores de verdad sí lo siguen levantando.
       // Solo loguea el error sin exponer datos del paciente.
@@ -257,7 +257,7 @@ export function HomeScreen({ navigation }: Props) {
         showToast('No pudimos guardar tu check-in. Inténtalo de nuevo.', 'error');
         return;
       }
-      // CA7.3: sin conexión el ánimo no se descarta — queda en cola y se
+      // CA7.3: sin conexión el ánimo no se descarta - queda en cola y se
       // reintenta solo al volver la red.
       await savePending(userId, emotion);
       setTodayEmotion(emotion);
@@ -365,8 +365,8 @@ export function HomeScreen({ navigation }: Props) {
               <Icon name="triangle-alert" size={16} color={c.fg2} />
               <Text style={styles.offlineText}>
                 {progress
-                  ? 'Sin conexión — te mostramos tus últimos datos guardados.'
-                  : 'Sin conexión — no pudimos cargar tu progreso.'}
+                  ? 'Sin conexión. Te mostramos tus últimos datos guardados.'
+                  : 'Sin conexión. No pudimos cargar tu progreso.'}
               </Text>
             </View>
           )}

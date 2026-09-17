@@ -6,7 +6,7 @@ import { Pressable, type PressableProps, type StyleProp, type ViewStyle } from '
  *
  * Android responde al toque con una onda que sale del dedo; la app solo bajaba la
  * opacidad, que es el gesto de iOS. En un teléfono Android eso se siente como si el
- * toque no hubiera entrado — sobre todo en el botón de pánico y en las reacciones, donde
+ * toque no hubiera entrado - sobre todo en el botón de pánico y en las reacciones, donde
  * el paciente necesita saber de inmediato que lo tocó.
  *
  * Se mantiene la baja de opacidad además de la onda: en superficies de color la onda

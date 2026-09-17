@@ -25,7 +25,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 
-// Diagnóstico temporal (CA1/CA7 — escrituras que se pierden contra Railway): registra el
+// Diagnóstico temporal (CA1/CA7 - escrituras que se pierden contra Railway): registra el
 // ciclo de vida real de cada llamada HTTP para saber, con evidencia y no con suposiciones,
 // si la conexión es nueva o reusada y en qué paso exacto se pierde la respuesta. Se puede
 // quitar una vez identificada la causa raíz definitiva.
@@ -111,7 +111,7 @@ class MainApplication : Application(), ReactApplication {
     // El proxy de Railway corta las conexiones inactivas a los 60 s con un RST (medido:
     // sobrevive a 58 s, muere a 60 s), sin avisarle al cliente. El pool por defecto de
     // OkHttp (5, 5 MINUTOS) las da por buenas mucho después de esa ventana, así que
-    // reutiliza una conexión que el proxy ya mató — la petición se pierde y OkHttp nunca
+    // reutiliza una conexión que el proxy ya mató - la petición se pierde y OkHttp nunca
     // reintenta un POST solo. Bajar el tiempo de vida del pool muy por debajo de los 60 s
     // hace que nunca exista una conexión zombi que reutilizar.
     OkHttpClientProvider.setOkHttpClientFactory {

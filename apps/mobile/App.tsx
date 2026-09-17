@@ -33,7 +33,7 @@ import { StaffTabs } from './src/navigation/StaffTabs';
 // Quién puede entrar por el teléfono. El familiar queda fuera porque su portal es una app
 // web aparte, sin ninguna pantalla acá. El **coordinador** también queda fuera, y no por
 // criterio de producto: el backend no lo atiende. `GET /psychologists/:id` responde 404
-// para él —filtra por `role: 'psychologist'`— así que se queda sin sedes, y
+// para él - filtra por `role: 'psychologist'` - así que se queda sin sedes, y
 // `assertPsychologist` le cierra la moderación con 403. Entraría a una app rota. Para
 // sumarlo hay que arreglar esos dos endpoints primero.
 const ROLES_EN_LA_APP: AuthUser['role'][] = ['patient', 'psychologist'];

@@ -35,7 +35,7 @@ export function useToast(): ToastApi {
   return useContext(ToastContext);
 }
 
-// Los ayudantes que viven fuera de un componente —como `alertFailure` de Comunidad—
+// Los ayudantes que viven fuera de un componente - como `alertFailure` de Comunidad -
 // no pueden usar hooks. El proveedor deja acá su emisor para que igual puedan avisar.
 let emitir: ToastApi['showToast'] | null = null;
 

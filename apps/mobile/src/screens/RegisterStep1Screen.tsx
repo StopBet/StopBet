@@ -150,8 +150,8 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
             <FormInput label="Apellido(s)" required value={lastName} onChangeText={setLastName}
               leadingIcon="user" placeholder="Pérez" error={errors.lastName} />
           </View>
-          {/* "numbers-and-punctuation" era solo iOS: en Android nunca se aplicó —caía al
-              teclado de texto— y en iOS dejaba fuera la K del dígito verificador. Probado
+          {/* "numbers-and-punctuation" era solo iOS: en Android nunca se aplicó - caía al
+              teclado de texto - y en iOS dejaba fuera la K del dígito verificador. Probado
               en un Galaxy A31 (teclado Samsung, texto predictivo activado): autoCorrect
               solo no bastó, ese teclado lo ignora y seguía duplicando. "visible-password"
               sí frena la composición porque Android trata cualquier campo de contraseña

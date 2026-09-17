@@ -85,7 +85,7 @@ export function LoginScreen({ navigation }: Props) {
             </Pressable>
           </View>
 
-          {/* Marca — logotipo horizontal del manual, en vez de los anillos con
+          {/* Marca - logotipo horizontal del manual, en vez de los anillos con
               un corazón genérico y la marca escrita en minúsculas. */}
           <View style={styles.brand}>
             <Image

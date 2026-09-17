@@ -15,7 +15,7 @@ export function QuickAccess({ onPressAssistant }: Props) {
   const styles = useStyles(makeStyles);
   return (
     <View style={styles.wrapper}>
-      {/* CTA principal — Hablar con el asistente IA */}
+      {/* CTA principal - Hablar con el asistente IA */}
       <Touchable
         activeOpacity={0.85}
         onPress={onPressAssistant}

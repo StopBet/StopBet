@@ -56,7 +56,7 @@ const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
 // Cuánto dura el chip "¡Nuevo!" sobre la última insignia ganada.
 const NEW_BADGE_TTL_MS = 60 * 60 * 1000;
 
-// Persiste mientras la app sigue viva — evita re-mostrar el modal al navegar de vuelta
+// Persiste mientras la app sigue viva - evita re-mostrar el modal al navegar de vuelta
 const shownMilestones = new Set<BadgeMilestone>();
 
 const BADGE_CONFIG: Record<BadgeMilestone, { label: string; icon: IconName; daysLabel: string }> = {
@@ -148,7 +148,7 @@ export function AchievementsScreen({ navigation }: Props) {
         shownMilestones.clear();
         setIsExternalRelapse(true);
         setRelapseMessage(
-          'Tu contador ha sido reiniciado. Recuerda que cada ciclo es parte de tu recuperación — tu equipo clínico está acá para apoyarte en este proceso.',
+          'Tu contador ha sido reiniciado. Recuerda que cada ciclo es parte de tu recuperación. Tu equipo clínico está acá para apoyarte en este proceso.',
         );
         setRelapseModal(true);
       } else if (result.newestMilestone && !shownMilestones.has(result.newestMilestone)) {
@@ -269,7 +269,7 @@ export function AchievementsScreen({ navigation }: Props) {
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Mis Logros</Text>
           <Text style={styles.headerSub}>
-            {hasData ? `Periodo actual: ${days} días` : 'Periodo actual: —'}
+            {hasData ? `Periodo actual: ${days} días` : 'Periodo actual: -'}
           </Text>
         </View>
         <View style={styles.trophyCircle}>
@@ -292,8 +292,8 @@ export function AchievementsScreen({ navigation }: Props) {
               <Icon name="triangle-alert" size={16} color={c.fg2} />
               <Text style={styles.offlineText}>
                 {hasData
-                  ? 'Sin conexión — te mostramos tus últimos datos guardados.'
-                  : 'Sin conexión — no pudimos cargar tus logros.'}
+                  ? 'Sin conexión. Te mostramos tus últimos datos guardados.'
+                  : 'Sin conexión. No pudimos cargar tus logros.'}
               </Text>
             </View>
           )}
@@ -536,7 +536,7 @@ function CycleCard({ period, attemptLabel }: { period: AbstinencePeriod; attempt
         </View>
         <Text style={styles.cycleDates}>
           {formatDateShort(period.startDate)}
-          {period.endDate ? ` – ${formatDateShort(period.endDate)}` : ''}
+          {period.endDate ? ` - ${formatDateShort(period.endDate)}` : ''}
         </Text>
       </View>
       <Text style={styles.cycleProgress}>{period.daysAchieved} días de progreso</Text>

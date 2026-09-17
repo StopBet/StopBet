@@ -3,7 +3,7 @@ import type { AchievementsData, CommunityPost, SponsorInfo } from '@stopbet/shar
 
 // Las cachés se guardan POR PACIENTE. Antes la clave era una sola para toda la app, lo
 // que no importaba mientras hubiera un único usuario fijo; con sesiones reales, entrar
-// con otra cuenta y quedarse sin red mostraba el progreso —y el teléfono del padrino— del
+// con otra cuenta y quedarse sin red mostraba el progreso - y el teléfono del padrino - del
 // paciente anterior. Eso es una fuga entre pacientes de la misma sede.
 function claveDe(base: string, userId: string): string {
   return `${base}/${userId}`;
