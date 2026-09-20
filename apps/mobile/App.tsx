@@ -17,6 +17,7 @@ import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { SelectInstitutionScreen } from './src/screens/SelectInstitutionScreen';
 import { RegisterStep1Screen } from './src/screens/RegisterStep1Screen';
+import { RegisterIntakeScreen } from './src/screens/RegisterIntakeScreen';
 import { RegisterStep2Screen } from './src/screens/RegisterStep2Screen';
 import { RequestSentScreen } from './src/screens/RequestSentScreen';
 import { PaymentScreen } from './src/screens/PaymentScreen';
@@ -56,6 +57,7 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login" component={LoginScreen} />
       <AuthStack.Screen name="SelectInstitution" component={SelectInstitutionScreen} />
       <AuthStack.Screen name="RegisterStep1" component={RegisterStep1Screen} />
+      <AuthStack.Screen name="RegisterIntake" component={RegisterIntakeScreen} />
       <AuthStack.Screen name="RegisterStep2" component={RegisterStep2Screen} />
       <AuthStack.Screen name="RequestSent" component={RequestSentScreen} />
       <AuthStack.Screen name="Payment" component={PaymentScreen} />

@@ -21,6 +21,7 @@ import type {
   SendMessageResponse,
   SponsorInfo,
   StartSessionResponse,
+  IntakeAnswers,
   SubmitRegistrationResponse,
 } from '@stopbet/shared-types';
 
@@ -276,6 +277,7 @@ export const api = {
     referralSource?: string;
     sedeId: string;
     institutionId: string;
+    intake?: IntakeAnswers;
   }) =>
     request<SubmitRegistrationResponse>('/registration/submit', {
       method: 'POST',
