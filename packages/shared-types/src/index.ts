@@ -388,5 +388,143 @@ export interface CreatePsychologistResponse {
   credentialsEmailSent: boolean;
 }
 
+// ── HdU13: ficha clínica del paciente ──
+
+// Los cinco campos que el CA1 declara obligatorios. Se nombran acá una sola vez porque el
+// backend los recorre para validar y para calcular qué cambió entre dos versiones: una lista
+// suelta en cada lado se desincroniza al agregar el sexto.
+export const CLINICAL_RECORD_FIELDS = [
+  'admissionReason',
+  'gamblingHistory',
+  'triggers',
+  'healthAndSupport',
+  'treatmentGoals',
+] as const;
+
+export type ClinicalRecordField = (typeof CLINICAL_RECORD_FIELDS)[number];
+
+export type ClinicalRecordContent = Record<ClinicalRecordField, string>;
+
+export interface ClinicalRecord extends ClinicalRecordContent {
+  id: string;
+  patientId: string;
+  // Quién hizo la última modificación y cuándo (CA2)
+  updatedBy: string;
+  updatedByName: string;
+  updatedAt: string;
+  createdAt: string;
+}
+
+// CA1: el psicólogo abre el perfil por primera vez y ve la ficha vacía, no un 404. `exists`
+// distingue "todavía no se ha escrito nada" de "hay una ficha con campos en blanco", que para
+// el historial de auditoría no son lo mismo.
+export interface ClinicalRecordView {
+  exists: boolean;
+  record: ClinicalRecord | null;
+  content: ClinicalRecordContent;
+}
+
+// Para la lista de pacientes: solo dice si la ficha existe y cuándo se tocó, nunca su
+// contenido. Sirve para marcar a quién le falta sin pedir cinco fichas completas.
+export interface ClinicalRecordStatus {
+  patientId: string;
+  updatedAt: string;
+  updatedByName: string;
+}
+
+export interface ClinicalRecordFieldChange {
+  field: ClinicalRecordField;
+  before: string;
+  after: string;
+}
+
+// CA4: una entrada por guardado, con el detalle de qué campos cambiaron en cada uno.
+export interface ClinicalRecordVersion {
+  id: string;
+  recordId: string;
+  versionNumber: number;
+  changedBy: string;
+  changedByName: string;
+  changedAt: string;
+  changedFields: ClinicalRecordFieldChange[];
+}
+
+// ── Cuestionario de ingreso (HdU13 + HdU19) ──
+//
+// Lo que el paciente declara al registrarse. Alimenta la ficha clínica, pero **no se mezcla
+// con ella**: el psicólogo lo ve en solo lectura y escribe su ficha aparte. Si el paciente
+// minimiza o se equivoca, el contraste entre lo declarado y lo observado es material clínico.
+//
+// Todo es opcional: quien llena esto está pidiendo ayuda, y una pregunta obligatoria de más es
+// alguien que abandona el registro a medio camino.
+
+export const INTAKE_MOTIVES = [
+  'Perdí dinero que necesitaba',
+  'Alguien cercano me lo pidió',
+  'Problemas en mi casa o mi pareja',
+  'Problemas en el trabajo o los estudios',
+  'Lo decidí por mi cuenta',
+  'Me derivó un profesional de la salud',
+] as const;
+
+export const INTAKE_GAMBLING_TYPES = [
+  'Apuestas deportivas en línea',
+  'Casinos en línea',
+  'Tragamonedas',
+  'Casino presencial',
+  'Loterías o raspaditos',
+  'Bingo',
+  'Juegos de cartas con dinero',
+] as const;
+
+export const INTAKE_DURATIONS = [
+  'Menos de 6 meses',
+  'Entre 6 meses y 1 año',
+  'Entre 1 y 3 años',
+  'Entre 3 y 5 años',
+  'Más de 5 años',
+] as const;
+
+export const INTAKE_TRIGGERS = [
+  'Cuando recibo dinero o me pagan',
+  'Cuando estoy solo',
+  'Cuando estoy estresado o ansioso',
+  'Después de una discusión',
+  'Cuando veo publicidad de apuestas',
+  'Los fines de semana o cuando hay partidos',
+  'De noche o cuando no puedo dormir',
+] as const;
+
+// Las respuestas se guardan como el texto de la alternativa, no como un código. Un `motive: 3`
+// obliga a mantener sincronizadas dos listas para leer una ficha, y si mañana se reordenan las
+// opciones, las fichas viejas empiezan a decir otra cosa sin que nada falle.
+export interface IntakeAnswers {
+  motive: string | null;
+  motiveOther: string | null;
+  gamblingTypes: string[];
+  gamblingTypesOther: string | null;
+  duration: string | null;
+  triggers: string[];
+  triggersOther: string | null;
+}
+
+// Lo que el panel muestra en la ficha, ya resuelto: las respuestas más cuándo se declararon.
+export interface IntakeView {
+  answered: boolean;
+  submittedAt: string | null;
+  answers: IntakeAnswers | null;
+}
+
+// Anotaciones del seguimiento clínico: cronología que se acumula, a diferencia de la ficha,
+// que se corrige. No se editan ni se borran.
+export interface ClinicalNote {
+  id: string;
+  patientId: string;
+  authorId: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
 // ── HdU06: validación de fechas de calendario, compartida entre mobile y backend ──
 export * from './validators/date';
