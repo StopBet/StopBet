@@ -6,9 +6,22 @@ import { FamilyLink } from './entities/family-link.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
 import { User } from '../users/entities/user.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { Sede } from '../sedes/entities/sede.entity';
+import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FamilyLink, FamilySession, SessionAttendance, User])],
+  imports: [
+    TypeOrmModule.forFeature([
+      FamilyLink,
+      FamilySession,
+      SessionAttendance,
+      User,
+      Notification,
+      Sede,
+      PsychologistSede,
+    ]),
+  ],
   controllers: [FamilyController],
   providers: [FamilyService],
   exports: [FamilyService],

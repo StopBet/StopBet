@@ -297,6 +297,25 @@ export interface CreatePsychologistResponse {
   credentialsEmailSent: boolean
 }
 
+// ── Registro público del familiar (HDU 22) ──────────────────────────────────
+
+export interface RegisterFamilyPayload {
+  firstName: string
+  lastName: string
+  rut: string
+  email: string
+  password: string
+  phone?: string
+  patientRut: string
+}
+
+// Misma forma exista o no el paciente declarado (CA2 de HDU 22): la respuesta
+// nunca delata si hubo coincidencia.
+export interface RegisterFamilyResponse {
+  userId: string
+  status: 'pending'
+}
+
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -378,6 +397,11 @@ export const api = {
   // por qué atender todas las sedes del psicólogo que se da de baja.
   deactivatePsychologistBySede: (id: string, reassignments: Record<string, string>) =>
     patchWithAuth<void>(`/psychologists/${id}/deactivate`, { reassignments }),
+
+  // Sin sesión — @Public() en el backend. Usa postPublicWithError, no post(), porque
+  // necesita el cuerpo del error 409 (correo/RUT duplicado) que failed() descarta.
+  registerFamily: (payload: RegisterFamilyPayload) =>
+    postPublicWithError<RegisterFamilyResponse>('/family/register', payload),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────
@@ -469,3 +493,23 @@ async function requestWithAuth<T>(method: 'POST' | 'PATCH', path: string, body: 
 
 const postWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('POST', path, body)
 const patchWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('PATCH', path, body)
+
+// Mismo trato que requestWithAuth (necesita el cuerpo del error de Nest), sin el header
+// de autorización: el registro del familiar no tiene sesión todavía.
+async function postPublicWithError<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    const err = new Error(`POST ${path} → ${res.status}`) as ApiError
+    err.status = res.status
+    err.body = text ? JSON.parse(text) : undefined
+    throw err
+  }
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}

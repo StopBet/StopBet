@@ -1,7 +1,14 @@
+import { ConflictException } from '@nestjs/common';
 import { FamilyService } from './family.service';
+import { FamilyLink } from './entities/family-link.entity';
+import { User } from '../users/entities/user.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { Sede } from '../sedes/entities/sede.entity';
+import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 
 const FAMILY_ID = 'fam-1';
 const SEDE = 'sede-santiago';
+const SEDE_UUID = '11111111-1111-1111-1111-111111111111';
 
 function daysFromNow(days: number): Date {
   const d = new Date();
@@ -14,7 +21,11 @@ describe('FamilyService (HU-11)', () => {
   let linkRepo: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let sessionRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let attendanceRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
-  let userRepo: { findOne: jest.Mock };
+  let userRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let notifRepo: { create: jest.Mock; save: jest.Mock };
+  let sedeRepo: { findOne: jest.Mock };
+  let psychSedeRepo: { find: jest.Mock };
+  let dataSource: { transaction: jest.Mock };
 
   beforeEach(() => {
     linkRepo = { findOne: jest.fn(), create: jest.fn((v) => v), save: jest.fn((v) => Promise.resolve(v)) };
@@ -30,13 +41,39 @@ describe('FamilyService (HU-11)', () => {
       create: jest.fn((v) => v),
       save: jest.fn((v) => Promise.resolve(v)),
     };
-    userRepo = { findOne: jest.fn() };
+    userRepo = {
+      findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn((v) => v),
+      save: jest.fn((v) => Promise.resolve({ id: 'fam-new', ...v })),
+    };
+    notifRepo = { create: jest.fn((v) => v), save: jest.fn().mockResolvedValue(undefined) };
+    sedeRepo = { findOne: jest.fn() };
+    psychSedeRepo = { find: jest.fn().mockResolvedValue([]) };
+
+    const manager = {
+      getRepository: jest.fn((entity: unknown) => {
+        if (entity === FamilyLink) return linkRepo;
+        if (entity === User) return userRepo;
+        if (entity === Notification) return notifRepo;
+        if (entity === Sede) return sedeRepo;
+        if (entity === PsychologistSede) return psychSedeRepo;
+        throw new Error('Entidad sin mock en el spec');
+      }),
+    };
+    dataSource = {
+      transaction: jest.fn(async (run: (m: unknown) => Promise<unknown>) => run(manager)),
+    };
 
     service = new FamilyService(
       linkRepo as any,
       sessionRepo as any,
       attendanceRepo as any,
       userRepo as any,
+      notifRepo as any,
+      sedeRepo as any,
+      psychSedeRepo as any,
+      dataSource as any,
     );
   });
 
@@ -212,5 +249,85 @@ describe('FamilyService (HU-11)', () => {
     await expect(
       service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' }),
     ).rejects.toThrow('Ya existe un vínculo con ese paciente');
+  });
+
+  // ── registerFamily — HDU 22 ─────────────────────────────────────────────────
+
+  describe('registerFamily', () => {
+    const baseDto = {
+      firstName: 'Marta',
+      lastName: 'Soto',
+      rut: '11.111.111-1',
+      email: 'marta@stopbet.cl',
+      password: 'clave1234',
+      patientRut: '22.222.222-2',
+    };
+
+    it('CA3: rechaza con 409 si el correo ya existe, sin crear cuenta ni vínculo', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'existing' });
+
+      await expect(service.registerFamily(baseDto)).rejects.toThrow(ConflictException);
+      expect(userRepo.save).not.toHaveBeenCalled();
+      expect(linkRepo.save).not.toHaveBeenCalled();
+    });
+
+    // El RUT va cifrado con IV aleatorio: no hay columna que filtrar, así que el chequeo
+    // compara en memoria contra todas las cuentas existentes.
+    it('CA3: rechaza con 409 si el RUT del familiar ya existe, sin crear cuenta ni vínculo', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      userRepo.find.mockResolvedValueOnce([{ id: 'otro', rut: '11.111.111-1' }]);
+
+      await expect(service.registerFamily(baseDto)).rejects.toThrow(ConflictException);
+      expect(userRepo.save).not.toHaveBeenCalled();
+      expect(linkRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('CA1: vincula al paciente encontrado por RUT y notifica a los psicólogos de su sede', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      userRepo.find
+        .mockResolvedValueOnce([]) // cuentas existentes (dedupe de RUT)
+        .mockResolvedValueOnce([{ id: 'pat-1', rut: '22.222.222-2', sedeId: SEDE_UUID }]); // pacientes
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+
+      const result = await service.registerFamily(baseDto);
+
+      expect(result).toEqual({ userId: 'fam-new', status: 'pending' });
+      expect(linkRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          familyUserId: 'fam-new',
+          patientUserId: 'pat-1',
+          declaredPatientRut: null,
+          status: 'pending',
+        }),
+      );
+      expect(notifRepo.save).toHaveBeenCalledWith([
+        expect.objectContaining({ userId: 'psych-1', type: 'info' }),
+      ]);
+    });
+
+    // CA2 — ni la respuesta ni ningún psicólogo se enteran de que el RUT no coincidió: solo
+    // coordinación, vía notificación, y el intento queda igual en family_links.
+    it('CA2: si el RUT del paciente no corresponde a nadie, guarda el intento y alerta a coordinación con la misma respuesta', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      userRepo.find
+        .mockResolvedValueOnce([]) // cuentas existentes
+        .mockResolvedValueOnce([]) // pacientes: ninguno coincide
+        .mockResolvedValueOnce([{ id: 'coord-1', role: 'coordinator' }]); // coordinadores
+
+      const result = await service.registerFamily(baseDto);
+
+      expect(result).toEqual({ userId: 'fam-new', status: 'pending' });
+      expect(linkRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          familyUserId: 'fam-new',
+          patientUserId: null,
+          declaredPatientRut: baseDto.patientRut,
+          status: 'pending',
+        }),
+      );
+      expect(notifRepo.save).toHaveBeenCalledWith([
+        expect.objectContaining({ userId: 'coord-1', type: 'warning' }),
+      ]);
+    });
   });
 });

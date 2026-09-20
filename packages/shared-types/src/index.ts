@@ -93,6 +93,13 @@ export interface SubmitRegistrationResponse {
   status: RegistrationStatus;
 }
 
+// La respuesta no dice si el RUT del paciente fue encontrado (HDU 22, CA2): con o sin
+// coincidencia, el familiar recibe exactamente el mismo cuerpo.
+export interface RegisterFamilyResponse {
+  userId: string;
+  status: 'pending';
+}
+
 // ── Suscripción / pago mensual ────────────────────────────────────────────
 
 export type PaymentMethod = 'card' | 'webpay' | 'transfer';
