@@ -187,6 +187,30 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
     )
   }
 
+  // HDU 23, CA3 - el psicólogo revisó la solicitud y no confirmó el vínculo declarado
+  if (data.linkStatus === 'rejected') {
+    return (
+      <Shell user={user} onLogout={onLogout}>
+        <Notice icon="circle-alert" title="Tu solicitud de vinculación no fue aprobada">
+          El equipo clínico revisó tu solicitud y no pudo confirmar el vínculo con el paciente
+          declarado. Si crees que esto es un error, contacta directamente al equipo clínico de tu sede.
+        </Notice>
+      </Shell>
+    )
+  }
+
+  // HDU 23, CA5 - tenías acceso y el equipo clínico lo retiró
+  if (data.linkStatus === 'revoked') {
+    return (
+      <Shell user={user} onLogout={onLogout}>
+        <Notice icon="circle-alert" title="Tu acceso como familiar fue retirado">
+          El equipo clínico retiró tu vínculo con el paciente. Si crees que esto es un error,
+          contacta directamente al equipo clínico de tu sede.
+        </Notice>
+      </Shell>
+    )
+  }
+
   // CA 11.5 - sin ninguna sesión dentro de las próximas 4 semanas
   if (!data.hasUpcoming) {
     return (

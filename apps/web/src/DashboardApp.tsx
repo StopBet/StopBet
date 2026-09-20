@@ -13,13 +13,14 @@ import { SolicitudesPage } from './pages/SolicitudesPage'
 import { ConfiguracionPage } from './pages/ConfiguracionPage'
 import { SesionesFamiliaresPage } from './pages/SesionesFamiliaresPage'
 import { EquipoPage } from './pages/EquipoPage'
+import { FamiliaresPage } from './pages/FamiliaresPage'
 import { api } from './services/api'
 import { needsAttention } from './utils/alertStatus'
 import type { AuthUser } from './services/api'
 import type { RegistrationRequest } from './data/mockData'
 
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface Toast { message: string; tone?: 'success' | 'error' }
 
@@ -28,6 +29,7 @@ const PAGE_TITLES: Record<NavId, string> = {
   patients:  'Mis pacientes',
   alerts:    'Alertas de pánico',
   requests:  'Solicitudes de ingreso',
+  familyLinks: 'Familiares',
   familySessions: 'Sesiones de familiares',
   equipo:    'Equipo',
   reports:   'Reportes',
@@ -40,6 +42,7 @@ const NAV_PATHS: Record<NavId, string> = {
   patients:  '/pacientes',
   alerts:    '/alertas',
   requests:  '/solicitudes',
+  familyLinks: '/familiares',
   familySessions: '/sesiones-familiares',
   equipo:    '/equipo',
   reports:   '/reportes',
@@ -95,6 +98,13 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
   const { data: sedes = [] } = useQuery({
     queryKey: ['sedes'],
     queryFn: api.getSedes,
+  })
+
+  // Para el badge de la barra lateral. FamiliaresPage vuelve a pedir esta misma lista al
+  // montarse, pero comparte queryKey y cache con TanStack Query — no duplica la llamada.
+  const { data: pendingFamilyLinks = [] } = useQuery({
+    queryKey: ['family', 'links', 'pending'],
+    queryFn: api.getPendingFamilyLinks,
   })
 
   // Misma clave que Resumen y Alertas: comparte la caché y el refresco en tiempo real.
@@ -190,6 +200,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
               onLogout={onLogout}
               reqCount={requests.length}
               alertCount={activeAlertCount}
+              familyLinkCount={pendingFamilyLinks.length}
               user={user}
             />
           </div>
@@ -224,6 +235,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
             <Route path="/" element={<OverviewPage user={user} />} />
             <Route path="/alertas" element={<AlertasPage />} />
             <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} />} />
+            <Route path="/familiares" element={<FamiliaresPage />} />
             <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
             <Route path="/equipo" element={<EquipoPage />} />
             <Route path="/finanzas" element={<FinanzasPage />} />

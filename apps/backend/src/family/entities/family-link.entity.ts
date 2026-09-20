@@ -10,7 +10,10 @@ import {
 import { User } from '../../users/entities/user.entity';
 import { encryptedColumnTransformer } from '../../common/crypto/encrypted-column.transformer';
 
-export type FamilyLinkStatus = 'pending' | 'active';
+// rejected: el psicólogo determinó que el paciente declarado no le corresponde (HDU 23,
+// CA3). revoked: un vínculo activo al que se le retiró el acceso (HDU 23, CA5) — estado
+// aparte de rejected para no perder en el historial que alguna vez estuvo vigente.
+export type FamilyLinkStatus = 'pending' | 'active' | 'rejected' | 'revoked';
 
 @Unique(['familyUserId', 'patientUserId'])
 @Entity('family_links')
@@ -43,6 +46,15 @@ export class FamilyLink {
   // pending: solicitado pero el psicólogo no ha aprobado aún (CA 11.6)
   @Column({ type: 'varchar', default: 'pending' })
   status: FamilyLinkStatus;
+
+  // Auditoría clínica (HDU 23, CA6): quién y cuándo tomó la última decisión sobre este
+  // vínculo (confirmar, rechazar o revocar). Se sobreescribe en cada acción — el veredicto
+  // vigente es el de `status`, no hace falta un historial de versiones acá.
+  @Column({ nullable: true })
+  reviewedBy: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  reviewedAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;

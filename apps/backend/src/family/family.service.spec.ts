@@ -18,7 +18,7 @@ function daysFromNow(days: number): Date {
 
 describe('FamilyService (HU-11)', () => {
   let service: FamilyService;
-  let linkRepo: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let linkRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock };
   let sessionRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let attendanceRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let userRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
@@ -28,7 +28,13 @@ describe('FamilyService (HU-11)', () => {
   let dataSource: { transaction: jest.Mock };
 
   beforeEach(() => {
-    linkRepo = { findOne: jest.fn(), create: jest.fn((v) => v), save: jest.fn((v) => Promise.resolve(v)) };
+    linkRepo = {
+      findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
+      create: jest.fn((v) => v),
+      save: jest.fn((v) => Promise.resolve(v)),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     sessionRepo = {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
@@ -328,6 +334,182 @@ describe('FamilyService (HU-11)', () => {
       expect(notifRepo.save).toHaveBeenCalledWith([
         expect.objectContaining({ userId: 'coord-1', type: 'warning' }),
       ]);
+    });
+  });
+
+  // ── Revisión del vínculo por el psicólogo — HDU 23 ──────────────────────────
+
+  describe('listPendingLinks / listActiveLinks', () => {
+    const psychologist = (over: Partial<import('@stopbet/shared-types').AuthUser> = {}) => ({
+      id: 'psych-1',
+      email: 'psico@stopbet.cl',
+      role: 'psychologist' as const,
+      firstName: 'Miguel',
+      lastName: 'Lara',
+      sedeId: SEDE,
+      ...over,
+    });
+
+    const linkRow = (over: Record<string, unknown> = {}) => ({
+      id: 'link-1',
+      familyUserId: 'fam-1',
+      familyUser: { firstName: 'Marta', lastName: 'Soto', email: 'marta@stopbet.cl' },
+      patientUserId: 'pat-1',
+      patientUser: { id: 'pat-1', firstName: 'Carlos', lastName: 'Demo', sedeId: SEDE_UUID },
+      status: 'pending',
+      createdAt: new Date('2026-09-01'),
+      ...over,
+    });
+
+    it('CA1: solo trae vínculos con paciente identificado, de la sede del psicólogo', async () => {
+      linkRepo.find.mockResolvedValue([linkRow()]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+
+      const result = await service.listPendingLinks(psychologist());
+
+      expect(linkRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ status: 'pending' }) }),
+      );
+      expect(result).toEqual([
+        expect.objectContaining({ id: 'link-1', familyName: 'Marta Soto', patientName: 'Carlos Demo' }),
+      ]);
+    });
+
+    it('un psicólogo no ve vínculos de otra sede', async () => {
+      linkRepo.find.mockResolvedValue([linkRow()]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-otro', sedeId: 'sede-concepcion' }]);
+
+      const result = await service.listPendingLinks(psychologist());
+
+      expect(result).toEqual([]);
+    });
+
+    it('el coordinador ve vínculos de cualquier sede', async () => {
+      linkRepo.find.mockResolvedValue([linkRow()]);
+
+      const result = await service.listPendingLinks(
+        psychologist({ role: 'coordinator', sedeId: null }),
+      );
+
+      expect(result).toHaveLength(1);
+      expect(psychSedeRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('listActiveLinks pide los vínculos en estado active, no pending', async () => {
+      linkRepo.find.mockResolvedValue([]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+
+      await service.listActiveLinks(psychologist());
+
+      expect(linkRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ status: 'active' }) }),
+      );
+    });
+  });
+
+  describe('confirmLink / rejectLink / revokeLink', () => {
+    const psychologist = (over: Record<string, unknown> = {}) => ({
+      id: 'psych-1',
+      email: 'psico@stopbet.cl',
+      role: 'psychologist' as const,
+      firstName: 'Miguel',
+      lastName: 'Lara',
+      sedeId: SEDE,
+      ...over,
+    });
+
+    const linkRow = (over: Record<string, unknown> = {}) => ({
+      id: 'link-1',
+      familyUserId: 'fam-1',
+      familyUser: { firstName: 'Marta', lastName: 'Soto' },
+      patientUserId: 'pat-1',
+      patientUser: { id: 'pat-1', firstName: 'Carlos', lastName: 'Demo', sedeId: SEDE_UUID },
+      status: 'pending',
+      ...over,
+    });
+
+    beforeEach(() => {
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+    });
+
+    it('CA2: confirma el vínculo y notifica al familiar y al paciente', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow());
+
+      await service.confirmLink('link-1', psychologist());
+
+      expect(linkRepo.update).toHaveBeenCalledWith(
+        { id: 'link-1', status: 'pending' },
+        expect.objectContaining({ status: 'active', reviewedBy: 'psych-1' }),
+      );
+      expect(notifRepo.save).toHaveBeenCalledWith([
+        expect.objectContaining({ userId: 'fam-1', type: 'success' }),
+        expect.objectContaining({ userId: 'pat-1', type: 'info' }),
+      ]);
+    });
+
+    it('rechaza con 409 si el vínculo ya fue procesado (doble confirmación)', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow());
+      linkRepo.update.mockResolvedValue({ affected: 0 });
+
+      await expect(service.confirmLink('link-1', psychologist())).rejects.toThrow(ConflictException);
+      expect(notifRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('un psicólogo de otra sede no puede confirmar', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow());
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'otro', sedeId: 'sede-concepcion' }]);
+
+      await expect(service.confirmLink('link-1', psychologist())).rejects.toThrow(
+        'No puedes revisar vínculos de una sede que no atiendes',
+      );
+      expect(linkRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('CA3: rechaza el vínculo y notifica solo al familiar, no al paciente', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow());
+
+      await service.rejectLink('link-1', psychologist());
+
+      expect(linkRepo.update).toHaveBeenCalledWith(
+        { id: 'link-1', status: 'pending' },
+        expect.objectContaining({ status: 'rejected' }),
+      );
+      expect(notifRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: 'fam-1', type: 'warning' }),
+      );
+      expect(notifRepo.save).not.toHaveBeenCalledWith(expect.arrayContaining([
+        expect.objectContaining({ userId: 'pat-1' }),
+      ]));
+    });
+
+    it('CA5: revoca un vínculo activo y notifica a ambas partes', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow({ status: 'active' }));
+
+      await service.revokeLink('link-1', psychologist());
+
+      expect(linkRepo.update).toHaveBeenCalledWith(
+        { id: 'link-1', status: 'active' },
+        expect.objectContaining({ status: 'revoked', reviewedBy: 'psych-1' }),
+      );
+      expect(notifRepo.save).toHaveBeenCalledWith([
+        expect.objectContaining({ userId: 'fam-1', type: 'warning' }),
+        expect.objectContaining({ userId: 'pat-1', type: 'info' }),
+      ]);
+    });
+
+    it('no se puede revocar un vínculo que no está activo', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow({ status: 'pending' }));
+      linkRepo.update.mockResolvedValue({ affected: 0 });
+
+      await expect(service.revokeLink('link-1', psychologist())).rejects.toThrow(ConflictException);
+    });
+
+    it('404 si el vínculo no existe', async () => {
+      linkRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.confirmLink('no-existe', psychologist())).rejects.toThrow(
+        'Vínculo no encontrado',
+      );
     });
   });
 });

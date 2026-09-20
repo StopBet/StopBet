@@ -3,7 +3,7 @@ import isotipo from '../assets/isotipo-blanco.png'
 import logoAjuter from '../assets/logo-ajuter.png'
 import type { AuthUser } from '../services/api'
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface SidebarProps {
   active: NavId
@@ -11,6 +11,7 @@ interface SidebarProps {
   onLogout: () => void
   reqCount: number
   alertCount: number
+  familyLinkCount: number
   user: AuthUser
 }
 
@@ -21,6 +22,7 @@ const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string; soon?: boolean 
   { id: 'patients',  icon: 'users',          label: 'Mis pacientes' },
   { id: 'alerts',    icon: 'triangle-alert', label: 'Alertas de pánico' },
   { id: 'requests',  icon: 'inbox',          label: 'Solicitudes' },
+  { id: 'familyLinks', icon: 'user-round',   label: 'Familiares' },
   { id: 'familySessions', icon: 'heart-handshake', label: 'Sesiones de familiares' },
   { id: 'equipo',    icon: 'user-plus',      label: 'Equipo' },
   { id: 'reports',   icon: 'chart-column',   label: 'Reportes', soon: true },
@@ -28,7 +30,7 @@ const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string; soon?: boolean 
   { id: 'settings',  icon: 'settings',       label: 'Configuración' },
 ]
 
-export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }: SidebarProps) {
+export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, familyLinkCount, user }: SidebarProps) {
   const displayName = `${user.firstName} ${user.lastName}`.trim()
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
   const roleLabel = user.role === 'coordinator' ? 'Coordinación' : 'Psicólogo/a'
@@ -124,6 +126,9 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
               )}
               {it.id === 'requests' && reqCount > 0 && (
                 <span style={{ background: 'var(--danger)', color: 'var(--fg-on-primary)', borderRadius: 9999, fontSize: 12, fontWeight: 700, padding: '1px 7px' }}>{reqCount}</span>
+              )}
+              {it.id === 'familyLinks' && familyLinkCount > 0 && (
+                <span style={{ background: 'var(--danger)', color: 'var(--fg-on-primary)', borderRadius: 9999, fontSize: 12, fontWeight: 700, padding: '1px 7px' }}>{familyLinkCount}</span>
               )}
             </button>
           )
