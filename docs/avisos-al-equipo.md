@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-20 - El asistente tacha más cosas antes de mandarlas al modelo (HdU13 CA6)
+## 2026-09-20 - El asistente tacha más cosas antes de mandarlas al modelo (PR #111)
 
 **A quién le pega:** a **Matías Barraza** (S.3, el sanitizador) y a quien mire resúmenes de
 sesión del asistente.
