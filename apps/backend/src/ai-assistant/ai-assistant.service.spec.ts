@@ -25,7 +25,10 @@ describe('AiAssistantService', () => {
   let sessionRepo: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock };
   let messageRepo: { findOne: jest.Mock; find: jest.Mock; save: jest.Mock; create: jest.Mock };
   let summaryRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
-  let userRepo: { findOne: jest.Mock };
+  let userRepo: { findOne: jest.Mock; find: jest.Mock };
+  let familyLinkRepo: { find: jest.Mock };
+  let sponsorRepo: { find: jest.Mock };
+  let clinicalRecords: { getTriggersForAssistant: jest.Mock };
 
   beforeEach(() => {
     sessionRepo = {
@@ -47,14 +50,26 @@ describe('AiAssistantService', () => {
       save: jest.fn((v) => Promise.resolve(v)),
     };
 
-    userRepo = { findOne: jest.fn().mockResolvedValue(null) };
+    userRepo = { findOne: jest.fn().mockResolvedValue(null), find: jest.fn().mockResolvedValue([]) };
+
+    // HdU13 CA6: por omision el paciente no tiene familiares vinculados ni companero de
+    // viaje; los tests que miran eso los cargan ellos mismos.
+    familyLinkRepo = { find: jest.fn().mockResolvedValue([]) };
+    sponsorRepo = { find: jest.fn().mockResolvedValue([]) };
+
+    // Sin ficha clínica: es el caso de todos los tests de acá, que miran el asistente y no
+    // la HdU13. Los detonantes como contexto tienen sus propios tests.
+    clinicalRecords = { getTriggersForAssistant: jest.fn().mockResolvedValue(null) };
 
     service = new AiAssistantService(
       sessionRepo as any,
       messageRepo as any,
       summaryRepo as any,
       userRepo as any,
+      familyLinkRepo as any,
+      sponsorRepo as any,
       configService as any,
+      clinicalRecords as any,
     );
   });
 
@@ -396,6 +411,145 @@ describe('AiAssistantService', () => {
 
       const summary = await service.closeSession(SESSION_ID, USER_ID);
       expect(summary.sessionId).toBe(SESSION_ID);
+    });
+  });
+
+  // HdU13 CA6: los detonantes de la ficha personalizan la conversación. Igual que en S.3,
+  // el criterio no se cumple porque el servicio lea la ficha, sino porque lo que sale hacia
+  // el LLM lleve los detonantes y no lleve el nombre.
+  describe('HdU13 CA6 — los detonantes de la ficha llegan al modelo', () => {
+    const DETONANTES = 'Días de pago y discusiones con Carlos Rojas, rut 12.345.678-9';
+
+    const capturar = () => {
+      const invoke = jest.fn().mockResolvedValue({ content: 'ya te escucho' });
+      (service as unknown as { llm: { invoke: jest.Mock } }).llm = { invoke };
+      messageRepo.find.mockResolvedValue([userMessage('hola')]);
+      return invoke;
+    };
+
+    const textoEnviado = (invoke: jest.Mock) =>
+      invoke.mock.calls[0][0].map((m: { content: string }) => m.content).join(' ');
+
+    beforeEach(() => {
+      sessionRepo.findOne.mockResolvedValue({
+        id: SESSION_ID, userId: USER_ID, status: 'active', previousContext: null,
+      });
+      userRepo.findOne.mockResolvedValue({ firstName: 'Carlos', lastName: 'Rojas' });
+      clinicalRecords.getTriggersForAssistant.mockResolvedValue(DETONANTES);
+    });
+
+    it('incluye los detonantes registrados por el psicólogo en el prompt', async () => {
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      expect(textoEnviado(invoke)).toContain('Días de pago');
+    });
+
+    it('omite el nombre y el RUT que el psicólogo haya escrito dentro de los detonantes', async () => {
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      const enviado = textoEnviado(invoke);
+      // La ficha la escribe el psicólogo en texto libre, así que puede arrastrar el nombre
+      // del paciente igual que lo arrastra el propio paciente al escribir. El detonante
+      // sirve igual sin él.
+      expect(enviado).not.toContain('Carlos');
+      expect(enviado).not.toContain('Rojas');
+      expect(enviado).not.toContain('12.345.678-9');
+      expect(enviado).toContain('Días de pago');
+    });
+
+    it('omite el teléfono y el correo que el psicólogo haya escrito en los detonantes', async () => {
+      clinicalRecords.getTriggersForAssistant.mockResolvedValue(
+        'Llamados de su acreedor al +56 9 1122 3304 y correos a carlos.rojas@gmail.com',
+      );
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      const enviado = textoEnviado(invoke);
+      expect(enviado).not.toContain('1122 3304');
+      expect(enviado).not.toContain('@gmail.com');
+      expect(enviado).toContain('Llamados de su acreedor');
+    });
+
+    it('no confunde con un teléfono el monto que el paciente perdió', async () => {
+      clinicalRecords.getTriggersForAssistant.mockResolvedValue(
+        'Días de pago: perdió 950.000 en una noche',
+      );
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      // Sin el monto el detonante pierde justamente lo que el asistente necesita entender.
+      expect(textoEnviado(invoke)).toContain('950.000');
+    });
+
+    it('omite el nombre de un familiar vinculado nombrado en los detonantes', async () => {
+      familyLinkRepo.find.mockResolvedValue([{ familyUserId: 'fam-1' }]);
+      userRepo.find.mockResolvedValue([{ firstName: 'Carla', lastName: 'Rojas' }]);
+      clinicalRecords.getTriggersForAssistant.mockResolvedValue('Discusiones con su hermana Carla');
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      const enviado = textoEnviado(invoke);
+      expect(enviado).not.toContain('Carla');
+      expect(enviado).toContain('Discusiones con su hermana');
+    });
+
+    it('omite el nombre de su compañero de viaje', async () => {
+      sponsorRepo.find.mockResolvedValue([{ sponsorId: 'sponsor-1' }]);
+      userRepo.find.mockResolvedValue([{ firstName: 'Daniela', lastName: 'Soto' }]);
+      clinicalRecords.getTriggersForAssistant.mockResolvedValue('Se descompensa si Daniela no contesta');
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      expect(textoEnviado(invoke)).not.toContain('Daniela');
+    });
+
+    // Documenta un límite conocido, no un comportamiento deseado: se omiten los nombres de
+    // quienes el sistema tiene registrados alrededor del paciente, y no hay forma de saber que
+    // «Nelson» es una persona y no un lugar. Un tercero que nadie registró llega al modelo.
+    // Queda anotado en ASUNCIONES-PENDIENTES; la mitigación es el aviso del campo de
+    // detonantes, que pide escribirlos sin nombres de terceros.
+    it('todavía deja pasar el nombre de un tercero que no está registrado', async () => {
+      clinicalRecords.getTriggersForAssistant.mockResolvedValue('Discusiones con su jefe Nelson');
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      expect(textoEnviado(invoke)).toContain('Nelson');
+    });
+
+    it('no recorta palabras que contienen el nombre del paciente', async () => {
+      // Con `replace` a secas, una paciente llamada Ana convertía «mañana» en «mañ[...]».
+      userRepo.findOne.mockResolvedValue({ firstName: 'Ana', lastName: 'Pérez' });
+      clinicalRecords.getTriggersForAssistant.mockResolvedValue('Ansiedad de mañana temprano, Ana lo nota');
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      const enviado = textoEnviado(invoke);
+      expect(enviado).toContain('mañana');
+      expect(enviado).not.toContain('Ana lo nota');
+    });
+
+    it('sigue funcionando cuando el paciente todavía no tiene ficha', async () => {
+      clinicalRecords.getTriggersForAssistant.mockResolvedValue(null);
+      const invoke = capturar();
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+
+      expect(textoEnviado(invoke)).not.toContain('Detonantes registrados');
+    });
+
+    it('no le muestra al paciente lo que su psicólogo escribió sobre él', async () => {
+      // `previousContext` se devuelve a la app y se le muestra al paciente. La ficha es
+      // material clínico del psicólogo: alimenta al modelo, no vuelve a la pantalla.
+      sessionRepo.save.mockImplementation((v: Record<string, unknown>) =>
+        Promise.resolve({ ...v, id: SESSION_ID, startedAt: new Date(), lastActivityAt: new Date() }),
+      );
+      summaryRepo.findOne.mockResolvedValue(null);
+      (service as unknown as { llm: null }).llm = null;
+
+      const res = await service.startSession(USER_ID);
+      expect(res.previousContext ?? '').not.toContain('Carla');
+      expect(res.previousContext ?? '').not.toContain('Días de pago');
     });
   });
 

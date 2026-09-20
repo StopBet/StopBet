@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from './WIcon'
 import { MoodChart } from './MoodChart'
@@ -8,11 +9,16 @@ import { needsAttention } from '../utils/alertStatus'
 import { useDialog } from '../hooks/useDialog'
 import type { Patient } from '../data/mockData'
 
-// La ficha de un paciente. Vivía dentro del Resumen; ahora el Resumen es solo un vistazo
-// y el detalle de cada paciente se abre desde «Mis pacientes».
+// El seguimiento de un paciente: cómo viene semana a semana. Vivía dentro del Resumen; ahora
+// el Resumen es solo un vistazo y el detalle se abre desde «Mis pacientes».
+//
+// Se llamaba «ficha» hasta la HdU13, y convivía con la ficha clínica del psicólogo bajo el
+// mismo nombre. Son cosas distintas: esto es lo que el paciente genera (check-ins, alertas,
+// sesiones con el asistente); la ficha clínica es lo que el psicólogo escribe sobre él.
 export function PatientDrawer({ patient, onClose }: { patient: Patient; onClose: () => void }) {
   const [tab, setTab] = useState<'evolucion' | 'alertas' | 'sesiones' | 'datos'>('evolucion')
   const dialogRef = useDialog<HTMLDivElement>(onClose)
+  const navigate = useNavigate()
   const [relapseStep, setRelapseStep] = useState<'idle' | 'confirm' | 'done' | 'error'>('idle')
   const queryClient = useQueryClient()
 
@@ -58,7 +64,7 @@ export function PatientDrawer({ patient, onClose }: { patient: Patient; onClose:
         onClick={onClose}
         style={{ position: 'fixed', inset: 0, background: 'var(--scrim)', zIndex: 40, animation: 'sb-scrim-in 0.24s ease' }}
       />
-      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-ficha-titulo" tabIndex={-1} style={{
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-seguimiento-titulo" tabIndex={-1} style={{
         position: 'fixed', top: 0, right: 0, height: '100vh', width: 480,
         maxWidth: '92vw', background: 'var(--surface)', boxShadow: 'var(--shadow-strong)',
         zIndex: 41, display: 'flex', flexDirection: 'column',
@@ -71,13 +77,13 @@ export function PatientDrawer({ patient, onClose }: { patient: Patient; onClose:
               {patient.initials}
             </div>
             <div style={{ flex: 1, paddingTop: 4 }}>
-              <h2 id="sb-ficha-titulo" style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 22, color: 'var(--fg1)', lineHeight: 1.15 }}>{patient.name}</h2>
+              <h2 id="sb-seguimiento-titulo" style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 22, color: 'var(--fg1)', lineHeight: 1.15 }}>{patient.name}</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
                 <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 9999, padding: '3px 11px', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font-heading)' }}>{patient.days} días</span>
                 <span style={{ fontSize: 12.5, color: 'var(--fg2)' }}>{patient.email}</span>
               </div>
             </div>
-            <button onClick={onClose} aria-label="Cerrar ficha" style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <button onClick={onClose} aria-label="Cerrar seguimiento" style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <WIcon name="x" size={18} />
             </button>
           </div>
@@ -223,8 +229,22 @@ export function PatientDrawer({ patient, onClose }: { patient: Patient; onClose:
                 ))}
               </dl>
               <p style={{ margin: '14px 0 0', fontSize: 13, color: 'var(--fg2)', lineHeight: 1.5 }}>
-                Estos datos todavía no se pueden editar desde el panel.
+                Estos datos de contacto todavía no se pueden editar desde el panel. El
+                seguimiento clínico estructurado va en la ficha clínica.
               </p>
+              <button
+                type="button"
+                onClick={() => { onClose(); navigate(`/pacientes/${patient.id}/ficha`) }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, marginTop: 14,
+                  background: 'var(--primary)', color: 'var(--fg-on-primary)',
+                  border: 'none', borderRadius: 999, padding: '11px 20px',
+                  fontSize: 13.5, fontWeight: 600, cursor: 'pointer',
+                }}
+              >
+                <WIcon name="notebook-pen" size={16} color="var(--fg-on-primary)" />
+                Abrir ficha clínica
+              </button>
             </div>
           )}
         </div>

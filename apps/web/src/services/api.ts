@@ -141,6 +141,23 @@ async function patch<T>(path: string, headers?: Record<string, string>, body?: u
   return (text ? JSON.parse(text) : undefined) as T
 }
 
+// PUT conserva el cuerpo del error, al revés que get/post, porque la ficha clínica necesita
+// saber QUÉ campo rechazó el backend para resaltarlo (HdU13 CA3). `failed()` solo guarda el
+// status, y con eso no se puede pintar un campo.
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const res = await request(path, { method: 'PUT', body: JSON.stringify(body) })
+  if (!res.ok) {
+    const text = await res.text()
+    const err = new Error(`PUT ${path} → ${res.status}`) as ApiError
+    err.status = res.status
+    err.body = text ? JSON.parse(text) : undefined
+    throw err
+  }
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
 async function post<T>(path: string, headers?: Record<string, string>, body?: unknown): Promise<T> {
   const res = await request(
     path,
@@ -297,6 +314,83 @@ export interface CreatePsychologistResponse {
   credentialsEmailSent: boolean
 }
 
+// ── Ficha clínica (HdU13) ─────────────────────────────────────────────────────
+// Espeja los tipos de @stopbet/shared-types. Se redeclaran acá porque apps/web todavía no
+// depende de ese paquete (misma deuda que AuthUser más arriba).
+
+export const CLINICAL_FIELDS = [
+  'admissionReason',
+  'gamblingHistory',
+  'triggers',
+  'healthAndSupport',
+  'treatmentGoals',
+] as const
+
+export type ClinicalField = (typeof CLINICAL_FIELDS)[number]
+export type ClinicalContent = Record<ClinicalField, string>
+
+export interface ClinicalRecord extends ClinicalContent {
+  id: string
+  patientId: string
+  updatedBy: string
+  updatedByName: string
+  updatedAt: string
+  createdAt: string
+}
+
+export interface ClinicalRecordView {
+  exists: boolean
+  record: ClinicalRecord | null
+  content: ClinicalContent
+}
+
+export interface IntakeAnswers {
+  motive: string | null
+  motiveOther: string | null
+  gamblingTypes: string[]
+  gamblingTypesOther: string | null
+  duration: string | null
+  triggers: string[]
+  triggersOther: string | null
+}
+
+export interface IntakeView {
+  answered: boolean
+  submittedAt: string | null
+  answers: IntakeAnswers | null
+}
+
+export interface ClinicalNote {
+  id: string
+  patientId: string
+  authorId: string
+  authorName: string
+  content: string
+  createdAt: string
+}
+
+export interface ClinicalRecordStatus {
+  patientId: string
+  updatedAt: string
+  updatedByName: string
+}
+
+export interface ClinicalFieldChange {
+  field: ClinicalField
+  before: string
+  after: string
+}
+
+export interface ClinicalRecordVersion {
+  id: string
+  recordId: string
+  versionNumber: number
+  changedBy: string
+  changedByName: string
+  changedAt: string
+  changedFields: ClinicalFieldChange[]
+}
+
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -351,6 +445,27 @@ export const api = {
     get<BillingStatus>(`/billing/patients/${patientId}/status`),
 
   // ── Portal del familiar (HU-11) ─────────────────────────────────────────────
+
+  getClinicalRecordStatus: () =>
+    get<ClinicalRecordStatus[]>('/clinical-records/status'),
+
+  getClinicalRecord: (patientId: string) =>
+    get<ClinicalRecordView>(`/clinical-records/patients/${patientId}`),
+
+  saveClinicalRecord: (patientId: string, content: ClinicalContent) =>
+    put<ClinicalRecord>(`/clinical-records/patients/${patientId}`, content),
+
+  getPatientIntake: (patientId: string) =>
+    get<IntakeView>(`/clinical-records/patients/${patientId}/intake`),
+
+  getClinicalNotes: (patientId: string) =>
+    get<ClinicalNote[]>(`/clinical-records/patients/${patientId}/notes`),
+
+  addClinicalNote: (patientId: string, content: string) =>
+    post<ClinicalNote>(`/clinical-records/patients/${patientId}/notes`, undefined, { content }),
+
+  getClinicalRecordHistory: (patientId: string) =>
+    get<ClinicalRecordVersion[]>(`/clinical-records/patients/${patientId}/history`),
 
   getFamilySessions: () => get<FamilySessionsResponse>('/family/sessions'),
 
