@@ -172,7 +172,7 @@ export function AlertasPage() {
                 })}
               </div>
             ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', maxWidth: 850, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <colgroup>
                 {/* Sin las columnas "Tipo" (siempre decía "Botón de pánico") ni "Ver" (no
                     hacía nada), la fecha y el estado tienen el ancho que necesitan: antes la

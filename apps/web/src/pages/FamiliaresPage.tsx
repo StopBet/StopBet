@@ -194,8 +194,8 @@ export function FamiliaresPage() {
             ))}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col /><col style={{ width: 130 }} /><col style={{ width: 240 }} /></colgroup>
+          <table style={{ width: '100%', maxWidth: 880, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup><col /><col style={{ width: 200 }} /><col style={{ width: 120 }} /><col style={{ width: 220 }} /></colgroup>
             <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente declarado" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
             <tbody>
               {pending.map((l) => (
@@ -230,8 +230,8 @@ export function FamiliaresPage() {
             ))}
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col /><col style={{ width: 130 }} /><col style={{ width: 160 }} /></colgroup>
+          <table style={{ width: '100%', maxWidth: 720, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup><col /><col style={{ width: 200 }} /><col style={{ width: 120 }} /><col style={{ width: 140 }} /></colgroup>
             <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
             <tbody>
               {active.map((l) => (
