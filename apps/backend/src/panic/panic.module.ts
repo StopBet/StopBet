@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { PanicController } from './panic.controller';
 import { PanicStreamController } from './panic-stream.controller';
 import { PanicService } from './panic.service';
+import { SponsorDesignationController } from './sponsor-designation.controller';
+import { SponsorDesignationService } from './sponsor-designation.service';
 import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { SponsorDesignation } from './entities/sponsor-designation.entity';
 import { PanicAlert } from './entities/panic-alert.entity';
@@ -21,7 +23,11 @@ import { CommunityModule } from '../community/community.module';
     ]),
     CommunityModule,
   ],
-  controllers: [PanicController, PanicStreamController],
-  providers: [PanicService],
+  controllers: [
+    PanicController,
+    PanicStreamController,
+    SponsorDesignationController,
+  ],
+  providers: [PanicService, SponsorDesignationService],
 })
 export class PanicModule {}
