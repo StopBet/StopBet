@@ -40,3 +40,51 @@ export function isDarkActive(): boolean {
   if (forced) return forced === 'dark'
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
 }
+
+// Colores de la institución (hoy, AJUTER) encima de claro/oscuro. Es un eje aparte del tema:
+// AJUTER tiene su versión clara y su versión oscura, y en «Automático» también sigue al sistema.
+export type BrandPref = 'stopbet' | 'ajuter'
+
+const BRAND_KEY = 'sb-brand'
+
+// null = la persona nunca eligió, y manda el valor por defecto de su cuenta. Por eso elegir
+// StopBet se guarda explícito y no borra la clave: si no, un psicólogo de AJUTER que eligió
+// StopBet volvería a AJUTER en la próxima carga.
+export function readBrandPref(): BrandPref | null {
+  try {
+    const v = localStorage.getItem(BRAND_KEY)
+    return v === 'ajuter' || v === 'stopbet' ? v : null
+  } catch {
+    return null
+  }
+}
+
+// El equipo clínico de una institución arranca con sus colores; familias y cuentas sin
+// institución, con StopBet. Hoy la única institución con colores propios es AJUTER.
+const BRAND_BY_INSTITUTION: Record<string, BrandPref> = { AJUTER: 'ajuter' }
+
+export function defaultBrandFor(user: { role: string; institutionId?: string | null }): BrandPref {
+  if (user.role !== 'psychologist' && user.role !== 'coordinator') return 'stopbet'
+  return (user.institutionId && BRAND_BY_INSTITUTION[user.institutionId]) || 'stopbet'
+}
+
+// A diferencia del tema, index.html NO aplica esto antes de cargar: el login tiene que verse
+// siempre StopBet. Lo ponen el panel clínico y el portal al montarse (useBrandInShell).
+export function applyBrandPref(pref: BrandPref) {
+  const root = document.documentElement
+  if (pref === 'stopbet') root.removeAttribute('data-brand')
+  else root.setAttribute('data-brand', pref)
+}
+
+export function saveBrandPref(pref: BrandPref) {
+  try {
+    localStorage.setItem(BRAND_KEY, pref)
+  } catch {
+    // Sin almacenamiento la elección dura hasta recargar.
+  }
+  applyBrandPref(pref)
+}
+
+export function isBrandActive(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.hasAttribute('data-brand')
+}

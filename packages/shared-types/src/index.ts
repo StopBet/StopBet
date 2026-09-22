@@ -303,6 +303,8 @@ export interface AuthUser {
   firstName: string;
   lastName: string;
   sedeId: string | null;
+  // Opcional: las sesiones guardadas antes de que existiera no la traen.
+  institutionId?: string | null;
 }
 
 export interface LoginResponse {

@@ -20,6 +20,36 @@ está.
 
 ---
 
+## 2026-09-22 - Las cuentas tienen institución y el equipo de AJUTER arranca con sus colores (PR #115)
+
+**A quién le pega:** a **José** (`users`, `auth`), a **Matías Lara** (`psychologists`) y a quien
+despliegue en Railway.
+
+**Qué hacer después de pullear:**
+
+- `pnpm install` no hace falta. Sí recompilar `shared-types` (`AuthUser` tiene un campo nuevo):
+  `pnpm run backend` ya lo hace solo.
+- La columna nueva la crea `synchronize` al arrancar. Para marcar las cuentas que ya tienes en
+  tu base local: `pnpm run seed` **o** `pnpm --filter @stopbet/backend run backfill:institution`.
+- **En Railway hay que correr `backfill:institution` una vez**, o el equipo clínico que ya
+  existe en producción se queda sin institución y sigue viendo StopBet.
+
+**Qué cambió:**
+
+- **`users.institutionId`** (`varchar`, nullable), mismo valor que ya usaba
+  `registration_requests.institutionId` (`'AJUTER'`). `/auth/login` la devuelve dentro de
+  `user`. En `AuthUser` es opcional, así que nada de mobile se rompe.
+- **`POST /psychologists`** deja al psicólogo nuevo en la institución de la coordinación que lo
+  crea (`create(dto, coordinatorId)`; el segundo parámetro es opcional).
+- **La web**: psicólogos y coordinación de AJUTER arrancan con los colores de AJUTER. Si alguien
+  elige StopBet en Apariencia, se respeta. Familias y pacientes no cambian.
+
+**Por qué te puede parecer un bug:** si entras como psicólogo y el panel sale carbón y ocre con
+otra letra, **está funcionando**. Se cambia en Configuración → Apariencia → Colores. Una sesión
+abierta antes de este cambio no trae la institución hasta volver a iniciar sesión.
+
+---
+
 ## 2026-09-20 - El asistente tacha más cosas antes de mandarlas al modelo (PR #111)
 
 **A quién le pega:** a **Matías Barraza** (S.3, el sanitizador) y a quien mire resúmenes de

@@ -187,6 +187,13 @@ que todavía esté fijo.
 > equipo clínico»), que es barato y sirve para siempre, o agregar la institución al modelo de
 > datos, que es lo que hace falta si algún día el panel tiene que mostrar la marca de cada
 > cliente.
+>
+> **Actualizado el 22-09-2026.** `users` ya tiene `institutionId`, pero **solo lo llena el
+> equipo clínico** (seed, `backfill:institution` y `POST /psychologists`, que hereda la de la
+> coordinación). Se usa para arrancar al panel con los colores de AJUTER. **Pacientes y
+> familiares siguen sin institución**: aprobar un registro todavía no copia
+> `registration_requests.institutionId` a la cuenta. Los textos «AJUTER» a mano del portal y
+> del PDF siguen igual.
 
 **8. Vercel Hobby prohíbe el uso comercial.**
 Hoy funciona porque el repo está público, pero la cláusula sigue ahí y StopBet va a cobrar

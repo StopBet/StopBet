@@ -183,6 +183,7 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 | `POST /billing/pay` | `patient`, `family` | ✅ Autenticado |
 | `GET /billing/family-link` | `patient` (dueño) | ✅ Autenticado |
 | `GET /billing/patients/:patientId/status` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación — nuevo 16-09, para el reporte PDF |
+| `GET /family/billing` | `family` (solo con vínculo `active`) | ✅ Protegido — nuevo 22-09, solo lectura: cuotas del paciente vinculado para la pantalla de pago del portal |
 
 ## `subscriptions` — `/subscriptions`
 

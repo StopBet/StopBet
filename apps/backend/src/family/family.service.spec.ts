@@ -15,6 +15,7 @@ describe('FamilyService (HU-11)', () => {
   let sessionRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let attendanceRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let userRepo: { findOne: jest.Mock };
+  let invoiceRepo: { find: jest.Mock; findOne: jest.Mock };
 
   beforeEach(() => {
     linkRepo = { findOne: jest.fn(), create: jest.fn((v) => v), save: jest.fn((v) => Promise.resolve(v)) };
@@ -31,12 +32,14 @@ describe('FamilyService (HU-11)', () => {
       save: jest.fn((v) => Promise.resolve(v)),
     };
     userRepo = { findOne: jest.fn() };
+    invoiceRepo = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn().mockResolvedValue(null) };
 
     service = new FamilyService(
       linkRepo as any,
       sessionRepo as any,
       attendanceRepo as any,
       userRepo as any,
+      invoiceRepo as any,
     );
   });
 
@@ -212,5 +215,44 @@ describe('FamilyService (HU-11)', () => {
     await expect(
       service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' }),
     ).rejects.toThrow('Ya existe un vínculo con ese paciente');
+  });
+
+  // ── Mensualidad ───────────────────────────────────────────────────────────
+
+  it('mensualidad: sin vínculo activo no expone cuotas del paciente', async () => {
+    linkRepo.findOne.mockResolvedValue({ status: 'pending', patientUserId: 'pat-1', patientUser: {} });
+
+    const view = await service.getBillingForFamily(FAMILY_ID);
+
+    expect(view.linkStatus).toBe('pending');
+    expect(view.patientFirstName).toBeNull();
+    expect(invoiceRepo.find).not.toHaveBeenCalled();
+  });
+
+  it('mensualidad: suma las cuotas vencidas y trae la próxima pendiente', async () => {
+    linkRepo.findOne.mockResolvedValue({
+      status: 'active',
+      patientUserId: 'pat-1',
+      patientUser: { firstName: 'Lucía', accountStatus: 'suspended' },
+    });
+    invoiceRepo.find.mockResolvedValue([
+      { month: '2026-06', amountCLP: 30000, dueDate: '2026-06-30' },
+      { month: '2026-07', amountCLP: 30000, dueDate: '2026-07-31' },
+    ]);
+    invoiceRepo.findOne.mockResolvedValue({ month: '2026-09', amountCLP: 30000, dueDate: '2026-09-30' });
+
+    const view = await service.getBillingForFamily(FAMILY_ID);
+
+    expect(invoiceRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 'pat-1', status: 'overdue' } }),
+    );
+    expect(view).toMatchObject({
+      linkStatus: 'active',
+      patientFirstName: 'Lucía',
+      accountStatus: 'suspended',
+      totalOwedCLP: 60000,
+      nextInvoice: { month: '2026-09', amountCLP: 30000, dueDate: '2026-09-30' },
+    });
+    expect(view.overdueInvoices).toHaveLength(2);
   });
 });

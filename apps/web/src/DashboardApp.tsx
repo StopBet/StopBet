@@ -18,6 +18,7 @@ import { api } from './services/api'
 import { needsAttention } from './utils/alertStatus'
 import type { AuthUser } from './services/api'
 import type { RegistrationRequest } from './data/mockData'
+import { useBrandInShell } from './hooks/useBrandInShell'
 
 
 type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
@@ -169,6 +170,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
 
   const isNarrow = useIsNarrow()
   const [menuOpen, setMenuOpen] = useState(false)
+  useBrandInShell(user)
 
   // El menú del teléfono se cierra también con Escape, como cualquier diálogo
   useEffect(() => {
@@ -215,7 +217,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
             aria-label="Abrir menú"
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              background: 'var(--primary)', color: 'var(--fg-on-primary)', border: 'none',
+              background: 'var(--chrome-bg)', color: 'var(--fg-on-primary)', border: 'none',
               // Este botón hace de cabecera de la página, no de control secundario:
               // con 15px el título se leía más chico que el contenido de abajo.
               padding: '14px 16px', fontSize: 20, fontWeight: 700, cursor: 'pointer',
