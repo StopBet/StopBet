@@ -52,8 +52,9 @@ export function FinanzasPage() {
         </div>
       </div>
 
-      {/* Metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))', gap: isNarrow ? 10 : 16, marginBottom: isNarrow ? 16 : 24 }}>
+      {/* Metrics. auto-fit: ver la nota en OverviewPage.tsx — un número fijo de columnas
+          cortaba la última tarjeta contra el borde en laptops más chicas. */}
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: isNarrow ? 10 : 16, marginBottom: isNarrow ? 16 : 24 }}>
         <MetricCard icon="wallet" label="Recaudado este mes" value={fmt(totalRecaudado)} tone="teal" important
           sub={<><WIcon name="trending-up" size={14} color="var(--secondary-text)" /><span style={{ color: 'var(--secondary-text)', fontWeight: 600 }}>+12%</span> vs. mes anterior</>} />
         <MetricCard icon="circle-check" label="Pagos al día" value={pagado} tone="sage" important
@@ -133,7 +134,11 @@ export function FinanzasPage() {
               })}
             </div>
           ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          // Mismo problema y mismo arreglo que la tabla de AlertasPage: comparte fila con el
+          // panel lateral, y sin overflowX + minWidth el nombre del paciente quedaba
+          // comprimido a nada en una laptop mediana.
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 700, maxWidth: 900, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup><col /><col style={{ width: 102 }} /><col style={{ width: 115 }} /><col style={{ width: 100 }} /><col style={{ width: 60 }} /><col style={{ width: 120 }} /></colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -162,6 +167,7 @@ export function FinanzasPage() {
               ))}
             </tbody>
           </table>
+          </div>
           )}
         </div>
 

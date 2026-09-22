@@ -195,7 +195,19 @@ export interface LoginResponse {
 }
 
 // Shape real de GET /family/link-status (family.service.ts:79)
-export type FamilyLinkState = 'active' | 'pending' | 'unlinked'
+export type FamilyLinkState = 'active' | 'pending' | 'rejected' | 'revoked' | 'unlinked'
+
+// Shape real de GET /family/pending y /family/active (HDU 23)
+export interface FamilyLinkListItem {
+  id: string
+  familyUserId: string
+  familyName: string
+  familyEmail: string
+  patientUserId: string
+  patientName: string
+  sedeId: string | null
+  createdAt: string
+}
 
 export interface PatientListItem {
   id: string
@@ -523,6 +535,23 @@ export const api = {
   // necesita el cuerpo del error 409 (correo/RUT duplicado) que failed() descarta.
   registerFamily: (payload: RegisterFamilyPayload) =>
     postPublicWithError<RegisterFamilyResponse>('/family/register', payload),
+
+  // ── Revisión del vínculo por el psicólogo (HDU 23) ───────────────────────────
+  // Vía WithAuth: los errores (403 fuera de sede, 409 ya procesado) traen un mensaje
+  // específico del backend que sí vale la pena mostrar, a diferencia del toast genérico
+  // de aprobar/rechazar solicitudes.
+
+  getPendingFamilyLinks: () => get<FamilyLinkListItem[]>('/family/pending'),
+  getActiveFamilyLinks: () => get<FamilyLinkListItem[]>('/family/active'),
+
+  confirmFamilyLink: (linkId: string) =>
+    patchWithAuth<void>(`/family/links/${linkId}/confirm`, {}),
+
+  rejectFamilyLink: (linkId: string) =>
+    patchWithAuth<void>(`/family/links/${linkId}/reject`, {}),
+
+  revokeFamilyLink: (linkId: string) =>
+    patchWithAuth<void>(`/family/links/${linkId}/revoke`, {}),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────

@@ -559,7 +559,7 @@ export function EquipoPage() {
              columnas no caben y la de Acciones se recortaba sin forma de llegar a
              ella. Con minWidth el navegador desborda y este contenedor lo desplaza. */
           <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', tableLayout: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 760, maxWidth: 1000, borderCollapse: 'collapse', tableLayout: 'auto' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <Head label="Psicólogo" /><Head label="Pacientes" /><Head label="Sedes" /><Head label="Estado" /><Head label="Acciones" />

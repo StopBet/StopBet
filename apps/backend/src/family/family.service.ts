@@ -1,21 +1,21 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, MoreThanOrEqual, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, MoreThanOrEqual, Not, QueryFailedError, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { cleanRut, RegisterFamilyResponse } from '@stopbet/shared-types';
-import { AccountStatus } from '@stopbet/shared-types';
-import { FamilyLink } from './entities/family-link.entity';
+import { AccountStatus, AuthUser, cleanRut, RegisterFamilyResponse } from '@stopbet/shared-types';
+import { FamilyLink, FamilyLinkStatus } from './entities/family-link.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
-import { resolveSedeId } from '../psychologists/sedes-of-user';
+import { resolveSedeId, sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
 import { Invoice } from '../billing/entities/invoice.entity';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
@@ -35,7 +35,8 @@ function isDuplicateEmail(err: unknown): boolean {
   );
 }
 
-export type FamilyLinkState = 'active' | 'pending' | 'unlinked';
+// 'unlinked' no es un estado de FamilyLink: es la ausencia de vínculo (ninguna fila).
+export type FamilyLinkState = FamilyLinkStatus | 'unlinked';
 
 export type FamilySessionView = FamilySession & { userAttends: boolean | null };
 
@@ -104,6 +105,18 @@ const EMPTY_VIEW = (linkStatus: FamilyLinkState): FamilySessionsView => ({
   sessions: [],
   hasUpcoming: false,
 });
+
+// HDU 23 — lo que ve el psicólogo en "Familiares pendientes"/"Familiares vinculados".
+export interface FamilyLinkListItem {
+  id: string;
+  familyUserId: string;
+  familyName: string;
+  familyEmail: string;
+  patientUserId: string;
+  patientName: string;
+  sedeId: string | null;
+  createdAt: string;
+}
 
 @Injectable()
 export class FamilyService {
@@ -283,6 +296,161 @@ export class FamilyService {
     const link = await this.linkRepo.findOne({ where: { familyUserId } });
     if (!link) return { status: 'unlinked' };
     return { status: link.status };
+  }
+
+  // ── Revisión del vínculo por el psicólogo (HDU 23) ─────────────────────────
+
+  // El coordinador revisa cualquier sede; un psicólogo, solo las suyas. Mismo criterio
+  // que RegistrationService.reviewableSedeIds — ver la nota ahí sobre por qué.
+  private async reviewableSedeIds(reviewer: AuthUser): Promise<string[] | null> {
+    if (reviewer.role === 'coordinator') return null;
+    return sedeIdsOfPsychologist(this.psychSedeRepo, this.sedeRepo, reviewer.id, reviewer.sedeId);
+  }
+
+  private async assertCoversSede(reviewer: AuthUser, rawSedeId: string | null): Promise<void> {
+    const sedeIds = await this.reviewableSedeIds(reviewer);
+    if (sedeIds === null) return;
+    const resolved = await resolveSedeId(this.sedeRepo, rawSedeId);
+    if (!resolved || !sedeIds.includes(resolved)) {
+      throw new ForbiddenException('No puedes revisar vínculos de una sede que no atiendes');
+    }
+  }
+
+  private async listLinksByStatus(
+    status: FamilyLinkStatus,
+    reviewer: AuthUser,
+  ): Promise<FamilyLinkListItem[]> {
+    const links = await this.linkRepo.find({
+      // patientUserId nulo = RUT que no correspondía a ningún paciente (HDU 22, CA2): esos
+      // nunca son visibles para un psicólogo, solo quedaron alertados a coordinación.
+      where: { status, patientUserId: Not(IsNull()) },
+      relations: ['familyUser', 'patientUser'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const sedeIds = await this.reviewableSedeIds(reviewer);
+    const result: FamilyLinkListItem[] = [];
+    for (const link of links) {
+      if (!link.patientUser) continue; // ya excluidos por el where; guarda de tipos
+      if (sedeIds !== null) {
+        const resolved = await resolveSedeId(this.sedeRepo, link.patientUser.sedeId);
+        if (!resolved || !sedeIds.includes(resolved)) continue;
+      }
+      result.push({
+        id: link.id,
+        familyUserId: link.familyUserId,
+        familyName: `${link.familyUser.firstName} ${link.familyUser.lastName}`.trim(),
+        familyEmail: link.familyUser.email,
+        patientUserId: link.patientUser.id,
+        patientName: `${link.patientUser.firstName} ${link.patientUser.lastName}`.trim(),
+        sedeId: link.patientUser.sedeId,
+        createdAt: link.createdAt.toISOString(),
+      });
+    }
+    return result;
+  }
+
+  // CA1 — familiares pendientes de la sede del psicólogo.
+  listPendingLinks(reviewer: AuthUser): Promise<FamilyLinkListItem[]> {
+    return this.listLinksByStatus('pending', reviewer);
+  }
+
+  // Para poder revocar (CA5) hace falta saber a quién: los vínculos activos de la sede.
+  listActiveLinks(reviewer: AuthUser): Promise<FamilyLinkListItem[]> {
+    return this.listLinksByStatus('active', reviewer);
+  }
+
+  // CA2 — confirma el vínculo, habilita las funcionalidades del familiar y notifica a
+  // ambas partes. `getSessionsForFamily`/`getLinkStatus` ya reaccionan solos al cambio de
+  // estado: no hace falta tocar nada más para "habilitar" el acceso.
+  async confirmLink(linkId: string, reviewer: AuthUser): Promise<void> {
+    const link = await this.linkRepo.findOne({
+      where: { id: linkId },
+      relations: ['familyUser', 'patientUser'],
+    });
+    if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
+
+    await this.assertCoversSede(reviewer, link.patientUser.sedeId);
+
+    // Update condicional: dos confirmaciones simultáneas no deben notificar dos veces
+    // (mismo patrón que RegistrationService.approve).
+    const result = await this.linkRepo.update(
+      { id: linkId, status: 'pending' },
+      { status: 'active', reviewedBy: reviewer.id, reviewedAt: new Date() },
+    );
+    if (!result.affected) throw new ConflictException('El vínculo ya fue procesado');
+
+    await this.notifRepo.save([
+      this.notifRepo.create({
+        userId: link.familyUserId,
+        type: 'success',
+        title: '¡Tu vínculo fue confirmado!',
+        body: `Ya puedes ver las sesiones grupales y el estado de ${link.patientUser.firstName}.`,
+      }),
+      this.notifRepo.create({
+        userId: link.patientUser.id,
+        type: 'info',
+        title: 'Un familiar fue vinculado a tu cuenta',
+        body: `${link.familyUser.firstName} ${link.familyUser.lastName} ahora puede ver tus sesiones grupales.`,
+      }),
+    ]);
+  }
+
+  // CA3 — rechaza el vínculo: la cuenta del familiar queda sin vincular, solo se notifica
+  // a él (el paciente nunca supo del intento, y así se mantiene).
+  async rejectLink(linkId: string, reviewer: AuthUser): Promise<void> {
+    const link = await this.linkRepo.findOne({ where: { id: linkId }, relations: ['patientUser'] });
+    if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
+
+    await this.assertCoversSede(reviewer, link.patientUser.sedeId);
+
+    const result = await this.linkRepo.update(
+      { id: linkId, status: 'pending' },
+      { status: 'rejected', reviewedBy: reviewer.id, reviewedAt: new Date() },
+    );
+    if (!result.affected) throw new ConflictException('El vínculo ya fue procesado');
+
+    await this.notifRepo.save(
+      this.notifRepo.create({
+        userId: link.familyUserId,
+        type: 'warning',
+        title: 'Tu solicitud de vinculación no fue aprobada',
+        body: 'El equipo clínico revisó tu solicitud y no pudo confirmar el vínculo declarado.',
+      }),
+    );
+  }
+
+  // CA5 — revoca un vínculo activo: retira el acceso a sesiones de inmediato (mismo
+  // mecanismo de confirmLink, en reversa) y notifica a ambas partes.
+  async revokeLink(linkId: string, reviewer: AuthUser): Promise<void> {
+    const link = await this.linkRepo.findOne({
+      where: { id: linkId },
+      relations: ['familyUser', 'patientUser'],
+    });
+    if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
+
+    await this.assertCoversSede(reviewer, link.patientUser.sedeId);
+
+    const result = await this.linkRepo.update(
+      { id: linkId, status: 'active' },
+      { status: 'revoked', reviewedBy: reviewer.id, reviewedAt: new Date() },
+    );
+    if (!result.affected) throw new ConflictException('El vínculo no está activo');
+
+    await this.notifRepo.save([
+      this.notifRepo.create({
+        userId: link.familyUserId,
+        type: 'warning',
+        title: 'Tu acceso como familiar fue revocado',
+        body: 'El equipo clínico retiró tu vínculo. Ya no puedes ver las sesiones ni el estado del paciente.',
+      }),
+      this.notifRepo.create({
+        userId: link.patientUser.id,
+        type: 'info',
+        title: 'Se retiró el acceso de un familiar',
+        body: `${link.familyUser.firstName} ${link.familyUser.lastName} ya no puede ver tus sesiones grupales.`,
+      }),
+    ]);
   }
 
   // ── Mensualidad ───────────────────────────────────────────────────────────

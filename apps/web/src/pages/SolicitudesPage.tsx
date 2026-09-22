@@ -280,7 +280,7 @@ function FlaggedPostsSection() {
               ))}
             </div>
           ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <table style={{ width: '100%', maxWidth: 900, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup>
               <col /><col style={{ width: 100 }} /><col style={{ width: 80 }} />
               <col style={{ width: 130 }} /><col style={{ width: 220 }} />
@@ -428,7 +428,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
               ))}
             </div>
           ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <table style={{ width: '100%', maxWidth: 980, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup><col /><col style={{ width: 110 }} /><col style={{ width: 155 }} /><col style={{ width: 85 }} /><col style={{ width: 260 }} /></colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
