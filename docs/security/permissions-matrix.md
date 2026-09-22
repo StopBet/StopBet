@@ -109,6 +109,7 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 | `POST /community/posts/:id/report` | `patient`, `sponsor` | ✅ Autenticado |
 | `GET /community/moderation/flagged` | `psychologist` | ✅ Autenticado |
 | `DELETE /community/posts/:id` | `psychologist`, o el autor sobre su propia publicación | ✅ Autenticado |
+| `POST /community/moderation/posts/:id/dismiss` | `psychologist` | ✅ Autenticado + `assertPsychologist` — nuevo 22-09: descarta los reportes y deja la publicación |
 
 > **Los tres se cerraron el 16-09-2026** (vista del psicólogo en mobile). Antes,
 > `POST /announcements` **no verificaba nada**: con el `x-user-id` de un psicólogo y sin

@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThanOrEqual, Not, Repository } from 'typeorm';
+import { In, IsNull, MoreThanOrEqual, Not, Repository } from 'typeorm';
 import { ReactionEmoji, ReactionSummary } from '@stopbet/shared-types';
 import { CommunityPost } from './entities/community-post.entity';
 import { PostReply } from './entities/post-reply.entity';
@@ -284,7 +284,7 @@ export class CommunityService {
     // Los motivos van sin identificar al denunciante: saber quién reportó a quién
     // desincentiva reportar, y para moderar basta con el motivo.
     const reports = await this.reportRepo.find({
-      where: { postId: In(posts.map((p) => p.id)) },
+      where: { postId: In(posts.map((p) => p.id)), dismissedAt: IsNull() },
       select: ['postId', 'reason'],
       order: { createdAt: 'ASC' },
     });
@@ -298,6 +298,20 @@ export class CommunityService {
       ...this.serializePost(p, [], 0, requesterId),
       reportReasons: reasonsByPost.get(p.id) ?? [],
     }));
+  }
+
+  // El psicólogo revisó los reportes y la publicación se queda. Sale de la cola para todo
+  // el equipo (reportCount vuelve a 0) y vuelve a entrar si alguien nuevo la reporta.
+  async dismissReports(postId: string, requesterId: string) {
+    await this.assertPsychologist(requesterId);
+    const post = await this.postRepo.findOne({ where: { id: postId } });
+    if (!post) throw new NotFoundException('Publicación no encontrada');
+    const result = await this.reportRepo.update(
+      { postId, dismissedAt: IsNull() },
+      { dismissedAt: new Date(), dismissedBy: requesterId },
+    );
+    await this.postRepo.update({ id: postId }, { reportCount: 0 });
+    return { dismissed: result.affected ?? 0 };
   }
 
   // CA3 (psicólogo modera) + CA5.4 (autor elimina su propia publicación)

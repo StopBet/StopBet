@@ -185,6 +185,20 @@ export class CommunityController {
     return this.service.findFlaggedPosts(sede, user.id);
   }
 
+  @Post('moderation/posts/:id/dismiss')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Descarta los reportes de una publicación y la deja en la comunidad (psicólogo)' })
+  @ApiParam({ name: 'id', description: 'UUID de la publicación' })
+  @ApiResponse({ status: 200, description: '{ dismissed: número de reportes descartados }' })
+  @ApiResponse({ status: 401, description: 'Token ausente o inválido' })
+  @ApiResponse({ status: 403, description: 'Solo un psicólogo puede moderar' })
+  @ApiResponse({ status: 404, description: 'Publicación no encontrada' })
+  dismissReports(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.dismissReports(id, user.id);
+  }
+
   // Sin `@Roles`: el servicio deja borrar al autor su propia publicación y a un psicólogo
   // cualquiera reportada. Un guard de rol acá le quitaría al paciente el borrado de lo suyo.
   @Delete('posts/:id')

@@ -439,6 +439,10 @@ export const api = {
   deletePost: (postId: string) =>
     del<{ deleted: boolean }>(`/community/posts/${postId}`),
 
+  // Deja la publicación en la comunidad y la saca de la cola de moderación de todo el equipo
+  dismissReports: (postId: string) =>
+    post<{ dismissed: number }>(`/community/moderation/posts/${postId}/dismiss`),
+
   getPatientMetrics: (patientId: string) =>
     get<PatientMetrics>(`/metrics/patients/${patientId}`),
 
