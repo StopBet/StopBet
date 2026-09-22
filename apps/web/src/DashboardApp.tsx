@@ -239,7 +239,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
             <Route path="/alertas" element={<AlertasPage />} />
             <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} />} />
             <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
-            <Route path="/equipo" element={<EquipoPage />} />
+            <Route path="/equipo" element={<EquipoPage user={user} />} />
             <Route path="/finanzas" element={<FinanzasPage />} />
             <Route path="/configuracion" element={<ConfiguracionPage user={user} />} />
             <Route path="/pacientes" element={<MisPacientesPage user={user} />} />

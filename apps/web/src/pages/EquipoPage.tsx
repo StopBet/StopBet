@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
 import { api } from '../services/api'
-import type { ApiError, CreatePsychologistResponse, PsychologistListItem, Sede } from '../services/api'
+import type { ApiError, AuthUser, CreatePsychologistResponse, PsychologistListItem, Sede } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { useDialog } from '../hooks/useDialog'
 
@@ -453,8 +453,12 @@ function EditSedesModal({
 }
 
 /* ── Equipo Page ─────────────────────────────────────── */
-export function EquipoPage() {
+export function EquipoPage({ user }: { user: AuthUser }) {
   const isNarrow = useIsNarrow()
+  // Crear, editar sedes y desactivar son solo de coordinación (@Roles('coordinator') en
+  // psychologists.controller). Antes el psicólogo veía los botones, llenaba el formulario y
+  // recién al guardar recibía un 403.
+  const canManage = user.role === 'coordinator'
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [deactivateTarget, setDeactivateTarget] = useState<PsychologistListItem | null>(null)
@@ -475,11 +479,16 @@ export function EquipoPage() {
       <div style={{ display: 'flex', alignItems: isNarrow ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: isNarrow ? 16 : 24, gap: 12, flexDirection: isNarrow ? 'column' : 'row' }}>
         <div>
           <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 26, color: 'var(--fg1)' }}>Equipo</h2>
-          <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--fg2)' }}>Cuentas de psicólogo y sus sedes asignadas.</p>
+          <p style={{ margin: '4px 0 0', fontSize: 13.5, color: 'var(--fg2)' }}>
+            Cuentas de psicólogo y sus sedes asignadas.
+            {!canManage && ' Solo la coordinación puede crear o modificar cuentas.'}
+          </p>
         </div>
-        <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>
-          <WIcon name="users" size={16} color="var(--fg-on-primary)" /> Crear psicólogo
-        </button>
+        {canManage && (
+          <button onClick={() => setShowCreate(true)} style={primaryBtnStyle}>
+            <WIcon name="users" size={16} color="var(--fg-on-primary)" /> Crear psicólogo
+          </button>
+        )}
       </div>
 
       <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
@@ -533,7 +542,7 @@ export function EquipoPage() {
                         ))}
                   </div>
 
-                  {p.accountStatus === 'active' && (
+                  {canManage && p.accountStatus === 'active' && (
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button onClick={() => setEditSedesTarget(p)}
                         style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, height: 40, borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
@@ -562,7 +571,7 @@ export function EquipoPage() {
           <table style={{ width: '100%', minWidth: 760, borderCollapse: 'collapse', tableLayout: 'auto' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <Head label="Psicólogo" /><Head label="Pacientes" /><Head label="Sedes" /><Head label="Estado" /><Head label="Acciones" />
+                <Head label="Psicólogo" /><Head label="Pacientes" /><Head label="Sedes" /><Head label="Estado" />{canManage && <Head label="Acciones" />}
               </tr>
             </thead>
             <tbody>
@@ -606,20 +615,22 @@ export function EquipoPage() {
                       {p.accountStatus === 'active' ? 'Activo' : 'Inactivo'}
                     </span>
                   </td>
-                  <td style={{ padding: '14px 14px' }}>
-                    {p.accountStatus === 'active' && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                        <button onClick={() => setEditSedesTarget(p)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          <WIcon name="map-pin" size={14} /> Sedes
-                        </button>
-                        <button onClick={() => setDeactivateTarget(p)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                          <WIcon name="x" size={14} /> Desactivar
-                        </button>
-                      </div>
-                    )}
-                  </td>
+                  {canManage && (
+                    <td style={{ padding: '14px 14px' }}>
+                      {p.accountStatus === 'active' && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          <button onClick={() => setEditSedesTarget(p)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <WIcon name="map-pin" size={14} /> Sedes
+                          </button>
+                          <button onClick={() => setDeactivateTarget(p)}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--danger)', background: 'var(--surface)', color: 'var(--danger-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                            <WIcon name="x" size={14} /> Desactivar
+                          </button>
+                        </div>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
