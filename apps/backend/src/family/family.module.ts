@@ -6,9 +6,10 @@ import { FamilyLink } from './entities/family-link.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
 import { User } from '../users/entities/user.entity';
+import { Invoice } from '../billing/entities/invoice.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([FamilyLink, FamilySession, SessionAttendance, User])],
+  imports: [TypeOrmModule.forFeature([FamilyLink, FamilySession, SessionAttendance, User, Invoice])],
   controllers: [FamilyController],
   providers: [FamilyService],
   exports: [FamilyService],
