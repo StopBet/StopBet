@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-22 - Revisión de botones del panel: Equipo, moderación y login (sin PR todavía)
+## 2026-09-22 - Revisión de botones del panel: Equipo, moderación y login (PR #116)
 
 **A quién le pega:** a **Matías Lara** (Equipo), a **Catalina** (`community`) y a quien haga la
 demo del panel.
