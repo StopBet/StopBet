@@ -12,7 +12,7 @@ import { needsAttention } from '../utils/alertStatus'
 import { followUp, relTime, shortSedeName } from '../utils/patientView'
 
 // El Resumen es un vistazo, no un lugar de trabajo: un bloque por sección, que responde una
-// sola pregunta y lleva a la sección con un clic. El detalle - tablas, fichas, reportes -
+// sola pregunta y lleva a la sección con un clic. El detalle - tablas, seguimiento, reportes -
 // vive en cada sección. Antes esta página tenía la tabla completa de pacientes y el
 // generador de PDF, y se leía como una sección de pacientes más que como un resumen.
 
@@ -192,7 +192,7 @@ export function OverviewPage({ user }: OverviewPageProps) {
                 right={<>
                   <AlertStatusBadge status={a.status} />
                   {misIds.has(a.patientId) && (
-                    <button onClick={() => abrirPaciente(a.patientId)} aria-label={`Ver ficha de ${a.patientName}`}
+                    <button onClick={() => abrirPaciente(a.patientId)} aria-label={`Ver seguimiento de ${a.patientName}`}
                       style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--primary-text)', display: 'flex' }}>
                       <WIcon name="chevron-right" size={18} />
                     </button>
@@ -210,7 +210,7 @@ export function OverviewPage({ user }: OverviewPageProps) {
               <Item key={r.p.id} title={r.name}
                 right={<>
                   <Chip text={r.flags[0].label} tone={r.flags[0].tone} />
-                  <button onClick={() => abrirPaciente(r.p.id)} aria-label={`Ver ficha de ${r.name}`}
+                  <button onClick={() => abrirPaciente(r.p.id)} aria-label={`Ver seguimiento de ${r.name}`}
                     style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--primary-text)', display: 'flex' }}>
                     <WIcon name="chevron-right" size={18} />
                   </button>

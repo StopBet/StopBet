@@ -23,6 +23,7 @@ function toAuthUser(user: User): AuthUser {
     firstName: user.firstName,
     lastName: user.lastName,
     sedeId: user.sedeId,
+    institutionId: user.institutionId,
   };
 }
 

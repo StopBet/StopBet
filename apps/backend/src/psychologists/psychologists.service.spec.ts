@@ -157,6 +157,18 @@ describe('PsychologistsService', () => {
       ]);
     });
 
+    it('deja al psicólogo nuevo en la institución de quien lo crea', async () => {
+      userRepo.findOne.mockImplementation(async ({ where }) =>
+        where.id === 'coord-1' ? { id: 'coord-1', institutionId: 'AJUTER' } : null,
+      );
+      sedeRepo.find.mockResolvedValue([santiago, online]);
+      userRepo.save.mockImplementation(async (data) => ({ id: 'new-psych', ...data }));
+
+      await service.create(dto, 'coord-1');
+
+      expect(userRepo.save.mock.calls[0][0].institutionId).toBe('AJUTER');
+    });
+
     // CA24.1: "el sistema la genera ... y le envía sus credenciales de acceso".
     it('le envía por correo la misma contraseña temporal que devuelve', async () => {
       userRepo.findOne.mockResolvedValue(null);

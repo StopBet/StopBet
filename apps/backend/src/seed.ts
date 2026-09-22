@@ -22,6 +22,7 @@ import { AiSessionSummary } from './ai-assistant/entities/ai-session-summary.ent
 import { SponsorAssignment } from './panic/entities/sponsor-assignment.entity';
 import { PanicAlert } from './panic/entities/panic-alert.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
+import { AJUTER_INSTITUTION_ID } from './institutions/institution';
 
 // ── IDs fijos para datos de prueba ────────────────────────────────────────────
 const DEMO_USER_ID   = '11111111-1111-1111-1111-111111111111';
@@ -148,6 +149,7 @@ async function seed() {
     lastName: 'Lara',
     phone: '+56911223344',
     sedeId: SANTIAGO_SEDE,
+    institutionId: AJUTER_INSTITUTION_ID,
     accountStatus: 'active',
     onboardingStatus: 'complete',
   });
@@ -164,6 +166,7 @@ async function seed() {
     lastName: 'Rojas',
     phone: '+56922334455',
     sedeId: SANTIAGO_SEDE,
+    institutionId: AJUTER_INSTITUTION_ID,
     accountStatus: 'active',
     onboardingStatus: 'complete',
   });
@@ -177,6 +180,7 @@ async function seed() {
     lastName: 'Herrera',
     phone: '+56933445566',
     sedeId: VINA_SEDE,
+    institutionId: AJUTER_INSTITUTION_ID,
     accountStatus: 'active',
     onboardingStatus: 'complete',
   });
@@ -192,6 +196,7 @@ async function seed() {
     lastName: 'Soto',
     phone: '+56944556677',
     sedeId: CONCEPCION_SEDE,
+    institutionId: AJUTER_INSTITUTION_ID,
     accountStatus: 'suspended',
     onboardingStatus: 'complete',
   });
@@ -207,6 +212,7 @@ async function seed() {
     lastName: 'Reyes',
     phone: '+56900112233',
     sedeId: SANTIAGO_SEDE,
+    institutionId: AJUTER_INSTITUTION_ID,
     accountStatus: 'active',
     onboardingStatus: 'complete',
   });

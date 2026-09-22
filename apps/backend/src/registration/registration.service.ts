@@ -16,7 +16,9 @@ import { PsychologistSede } from '../psychologists/entities/psychologist-sede.en
 import { sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
-import { AuthUser, SubmitRegistrationResponse } from '@stopbet/shared-types';
+import { AuthUser, SubmitRegistrationResponse,
+  IntakeAnswers,
+} from '@stopbet/shared-types';
 
 const PG_UNIQUE_VIOLATION = '23505';
 
@@ -140,6 +142,7 @@ export class RegistrationService {
         sedeId: dto.sedeId,
         institutionId: dto.institutionId,
         status: 'pending',
+        intake: normalizeIntake(dto.intake),
       }),
     );
 
@@ -238,4 +241,41 @@ export class RegistrationService {
       }),
     );
   }
+}
+
+// Normaliza el cuestionario de ingreso (HdU13) a la forma que espera `IntakeAnswers`, con
+// `null` explícito en vez de `undefined`: lo que se guarda en `jsonb` se lee después desde la
+// ficha, y un campo ausente y uno vacío tienen que verse igual al leerlos.
+//
+// Devuelve `null` cuando no respondió nada, para distinguir «no contestó» de «contestó vacío».
+function normalizeIntake(dto: SubmitRegistrationDto['intake']): IntakeAnswers | null {
+  if (!dto) return null;
+
+  const texto = (v: string | undefined) => {
+    const t = v?.trim();
+    return t ? t : null;
+  };
+  const lista = (v: string[] | undefined) =>
+    (v ?? []).map((x) => x.trim()).filter(Boolean);
+
+  const answers: IntakeAnswers = {
+    motive: texto(dto.motive),
+    motiveOther: texto(dto.motiveOther),
+    gamblingTypes: lista(dto.gamblingTypes),
+    gamblingTypesOther: texto(dto.gamblingTypesOther),
+    duration: texto(dto.duration),
+    triggers: lista(dto.triggers),
+    triggersOther: texto(dto.triggersOther),
+  };
+
+  const vacio =
+    !answers.motive &&
+    !answers.motiveOther &&
+    answers.gamblingTypes.length === 0 &&
+    !answers.gamblingTypesOther &&
+    !answers.duration &&
+    answers.triggers.length === 0 &&
+    !answers.triggersOther;
+
+  return vacio ? null : answers;
 }

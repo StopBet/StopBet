@@ -102,7 +102,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
       return;
     }
     const isoBirthDate = birthDate.trim() ? chileanDateToIso(birthDate) ?? '' : '';
-    navigation.navigate('RegisterStep2', {
+    navigation.navigate('RegisterIntake', {
       institutionId,
       basicData: { firstName, lastName, rut, email, phone, birthDate: isoBirthDate, address, referralSource },
     });
@@ -112,7 +112,7 @@ export function RegisterStep1Screen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
       <TopBar title="Crear cuenta" onBack={() => navigation.goBack()} />
-      <StepperHeader current={1} />
+      <StepperHeader current={1} labels={['Datos', 'Tu juego', 'Sede']} />
 
       <KeyboardAvoidingView
         style={styles.flex}

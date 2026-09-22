@@ -1,111 +1,31 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import { WIcon } from '../../components/WIcon'
 import { api, type AuthUser, type FamilySessionsResponse } from '../../services/api'
+import { BillingCard } from './BillingCard'
+import { PaymentPage } from './PaymentPage'
+import { SettingsPage } from './SettingsPage'
+import { useBrandInShell } from '../../hooks/useBrandInShell'
+import { Notice, Shell } from './Shell'
 import { SessionCard } from './SessionCard'
 import { SessionCalendar } from './SessionCalendar'
 import { useIsWide } from './useIsWide'
 
 const SESSIONS_KEY = ['family', 'sessions']
 
-function Shell({
-  user,
-  onLogout,
-  // El ancho lo fija cada vista para que el encabezado quede alineado con su
-  // contenido: los avisos siguen angostos y solo el portal de dos columnas se ensancha.
-  maxWidth = 720,
-  children,
-}: {
-  user: AuthUser
-  onLogout: () => void
-  maxWidth?: number
-  children: React.ReactNode
-}) {
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* El degradado institucional arranca en el azul claro, justo donde va el saludo: el blanco
-          quedaba en 1,99:1. Este tramo usa solo los dos azules oscuros de la marca. */}
-      <header style={{ background: 'linear-gradient(90deg, var(--primary-hover) 0%, var(--primary) 100%)', padding: '26px 24px' }}>
-        <div style={{ maxWidth, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-          <div>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 22, color: 'var(--fg-on-primary)' }}>
-              Hola, {user.firstName}
-            </h1>
-            <p style={{ margin: '3px 0 0', fontSize: 13.5, color: 'rgba(255,255,255,0.88)' }}>
-              Portal de familiares
-            </p>
-          </div>
-          <button
-            onClick={onLogout}
-            style={{
-              background: 'rgba(255,255,255,0.18)',
-              border: '1px solid rgba(255,255,255,0.45)',
-              color: 'var(--fg-on-primary)',
-              borderRadius: 999,
-              padding: '8px 16px',
-              fontSize: 13.5,
-              fontWeight: 600,
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            Cerrar sesión
-          </button>
-        </div>
-      </header>
-
-      <main style={{ maxWidth, margin: '0 auto', padding: '28px 24px 64px' }}>{children}</main>
-    </div>
-  )
-}
-
-function Notice({
-  icon,
-  title,
-  children,
-}: {
-  icon: 'clock' | 'circle-alert' | 'calendar'
-  title: string
-  children: React.ReactNode
-}) {
-  return (
-    <div
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
-        borderRadius: 16,
-        boxShadow: 'var(--shadow-soft)',
-        padding: '28px 26px',
-        display: 'flex',
-        gap: 16,
-        alignItems: 'flex-start',
-      }}
-    >
-      <div
-        style={{
-          flexShrink: 0,
-          width: 42,
-          height: 42,
-          borderRadius: '50%',
-          background: 'var(--surface-alt)',
-          color: 'var(--primary-text)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <WIcon name={icon} size={20} />
-      </div>
-      <div>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 17, color: 'var(--fg1)' }}>
-          {title}
-        </h2>
-        <p style={{ margin: '7px 0 0', fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>{children}</p>
-      </div>
-    </div>
-  )
-}
-
 export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
+  useBrandInShell(user)
+  return (
+    <Routes>
+      <Route index element={<SessionsHome user={user} onLogout={onLogout} />} />
+      <Route path="pago" element={<PaymentPage user={user} onLogout={onLogout} />} />
+      <Route path="ajustes" element={<SettingsPage user={user} onLogout={onLogout} />} />
+      <Route path="*" element={<Navigate to="/familiar" replace />} />
+    </Routes>
+  )
+}
+
+function SessionsHome({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const queryClient = useQueryClient()
   const isWide = useIsWide()
 
@@ -220,6 +140,10 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
           apenas se agende una.
         </Notice>
 
+        <div style={{ marginTop: 20 }}>
+          <BillingCard />
+        </div>
+
         {data.sessions.length > 0 && (
           <>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, color: 'var(--fg2)', margin: '32px 0 14px' }}>
@@ -293,6 +217,10 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
         {/* Pegajoso solo en pantalla ancha: la lista de la izquierda es más larga que
             el calendario, y sin esto la columna derecha deja un hueco al hacer scroll. */}
         <section style={isWide ? { position: 'sticky', top: 24 } : undefined}>
+          <div style={{ marginBottom: 28 }}>
+            <BillingCard />
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
               Mis sesiones

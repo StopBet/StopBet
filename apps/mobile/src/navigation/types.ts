@@ -1,3 +1,4 @@
+import type { IntakeAnswers } from '@stopbet/shared-types';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 // Parámetros de navegación para los stacks de auth y app principal
@@ -18,7 +19,13 @@ export type AuthStackParamList = {
   Login: undefined;
   SelectInstitution: undefined;
   RegisterStep1: { institutionId: string };
-  RegisterStep2: { institutionId: string; basicData: BasicRegistrationData };
+  RegisterIntake: { institutionId: string; basicData: BasicRegistrationData };
+  RegisterStep2: {
+    institutionId: string;
+    basicData: BasicRegistrationData;
+    // Opcional: el paciente puede saltarse el cuestionario de ingreso (HdU13).
+    intake?: IntakeAnswers;
+  };
   RequestSent: { requestId: string; email: string };
   Payment: { userId: string; requestId: string };
 };

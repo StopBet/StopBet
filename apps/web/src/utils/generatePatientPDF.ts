@@ -2,7 +2,7 @@ import jsPDF from 'jspdf'
 import type { Patient } from '../data/mockData'
 import { ALERT_STATUS, needsAttention } from './alertStatus'
 import type { BillingStatus, PatientMetrics } from '../services/api'
-import { isDarkActive } from './theme'
+import { isBrandActive, isDarkActive } from './theme'
 
 // Las tipografías del manual. Vite devuelve la URL del asset, así que no entran al
 // bundle inicial: se descargan solo cuando alguien exporta un reporte.
@@ -43,9 +43,10 @@ function hexToRgb(hex: string): Rgb | null {
 
 // El informe se imprime sobre papel blanco: siempre va con la paleta CLARA. Con el panel
 // en modo oscuro, leer el CSS devolvería texto casi blanco y fondos oscuros, así que en ese
-// caso se usa la paleta de respaldo, que es la clara de la marca.
+// caso se usa la paleta de respaldo, que es la clara de la marca. Con los colores de AJUTER
+// también: que el informe clínico lleve la marca de la institución no está decidido.
 function token(name: string): Rgb {
-  if (typeof window === 'undefined' || isDarkActive()) return FALLBACK[name]
+  if (typeof window === 'undefined' || isDarkActive() || isBrandActive()) return FALLBACK[name]
   const raw = getComputedStyle(document.documentElement).getPropertyValue(name)
   return hexToRgb(raw) ?? FALLBACK[name]
 }

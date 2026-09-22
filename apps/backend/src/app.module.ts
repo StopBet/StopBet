@@ -42,6 +42,10 @@ import { PanicAlert } from './panic/entities/panic-alert.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { DeviceToken } from './push/entities/device-token.entity';
 import { FamilyModule } from './family/family.module';
+import { ClinicalRecordsModule } from './clinical-records/clinical-records.module';
+import { ClinicalRecord } from './clinical-records/entities/clinical-record.entity';
+import { ClinicalRecordVersion } from './clinical-records/entities/clinical-record-version.entity';
+import { ClinicalNote } from './clinical-records/entities/clinical-note.entity';
 import { FamilyLink } from './family/entities/family-link.entity';
 import { FamilySession } from './family/entities/family-session.entity';
 import { SessionAttendance } from './family/entities/session-attendance.entity';
@@ -97,6 +101,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
           FamilyLink, FamilySession, SessionAttendance,
           CommunityMute,
           PsychologistSede, PatientAssignment,
+          ClinicalRecord, ClinicalRecordVersion, ClinicalNote,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',
@@ -122,6 +127,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     HealthModule,
     MetricsModule,
     FamilyModule,
+    ClinicalRecordsModule,
     PushModule,
     PsychologistsModule,
     MailModule,

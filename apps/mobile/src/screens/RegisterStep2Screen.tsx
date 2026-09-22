@@ -30,7 +30,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
-  const { institutionId, basicData } = route.params;
+  const { institutionId, basicData, intake } = route.params;
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [selectedSedeId, setSelectedSedeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -63,6 +63,8 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         birthDate: basicData.birthDate || undefined,
         sedeId: selectedSedeId,
         institutionId,
+        // Va tal cual lo respondió el paciente, o ausente si se saltó el paso (HdU13).
+        intake,
       });
       navigation.navigate('RequestSent', {
         requestId: result.requestId,
@@ -96,7 +98,7 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
       <TopBar title="Crear cuenta" onBack={() => navigation.goBack()} />
-      <StepperHeader current={2} />
+      <StepperHeader current={3} labels={['Datos', 'Tu juego', 'Sede']} />
 
       <ScrollView
         style={styles.scroll}

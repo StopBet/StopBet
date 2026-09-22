@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage, AIMessage as LcAIMessage } from '@langchain/core/messages';
 import { AiSession } from './entities/ai-session.entity';
@@ -9,8 +9,11 @@ import { AiMessage } from './entities/ai-message.entity';
 import { AiSessionSummary } from './entities/ai-session-summary.entity';
 import { SendMessageDto } from './dto/send-message.dto';
 import { getFallbackMessage } from './fallback';
-import { sanitizePii } from './sanitizer';
+import { DatosAOmitir, sanitizePii } from './sanitizer';
 import { User } from '../users/entities/user.entity';
+import { FamilyLink } from '../family/entities/family-link.entity';
+import { SponsorAssignment } from '../panic/entities/sponsor-assignment.entity';
+import { ClinicalRecordsService } from '../clinical-records/clinical-records.service';
 import {
   CrisisSignal,
   CrisisSuggestion,
@@ -62,7 +65,12 @@ export class AiAssistantService {
     private readonly summaryRepo: Repository<AiSessionSummary>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(FamilyLink)
+    private readonly familyLinkRepo: Repository<FamilyLink>,
+    @InjectRepository(SponsorAssignment)
+    private readonly sponsorRepo: Repository<SponsorAssignment>,
     private readonly configService: ConfigService,
+    private readonly clinicalRecords: ClinicalRecordsService,
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.llm = apiKey
@@ -108,8 +116,18 @@ export class AiAssistantService {
       }),
     );
 
+    // HdU13 CA6: los detonantes que el psicólogo anotó en la ficha personalizan la
+    // conversación. No entran en `previousContext` a propósito: ese texto se le muestra al
+    // paciente, y devolverle lo que su psicólogo escribió sobre él no es lo que pide el CA.
+    // Este contexto solo viaja al modelo, saneado.
+    const clinicalTriggers = await this.clinicalRecords.getTriggersForAssistant(userId);
+
     // Generar mensaje de apertura personalizado
-    const openingContent = await this.generateOpeningMessage(previousContext);
+    const openingContent = await this.generateOpeningMessage(
+      previousContext,
+      clinicalTriggers,
+      await this.datosParaOmitir(userId),
+    );
     const openingMessage = await this.messageRepo.save(
       this.messageRepo.create({
         sessionId: session.id,
@@ -191,6 +209,7 @@ export class AiAssistantService {
       session.previousContext,
       sessionId,
       await this.datosParaOmitir(userId),
+      await this.clinicalRecords.getTriggersForAssistant(userId),
     );
 
     const assistantMsg = await this.messageRepo.save(
@@ -305,10 +324,16 @@ export class AiAssistantService {
     return this.stripMarkdown((respuesta.content as string).trim());
   }
 
-  private async generateOpeningMessage(previousContext: string | null): Promise<string> {
-    const systemWithContext = previousContext
-      ? `${AJUTER_SYSTEM_PROMPT}\n\nContexto de sesión anterior: ${previousContext}`
-      : AJUTER_SYSTEM_PROMPT;
+  private async generateOpeningMessage(
+    previousContext: string | null,
+    clinicalTriggers: string | null,
+    paciente?: DatosAOmitir,
+  ): Promise<string> {
+    const systemWithContext = buildSystemPrompt(
+      previousContext,
+      clinicalTriggers,
+      (texto) => sanitizePii(texto, paciente),
+    );
 
     if (!this.llm) return 'Hola, estoy aquí contigo. ¿Cómo te sientes en este momento?';
     try {
@@ -330,12 +355,54 @@ export class AiAssistantService {
   // S.3: el sanitizador necesita el nombre para poder omitirlo. Se traen solo esos
   // dos campos y nunca la fila completa: el RUT va cifrado en reposo y no hay razon
   // para descifrarlo aca.
-  private async datosParaOmitir(userId: string) {
-    const user = await this.userRepo.findOne({
-      where: { id: userId },
+  //
+  // HdU13 CA6: ademas del paciente van los nombres de quienes lo rodean, porque los
+  // detonantes los escribe el psicologo y ahi aparecen terceros.
+  private async datosParaOmitir(userId: string): Promise<DatosAOmitir | undefined> {
+    const [user, relacionados] = await Promise.all([
+      this.userRepo.findOne({
+        where: { id: userId },
+        select: ['firstName', 'lastName'],
+      }),
+      this.nombresDeSuEntorno(userId),
+    ]);
+
+    if (!user) return relacionados.length ? { relacionados } : undefined;
+    return { firstName: user.firstName, lastName: user.lastName, relacionados };
+  }
+
+  // Quienes el sistema ya sabe que rodean al paciente: los familiares vinculados y su
+  // compañero de viaje. Se omiten tambien los vinculos `pending`: el vinculo espera la
+  // aprobacion del psicologo, pero la persona es igual de real, y aca lo que se decide es
+  // que sale hacia un modelo de terceros, no quien ve que en el portal.
+  //
+  // Es una lista corta y concreta. Un tercero que el psicologo nombre y que no este
+  // registrado —«su jefe Nelson»— sigue pasando: no hay forma de distinguirlo de un lugar
+  // sin romper el detonante. Queda anotado en docs/ASUNCIONES-PENDIENTES.md.
+  private async nombresDeSuEntorno(patientId: string): Promise<string[]> {
+    const [vinculos, companeros] = await Promise.all([
+      this.familyLinkRepo.find({
+        where: { patientUserId: patientId },
+        select: { familyUserId: true },
+      }),
+      this.sponsorRepo.find({
+        where: { patientId, isActive: true },
+        select: { sponsorId: true },
+      }),
+    ]);
+
+    const ids = [
+      ...vinculos.map((v) => v.familyUserId),
+      ...companeros.map((c) => c.sponsorId),
+    ];
+    if (ids.length === 0) return [];
+
+    const personas = await this.userRepo.find({
+      where: { id: In(ids) },
       select: ['firstName', 'lastName'],
     });
-    return user ?? undefined;
+
+    return personas.flatMap((p) => [p.firstName, p.lastName]).filter(Boolean);
   }
 
   private fallbackSeed(sessionId: string): number {
@@ -348,7 +415,8 @@ export class AiAssistantService {
     history: AiMessage[],
     previousContext: string | null,
     sessionId: string,
-    paciente?: { firstName?: string; lastName?: string },
+    paciente?: DatosAOmitir,
+    clinicalTriggers?: string | null,
   ): Promise<string> {
     // S.3: se sanea SOLO lo que sale hacia el LLM. Lo guardado en la base queda
     // intacto a proposito: son las palabras del propio paciente y el psicologo las
@@ -357,9 +425,11 @@ export class AiAssistantService {
 
     // El contexto previo es un resumen generado por el modelo, asi que tambien
     // puede arrastrar el nombre desde una sesion anterior.
-    const systemWithContext = previousContext
-      ? `${AJUTER_SYSTEM_PROMPT}\n\nContexto de sesión anterior: ${omitir(previousContext)}`
-      : AJUTER_SYSTEM_PROMPT;
+    const systemWithContext = buildSystemPrompt(
+      previousContext,
+      clinicalTriggers ?? null,
+      omitir,
+    );
 
     const lcMessages = [
       new SystemMessage(systemWithContext),
@@ -386,7 +456,7 @@ export class AiAssistantService {
   private async extractSummary(
     messages: AiMessage[],
     durationMinutes: number,
-    paciente?: { firstName?: string; lastName?: string },
+    paciente?: DatosAOmitir,
   ): Promise<Partial<AiSessionSummary>> {
     const userContent = sanitizePii(
       messages
@@ -530,6 +600,25 @@ export class AiAssistantService {
       createdAt: m.createdAt.toISOString(),
     };
   }
+}
+
+// Arma el system prompt con los dos contextos que puede haber. Los dos pasan por `omitir`
+// (HdU13 CA6 y S.3): el resumen previo lo escribió el modelo y puede arrastrar el nombre, y los
+// detonantes los escribió el psicólogo, que bien puede haber anotado «discusiones con su
+// hermana Carla». Al modelo no le hace falta el nombre para entender el detonante.
+function buildSystemPrompt(
+  previousContext: string | null,
+  clinicalTriggers: string | null,
+  omitir: (texto: string) => string,
+): string {
+  let prompt = AJUTER_SYSTEM_PROMPT;
+  if (clinicalTriggers) {
+    prompt += `\n\nDetonantes registrados por su psicólogo: ${omitir(clinicalTriggers)}`;
+  }
+  if (previousContext) {
+    prompt += `\n\nContexto de sesión anterior: ${omitir(previousContext)}`;
+  }
+  return prompt;
 }
 
 /** Convierte el resumen de la sesión anterior en una frase leíble por el paciente. */
