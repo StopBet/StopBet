@@ -343,7 +343,16 @@ describe('FamilyService (HU-11)', () => {
   // ── Revisión del vínculo por el psicólogo — HDU 23 ──────────────────────────
 
   describe('listPendingLinks / listActiveLinks', () => {
-    const psychologist = (over: Partial<import('@stopbet/shared-types').AuthUser> = {}) => ({
+    type Reviewer = {
+      id: string;
+      email: string;
+      role: 'psychologist' | 'coordinator';
+      firstName: string;
+      lastName: string;
+      sedeId: string | null;
+    };
+
+    const psychologist = (over: Partial<Reviewer> = {}) => ({
       id: 'psych-1',
       email: 'psico@stopbet.cl',
       role: 'psychologist' as const,
@@ -514,6 +523,7 @@ describe('FamilyService (HU-11)', () => {
         'Vínculo no encontrado',
       );
     });
+  });
 
   // ── Mensualidad ───────────────────────────────────────────────────────────
 
