@@ -6,6 +6,7 @@ import {
   Home, Inbox, LifeBuoy, Loader2, LogOut, MapPin, Menu, MessageCircle, MoreHorizontal,
   NotebookPen, Search, Send, Settings, Shield, Sparkles, Target,
   Trash2, TrendingUp, Trophy, Users, UserRound, UserPlus, Wallet, X,
+  CreditCard, Landmark,
   type LucideProps,
 } from 'lucide-react'
 import type { FC } from 'react'
@@ -54,6 +55,8 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'user-plus':      UserPlus,
   'wallet':         Wallet,
   'x':              X,
+  'credit-card':    CreditCard,
+  'landmark':       Landmark,
 }
 
 interface WIconProps {

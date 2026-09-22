@@ -1,6 +1,7 @@
 import { WIcon } from './WIcon'
 import isotipo from '../assets/isotipo-blanco.png'
 import logoAjuter from '../assets/logo-ajuter.png'
+import logoAjuterBlanco from '../assets/logo-ajuter-blanco.png'
 import type { AuthUser } from '../services/api'
 
 type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
@@ -38,32 +39,38 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
     // bloque del usuario y "Cerrar sesión" quedaban fuera de pantalla sin forma de
     // llegar a ellos.
     <aside style={{
-      width: 240, flexShrink: 0, background: 'var(--primary)', color: 'var(--fg-on-primary)',
+      width: 240, flexShrink: 0, background: 'var(--chrome-bg)', color: 'var(--fg-on-primary)',
       display: 'flex', flexDirection: 'column', position: 'sticky', top: 0,
       height: '100vh', overflowY: 'auto',
     }}>
       {/* Marca StopBet. El logo de AJUTER baja al pie: el producto encabeza, pero
-          el panel sigue identificando a la institución que lo usa. */}
+          el panel sigue identificando a la institución que lo usa. Con los colores de
+          AJUTER se invierte: la institución arriba y StopBet al pie. */}
       <div style={{ padding: '26px 24px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 11, flexShrink: 0,
-            background: 'rgba(255,255,255,0.16)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <img src={isotipo} alt="" style={{ width: 23, height: 23, display: 'block' }} />
+        <div className="sb-only-ajuter">
+          <img src={logoAjuterBlanco} alt="AJUTER" style={{ display: 'block', width: 132, height: 'auto' }} />
+        </div>
+        <div className="sb-only-stopbet">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+              background: 'rgba(255,255,255,0.16)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <img src={isotipo} alt="" style={{ width: 23, height: 23, display: 'block' }} />
+            </div>
+            <span style={{
+              fontFamily: 'var(--font-heading)', fontWeight: 700,
+              fontSize: 22, letterSpacing: -0.5,
+            }}>
+              StopBet
+            </span>
           </div>
-          <span style={{
-            fontFamily: 'var(--font-heading)', fontWeight: 700,
-            fontSize: 22, letterSpacing: -0.5,
-          }}>
-            StopBet
-          </span>
         </div>
         <div style={{
           marginTop: 9, display: 'inline-block', fontSize: 12, fontWeight: 600,
           letterSpacing: '0.1em', textTransform: 'uppercase',
-          color: 'var(--fg-on-primary)', background: 'var(--primary-hover)',
+          color: 'var(--fg-on-primary)', background: 'var(--chrome-bg-active)',
           borderRadius: 9999, padding: '3px 10px',
         }}>
           Panel clínico
@@ -107,10 +114,10 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
                 cursor: 'pointer', textAlign: 'left',
                 // Activo y hover oscurecen en vez de aclarar: un velo blanco sobre el azul
                 // bajaba el texto blanco a 3,8:1. Con el azul oscuro de la marca queda en 6,5:1.
-                background: on ? 'var(--primary-hover)' : 'transparent',
+                background: on ? 'var(--chrome-bg-active)' : 'transparent',
                 color: 'var(--fg-on-primary)', fontFamily: 'var(--font-body)',
                 fontWeight: on ? 700 : 500, fontSize: 14.5,
-                borderLeft: on ? '3px solid var(--fg-on-primary)' : '3px solid transparent',
+                borderLeft: on ? '3px solid var(--chrome-accent)' : '3px solid transparent',
                 position: 'relative',
               }}
               onMouseEnter={e => { if (!on) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(0,0,0,0.10)' }}
@@ -136,7 +143,7 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
         <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
           <div style={{
             width: 40, height: 40, borderRadius: '50%', flexShrink: 0,
-            background: 'var(--primary-hover)', color: 'var(--fg-on-primary)',
+            background: 'var(--chrome-bg-active)', color: 'var(--fg-on-primary)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15,
           }}>{initials}</div>
@@ -163,17 +170,27 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, user }:
         {/* AJUTER es la institución dueña del panel: va al pie, en una sola línea.
             Antes ocupaba dos separadores más y empujaba al usuario fuera de la
             pantalla en ventanas de poca altura. */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 16 }}>
-          <span style={{ fontSize: 12, color: 'var(--fg-on-primary)', flexShrink: 0 }}>Para</span>
-          <div style={{ background: 'rgba(255,255,255,0.92)', borderRadius: 6, padding: '3px 7px', display: 'inline-block' }}>
-            {/* Servido desde el repo, no desde ajuter.org: si el sitio del cliente cambia
-                o se cae, el panel pierde el logo, y cada carga quedaba registrada en un
-                servidor de terceros. */}
-            <img
-              src={logoAjuter}
-              alt="AJUTER"
-              style={{ display: 'block', maxWidth: 76, height: 'auto' }}
-            />
+        <div className="sb-only-ajuter">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 16 }}>
+            <img src={isotipo} alt="" style={{ width: 16, height: 16, display: 'block', flexShrink: 0 }} />
+            <span style={{ fontSize: 12, color: 'var(--fg-on-primary)' }}>
+              Con tecnología <strong style={{ fontWeight: 700 }}>StopBet</strong>
+            </span>
+          </div>
+        </div>
+        <div className="sb-only-stopbet">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 16 }}>
+            <span style={{ fontSize: 12, color: 'var(--fg-on-primary)', flexShrink: 0 }}>Para</span>
+            <div style={{ background: 'rgba(255,255,255,0.92)', borderRadius: 6, padding: '3px 7px', display: 'inline-block' }}>
+              {/* Servido desde el repo, no desde ajuter.org: si el sitio del cliente cambia
+                  o se cae, el panel pierde el logo, y cada carga quedaba registrada en un
+                  servidor de terceros. */}
+              <img
+                src={logoAjuter}
+                alt="AJUTER"
+                style={{ display: 'block', maxWidth: 76, height: 'auto' }}
+              />
+            </div>
           </div>
         </div>
       </div>

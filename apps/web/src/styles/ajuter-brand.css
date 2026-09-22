@@ -1,0 +1,234 @@
+/* ============================================================================
+   Colores de AJUTER - opción de Apariencia (Configuración y Ajustes del portal).
+   Se activa con data-brand="ajuter" en <html>, que ponen el panel clínico y el portal
+   del familiar al montarse (utils/theme.ts). El login no lo pone: antes de entrar todo
+   se ve StopBet (decisión del PO, 16-09).
+
+   Paleta del manual de AJUTER (marca-clientes/ajuter), con dos ajustes:
+   - El amarillo es #EDB734, el que trae el logo. El manual dice #fcc96e, pero su propio
+     cuadro de color y todos los PNG usan #EDB734: es un error de tipeo del PDF.
+   - El ocre #c08026 no sirve tal cual para botones ni texto (blanco encima da 3,30:1), así
+     que las acciones usan un ocre oscurecido. El rojo #ef502d no se usa en la interfaz:
+     en el panel el rojo significa pánico, y un botón no puede parecerse a una alerta.
+
+   Se combina con claro/oscuro, así que hay dos juegos de valores. El oscuro repite el
+   bloque por la misma razón que stopbet-dark.css: si cambias un valor, cámbialo en los dos.
+   El claro va con especificidad (0,2,0) y el oscuro con (0,3,0), para que en oscuro gane
+   siempre, venga del sistema o de data-theme. Por eso el oscuro redefine TODO lo que
+   define el claro.
+   ============================================================================ */
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("./fonts/Montserrat-500.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("./fonts/Montserrat-600.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("./fonts/Montserrat-700.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Montserrat";
+  src: url("./fonts/Montserrat-800.woff2") format("woff2");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Sidebar del panel y encabezado del portal. En StopBet son el azul de marca de siempre;
+   AJUTER los cambia a carbón. Tokens aparte porque --primary también pinta botones, y
+   los botones AJUTER van en ocre, no en carbón. */
+:root {
+  --chrome-bg: var(--primary);
+  --chrome-bg-active: var(--primary-hover);
+  --chrome-accent: var(--fg-on-primary);
+}
+
+/* ---- AJUTER claro ---- */
+:root[data-brand="ajuter"] {
+  /* Acciones: ocre oscurecido. Blanco encima 5,32:1; como texto sobre el fondo 4,98:1 */
+  --teal-700: #92611D;
+  --teal-400: #7F5419;
+  --primary-text: #92611D;
+  --teal-50: #FBF1E1;
+
+  /* Acento: el amarillo del logo. Solo relleno: como texto sobre blanco no se lee */
+  --amber-500: #EDB734;
+  --amber-50: #FDF5E1;
+  --gold-500: #EDB734;
+  --gold-50: #FDF5E1;
+
+  /* Fondos: el manual pide blanco. El fondo general lleva un punto de calidez para que
+     las tarjetas blancas se distingan */
+  --cream-50: #FAF7F2;
+  --bg: #FAF7F2;
+  --surface: #FFFFFF;
+  --surface-alt: #FBF1E1;
+  --border-200: #E7DFD3;
+  --border: #E7DFD3;
+  --disabled-300: #C9C1B5;
+  --disabled: #C9C1B5;
+
+  /* Texto: el carbón del manual. fg2 da 6,39:1 sobre el fondo */
+  --ink-900: #272727;
+  --fg1: #272727;
+  --ink-500: #5F5A53;
+  --fg2: #5F5A53;
+
+  /* Verde y rojo son semánticos (logro y pánico), no de marca: no cambian */
+  --secondary-text: #5B7324;
+  --danger-text: #B83232;
+  --sage-50: #F2F7E2;
+  --red-50: #F7E7E7;
+
+  /* Sidebar y encabezado del portal: carbón con el logo blanco de mano amarilla, la
+     variante que el manual pide para fondos oscuros. Blanco sobre carbón 14,94:1 */
+  --chrome-bg: #272727;
+  --chrome-bg-active: #3A3836;
+  --chrome-accent: #EDB734;
+
+  --scrim: rgba(39, 39, 39, 0.42);
+  --shadow-soft:   0 2px 8px  rgba(39, 39, 39, 0.07);
+  --shadow-medium: 0 4px 16px rgba(39, 39, 39, 0.10);
+  --shadow-strong: 0 8px 32px rgba(39, 39, 39, 0.16);
+  --glow-gold: 0 0 0 4px rgba(237, 183, 52, 0.22),
+               0 4px 16px rgba(146, 97, 29, 0.24);
+
+  /* Montserrat en todo: Nexa, la de títulos del manual, es de pago */
+  --font-heading: "Montserrat", "Nunito", system-ui, sans-serif;
+  --font-body:    "Montserrat", "Inter", system-ui, sans-serif;
+}
+
+/* ---- AJUTER oscuro ---- */
+@media (prefers-color-scheme: dark) {
+  :root[data-brand="ajuter"]:not([data-theme="light"]) {
+    /* El ocre sigue como RELLENO (el texto blanco encima no cambia). Como texto no alcanza
+       sobre oscuro, así que el texto de marca pasa a un amarillo suave: 9,73:1 */
+    --teal-700: #92611D;
+    --teal-400: #7F5419;
+    --primary-text: #F0C36A;
+    --teal-50: #2D2923;
+
+    --amber-500: #EDB734;
+    --amber-50: #2D2923;
+    --gold-500: #EDB734;
+    --gold-50: #2D2923;
+
+    /* Fondos cálidos, no el gris azulado del oscuro StopBet */
+    --cream-50: #191816;
+    --bg: #191816;
+    --surface: #23211E;
+    --surface-alt: #2D2923;
+    --border-200: #3A3631;
+    --border: #3A3631;
+    --disabled-300: #545049;
+    --disabled: #545049;
+
+    --ink-900: #F3F1EE;        /* 14,24:1 sobre la superficie */
+    --fg1: #F3F1EE;
+    --ink-500: #BDB6AC;        /* 7,99:1 sobre la superficie */
+    --fg2: #BDB6AC;
+
+    --secondary-text: #c2d66e;
+    --danger-text: #F08A8A;
+    --sage-50: #232A1C;
+    --red-50: #33222A;
+
+    --chrome-bg: #272727;
+    --chrome-bg-active: #3A3836;
+    --chrome-accent: #EDB734;
+
+    --scrim: rgba(0, 0, 0, 0.62);
+    --shadow-soft:   0 2px 8px  rgba(0, 0, 0, 0.30);
+    --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.38);
+    --shadow-strong: 0 8px 32px rgba(0, 0, 0, 0.45);
+    --glow-gold: 0 0 0 4px rgba(237, 183, 52, 0.22),
+                 0 4px 16px rgba(0, 0, 0, 0.40);
+
+    --font-heading: "Montserrat", "Nunito", system-ui, sans-serif;
+    --font-body:    "Montserrat", "Inter", system-ui, sans-serif;
+
+    color-scheme: dark;
+  }
+}
+
+:root[data-brand="ajuter"][data-theme="dark"] {
+  --teal-700: #92611D;
+  --teal-400: #7F5419;
+  --primary-text: #F0C36A;
+  --teal-50: #2D2923;
+
+  --amber-500: #EDB734;
+  --amber-50: #2D2923;
+  --gold-500: #EDB734;
+  --gold-50: #2D2923;
+
+  --cream-50: #191816;
+  --bg: #191816;
+  --surface: #23211E;
+  --surface-alt: #2D2923;
+  --border-200: #3A3631;
+  --border: #3A3631;
+  --disabled-300: #545049;
+  --disabled: #545049;
+
+  --ink-900: #F3F1EE;
+  --fg1: #F3F1EE;
+  --ink-500: #BDB6AC;
+  --fg2: #BDB6AC;
+
+  --secondary-text: #c2d66e;
+  --danger-text: #F08A8A;
+  --sage-50: #232A1C;
+  --red-50: #33222A;
+
+  --chrome-bg: #272727;
+  --chrome-bg-active: #3A3836;
+  --chrome-accent: #EDB734;
+
+  --scrim: rgba(0, 0, 0, 0.62);
+  --shadow-soft:   0 2px 8px  rgba(0, 0, 0, 0.30);
+  --shadow-medium: 0 4px 16px rgba(0, 0, 0, 0.38);
+  --shadow-strong: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --glow-gold: 0 0 0 4px rgba(237, 183, 52, 0.22),
+               0 4px 16px rgba(0, 0, 0, 0.40);
+
+  --font-heading: "Montserrat", "Nunito", system-ui, sans-serif;
+  --font-body:    "Montserrat", "Inter", system-ui, sans-serif;
+
+  color-scheme: dark;
+}
+
+/* Piezas que existen en una marca y no en la otra (el logo de arriba del sidebar, el pie).
+   Se resuelve en CSS y no en React para que el cambio en Apariencia se vea al instante en
+   el sidebar, sin pasar estado entre la página de Configuración y el shell. */
+:root[data-brand="ajuter"] .sb-only-stopbet { display: none; }
+:root:not([data-brand="ajuter"]) .sb-only-ajuter { display: none; }
+
+/* Encabezado del portal del familiar (pages/familiar/Shell.tsx). Con AJUTER, el logo ocupa
+   la primera fila junto a los botones y el saludo baja con todo el ancho. */
+.sb-portal-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "greet actions";
+  align-items: center;
+  column-gap: 16px;
+}
+:root[data-brand="ajuter"] .sb-portal-header {
+  grid-template-areas:
+    "logo actions"
+    "greet greet";
+  row-gap: 14px;
+}

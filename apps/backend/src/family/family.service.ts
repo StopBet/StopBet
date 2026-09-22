@@ -7,6 +7,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, MoreThanOrEqual, QueryFailedError, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { cleanRut, RegisterFamilyResponse } from '@stopbet/shared-types';
+import { AccountStatus } from '@stopbet/shared-types';
 import { FamilyLink } from './entities/family-link.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
@@ -15,6 +16,7 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { resolveSedeId } from '../psychologists/sedes-of-user';
+import { Invoice } from '../billing/entities/invoice.entity';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
@@ -65,6 +67,38 @@ export interface SedeSessionView {
   attendances: SessionAttendanceView[];
 }
 
+export interface FamilyInvoiceView {
+  month: string;
+  amountCLP: number;
+  dueDate: string;
+}
+
+// Lo mínimo para que el familiar pague: el nombre de pila del paciente y sus cuotas,
+// nada del resto de su cuenta.
+export interface FamilyBillingView {
+  linkStatus: FamilyLinkState;
+  patientFirstName: string | null;
+  accountStatus: AccountStatus | null;
+  overdueInvoices: FamilyInvoiceView[];
+  totalOwedCLP: number;
+  nextInvoice: FamilyInvoiceView | null;
+}
+
+const EMPTY_BILLING = (linkStatus: FamilyLinkState): FamilyBillingView => ({
+  linkStatus,
+  patientFirstName: null,
+  accountStatus: null,
+  overdueInvoices: [],
+  totalOwedCLP: 0,
+  nextInvoice: null,
+});
+
+const toInvoiceView = (i: Invoice): FamilyInvoiceView => ({
+  month: i.month,
+  amountCLP: i.amountCLP,
+  dueDate: i.dueDate,
+});
+
 const EMPTY_VIEW = (linkStatus: FamilyLinkState): FamilySessionsView => ({
   linkStatus,
   sessions: [],
@@ -88,6 +122,8 @@ export class FamilyService {
     private readonly sedeRepo: Repository<Sede>,
     @InjectRepository(PsychologistSede)
     private readonly psychSedeRepo: Repository<PsychologistSede>,
+    @InjectRepository(Invoice)
+    private readonly invoiceRepo: Repository<Invoice>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -247,6 +283,41 @@ export class FamilyService {
     const link = await this.linkRepo.findOne({ where: { familyUserId } });
     if (!link) return { status: 'unlinked' };
     return { status: link.status };
+  }
+
+  // ── Mensualidad ───────────────────────────────────────────────────────────
+
+  // Solo lectura: el cobro todavía no tiene pasarela (ASUNCIONES-PENDIENTES, puntos 4 y 6),
+  // así que el familiar ve qué hay que pagar pero nada de acá marca una cuota como pagada.
+  async getBillingForFamily(familyUserId: string): Promise<FamilyBillingView> {
+    const link = await this.linkRepo.findOne({
+      where: { familyUserId },
+      relations: ['patientUser'],
+    });
+
+    if (!link) return EMPTY_BILLING('unlinked');
+    if (link.status !== 'active') return EMPTY_BILLING(link.status);
+
+    const patientId = link.patientUserId;
+    const [overdue, next] = await Promise.all([
+      this.invoiceRepo.find({
+        where: { userId: patientId, status: 'overdue' },
+        order: { dueDate: 'ASC' },
+      }),
+      this.invoiceRepo.findOne({
+        where: { userId: patientId, status: 'pending' },
+        order: { dueDate: 'ASC' },
+      }),
+    ]);
+
+    return {
+      linkStatus: 'active',
+      patientFirstName: link.patientUser.firstName,
+      accountStatus: link.patientUser.accountStatus ?? 'active',
+      overdueInvoices: overdue.map(toInvoiceView),
+      totalOwedCLP: overdue.reduce((sum, i) => sum + i.amountCLP, 0),
+      nextInvoice: next ? toInvoiceView(next) : null,
+    };
   }
 
   // ── Sesiones ──────────────────────────────────────────────────────────────

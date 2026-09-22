@@ -1,7 +1,7 @@
 # Matriz de permisos — StopBet API
 
-**Entregable del SPIKE 1, criterio S.4.** Inventario completo de los 56 endpoints del
-backend (13 controllers) con el rol que debería poder acceder a cada uno, y el estado real
+**Entregable del SPIKE 1, criterio S.4.** Inventario completo de los 59 endpoints del
+backend (14 controllers) con el rol que debería poder acceder a cada uno, y el estado real
 de protección hoy.
 
 > Roles del sistema: `patient`, `psychologist`, `coordinator`, `sponsor`, `family`, y
@@ -130,6 +130,25 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 | `POST /ai/sessions/:sessionId/close` | `patient` (dueño) | ✅ Autenticado |
 | `GET /ai/sessions/summaries` | `patient` (dueño); `psychologist` de sus pacientes (no implementado) | ✅ Autenticado |
 
+## `clinical-records` — `/clinical-records`  _(HdU13, 19-09-2026)_
+
+| Método + Path | Rol objetivo | Estado actual |
+|---|---|---|
+| `GET /clinical-records/patients/:patientId` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación |
+| `PUT /clinical-records/patients/:patientId` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación |
+| `GET /clinical-records/patients/:patientId/history` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación |
+
+> **El paciente no accede a su propia ficha, y es a propósito.** `@Roles('psychologist',
+> 'coordinator')` lo deja fuera con 403. Es material clínico que el psicólogo escribe *sobre* el
+> paciente —motivo de consulta, antecedentes de salud, objetivos terapéuticos—, no un dato del
+> perfil. Abrirlo al paciente es una decisión clínica de AJUTER, no un permiso que se agregue de
+> pasada.
+>
+> El CA5 de la HdU13 habla de «una sede distinta a la suya», pero acá el filtro es la
+> **asignación** (`PatientAccessGuard`), que es más estricta: un psicólogo de la misma sede sin
+> asignación tampoco entra. Se prefirió a comparar sedes porque `users.sedeId` guarda a veces el
+> nombre y a veces el UUID (ver `CLAUDE.md`), y un filtro por sede fallaría en silencio.
+
 ## `check-ins` — `/check-ins`
 
 | Método + Path | Rol objetivo | Estado actual |
@@ -164,6 +183,7 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 | `POST /billing/pay` | `patient`, `family` | ✅ Autenticado |
 | `GET /billing/family-link` | `patient` (dueño) | ✅ Autenticado |
 | `GET /billing/patients/:patientId/status` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación — nuevo 16-09, para el reporte PDF |
+| `GET /family/billing` | `family` (solo con vínculo `active`) | ✅ Protegido — nuevo 22-09, solo lectura: cuotas del paciente vinculado para la pantalla de pago del portal |
 
 ## `subscriptions` — `/subscriptions`
 

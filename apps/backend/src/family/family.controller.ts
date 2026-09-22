@@ -54,6 +54,21 @@ export class FamilyController {
     return this.familyService.getLinkStatus(user.id);
   }
 
+  // ── Mensualidad ───────────────────────────────────────────────────────────
+
+  @Get('billing')
+  @Roles('family')
+  @ApiOperation({ summary: 'Cuotas del paciente vinculado, para que el familiar las pague' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'linkStatus, nombre de pila del paciente, cuotas vencidas con su total y la próxima ' +
+      'cuota pendiente. Sin vínculo activo no trae cuotas.',
+  })
+  getBilling(@CurrentUser() user: AuthUser) {
+    return this.familyService.getBillingForFamily(user.id);
+  }
+
   // ── Sesiones ──────────────────────────────────────────────────────────────
 
   @Get('sessions')

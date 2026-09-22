@@ -20,6 +20,158 @@ está.
 
 ---
 
+## 2026-09-22 - Las cuentas tienen institución y el equipo de AJUTER arranca con sus colores (PR #115)
+
+**A quién le pega:** a **José** (`users`, `auth`), a **Matías Lara** (`psychologists`) y a quien
+despliegue en Railway.
+
+**Qué hacer después de pullear:**
+
+- `pnpm install` no hace falta. Sí recompilar `shared-types` (`AuthUser` tiene un campo nuevo):
+  `pnpm run backend` ya lo hace solo.
+- La columna nueva la crea `synchronize` al arrancar. Para marcar las cuentas que ya tienes en
+  tu base local: `pnpm run seed` **o** `pnpm --filter @stopbet/backend run backfill:institution`.
+- **En Railway hay que correr `backfill:institution` una vez**, o el equipo clínico que ya
+  existe en producción se queda sin institución y sigue viendo StopBet.
+
+**Qué cambió:**
+
+- **`users.institutionId`** (`varchar`, nullable), mismo valor que ya usaba
+  `registration_requests.institutionId` (`'AJUTER'`). `/auth/login` la devuelve dentro de
+  `user`. En `AuthUser` es opcional, así que nada de mobile se rompe.
+- **`POST /psychologists`** deja al psicólogo nuevo en la institución de la coordinación que lo
+  crea (`create(dto, coordinatorId)`; el segundo parámetro es opcional).
+- **La web**: psicólogos y coordinación de AJUTER arrancan con los colores de AJUTER. Si alguien
+  elige StopBet en Apariencia, se respeta. Familias y pacientes no cambian.
+
+**Por qué te puede parecer un bug:** si entras como psicólogo y el panel sale carbón y ocre con
+otra letra, **está funcionando**. Se cambia en Configuración → Apariencia → Colores. Una sesión
+abierta antes de este cambio no trae la institución hasta volver a iniciar sesión.
+
+---
+
+## 2026-09-20 - El asistente tacha más cosas antes de mandarlas al modelo (PR #111)
+
+**A quién le pega:** a **Matías Barraza** (S.3, el sanitizador) y a quien mire resúmenes de
+sesión del asistente.
+
+**Qué hacer después de pullear:** nada. No hay dependencias nuevas ni columnas nuevas.
+
+**Qué cambió:** `sanitizePii` (`apps/backend/src/ai-assistant/sanitizer.ts`) ya no omite solo
+el nombre del paciente y los RUT. Ahora también:
+
+- **teléfonos y correos**, que salen como `[CONTACTO OMITIDO]`;
+- los **nombres de los familiares vinculados y del compañero de viaje** del paciente, que
+  salen como `[NOMBRE OMITIDO]` igual que el suyo.
+
+**Por qué te puede parecer un bug:** si abres un resumen de sesión y ves `[CONTACTO OMITIDO]`
+donde antes iba un número, **está funcionando**. El CA6 de la HdU13 pide mandar los detonantes
+de la ficha al modelo «sin nombre, RUT ni datos de contacto», y los detonantes los escribe el
+psicólogo en texto libre. **Lo guardado en la base sigue intacto**: se sanea solo lo que sale
+hacia el LLM, igual que antes.
+
+**Un efecto secundario que es un arreglo:** la comparación de nombres ahora respeta los límites
+de palabra. Antes, una paciente llamada Ana convertía «mañana» en «mañ[NOMBRE OMITIDO]» dentro
+del prompt.
+
+Un tercero que **no** está registrado en la plataforma («su jefe Nelson») sigue llegando al
+modelo, y eso está anotado en `docs/ASUNCIONES-PENDIENTES.md`, punto 2-bis.
+
+---
+
+## 2026-09-19 — El formulario de ingreso pregunta por el juego (HdU13 + HdU19)
+
+**A quién le pega:** a **Matías Lara** sobre todo (`registration` es su módulo y lleva la
+HdU19), y a quien toque el registro en la app móvil.
+
+**Qué hacer después de pullear:** nada que instalar más allá de recompilar `shared-types`. La
+columna nueva la crea `synchronize` al arrancar.
+
+**Qué cambió, y qué NO:**
+
+- **`registration_requests` tiene una columna nueva, `intake` (`jsonb`, nullable).** Se eligió
+  **una sola columna** en vez de seis sueltas justamente para dejar la huella más chica posible
+  en una tabla que es de otra pista. `null` = la solicitud es anterior a estas preguntas o el
+  paciente se las saltó.
+- **`POST /registration/submit` acepta un `intake` opcional.** Todo dentro es opcional y el
+  endpoint sigue funcionando igual sin él: **ninguna llamada existente se rompe**. Los tests de
+  registro pasan sin tocarlos.
+- **El registro móvil tiene un paso nuevo** entre Datos y Sede: `RegisterIntakeScreen`, con
+  cuatro preguntas de alternativas y un «Otro» de texto libre. Se puede saltar («Prefiero no
+  responder ahora»). El stepper pasó de 2 a 3 pasos.
+- **Lo que el paciente declara NO se copia a la ficha clínica.** Se lee desde
+  `GET /clinical-records/patients/:patientId/intake` y el panel lo muestra aparte, marcado como
+  «Declarado por el paciente al ingresar», en solo lectura. Si se fusionara con lo que redacta
+  el psicólogo se perdería el contraste entre lo que el paciente dice de sí mismo y lo que el
+  equipo observa, que clínicamente es lo que importa.
+- **No se tocó ningún endpoint del controller de `registration`** salvo el DTO de `submit`.
+  Aprobar, rechazar y listar pendientes quedaron intactos.
+
+**Ojo con el CA1 de la HdU13**, que dice que el psicólogo ve una ficha «vacía, lista para
+completar». Sigue siendo así: el cuestionario se muestra al lado, no adentro. Verificado.
+
+---
+
+## 2026-09-19 — Ficha clínica (HdU13): módulo nuevo y tipos compartidos
+
+**A quién le pega:** a **todos** (hay que recompilar `shared-types`), y en particular a quien
+toque `ai-assistant` o vaya a agregar su módulo a `app.module.ts` esta semana.
+
+**Qué hacer después de pullear:**
+
+```bash
+pnpm --filter @stopbet/shared-types build
+pnpm run seed:fichas          # opcional, después de `pnpm run seed`
+```
+
+Sin eso, el backend no compila y el error sale en archivos que nadie tocó: los tipos
+`ClinicalRecord`, `ClinicalRecordVersion` y `CLINICAL_RECORD_FIELDS` son nuevos. No hay
+dependencias nuevas, así que `pnpm install` no hace falta.
+
+**Qué cambió:**
+
+- **Módulo `clinical-records`** con tres endpoints, todos para el equipo clínico
+  (`GET`/`PUT /clinical-records/patients/:patientId` y `GET .../history`). La ficha es una por
+  paciente y guarda los cinco campos del CA1.
+- **Dos tablas nuevas**, `clinical_records` y `clinical_record_versions`. En local las crea
+  `synchronize` al arrancar; no hay que correr nada.
+- **`ai-assistant` cambió de firma.** `AiAssistantService` recibe un parámetro más en el
+  constructor (`ClinicalRecordsService`). Si tienes un test que lo instancia a mano, agrégale el
+  doble o te va a fallar el type-check. Los detonantes de la ficha ahora entran al prompt del
+  modelo, saneados; `previousContext` (lo que ve el paciente) no cambió.
+- **`app.module.ts` tiene tres líneas más.** Es el archivo compartido del que habla el reparto
+  del sprint: si vas a registrar tu módulo, mergea seguido para no chocar.
+
+**Datos de prueba — `pnpm run seed:fichas` hace dos cosas, ojo con la segunda:**
+
+1. **Llena fichas clínicas**: Carlos (con 3 versiones, para ver el historial), Ana, Marcela,
+   Paulina, Lucía y Jorge. **Pedro, Roberto, Rodrigo, Héctor e Ignacio quedan sin ficha a
+   propósito**: sirven para ver la ficha vacía del CA1 y el chip «Sin ficha clínica» de la
+   lista. Si los llenas todos, esos estados dejan de poder demostrarse.
+2. **Crea 4 pacientes nuevos** (Marcela Ibáñez, Rodrigo Cáceres, Paulina Núñez, Héctor
+   Sandoval) y los asigna a **Miguel Ángel Lara**, más Ignacio Vidal, que estaba sin
+   psicólogo. Miguel pasa de 3 a 8 pacientes: con 3 filas no se puede juzgar cómo se ve la
+   lista del panel.
+
+**No toca a los `approval_pending`** (Fernanda, Diego, Camila): son las solicitudes de ingreso
+de la HdU19 y asignarlas las haría desaparecer de esa pantalla. **Tampoco mueve** a los
+pacientes de Tomás ni de Valentina, para que se siga viendo que cada psicólogo alcanza solo a
+los suyos.
+
+El seed es idempotente: correrlo dos veces no duplica nada.
+
+**Cambio de nombre que te puede confundir:** el panel lateral de «Mis pacientes» (Evolución,
+Alertas, Sesiones IA, Datos) **ya no se llama «ficha»: ahora es «Seguimiento»**. Su botón en la
+lista dice `Seguimiento` y al lado hay uno nuevo, `Ficha clínica`, que es otra pantalla. Son
+cosas distintas: el Seguimiento es lo que genera el paciente, la ficha clínica es lo que el
+psicólogo escribe sobre él. Si buscas «ficha» en el código y no encuentras lo que esperabas, es
+por esto.
+
+**Ojo con una cosa:** el historial de versiones **no se borra ni se edita nunca**. Es el registro
+de auditoría clínica del CA4. Si necesitas limpiar datos de prueba, bórralos por la base.
+
+---
+
 ## 2026-09-16 — El backend exige token en todo: `x-user-id` ya no se lee
 
 **A quién le pega:** a **todos** los que toquen el backend, y a cualquiera con scripts,

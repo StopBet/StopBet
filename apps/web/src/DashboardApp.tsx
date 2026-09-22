@@ -6,6 +6,7 @@ import { TopBar } from './components/TopBar'
 import { WIcon } from './components/WIcon'
 import { useIsNarrow } from './hooks/useIsNarrow'
 import { MisPacientesPage } from './pages/MisPacientesPage'
+import { FichaClinicaPage } from './pages/FichaClinicaPage'
 import { OverviewPage } from './pages/OverviewPage'
 import { AlertasPage } from './pages/AlertasPage'
 import { FinanzasPage } from './pages/FinanzasPage'
@@ -17,6 +18,7 @@ import { api } from './services/api'
 import { needsAttention } from './utils/alertStatus'
 import type { AuthUser } from './services/api'
 import type { RegistrationRequest } from './data/mockData'
+import { useBrandInShell } from './hooks/useBrandInShell'
 
 
 type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
@@ -51,6 +53,17 @@ const PATH_TO_NAV: Record<string, NavId> = Object.fromEntries(
   Object.entries(NAV_PATHS).map(([id, path]) => [path, id as NavId]),
 )
 
+// Las subrutas (`/pacientes/<id>/ficha`) tienen que dejar marcada su sección en el sidebar.
+// Con la búsqueda exacta caían en el `?? 'overview'` y, estando en la ficha de un paciente, el
+// menú decía «Resumen». Se descarta `/` porque es prefijo de todo.
+function navDe(pathname: string): NavId {
+  if (PATH_TO_NAV[pathname]) return PATH_TO_NAV[pathname]
+  const padre = Object.entries(NAV_PATHS).find(
+    ([, path]) => path !== '/' && pathname.startsWith(`${path}/`),
+  )
+  return padre ? (padre[0] as NavId) : 'overview'
+}
+
 function PlaceholderPage({ title }: { title: string }) {
   return (
     <div style={{ padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
@@ -83,7 +96,7 @@ function shortSedeName(name: string): string {
 export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const nav: NavId = PATH_TO_NAV[location.pathname] ?? 'overview'
+  const nav: NavId = navDe(location.pathname)
   const [toast, setToast] = useState<Toast | null>(null)
   const qc = useQueryClient()
 
@@ -157,6 +170,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
 
   const isNarrow = useIsNarrow()
   const [menuOpen, setMenuOpen] = useState(false)
+  useBrandInShell(user)
 
   // El menú del teléfono se cierra también con Escape, como cualquier diálogo
   useEffect(() => {
@@ -203,7 +217,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
             aria-label="Abrir menú"
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              background: 'var(--primary)', color: 'var(--fg-on-primary)', border: 'none',
+              background: 'var(--chrome-bg)', color: 'var(--fg-on-primary)', border: 'none',
               // Este botón hace de cabecera de la página, no de control secundario:
               // con 15px el título se leía más chico que el contenido de abajo.
               padding: '14px 16px', fontSize: 20, fontWeight: 700, cursor: 'pointer',
@@ -228,7 +242,8 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
             <Route path="/equipo" element={<EquipoPage />} />
             <Route path="/finanzas" element={<FinanzasPage />} />
             <Route path="/configuracion" element={<ConfiguracionPage user={user} />} />
-            <Route path="/pacientes" element={<MisPacientesPage />} />
+            <Route path="/pacientes" element={<MisPacientesPage user={user} />} />
+            <Route path="/pacientes/:patientId/ficha" element={<FichaClinicaPage />} />
             <Route path="/reportes" element={<PlaceholderPage title={PAGE_TITLES.reports} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

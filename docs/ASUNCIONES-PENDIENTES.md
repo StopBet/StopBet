@@ -30,6 +30,83 @@ quedan guardados mientras exista la cuenta, pasan por la IA de Google sin nombre
 pero **nadie de AJUTER lo ha validado**. Es lo que el paciente lee antes de contarle lo más
 íntimo de su proceso. Va en `PrivacyCard.tsx` y `SessionSummaryModal.tsx`.
 
+**2-bis. Los detonantes de la ficha todavía pueden arrastrar el nombre de un tercero que
+nadie registró.** _(HdU13 CA6, 19-09-2026 · acotado el 20-09-2026)_
+
+El CA6 pide que los detonantes que el psicólogo anota en la ficha personalicen la conversación
+del asistente «sin enviar nombre, RUT ni datos de contacto al modelo». Los detonantes pasan por
+`sanitizePii`, que hoy omite:
+
+- el **nombre del paciente** y cualquier **RUT**;
+- **teléfonos y correos** escritos dentro del texto (eso cierra los «datos de contacto» del CA,
+  que antes no estaban cubiertos);
+- los **nombres de quienes el sistema ya tiene registrados alrededor del paciente**: familiares
+  vinculados y su compañero de viaje.
+
+**Lo que sigue pasando:** un tercero que no está registrado en la plataforma. Si el psicólogo
+escribe *«discusiones con su jefe Nelson»*, ese nombre llega al modelo. No se resolvió
+inventando un detector de nombres propios: sobre texto clínico en español daría falsos
+positivos («Santiago» es una sede, «Fonasa» no es nadie) y rompería justamente el detonante que
+hay que entender.
+
+**Las dos salidas que quedan:**
+
+1. **Ya está pedido en la UI:** el campo de detonantes avisa que se escriban sin nombres de
+   terceros, porque el detonante es la situación y no quién la protagoniza. Es la mitigación
+   vigente.
+2. **Aceptarlo explícitamente**, si AJUTER considera que el nombre de un tercero dentro de un
+   detonante no es dato sensible en este contexto.
+
+El comportamiento está **documentado en un test** que lo afirma tal cual («todavía deja pasar el
+nombre de un tercero que no está registrado»), para que el día que se arregle el test falle y
+obligue a actualizarlo.
+
+**2-ter. ✅ Decidido: la ficha clínica llama «motivo de ingreso» y «objetivos del tratamiento».**
+_(decisión del PO, 19-09-2026 · confirmada el 20-09-2026)_
+
+El CA1 de la HdU13 lista los campos obligatorios como «motivo de **consulta**» y «objetivos
+**terapéuticos**». En la app dicen **«Motivo de ingreso»** y **«Objetivos del tratamiento»**, y
+las claves de la API son `admissionReason` y `treatmentGoals`. **Se quedan así.**
+
+**Por qué:** AJUTER no hace consultas individuales, hace **terapia grupal**. «Motivo de
+consulta» describe un modelo de atención que no es el del programa, y el psicólogo que escribe
+la ficha iba a leer un término que no usa.
+
+Se deja anotado acá, y no se borra, porque quien lea el CA1 y la pantalla va a ver dos palabras
+distintas y necesita saber que es deliberado. Si AJUTER pidiera los términos del CA, el cambio
+es el mismo renombre al revés, **pero conviene hacerlo antes de que `clinical_records` llegue a
+producción**: sin migraciones en el repo (deuda #10), renombrar una columna con `synchronize`
+deja la vieja colgando y la nueva vacía.
+
+**2-quater. Las cuatro preguntas del formulario de ingreso, y si son obligatorias.**
+_(HdU13, 19-09-2026)_
+
+El registro móvil tiene un paso nuevo donde el paciente declara **qué lo trae**, **a qué
+juega**, **hace cuánto** y **en qué momentos le dan ganas**. Las alternativas las propuso Claude
+y las aprobó el PO; **AJUTER no las ha visto**. Son las primeras preguntas que recibe alguien
+que está pidiendo ayuda, así que la redacción importa tanto como el contenido.
+
+**Dos decisiones abiertas:**
+
+1. **Las alternativas mismas.** Están en `packages/shared-types/src/index.ts`
+   (`INTAKE_MOTIVES`, `INTAKE_GAMBLING_TYPES`, `INTAKE_DURATIONS`, `INTAKE_TRIGGERS`). Se
+   dejaron fuera a propósito: objetivos del tratamiento (se acuerdan con el psicólogo, no se
+   autodeclaran), antecedentes de salud mental (no corresponde pedirlos en un formulario
+   público antes de que exista relación terapéutica) y monto de deuda (invita a mentir por
+   vergüenza, y el estrés por deudas es gatillo de recaída).
+
+2. **Si responder es obligatorio para entrar.** El PO planteó que «todos los pacientes deben
+   tener ficha, si no no pueden entrar a AJUTER». **Hoy el paso es saltable**, porque ningún CA
+   de la HdU13 exige lo contrario y porque una pregunta obligatoria de más, en ese momento, es
+   alguien que abandona el registro. Hacerlo obligatorio además toca las reglas de la HdU19
+   (Matías Lara). Queda para decidir con AJUTER, con las dos variantes sobre la mesa:
+   obligatorio para **postular**, u obligatorio para que la coordinación pueda **aprobar**.
+
+**Lo que sí quedó cerrado** (PO, 19-09-2026): la ficha clínica y lo declarado por el paciente
+son **dos cosas distintas y no se fusionan**. Lo declarado es inmutable y se muestra tal cual;
+la ficha es la lectura del psicólogo y se edita y versiona (CA1-CA4); las anotaciones son la
+cronología del seguimiento. Tres capas, cada una con su dueño.
+
 **3. El tono de la cuenta suspendida.**
 Se sacó el tono de cobranza («Llevas 3 meses sin pagar», «3 meses de mora»), porque el estrés
 por deudas es un gatillo de recaída. El texto actual es una propuesta del PO, **no una
@@ -110,6 +187,13 @@ que todavía esté fijo.
 > equipo clínico»), que es barato y sirve para siempre, o agregar la institución al modelo de
 > datos, que es lo que hace falta si algún día el panel tiene que mostrar la marca de cada
 > cliente.
+>
+> **Actualizado el 22-09-2026.** `users` ya tiene `institutionId`, pero **solo lo llena el
+> equipo clínico** (seed, `backfill:institution` y `POST /psychologists`, que hereda la de la
+> coordinación). Se usa para arrancar al panel con los colores de AJUTER. **Pacientes y
+> familiares siguen sin institución**: aprobar un registro todavía no copia
+> `registration_requests.institutionId` a la cuenta. Los textos «AJUTER» a mano del portal y
+> del PDF siguen igual.
 
 **8. Vercel Hobby prohíbe el uso comercial.**
 Hoy funciona porque el repo está público, pero la cláusula sigue ahí y StopBet va a cobrar

@@ -9,6 +9,7 @@ import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
+import { Invoice } from '../billing/entities/invoice.entity';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PsychologistSede } from '../psychologists/entities/psychologist-sede.en
       Notification,
       Sede,
       PsychologistSede,
+      Invoice,
     ]),
   ],
   controllers: [FamilyController],
