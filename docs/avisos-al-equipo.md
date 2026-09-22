@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-22 - Las cuentas tienen institución y el equipo de AJUTER arranca con sus colores (sin PR todavía)
+## 2026-09-22 - Las cuentas tienen institución y el equipo de AJUTER arranca con sus colores (PR #115)
 
 **A quién le pega:** a **José** (`users`, `auth`), a **Matías Lara** (`psychologists`) y a quien
 despliegue en Railway.
