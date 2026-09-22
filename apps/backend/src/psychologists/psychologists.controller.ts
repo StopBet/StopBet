@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@ne
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
+import { UserId } from '../common/decorators/user-id.decorator';
 import { PsychologistsService } from './psychologists.service';
 import { CreatePsychologistDto } from './dto/create-psychologist.dto';
 import { DeactivatePsychologistDto } from './dto/deactivate-psychologist.dto';
@@ -23,8 +24,8 @@ export class PsychologistsController {
   @ApiResponse({ status: 401, description: 'Token ausente o inválido' })
   @ApiResponse({ status: 403, description: 'Rol sin permiso — requiere coordinator' })
   @ApiResponse({ status: 409, description: 'Ya existe una cuenta con este correo electrónico' })
-  create(@Body() dto: CreatePsychologistDto) {
-    return this.psychologistsService.create(dto);
+  create(@Body() dto: CreatePsychologistDto, @UserId() coordinatorId: string) {
+    return this.psychologistsService.create(dto, coordinatorId);
   }
 
   @Get()

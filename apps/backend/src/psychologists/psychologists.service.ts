@@ -100,7 +100,8 @@ export class PsychologistsService {
     };
   }
 
-  async create(dto: CreatePsychologistDto): Promise<CreatePsychologistResponse> {
+  // `coordinatorId`: quien crea la cuenta. El psicólogo nuevo queda en su misma institución.
+  async create(dto: CreatePsychologistDto, coordinatorId?: string): Promise<CreatePsychologistResponse> {
     const existing = await this.userRepo.findOne({ where: { email: dto.email } });
     if (existing) {
       throw new ConflictException('Ya existe una cuenta con este correo electrónico');
@@ -110,6 +111,10 @@ export class PsychologistsService {
     if (sedes.length !== dto.sedeIds.length) {
       throw new BadRequestException('Una o más sedes no existen o están inactivas');
     }
+
+    const creator = coordinatorId
+      ? await this.userRepo.findOne({ where: { id: coordinatorId } })
+      : null;
 
     const temporaryPassword = crypto.randomBytes(TEMP_PASSWORD_BYTES).toString('base64url');
     const passwordHash = await bcrypt.hash(temporaryPassword, BCRYPT_ROUNDS);
@@ -125,6 +130,7 @@ export class PsychologistsService {
           lastName: dto.lastName,
           rut: dto.rut,
           sedeId: dto.sedeIds[0],
+          institutionId: creator?.institutionId ?? null,
           onboardingStatus: 'complete',
           accountStatus: 'active',
         }),

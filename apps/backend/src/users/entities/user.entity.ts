@@ -70,6 +70,12 @@ export class User {
   @Column({ type: 'enum', enum: ACCOUNT_STATUSES, default: 'active' })
   accountStatus: AccountStatus;
 
+  // Institución cliente a la que pertenece la cuenta (hoy solo 'AJUTER'). La web la usa para
+  // arrancar al equipo clínico con los colores de su institución. null = cuenta sin
+  // institución asignada; se ve con la marca StopBet.
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  institutionId: string | null;
+
   // ── Progreso ──────────────────────────────────────────────────────────
 
   @Column({ type: 'int', default: 0 })
