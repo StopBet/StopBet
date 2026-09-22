@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { WIcon } from '../../components/WIcon'
 import isotipo from '../../assets/isotipo-blanco.png'
 import logoAjuterBlanco from '../../assets/logo-ajuter-blanco.png'
@@ -18,6 +18,9 @@ export function Shell({
   children: React.ReactNode
 }) {
   const navigate = useNavigate()
+  // En Ajustes el engranaje se marca como la página actual: antes parecía un botón que no
+  // hacía nada.
+  const onSettings = useLocation().pathname.startsWith('/familiar/ajustes')
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       {/* El degradado institucional arranca en el azul claro, justo donde va el saludo: el blanco
@@ -42,13 +45,14 @@ export function Shell({
           <div style={{ gridArea: 'actions', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             {/* Solo ícono: en el teléfono el saludo y dos botones con texto no caben en una línea. */}
             <button
-              onClick={() => navigate('/familiar/ajustes')}
+              onClick={() => { if (!onSettings) navigate('/familiar/ajustes') }}
               aria-label="Ajustes"
+              aria-current={onSettings ? 'page' : undefined}
               title="Ajustes"
               style={{
-                background: 'rgba(255,255,255,0.18)',
+                background: onSettings ? 'var(--fg-on-primary)' : 'rgba(255,255,255,0.18)',
                 border: '1px solid rgba(255,255,255,0.45)',
-                color: 'var(--fg-on-primary)',
+                color: onSettings ? 'var(--chrome-bg)' : 'var(--fg-on-primary)',
                 borderRadius: '50%',
                 width: 38,
                 height: 38,
@@ -56,7 +60,7 @@ export function Shell({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: 'pointer',
+                cursor: onSettings ? 'default' : 'pointer',
               }}
             >
               <WIcon name="settings" size={18} />
