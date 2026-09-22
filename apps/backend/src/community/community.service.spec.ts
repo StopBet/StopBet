@@ -152,3 +152,39 @@ describe('CommunityService — escrituras idempotentes', () => {
     });
   });
 });
+
+describe('CommunityService — descartar reportes', () => {
+  const PSYCHOLOGIST = { id: 'psy-1', role: 'psychologist' };
+  let postRepo: { findOne: jest.Mock; update: jest.Mock };
+  let reportRepo: { update: jest.Mock };
+  let userRepo: { findOne: jest.Mock };
+  let service: CommunityService;
+
+  beforeEach(() => {
+    postRepo = { findOne: jest.fn().mockResolvedValue({ id: POST_ID }), update: jest.fn() };
+    reportRepo = { update: jest.fn().mockResolvedValue({ affected: 2 }) };
+    userRepo = { findOne: jest.fn().mockResolvedValue(PSYCHOLOGIST) };
+    const noop = () => ({}) as any;
+    service = new CommunityService(
+      postRepo as any, noop(), noop(), reportRepo as any, noop(), userRepo as any, noop(), noop(),
+    );
+  });
+
+  it('marca los reportes pendientes con quién y cuándo, y saca la publicación de la cola', async () => {
+    const result = await service.dismissReports(POST_ID, PSYCHOLOGIST.id);
+
+    expect(reportRepo.update).toHaveBeenCalledWith(
+      expect.objectContaining({ postId: POST_ID }),
+      expect.objectContaining({ dismissedBy: PSYCHOLOGIST.id, dismissedAt: expect.any(Date) }),
+    );
+    expect(postRepo.update).toHaveBeenCalledWith({ id: POST_ID }, { reportCount: 0 });
+    expect(result).toEqual({ dismissed: 2 });
+  });
+
+  it('un paciente no puede descartar reportes', async () => {
+    userRepo.findOne.mockResolvedValue({ id: AUTHOR_ID, role: 'patient' });
+
+    await expect(service.dismissReports(POST_ID, AUTHOR_ID)).rejects.toThrow('Solo un psicólogo');
+    expect(reportRepo.update).not.toHaveBeenCalled();
+  });
+});

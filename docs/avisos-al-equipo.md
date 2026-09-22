@@ -20,6 +20,29 @@ está.
 
 ---
 
+## 2026-09-22 - Revisión de botones del panel: Equipo, moderación y login (PR #116)
+
+**A quién le pega:** a **Matías Lara** (Equipo), a **Catalina** (`community`) y a quien haga la
+demo del panel.
+
+**Qué hacer después de pullear:** nada. La columna nueva la crea `synchronize` al arrancar.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Un psicólogo ya no ve «Crear psicólogo», «Sedes» ni «Desactivar» en Equipo.** El backend
+  los tiene con `@Roles('coordinator')`: el psicólogo llenaba el formulario y recibía un 403. Si
+  haces la demo de la HU-24, **entra con la cuenta de coordinación**.
+- **«Ocultar» en Posts reportados ahora es «Descartar» y se guarda.** Antes vivía en memoria: al
+  recargar la publicación volvía y el Resumen la seguía contando. Ahora
+  `POST /community/moderation/posts/:id/dismiss` marca los reportes con `dismissedAt` y
+  `dismissedBy` (columnas nuevas en `post_reports`; no se borran, quedan como registro) y deja
+  `reportCount` en 0. La publicación sale de la cola del **equipo entero**, también en la app
+  móvil del psicólogo, y vuelve si alguien nuevo la reporta.
+- **Login:** apretar «Iniciar sesión» con un campo vacío ahora avisa, y «¿Olvidaste tu
+  contraseña?» muestra a quién pedirle una clave nueva en vez de abrir un `mailto:`.
+
+---
+
 ## 2026-09-22 - Las cuentas tienen institución y el equipo de AJUTER arranca con sus colores (PR #115)
 
 **A quién le pega:** a **José** (`users`, `auth`), a **Matías Lara** (`psychologists`) y a quien

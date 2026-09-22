@@ -192,7 +192,6 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
 function FlaggedPostsSection() {
   const isNarrow = useIsNarrow()
   const qc = useQueryClient()
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<FlaggedPost | null>(null)
 
   const { data: flagged = [], isLoading } = useQuery({
@@ -208,7 +207,14 @@ function FlaggedPostsSection() {
     },
   })
 
-  const visible = flagged.filter(p => !dismissed.has(p.id))
+  // Antes «Ocultar» vivía en memoria: la publicación volvía al recargar y el Resumen la seguía
+  // contando. Ahora el descarte queda en el servidor, para todo el equipo.
+  const dismissMutation = useMutation({
+    mutationFn: (postId: string) => api.dismissReports(postId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['flagged-posts'] }),
+  })
+
+  const visible = flagged
 
   function relTime(iso: string) {
     const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60_000)
@@ -230,10 +236,15 @@ function FlaggedPostsSection() {
             {visible.length} pendiente{visible.length !== 1 ? 's' : ''}
           </span>
         </div>
-        {/* Ocultar vive en memoria: decirlo evita creer que el post se revisó para siempre */}
         <p style={{ margin: '-6px 24px 14px', fontSize: 12.5, color: 'var(--fg2)', lineHeight: 1.5 }}>
-          «Ocultar» saca el post de esta lista hasta que recargues la página; no cambia nada en la comunidad.
+          «Descartar» deja la publicación en la comunidad y la saca de esta lista para todo el equipo.
+          Si alguien la vuelve a reportar, aparece de nuevo.
         </p>
+        {dismissMutation.isError && (
+          <p role="alert" style={{ margin: '-6px 24px 14px', fontSize: 12.5, color: 'var(--danger-text)', fontWeight: 600 }}>
+            No pudimos descartar los reportes. Vuelve a intentarlo.
+          </p>
+        )}
 
         {isLoading ? (
           <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Cargando posts reportados…</div>
@@ -270,9 +281,9 @@ function FlaggedPostsSection() {
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         <WIcon name="trash-2" size={13} color="var(--fg-on-primary)" /> Eliminar
                       </button>
-                      <button onClick={() => setDismissed(prev => new Set([...prev, p.id]))}
+                      <button onClick={() => dismissMutation.mutate(p.id)} disabled={dismissMutation.isPending}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        Ocultar
+                        {dismissMutation.isPending && dismissMutation.variables === p.id ? 'Descartando…' : 'Descartar'}
                       </button>
                     </div>
                   </div>
@@ -323,9 +334,9 @@ function FlaggedPostsSection() {
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                         <WIcon name="trash-2" size={13} color="var(--fg-on-primary)" /> Eliminar
                       </button>
-                      <button onClick={() => setDismissed(prev => new Set([...prev, p.id]))}
+                      <button onClick={() => dismissMutation.mutate(p.id)} disabled={dismissMutation.isPending}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                        Ocultar
+                        {dismissMutation.isPending && dismissMutation.variables === p.id ? 'Descartando…' : 'Descartar'}
                       </button>
                     </div>
                   </td>

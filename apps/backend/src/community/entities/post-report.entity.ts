@@ -35,6 +35,14 @@ export class PostReport {
   @Column({ type: 'text', default: 'Sin motivo indicado' })
   reason: string;
 
+  // Moderación: el psicólogo revisó el reporte y dejó la publicación. No se borra el
+  // reporte para que quede registro de quién decidió y cuándo. null = pendiente.
+  @Column({ type: 'timestamp', nullable: true })
+  dismissedAt: Date | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  dismissedBy: string | null;
+
   @CreateDateColumn()
   createdAt: Date;
 }
