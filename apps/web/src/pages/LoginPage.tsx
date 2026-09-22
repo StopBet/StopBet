@@ -62,7 +62,7 @@ function RecoveryPath() {
   )
 }
 
-type FormState = 'idle' | 'loading' | 'error' | 'forbidden' | 'offline'
+type FormState = 'idle' | 'loading' | 'error' | 'forbidden' | 'offline' | 'missing'
 
 const BLUE = 'var(--sb-blue)'              // relleno: botón, interruptor
 const BLUE_TEXT = 'var(--primary-text)'      // texto e íconos: en oscuro el azul de marca no se lee
@@ -84,10 +84,12 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
   const [showPassword, setShowPassword] = useState(false)
   const [keepSession, setKeepSession] = useState(true)
   const [formState, setFormState] = useState<FormState>('idle')
+  const [showRecovery, setShowRecovery] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email.trim() || !password) return
+    // Antes volvía sin decir nada: apretar «Iniciar sesión» con un campo vacío no hacía nada.
+    if (!email.trim() || !password) { setFormState('missing'); return }
     setFormState('loading')
     try {
       const result = await api.login(email.trim(), password)
@@ -111,7 +113,10 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
   // Sin conexión no se marcan los campos en rojo: lo que escribió está bien,
   // el problema no es suyo. Solo se muestra el aviso.
   const isError = formState === 'error' || formState === 'forbidden'
-  const showBanner = isError || formState === 'offline'
+  const isMissing = formState === 'missing'
+  const showBanner = isError || formState === 'offline' || isMissing
+  // Escribir limpia el aviso de campos vacíos: ya no describe lo que hay en pantalla.
+  const clearMissing = () => { if (isMissing) setFormState('idle') }
   const isNarrow = useIsNarrow()
 
   return (
@@ -299,14 +304,15 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
               <div style={{
                 display: 'flex', alignItems: 'center',
                 borderRadius: 'var(--r-sm)', height: 50,
-                border: `1.5px solid ${isError ? 'var(--danger)' : 'var(--border)'}`,
+                border: `1.5px solid ${isError || (isMissing && !email.trim()) ? 'var(--danger)' : 'var(--border)'}`,
                 padding: '0 14px', background: 'var(--surface)',
                 boxShadow: isError ? '0 0 0 3px color-mix(in srgb, var(--danger) 8%, transparent)' : 'none',
               }}>
                 <input
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={e => { setEmail(e.target.value); clearMissing() }}
+                  aria-invalid={isMissing && !email.trim() ? true : undefined}
                   placeholder="tu@correo.cl"
                   autoComplete="email"
                   style={{
@@ -323,27 +329,38 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
               </div>
             </label>
 
-            {/* Contraseña */}
-            <label style={{ display: 'block' }}>
+            {/* Contraseña. El label apunta solo al campo: si envolviera todo el bloque, los
+                botones de adentro heredaban su texto («Contraseña Mostrar contraseña») y el
+                campo terminaba nombrado por su placeholder. */}
+            <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 }}>
-                <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg1)' }}>Contraseña</span>
-                {/* Enlazaba a "#": no hay flujo de recuperación todavía, así que lleva al
-                    mismo contacto que ya aparece al pie del formulario. */}
-                <a href="mailto:admin@stopbet.cl?subject=Recuperar%20contrase%C3%B1a" style={{ fontSize: 12.5, fontWeight: 600, color: BLUE_TEXT, textDecoration: 'none' }}>
+                <label htmlFor="sb-login-password" style={{ fontWeight: 600, fontSize: 13, color: 'var(--fg1)' }}>Contraseña</label>
+                {/* No hay flujo de recuperación todavía. Antes era un mailto, que sin un programa
+                    de correo configurado no hacía nada visible: ahora explica en la misma
+                    pantalla a quién pedirle una clave nueva. */}
+                <button
+                  type="button"
+                  onClick={() => setShowRecovery(v => !v)}
+                  aria-expanded={showRecovery}
+                  aria-controls="sb-recuperar-clave"
+                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--sb-font-body)', fontSize: 12.5, fontWeight: 600, color: BLUE_TEXT }}
+                >
                   ¿Olvidaste tu contraseña?
-                </a>
+                </button>
               </div>
               <div style={{
                 display: 'flex', alignItems: 'center',
                 borderRadius: 'var(--r-sm)', height: 50,
-                border: `1.5px solid ${isError ? 'var(--danger)' : 'var(--border)'}`,
+                border: `1.5px solid ${isError || (isMissing && !password) ? 'var(--danger)' : 'var(--border)'}`,
                 padding: '0 14px', background: 'var(--surface)',
                 boxShadow: isError ? '0 0 0 3px color-mix(in srgb, var(--danger) 8%, transparent)' : 'none',
               }}>
                 <input
+                  id="sb-login-password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={e => { setPassword(e.target.value); clearMissing() }}
+                  aria-invalid={isMissing && !password ? true : undefined}
                   placeholder="Tu contraseña"
                   autoComplete="current-password"
                   style={{
@@ -373,7 +390,20 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   }
                 </button>
               </div>
-            </label>
+            </div>
+
+            {showRecovery && (
+              <div id="sb-recuperar-clave" style={{
+                background: 'var(--surface-alt)', borderRadius: 10, padding: '12px 14px',
+                fontSize: 13, color: 'var(--fg1)', lineHeight: 1.55,
+              }}>
+                Por ahora la clave no se recupera por correo. Pídele una nueva a la coordinación de
+                tu sede o a tu equipo clínico. Si no sabes a quién, escribe a{' '}
+                <a href="mailto:admin@stopbet.cl?subject=Recuperar%20contrase%C3%B1a" style={{ color: BLUE_TEXT, fontWeight: 600 }}>
+                  admin@stopbet.cl
+                </a>.
+              </div>
+            )}
 
             {/* Toggle mantener sesión */}
             <div
@@ -438,7 +468,7 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
 
             {/* Banner de error */}
             {showBanner && (
-              <div style={{
+              <div role="alert" style={{
                 display: 'flex', alignItems: 'center', gap: 9,
                 background: 'var(--red-50)',
                 border: '1px solid color-mix(in srgb, var(--danger) 22%, transparent)',
@@ -451,7 +481,9 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
                   <line x1="12" y1="16" x2="12.01" y2="16"/>
                 </svg>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger-text)' }}>
-                  {formState === 'offline'
+                  {formState === 'missing'
+                    ? 'Escribe tu correo y tu contraseña.'
+                    : formState === 'offline'
                     ? 'No pudimos conectarnos. Revisa tu conexión e inténtalo de nuevo.'
                     : formState === 'forbidden'
                     ? 'Tu cuenta no tiene permisos para acceder'
