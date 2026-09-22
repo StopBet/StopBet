@@ -183,6 +183,9 @@ export interface AuthUser {
   firstName: string
   lastName: string
   sedeId: string | null
+  // Institución cliente (hoy solo 'AJUTER'). Las sesiones guardadas antes de que existiera
+  // no la traen hasta volver a iniciar sesión.
+  institutionId?: string | null
 }
 
 export interface LoginResponse {
@@ -469,6 +472,9 @@ export const api = {
 
   getFamilySessions: () => get<FamilySessionsResponse>('/family/sessions'),
 
+  // Solo lectura: todavía no hay pasarela, así que el portal muestra qué pagar pero no cobra.
+  getFamilyBilling: () => get<FamilyBilling>('/family/billing'),
+
   confirmAttendance: (sessionId: string, confirmed: boolean) =>
     post<SessionAttendance>(`/family/sessions/${sessionId}/attendance`, undefined, { confirmed }),
 
@@ -584,3 +590,19 @@ async function requestWithAuth<T>(method: 'POST' | 'PATCH', path: string, body: 
 
 const postWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('POST', path, body)
 const patchWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('PATCH', path, body)
+
+// Shape real de GET /family/billing (family.service.ts → getBillingForFamily)
+export interface FamilyInvoice {
+  month: string
+  amountCLP: number
+  dueDate: string
+}
+
+export interface FamilyBilling {
+  linkStatus: FamilyLinkState
+  patientFirstName: string | null
+  accountStatus: 'active' | 'suspended' | null
+  overdueInvoices: FamilyInvoice[]
+  totalOwedCLP: number
+  nextInvoice: FamilyInvoice | null
+}
