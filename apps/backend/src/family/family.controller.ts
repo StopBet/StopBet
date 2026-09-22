@@ -12,8 +12,10 @@ import { FamilyService } from './family.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
+import { RegisterFamilyDto } from './dto/register-family.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AuthUser } from '@stopbet/shared-types';
@@ -23,6 +25,16 @@ import { AuthUser } from '@stopbet/shared-types';
 @Controller('family')
 export class FamilyController {
   constructor(private readonly familyService: FamilyService) {}
+
+  // Público: quien se registra todavía no tiene cuenta (HDU 22).
+  @Public()
+  @Post('register')
+  @ApiOperation({ summary: 'Registra la cuenta de un familiar declarando el RUT del paciente' })
+  @ApiResponse({ status: 201, description: 'RegisterFamilyResponse — misma respuesta exista o no el paciente' })
+  @ApiResponse({ status: 409, description: 'Ya existe una cuenta con ese correo o RUT' })
+  register(@Body() dto: RegisterFamilyDto) {
+    return this.familyService.registerFamily(dto);
+  }
 
   // ── Vínculo ───────────────────────────────────────────────────────────────
 

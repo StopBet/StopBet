@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { WIcon } from '../components/WIcon'
 import { api, type LoginResponse } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
@@ -494,6 +495,13 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
           </form>
 
           <div style={{ height: 1, background: 'var(--border)', margin: '22px 0 16px' }} />
+
+          <p style={{ fontSize: 12.5, color: 'var(--fg2)', textAlign: 'center', margin: '0 0 10px', lineHeight: 1.5 }}>
+            ¿Eres familiar de un paciente?{' '}
+            <Link to="/registro-familiar" style={{ color: BLUE_TEXT, fontWeight: 600, textDecoration: 'none' }}>
+              Crea tu cuenta
+            </Link>
+          </p>
 
           <p style={{ fontSize: 12, color: 'var(--fg2)', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
             ¿No tienes acceso? Contacta a{' '}
