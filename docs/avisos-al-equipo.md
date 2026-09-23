@@ -20,6 +20,32 @@ está.
 
 ---
 
+## 2026-09-23 - El rol de compañero de viaje ya no se lee de `User.role` (PR pendiente)
+
+**A quién le pega:** a **todos los que necesiten saber si alguien es compañero de viaje**, y en
+particular a **Alex** (ficha clínica / perfil del paciente) y a **José** (`users`).
+
+**Qué hacer después de pullear:** nada. La tabla nueva la crea `synchronize` al arrancar.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **`user.role === 'sponsor'` ya no responde la pregunta.** El rol de compañero de viaje vive en
+  una tabla nueva, `sponsor_designations`, no en `User.role`. La razón: `role` es un solo valor y
+  un compañero de viaje **sigue siendo paciente** — cambiarle el rol le quitaría el check-in, los
+  logros, la ficha clínica y su propio botón de pánico. El CA21.2 lo pide así al hablar de
+  "pacientes activos que aún no tienen el rol de padrino": se suma, no reemplaza.
+  - Si necesitas saberlo desde otro módulo, **pídemelo y expongo el método** en vez de consultar
+    la tabla por tu cuenta. Así queda una sola fuente de verdad.
+  - Las cuentas con `role: 'sponsor'` del seed siguen existiendo y funcionando; son de antes.
+- **Endpoints nuevos bajo `/sponsors`** (psicólogo y coordinación): `GET /sponsors/candidates`,
+  `POST /sponsors/designate`, `POST /sponsors/:patientId/revoke`.
+- **Revocar falla con 409 si el compañero de viaje tiene pacientes a cargo.** Es a propósito
+  (CA21.3): hay que reasignarlos primero, o sus alertas de pánico se quedarían sin destinatario.
+- **En textos de cara al usuario va «compañero de viaje», no «padrino»** — el término del programa
+  desde `00f2910`. En el código el identificador sigue siendo `sponsor`.
+
+---
+
 ## 2026-09-22 - Revisión de botones del panel: Equipo, moderación y login (PR #116)
 
 **A quién le pega:** a **Matías Lara** (Equipo), a **Catalina** (`community`) y a quien haga la
