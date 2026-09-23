@@ -20,6 +20,13 @@ const PSICOLOGO: AuthUser = {
   sedeId: 'sede-1',
 };
 
+const OTRO_PSICOLOGO: AuthUser = {
+  ...PSICOLOGO,
+  id: 'psi-2',
+  firstName: 'Bruno',
+  lastName: 'Lagos',
+};
+
 const COORDINADOR: AuthUser = {
   ...PSICOLOGO,
   id: 'coord-1',
@@ -46,21 +53,50 @@ describe('SponsorDesignationService', () => {
     create: jest.Mock;
   };
   let userRepo: { find: jest.Mock; findOne: jest.Mock };
+  let assignmentRepo: { count: jest.Mock };
+  let notificationRepo: { save: jest.Mock; create: jest.Mock };
+
+  // El servicio consulta `userRepo.findOne` dos veces por operación: el paciente y,
+  // al serializar, el psicólogo que hizo la designación. El mock responde por id.
+  const directorio: Record<string, unknown> = {};
+  const registrar = (...personas: Array<{ id: string }>) => {
+    for (const p of personas) directorio[p.id] = p;
+  };
 
   beforeEach(() => {
+    for (const k of Object.keys(directorio)) delete directorio[k];
+    registrar(PSICOLOGO, OTRO_PSICOLOGO, COORDINADOR);
+
     designationRepo = {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn().mockResolvedValue(null),
       save: jest.fn((v) =>
-        Promise.resolve({ id: 'd1', designatedAt: new Date('2026-09-21T12:00:00Z'), revokedAt: null, ...v }),
+        Promise.resolve({
+          id: 'd1',
+          designatedAt: new Date('2026-09-21T12:00:00Z'),
+          revokedAt: null,
+          ...v,
+        }),
       ),
       create: jest.fn((v) => v),
     };
-    userRepo = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn() };
+    userRepo = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn(({ where }) =>
+        Promise.resolve(directorio[where.id] ?? null),
+      ),
+    };
+    assignmentRepo = { count: jest.fn().mockResolvedValue(0) };
+    notificationRepo = {
+      save: jest.fn((v) => Promise.resolve(v)),
+      create: jest.fn((v) => v),
+    };
 
     service = new SponsorDesignationService(
       designationRepo as any,
       userRepo as any,
+      assignmentRepo as any,
+      notificationRepo as any,
     );
   });
 
@@ -75,7 +111,7 @@ describe('SponsorDesignationService', () => {
       expect(where.accountStatus).toBe('active');
     });
 
-    it('excluye a quienes ya son padrinos', async () => {
+    it('excluye a quienes ya son compañeros de viaje', async () => {
       designationRepo.find.mockResolvedValue([
         { patientId: 'p9' },
         { patientId: 'p8' },
@@ -83,14 +119,12 @@ describe('SponsorDesignationService', () => {
 
       await service.listCandidates(PSICOLOGO);
 
-      // El id queda envuelto en Not(In([...])); lo que importa es que la condición
-      // llegue con los dos excluidos dentro.
       const { where } = userRepo.find.mock.calls[0][0];
       expect(JSON.stringify(where.id)).toContain('p9');
       expect(JSON.stringify(where.id)).toContain('p8');
     });
 
-    it('no filtra por id cuando todavía no hay ningún padrino', async () => {
+    it('no filtra por id cuando todavía no hay ninguno', async () => {
       designationRepo.find.mockResolvedValue([]);
 
       await service.listCandidates(PSICOLOGO);
@@ -128,7 +162,7 @@ describe('SponsorDesignationService', () => {
 
   describe('designate (CA21.1)', () => {
     it('registra al psicólogo que designó y la fecha', async () => {
-      userRepo.findOne.mockResolvedValue(pacienteActivo());
+      registrar(pacienteActivo());
 
       const result = await service.designate('p1', PSICOLOGO);
 
@@ -145,8 +179,6 @@ describe('SponsorDesignationService', () => {
     });
 
     it('falla con 404 si el paciente no existe', async () => {
-      userRepo.findOne.mockResolvedValue(null);
-
       await expect(service.designate('nadie', PSICOLOGO)).rejects.toThrow(
         NotFoundException,
       );
@@ -154,9 +186,7 @@ describe('SponsorDesignationService', () => {
     });
 
     it('rechaza designar a alguien que no es paciente', async () => {
-      userRepo.findOne.mockResolvedValue(
-        pacienteActivo({ role: 'psychologist' }),
-      );
+      registrar(pacienteActivo({ role: 'psychologist' }));
 
       await expect(service.designate('p1', PSICOLOGO)).rejects.toThrow(
         BadRequestException,
@@ -164,9 +194,7 @@ describe('SponsorDesignationService', () => {
     });
 
     it('rechaza designar a un paciente suspendido', async () => {
-      userRepo.findOne.mockResolvedValue(
-        pacienteActivo({ accountStatus: 'suspended' }),
-      );
+      registrar(pacienteActivo({ accountStatus: 'suspended' }));
 
       await expect(service.designate('p1', PSICOLOGO)).rejects.toThrow(
         BadRequestException,
@@ -174,7 +202,7 @@ describe('SponsorDesignationService', () => {
     });
 
     it('rechaza designar a un paciente de otra sede', async () => {
-      userRepo.findOne.mockResolvedValue(pacienteActivo({ sedeId: 'sede-2' }));
+      registrar(pacienteActivo({ sedeId: 'sede-2' }));
 
       await expect(service.designate('p1', PSICOLOGO)).rejects.toThrow(
         ForbiddenException,
@@ -183,7 +211,7 @@ describe('SponsorDesignationService', () => {
     });
 
     it('deja al coordinador designar fuera de una sede propia', async () => {
-      userRepo.findOne.mockResolvedValue(pacienteActivo({ sedeId: 'sede-7' }));
+      registrar(pacienteActivo({ sedeId: 'sede-7' }));
 
       await expect(
         service.designate('p1', COORDINADOR),
@@ -191,13 +219,133 @@ describe('SponsorDesignationService', () => {
     });
 
     it('no designa dos veces al mismo paciente', async () => {
-      userRepo.findOne.mockResolvedValue(pacienteActivo());
+      registrar(pacienteActivo());
       designationRepo.findOne.mockResolvedValue({ id: 'ya-existe' });
 
       await expect(service.designate('p1', PSICOLOGO)).rejects.toThrow(
         ConflictException,
       );
       expect(designationRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── CA21.4 ───────────────────────────────────────────────────────────────
+
+  describe('designate: aviso al designado (CA21.4)', () => {
+    it('le avisa al paciente designado, no al psicólogo', async () => {
+      registrar(pacienteActivo());
+
+      await service.designate('p1', PSICOLOGO);
+
+      const notificacion = notificationRepo.create.mock.calls[0][0];
+      expect(notificacion.userId).toBe('p1');
+    });
+
+    it('el aviso explica el rol y que puede recibir alertas de pánico', async () => {
+      registrar(pacienteActivo());
+
+      await service.designate('p1', PSICOLOGO);
+
+      const { title, body } = notificationRepo.create.mock.calls[0][0];
+      expect(title).toContain('compañero de viaje');
+      expect(body).toContain('alertas de pánico');
+    });
+
+    it('no avisa cuando la designación fue rechazada', async () => {
+      registrar(pacienteActivo({ sedeId: 'sede-2' }));
+
+      await expect(service.designate('p1', PSICOLOGO)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(notificationRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── CA21.3 ───────────────────────────────────────────────────────────────
+
+  describe('revoke (CA21.3)', () => {
+    const designacionActiva = {
+      id: 'd1',
+      patientId: 'p1',
+      designatedBy: 'psi-1',
+      isActive: true,
+      designatedAt: new Date('2026-09-21T12:00:00Z'),
+      revokedAt: null,
+      revokedBy: null,
+    };
+
+    it('cierra la designación dejando quién revocó y cuándo', async () => {
+      registrar(pacienteActivo());
+      designationRepo.findOne.mockResolvedValue({ ...designacionActiva });
+
+      const result = await service.revoke('p1', PSICOLOGO);
+
+      const guardado = designationRepo.save.mock.calls[0][0];
+      expect(guardado.isActive).toBe(false);
+      expect(guardado.revokedBy).toBe('psi-1');
+      expect(guardado.revokedAt).toBeInstanceOf(Date);
+      expect(result.isActive).toBe(false);
+    });
+
+    it('bloquea la revocación mientras tenga pacientes a cargo', async () => {
+      registrar(pacienteActivo());
+      designationRepo.findOne.mockResolvedValue({ ...designacionActiva });
+      assignmentRepo.count.mockResolvedValue(3);
+
+      await expect(service.revoke('p1', PSICOLOGO)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(designationRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('dice cuántos pacientes hay que reasignar, sin nombrarlos', async () => {
+      registrar(pacienteActivo());
+      designationRepo.findOne.mockResolvedValue({ ...designacionActiva });
+      assignmentRepo.count.mockResolvedValue(2);
+
+      await expect(service.revoke('p1', PSICOLOGO)).rejects.toThrow(
+        /2 paciente\(s\) a cargo/,
+      );
+    });
+
+    it('solo cuenta las asignaciones activas', async () => {
+      registrar(pacienteActivo());
+      designationRepo.findOne.mockResolvedValue({ ...designacionActiva });
+
+      await service.revoke('p1', PSICOLOGO);
+
+      expect(assignmentRepo.count).toHaveBeenCalledWith({
+        where: { sponsorId: 'p1', isActive: true },
+      });
+    });
+
+    it('falla con 404 si no era compañero de viaje', async () => {
+      registrar(pacienteActivo());
+      designationRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.revoke('p1', PSICOLOGO)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('rechaza revocar a alguien de otra sede', async () => {
+      registrar(pacienteActivo({ sedeId: 'sede-2' }));
+      designationRepo.findOne.mockResolvedValue({ ...designacionActiva });
+
+      await expect(service.revoke('p1', PSICOLOGO)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('conserva la atribución al psicólogo que designó, no al que revoca', async () => {
+      registrar(pacienteActivo());
+      designationRepo.findOne.mockResolvedValue({ ...designacionActiva });
+
+      const result = await service.revoke('p1', OTRO_PSICOLOGO);
+
+      // Designó Ana, revocó Bruno: la designación sigue siendo de Ana.
+      expect(result.designatedBy).toBe('psi-1');
+      expect(result.designatedByName).toBe('Ana Soto');
     });
   });
 });

@@ -1,7 +1,16 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -42,5 +51,24 @@ export class SponsorDesignationController {
     @CurrentUser() actor: AuthUser,
   ) {
     return this.service.designate(dto.patientId, actor);
+  }
+
+  @Post(':patientId/revoke')
+  @ApiOperation({
+    summary: 'CA21.3: revocar el rol, si no tiene pacientes a cargo',
+  })
+  @ApiParam({ name: 'patientId', description: 'UUID del compañero de viaje' })
+  @ApiResponse({ status: 201, description: 'SponsorDesignationDto' })
+  @ApiResponse({ status: 403, description: 'El paciente no es de tu sede' })
+  @ApiResponse({ status: 404, description: 'No es compañero de viaje' })
+  @ApiResponse({
+    status: 409,
+    description: 'Tiene pacientes a cargo: hay que reasignarlos primero',
+  })
+  revoke(
+    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.service.revoke(patientId, actor);
   }
 }

@@ -13,6 +13,8 @@ import {
   SponsorDesignationDto,
 } from '@stopbet/shared-types';
 import { User } from '../users/entities/user.entity';
+import { Notification } from '../notifications/entities/notification.entity';
+import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { SponsorDesignation } from './entities/sponsor-designation.entity';
 
 @Injectable()
@@ -22,6 +24,10 @@ export class SponsorDesignationService {
     private readonly designationRepo: Repository<SponsorDesignation>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(SponsorAssignment)
+    private readonly assignmentRepo: Repository<SponsorAssignment>,
+    @InjectRepository(Notification)
+    private readonly notificationRepo: Repository<Notification>,
   ) {}
 
   /**
@@ -74,7 +80,7 @@ export class SponsorDesignationService {
 
     if (patient.role !== 'patient') {
       throw new BadRequestException(
-        'Solo un paciente puede ser designado como padrino',
+        'Solo un paciente puede ser designado como compañero de viaje',
       );
     }
     if (patient.accountStatus !== 'active') {
@@ -91,7 +97,7 @@ export class SponsorDesignationService {
       where: { patientId, isActive: true },
     });
     if (existing) {
-      throw new ConflictException('El paciente ya es padrino');
+      throw new ConflictException('El paciente ya es compañero de viaje');
     }
 
     const saved = await this.designationRepo.save(
@@ -102,20 +108,90 @@ export class SponsorDesignationService {
       }),
     );
 
-    return this.serialize(saved, patient, actor);
+    // CA21.4: el designado tiene que enterarse por el sistema, no por su psicólogo en
+    // la próxima sesión. Desde este momento puede recibir alertas de pánico de otra
+    // persona, y eso no puede pasarle de sorpresa.
+    await this.notificationRepo.save(
+      this.notificationRepo.create({
+        userId: patientId,
+        type: 'info',
+        title: 'Ahora eres compañero de viaje',
+        body:
+          'Tu psicólogo te designó como compañero de viaje. Desde ahora puedes ' +
+          'recibir alertas de pánico de la persona que se te asigne, para acompañarla ' +
+          'en un momento de crisis. Si tienes dudas sobre lo que implica, conversa con ' +
+          'tu psicólogo.',
+      }),
+    );
+
+    return this.serialize(saved, patient);
   }
 
-  private serialize(
+  /**
+   * CA21.3: revocar el rol, pero no mientras tenga gente a cargo.
+   *
+   * Si se revocara con pacientes asignados, esos pacientes quedarían apuntando a un
+   * compañero de viaje que ya no lo es y sus alertas de pánico no tendrían a quién
+   * llegar — el escenario exacto que HdU20 CA4 trata de evitar.
+   */
+  async revoke(
+    patientId: string,
+    actor: AuthUser,
+  ): Promise<SponsorDesignationDto> {
+    const designation = await this.designationRepo.findOne({
+      where: { patientId, isActive: true },
+    });
+    if (!designation) {
+      throw new NotFoundException('El paciente no es compañero de viaje');
+    }
+
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient) throw new NotFoundException('El paciente no existe');
+
+    if (actor.sedeId && patient.sedeId !== actor.sedeId) {
+      throw new ForbiddenException('El paciente no pertenece a tu sede');
+    }
+
+    const aCargo = await this.assignmentRepo.count({
+      where: { sponsorId: patientId, isActive: true },
+    });
+    if (aCargo > 0) {
+      // Solo el número: los nombres de los pacientes no van en un mensaje de error,
+      // que termina en logs y en la consola del navegador.
+      throw new ConflictException(
+        `Tiene ${aCargo} paciente(s) a cargo. Reasígnalos antes de revocar el rol.`,
+      );
+    }
+
+    designation.isActive = false;
+    designation.revokedAt = new Date();
+    designation.revokedBy = actor.id;
+    const saved = await this.designationRepo.save(designation);
+
+    return this.serialize(saved, patient);
+  }
+
+  /**
+   * `designatedByName` no sale del actor: al revocar, quien actúa puede ser un
+   * psicólogo distinto del que designó, y la designación tiene que seguir atribuida
+   * a quien la tomó.
+   */
+  private async serialize(
     designation: SponsorDesignation,
     patient: User,
-    actor: AuthUser,
-  ): SponsorDesignationDto {
+  ): Promise<SponsorDesignationDto> {
+    const author = await this.userRepo.findOne({
+      where: { id: designation.designatedBy },
+    });
+
     return {
       id: designation.id,
       patientId: designation.patientId,
       patientName: `${patient.firstName} ${patient.lastName}`,
       designatedBy: designation.designatedBy,
-      designatedByName: `${actor.firstName} ${actor.lastName}`,
+      designatedByName: author
+        ? `${author.firstName} ${author.lastName}`
+        : 'Cuenta eliminada',
       designatedAt: designation.designatedAt.toISOString(),
       isActive: designation.isActive,
       revokedAt: designation.revokedAt?.toISOString() ?? null,
