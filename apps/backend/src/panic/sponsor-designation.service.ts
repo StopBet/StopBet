@@ -31,6 +31,21 @@ export class SponsorDesignationService {
   ) {}
 
   /**
+   * Nadie mira a un paciente de otra sede.
+   *
+   * Va en un solo método a propósito: cuando la comprobación estaba escrita a mano en
+   * cada operación, dos de las seis se quedaron sin ella y quedó un endpoint que
+   * devolvía nombres de pacientes de cualquier sede a quien supiera el UUID.
+   *
+   * El coordinador no tiene sede propia (`sedeId: null`) y ve todas: es su rol.
+   */
+  private mismaSede(patient: User, actor?: AuthUser): void {
+    if (actor?.sedeId && patient.sedeId !== actor.sedeId) {
+      throw new ForbiddenException('El paciente no pertenece a tu sede');
+    }
+  }
+
+  /**
    * CA21.2: candidatos a designar — pacientes activos que aún no son padrinos.
    *
    * El listado se acota a la sede de quien consulta. El criterio no lo pide con esas
@@ -88,10 +103,7 @@ export class SponsorDesignationService {
         'La cuenta del paciente no está activa',
       );
     }
-    // Mismo criterio que el listado: el psicólogo decide dentro de su sede.
-    if (actor.sedeId && patient.sedeId !== actor.sedeId) {
-      throw new ForbiddenException('El paciente no pertenece a tu sede');
-    }
+    this.mismaSede(patient, actor);
 
     const existing = await this.designationRepo.findOne({
       where: { patientId, isActive: true },
@@ -148,9 +160,7 @@ export class SponsorDesignationService {
     const patient = await this.userRepo.findOne({ where: { id: patientId } });
     if (!patient) throw new NotFoundException('El paciente no existe');
 
-    if (actor.sedeId && patient.sedeId !== actor.sedeId) {
-      throw new ForbiddenException('El paciente no pertenece a tu sede');
-    }
+    this.mismaSede(patient, actor);
 
     const aCargo = await this.assignmentRepo.count({
       where: { sponsorId: patientId, isActive: true },
@@ -178,9 +188,13 @@ export class SponsorDesignationService {
    * en la sede *del paciente* (no la de quien consulta — un coordinador asigna dentro
    * de la sede del paciente, no de la suya), y sin el propio paciente en la lista.
    */
-  async listAvailable(patientId: string): Promise<SponsorCandidate[]> {
+  async listAvailable(
+    patientId: string,
+    actor: AuthUser,
+  ): Promise<SponsorCandidate[]> {
     const patient = await this.userRepo.findOne({ where: { id: patientId } });
     if (!patient) throw new NotFoundException('El paciente no existe');
+    this.mismaSede(patient, actor);
 
     const designations = await this.designationRepo.find({
       where: { isActive: true },
@@ -217,7 +231,14 @@ export class SponsorDesignationService {
    * `GET /panic/sponsor` no sirve para esto: devuelve el del usuario que llama, y acá
    * quien pregunta es el psicólogo por un paciente suyo.
    */
-  async getCurrent(patientId: string): Promise<SponsorCandidate | null> {
+  async getCurrent(
+    patientId: string,
+    actor: AuthUser,
+  ): Promise<SponsorCandidate | null> {
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient) throw new NotFoundException('El paciente no existe');
+    this.mismaSede(patient, actor);
+
     const assignment = await this.assignmentRepo.findOne({
       where: { patientId, isActive: true },
       relations: ['sponsor'],
@@ -248,11 +269,8 @@ export class SponsorDesignationService {
     const patient = await this.userRepo.findOne({ where: { id: patientId } });
     if (!patient) throw new NotFoundException('El paciente no existe');
     // `actor` es opcional porque `POST /panic/assign` delega acá sin pasarlo — esa ruta
-    // nunca tuvo control por sede, solo por rol, y no corresponde endurecerla en esta
-    // historia. Las demás validaciones sí corren para las dos entradas.
-    if (actor?.sedeId && patient.sedeId !== actor.sedeId) {
-      throw new ForbiddenException('El paciente no pertenece a tu sede');
-    }
+    // nunca tuvo control por sede, solo por rol. Las demás validaciones sí corren.
+    this.mismaSede(patient, actor);
 
     const sponsor = await this.userRepo.findOne({ where: { id: sponsorId } });
     if (!sponsor) throw new NotFoundException('El compañero de viaje no existe');

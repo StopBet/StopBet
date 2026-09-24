@@ -365,7 +365,7 @@ describe('SponsorDesignationService', () => {
 
   describe('listAvailable (CA20.2)', () => {
     it('falla con 404 si el paciente no existe', async () => {
-      await expect(service.listAvailable('nadie')).rejects.toThrow(
+      await expect(service.listAvailable('nadie', PSICOLOGO)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -374,7 +374,7 @@ describe('SponsorDesignationService', () => {
       registrar(pacienteActivo());
       designationRepo.find.mockResolvedValue([]);
 
-      await expect(service.listAvailable('p1')).resolves.toEqual([]);
+      await expect(service.listAvailable('p1', PSICOLOGO)).resolves.toEqual([]);
       expect(userRepo.find).not.toHaveBeenCalled();
     });
 
@@ -385,7 +385,7 @@ describe('SponsorDesignationService', () => {
         { patientId: 'p7' },
       ]);
 
-      await service.listAvailable('p1');
+      await service.listAvailable('p1', PSICOLOGO);
 
       const { where } = userRepo.find.mock.calls[0][0];
       expect(JSON.stringify(where.id)).toContain('p7');
@@ -396,23 +396,34 @@ describe('SponsorDesignationService', () => {
       registrar(pacienteActivo());
       designationRepo.find.mockResolvedValue([{ patientId: 'p1' }]);
 
-      await expect(service.listAvailable('p1')).resolves.toEqual([]);
+      await expect(service.listAvailable('p1', PSICOLOGO)).resolves.toEqual([]);
     });
 
+    // Solo se puede demostrar con el coordinador: un psicólogo ya no puede consultar
+    // un paciente de otra sede, así que para él las dos sedes son siempre la misma.
     it('acota a la sede del paciente, no a la de quien consulta', async () => {
       registrar(pacienteActivo({ sedeId: 'sede-9' }));
       designationRepo.find.mockResolvedValue([{ patientId: 'p7' }]);
 
-      await service.listAvailable('p1');
+      await service.listAvailable('p1', COORDINADOR);
 
       expect(userRepo.find.mock.calls[0][0].where.sedeId).toBe('sede-9');
+    });
+
+    it('no deja consultar los candidatos de un paciente de otra sede', async () => {
+      registrar(pacienteActivo({ sedeId: 'sede-2' }));
+
+      await expect(service.listAvailable('p1', PSICOLOGO)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(userRepo.find).not.toHaveBeenCalled();
     });
 
     it('pide solo cuentas activas', async () => {
       registrar(pacienteActivo());
       designationRepo.find.mockResolvedValue([{ patientId: 'p7' }]);
 
-      await service.listAvailable('p1');
+      await service.listAvailable('p1', PSICOLOGO);
 
       expect(userRepo.find.mock.calls[0][0].where.accountStatus).toBe('active');
     });
@@ -431,7 +442,7 @@ describe('SponsorDesignationService', () => {
         },
       ]);
 
-      await expect(service.listAvailable('p1')).resolves.toEqual([
+      await expect(service.listAvailable('p1', PSICOLOGO)).resolves.toEqual([
         { id: 'p7', firstName: 'Daniela', lastName: 'Soto', sedeId: 'sede-1' },
       ]);
     });
@@ -440,22 +451,45 @@ describe('SponsorDesignationService', () => {
   // ── CA20.4 ───────────────────────────────────────────────────────────────
 
   describe('getCurrent (CA20.4)', () => {
+    beforeEach(() => registrar(pacienteActivo()));
+
+    it('no deja mirar el compañero de viaje de un paciente de otra sede', async () => {
+      registrar(pacienteActivo({ sedeId: 'sede-2' }));
+
+      await expect(service.getCurrent('p1', PSICOLOGO)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(assignmentRepo.findOne).not.toHaveBeenCalled();
+    });
+
+    it('falla con 404 si el paciente no existe', async () => {
+      await expect(service.getCurrent('nadie', PSICOLOGO)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('el coordinador sí puede mirar cualquier sede', async () => {
+      registrar(pacienteActivo({ sedeId: 'sede-9' }));
+
+      await expect(service.getCurrent('p1', COORDINADOR)).resolves.toBeNull();
+    });
+
     it('devuelve null cuando el paciente no tiene a nadie', async () => {
       assignmentRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.getCurrent('p1')).resolves.toBeNull();
+      await expect(service.getCurrent('p1', PSICOLOGO)).resolves.toBeNull();
     });
 
     it('devuelve null si la asignación quedó sin persona cargada', async () => {
       assignmentRepo.findOne.mockResolvedValue({ patientId: 'p1', sponsor: null });
 
-      await expect(service.getCurrent('p1')).resolves.toBeNull();
+      await expect(service.getCurrent('p1', PSICOLOGO)).resolves.toBeNull();
     });
 
     it('solo mira la asignación activa', async () => {
       assignmentRepo.findOne.mockResolvedValue(null);
 
-      await service.getCurrent('p1');
+      await service.getCurrent('p1', PSICOLOGO);
 
       expect(assignmentRepo.findOne).toHaveBeenCalledWith({
         where: { patientId: 'p1', isActive: true },
@@ -476,7 +510,7 @@ describe('SponsorDesignationService', () => {
         },
       });
 
-      await expect(service.getCurrent('p1')).resolves.toEqual({
+      await expect(service.getCurrent('p1', PSICOLOGO)).resolves.toEqual({
         id: 's1',
         firstName: 'Daniela',
         lastName: 'Soto',

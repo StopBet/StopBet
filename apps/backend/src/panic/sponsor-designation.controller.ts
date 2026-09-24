@@ -63,9 +63,13 @@ export class SponsorDesignationController {
   })
   @ApiQuery({ name: 'patientId', description: 'UUID del paciente' })
   @ApiResponse({ status: 200, description: 'SponsorCandidate[]' })
+  @ApiResponse({ status: 403, description: 'El paciente no es de tu sede' })
   @ApiResponse({ status: 404, description: 'El paciente no existe' })
-  listAvailable(@Query('patientId', ParseUUIDPipe) patientId: string) {
-    return this.service.listAvailable(patientId);
+  listAvailable(
+    @Query('patientId', ParseUUIDPipe) patientId: string,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.service.listAvailable(patientId, actor);
   }
 
   @Get('current')
@@ -74,8 +78,12 @@ export class SponsorDesignationController {
   })
   @ApiQuery({ name: 'patientId', description: 'UUID del paciente' })
   @ApiResponse({ status: 200, description: 'SponsorCandidate | null' })
-  getCurrent(@Query('patientId', ParseUUIDPipe) patientId: string) {
-    return this.service.getCurrent(patientId);
+  @ApiResponse({ status: 403, description: 'El paciente no es de tu sede' })
+  getCurrent(
+    @Query('patientId', ParseUUIDPipe) patientId: string,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.service.getCurrent(patientId, actor);
   }
 
   @Post('assign')
