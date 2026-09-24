@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-24 - Asignar compañero de viaje ahora valida, y la ficha clínica tiene sección nueva (PR pendiente)
+## 2026-09-24 - Asignar compañero de viaje ahora valida, y la ficha clínica tiene sección nueva (PR #119)
 
 **A quién le pega:** a **Alex** (`FichaClinicaPage.tsx`), a **Catalina** (`panic.service.spec.ts`) y a
 quien pruebe el botón de pánico o llame a `POST /panic/assign`.
