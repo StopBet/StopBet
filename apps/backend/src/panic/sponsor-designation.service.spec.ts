@@ -58,6 +58,7 @@ describe('SponsorDesignationService', () => {
     update: jest.Mock;
     save: jest.Mock;
     create: jest.Mock;
+    findOne: jest.Mock;
   };
   let notificationRepo: { save: jest.Mock; create: jest.Mock };
 
@@ -96,6 +97,7 @@ describe('SponsorDesignationService', () => {
       update: jest.fn().mockResolvedValue(undefined),
       save: jest.fn((v) => Promise.resolve(v)),
       create: jest.fn((v) => v),
+      findOne: jest.fn().mockResolvedValue(null),
     };
     notificationRepo = {
       save: jest.fn((v) => Promise.resolve(v)),
@@ -432,6 +434,54 @@ describe('SponsorDesignationService', () => {
       await expect(service.listAvailable('p1')).resolves.toEqual([
         { id: 'p7', firstName: 'Daniela', lastName: 'Soto', sedeId: 'sede-1' },
       ]);
+    });
+  });
+
+  // ── CA20.4 ───────────────────────────────────────────────────────────────
+
+  describe('getCurrent (CA20.4)', () => {
+    it('devuelve null cuando el paciente no tiene a nadie', async () => {
+      assignmentRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.getCurrent('p1')).resolves.toBeNull();
+    });
+
+    it('devuelve null si la asignación quedó sin persona cargada', async () => {
+      assignmentRepo.findOne.mockResolvedValue({ patientId: 'p1', sponsor: null });
+
+      await expect(service.getCurrent('p1')).resolves.toBeNull();
+    });
+
+    it('solo mira la asignación activa', async () => {
+      assignmentRepo.findOne.mockResolvedValue(null);
+
+      await service.getCurrent('p1');
+
+      expect(assignmentRepo.findOne).toHaveBeenCalledWith({
+        where: { patientId: 'p1', isActive: true },
+        relations: ['sponsor'],
+      });
+    });
+
+    it('devuelve el nombre sin exponer RUT ni correo', async () => {
+      assignmentRepo.findOne.mockResolvedValue({
+        patientId: 'p1',
+        sponsor: {
+          id: 's1',
+          firstName: 'Daniela',
+          lastName: 'Soto',
+          sedeId: 'sede-1',
+          email: 'dani@stopbet.cl',
+          rut: '22.222.222-2',
+        },
+      });
+
+      await expect(service.getCurrent('p1')).resolves.toEqual({
+        id: 's1',
+        firstName: 'Daniela',
+        lastName: 'Soto',
+        sedeId: 'sede-1',
+      });
     });
   });
 

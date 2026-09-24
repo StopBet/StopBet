@@ -68,6 +68,16 @@ export class SponsorDesignationController {
     return this.service.listAvailable(patientId);
   }
 
+  @Get('current')
+  @ApiOperation({
+    summary: 'CA20.4: el compañero de viaje actual del paciente, o null',
+  })
+  @ApiQuery({ name: 'patientId', description: 'UUID del paciente' })
+  @ApiResponse({ status: 200, description: 'SponsorCandidate | null' })
+  getCurrent(@Query('patientId', ParseUUIDPipe) patientId: string) {
+    return this.service.getCurrent(patientId);
+  }
+
   @Post('assign')
   @HttpCode(204)
   @ApiOperation({

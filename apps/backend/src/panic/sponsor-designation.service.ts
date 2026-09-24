@@ -212,6 +212,23 @@ export class SponsorDesignationService {
   }
 
   /**
+   * CA20.4: quién acompaña hoy a este paciente, o `null` si no tiene a nadie.
+   *
+   * `GET /panic/sponsor` no sirve para esto: devuelve el del usuario que llama, y acá
+   * quien pregunta es el psicólogo por un paciente suyo.
+   */
+  async getCurrent(patientId: string): Promise<SponsorCandidate | null> {
+    const assignment = await this.assignmentRepo.findOne({
+      where: { patientId, isActive: true },
+      relations: ['sponsor'],
+    });
+    if (!assignment?.sponsor) return null;
+
+    const { id, firstName, lastName, sedeId } = assignment.sponsor;
+    return { id, firstName, lastName, sedeId };
+  }
+
+  /**
    * CA20.1 y CA20.3: vincula al compañero de viaje y avisa a los dos.
    *
    * El reemplazo no borra nada: cierra la asignación anterior con `isActive: false` y
