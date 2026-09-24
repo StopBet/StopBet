@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-23 - El rol de compañero de viaje ya no se lee de `User.role` (PR pendiente)
+## 2026-09-23 - El rol de compañero de viaje ya no se lee de `User.role` (PR #118)
 
 **A quién le pega:** a **todos los que necesiten saber si alguien es compañero de viaje**, y en
 particular a **Alex** (ficha clínica / perfil del paciente) y a **José** (`users`).
