@@ -537,3 +537,6 @@ export interface ClinicalNote {
 
 // ── HdU06: validación de fechas de calendario, compartida entre mobile y backend ──
 export * from './validators/date';
+
+// ── HdU20/HdU21: designación y asignación de padrinos ──
+export * from './sponsor';
