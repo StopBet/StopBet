@@ -172,6 +172,123 @@ export class SponsorDesignationService {
   }
 
   /**
+   * CA20.2: a quién se le puede asignar este paciente.
+   *
+   * Tres filtros, los tres del criterio: designados como compañero de viaje, activos
+   * en la sede *del paciente* (no la de quien consulta — un coordinador asigna dentro
+   * de la sede del paciente, no de la suya), y sin el propio paciente en la lista.
+   */
+  async listAvailable(patientId: string): Promise<SponsorCandidate[]> {
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient) throw new NotFoundException('El paciente no existe');
+
+    const designations = await this.designationRepo.find({
+      where: { isActive: true },
+      select: ['patientId'],
+    });
+
+    const ids = designations
+      .map((d) => d.patientId)
+      .filter((id) => id !== patientId);
+    if (ids.length === 0) return [];
+
+    const where: FindOptionsWhere<User> = {
+      id: In(ids),
+      accountStatus: 'active',
+    };
+    if (patient.sedeId) where.sedeId = patient.sedeId;
+
+    const available = await this.userRepo.find({
+      where,
+      order: { firstName: 'ASC', lastName: 'ASC' },
+    });
+
+    return available.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      sedeId: u.sedeId,
+    }));
+  }
+
+  /**
+   * CA20.1 y CA20.3: vincula al compañero de viaje y avisa a los dos.
+   *
+   * El reemplazo no borra nada: cierra la asignación anterior con `isActive: false` y
+   * abre una nueva, para que el CA20.3 pueda mostrar quién acompañaba antes.
+   */
+  async assign(
+    patientId: string,
+    sponsorId: string,
+    actor?: AuthUser,
+  ): Promise<void> {
+    if (patientId === sponsorId) {
+      throw new BadRequestException(
+        'Un paciente no puede ser su propio compañero de viaje',
+      );
+    }
+
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient) throw new NotFoundException('El paciente no existe');
+    // `actor` es opcional porque `POST /panic/assign` delega acá sin pasarlo — esa ruta
+    // nunca tuvo control por sede, solo por rol, y no corresponde endurecerla en esta
+    // historia. Las demás validaciones sí corren para las dos entradas.
+    if (actor?.sedeId && patient.sedeId !== actor.sedeId) {
+      throw new ForbiddenException('El paciente no pertenece a tu sede');
+    }
+
+    const sponsor = await this.userRepo.findOne({ where: { id: sponsorId } });
+    if (!sponsor) throw new NotFoundException('El compañero de viaje no existe');
+
+    // Que esté designado es lo que separa este endpoint de asignar a cualquiera:
+    // sin esta comprobación el CA20.2 sería solo una sugerencia de la pantalla.
+    const designation = await this.designationRepo.findOne({
+      where: { patientId: sponsorId, isActive: true },
+    });
+    if (!designation) {
+      throw new BadRequestException(
+        'Esa persona no está designada como compañero de viaje',
+      );
+    }
+    if (sponsor.accountStatus !== 'active') {
+      throw new BadRequestException(
+        'La cuenta del compañero de viaje no está activa',
+      );
+    }
+    if (patient.sedeId !== sponsor.sedeId) {
+      throw new BadRequestException(
+        'El compañero de viaje debe ser de la misma sede que el paciente',
+      );
+    }
+
+    await this.assignmentRepo.update(
+      { patientId, isActive: true },
+      { isActive: false },
+    );
+    await this.assignmentRepo.save(
+      this.assignmentRepo.create({ patientId, sponsorId, isActive: true }),
+    );
+
+    // CA20.1: "notifica a ambos". Los dos lados tienen que saberlo — el paciente para
+    // saber a quién va a llegarle su alerta, y el compañero de viaje porque desde
+    // ahora puede sonarle el teléfono por esta persona.
+    await this.notificationRepo.save([
+      this.notificationRepo.create({
+        userId: patientId,
+        type: 'info',
+        title: 'Tienes un compañero de viaje',
+        body: `${sponsor.firstName} ${sponsor.lastName} va a acompañarte. Si activas el botón de pánico, le llega a esa persona.`,
+      }),
+      this.notificationRepo.create({
+        userId: sponsorId,
+        type: 'info',
+        title: 'Acompañas a una persona nueva',
+        body: `Tu psicólogo te asignó como compañero de viaje de ${patient.firstName} ${patient.lastName}. Vas a recibir sus alertas de pánico.`,
+      }),
+    ]);
+  }
+
+  /**
    * `designatedByName` no sale del actor: al revocar, quien actúa puede ser un
    * psicólogo distinto del que designó, y la designación tiene que seguir atribuida
    * a quien la tomó.
