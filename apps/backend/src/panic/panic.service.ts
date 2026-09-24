@@ -18,6 +18,7 @@ import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
 import { CommunityService } from '../community/community.service';
+import { SponsorDesignationService } from './sponsor-designation.service';
 
 // CA1.3: el padrino tiene 120 s para responder antes de escalar a la IA
 const ESCALATION_MS = 120 * 1000;
@@ -35,6 +36,7 @@ export class PanicService {
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
     private readonly communityService: CommunityService,
+    private readonly sponsorService: SponsorDesignationService,
   ) {}
 
   // ── Dashboard (psicólogo) ──────────────────────────────────────────────
@@ -73,18 +75,11 @@ export class PanicService {
     return assignment ? this.serializeSponsor(assignment.sponsor) : null;
   }
 
+  // Delega en `SponsorDesignationService` para que exista una sola forma de asignar.
+  // Antes esta función escribía directo y sin comprobar nada: se podía asignar como
+  // compañero de viaje a alguien que nunca fue designado (CA20.2) o que es de otra sede.
   async assignSponsor(dto: AssignSponsorDto): Promise<void> {
-    await this.assignmentRepo.update(
-      { patientId: dto.patientId, isActive: true },
-      { isActive: false },
-    );
-    await this.assignmentRepo.save(
-      this.assignmentRepo.create({
-        patientId: dto.patientId,
-        sponsorId: dto.sponsorId,
-        isActive: true,
-      }),
-    );
+    await this.sponsorService.assign(dto.patientId, dto.sponsorId);
   }
 
   // ── Alertas ────────────────────────────────────────────────────────────

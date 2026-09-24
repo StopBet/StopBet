@@ -20,6 +20,33 @@ está.
 
 ---
 
+## 2026-09-24 - Asignar compañero de viaje ahora valida, y la ficha clínica tiene sección nueva (PR #119)
+
+**A quién le pega:** a **Alex** (`FichaClinicaPage.tsx`), a **Catalina** (`panic.service.spec.ts`) y a
+quien pruebe el botón de pánico o llame a `POST /panic/assign`.
+
+**Qué hacer después de pullear:** nada que correr. Pero ojo con lo de abajo si tu flujo asignaba
+compañeros de viaje a mano.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **`POST /panic/assign` ya no acepta a cualquiera.** Antes guardaba la asignación sin comprobar
+  nada. Ahora exige que la persona **esté designada como compañero de viaje** (HdU21), tenga la
+  cuenta activa y sea **de la misma sede que el paciente**. Si tu seed o tu prueba asignaba a
+  alguien sin designar, va a responder **400**. La ruta sigue existiendo y delega en
+  `SponsorDesignationService`, para que haya una sola forma de asignar.
+- **Endpoints nuevos:** `GET /sponsors/current`, `GET /sponsors/available`, `POST /sponsors/assign`.
+- **La ficha clínica tiene una sección «Compañero de viaje»** en la columna lateral. Si el paciente
+  no tiene a nadie, avisa que su alerta de pánico se deriva al asistente virtual (CA20.4).
+- **OJO ALEX:** toqué `apps/web/src/pages/FichaClinicaPage.tsx` — dos líneas, el import y el
+  componente al final del `aside`. La lógica vive en `components/SeccionCompaneroViaje.tsx`.
+- **OJO CATALINA:** toqué `apps/backend/src/panic/panic.service.spec.ts` — el sexto argumento del
+  constructor de `PanicService` y el test de `assignSponsor`, que ahora comprueba la delegación en
+  vez de la escritura directa. Lo que se desactiva y lo que se crea sigue probado, en
+  `sponsor-designation.service.spec.ts`.
+
+---
+
 ## 2026-09-23 - El rol de compañero de viaje ya no se lee de `User.role` (PR #118)
 
 **A quién le pega:** a **todos los que necesiten saber si alguien es compañero de viaje**, y en

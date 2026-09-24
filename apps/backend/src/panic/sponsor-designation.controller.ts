@@ -2,15 +2,18 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -18,6 +21,7 @@ import { AuthUser } from '@stopbet/shared-types';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { AssignSponsorDto } from './dto/assign-sponsor.dto';
 import { DesignateSponsorDto } from './dto/designate-sponsor.dto';
 import { SponsorDesignationService } from './sponsor-designation.service';
 
@@ -51,6 +55,47 @@ export class SponsorDesignationController {
     @CurrentUser() actor: AuthUser,
   ) {
     return this.service.designate(dto.patientId, actor);
+  }
+
+  @Get('available')
+  @ApiOperation({
+    summary: 'CA20.2: compañeros de viaje asignables a un paciente',
+  })
+  @ApiQuery({ name: 'patientId', description: 'UUID del paciente' })
+  @ApiResponse({ status: 200, description: 'SponsorCandidate[]' })
+  @ApiResponse({ status: 403, description: 'El paciente no es de tu sede' })
+  @ApiResponse({ status: 404, description: 'El paciente no existe' })
+  listAvailable(
+    @Query('patientId', ParseUUIDPipe) patientId: string,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.service.listAvailable(patientId, actor);
+  }
+
+  @Get('current')
+  @ApiOperation({
+    summary: 'CA20.4: el compañero de viaje actual del paciente, o null',
+  })
+  @ApiQuery({ name: 'patientId', description: 'UUID del paciente' })
+  @ApiResponse({ status: 200, description: 'SponsorCandidate | null' })
+  @ApiResponse({ status: 403, description: 'El paciente no es de tu sede' })
+  getCurrent(
+    @Query('patientId', ParseUUIDPipe) patientId: string,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.service.getCurrent(patientId, actor);
+  }
+
+  @Post('assign')
+  @HttpCode(204)
+  @ApiOperation({
+    summary: 'CA20.1: asignar un compañero de viaje y avisar a ambos',
+  })
+  @ApiResponse({ status: 204, description: 'Asignación actualizada' })
+  @ApiResponse({ status: 400, description: 'No designado, inactivo u otra sede' })
+  @ApiResponse({ status: 403, description: 'El paciente no es de tu sede' })
+  assign(@Body() dto: AssignSponsorDto, @CurrentUser() actor: AuthUser) {
+    return this.service.assign(dto.patientId, dto.sponsorId, actor);
   }
 
   @Post(':patientId/revoke')

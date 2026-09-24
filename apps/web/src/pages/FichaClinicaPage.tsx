@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
+import { SeccionCompaneroViaje } from '../components/SeccionCompaneroViaje'
 import { EMOTION_EMOJI, followUp, relTime, shortSedeName } from '../utils/patientView'
 import {
   api,
@@ -677,6 +678,8 @@ export function FichaClinicaPage() {
                 nombres, RUT ni teléfonos: se tachan antes de salir.
               </p>
             </section>
+
+            <SeccionCompaneroViaje patientId={patientId} />
           </aside>
         </div>
       )}

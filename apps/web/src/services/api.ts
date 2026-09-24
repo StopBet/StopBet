@@ -654,3 +654,26 @@ export interface FamilyBilling {
   totalOwedCLP: number
   nextInvoice: FamilyInvoice | null
 }
+
+// ── HdU20: compañero de viaje (asignación desde el perfil del paciente) ──
+// Van sueltas y no dentro del objeto `api` porque este archivo es compartido y la regla
+// del proyecto es agregar solo al final, sin editar lo que ya está.
+
+export interface SponsorCandidate {
+  id: string
+  firstName: string
+  lastName: string
+  sedeId: string | null
+}
+
+/** CA20.4: quién acompaña hoy al paciente, o `null` si no tiene a nadie. */
+export const getCurrentSponsor = (patientId: string) =>
+  get<SponsorCandidate | null>(`/sponsors/current?patientId=${patientId}`)
+
+/** CA20.2: designados y activos en la sede del paciente, sin el paciente mismo. */
+export const getAvailableSponsors = (patientId: string) =>
+  get<SponsorCandidate[]>(`/sponsors/available?patientId=${patientId}`)
+
+/** CA20.1 y CA20.3: vincula y avisa a ambos; si ya había uno, lo reemplaza. */
+export const assignSponsor = (patientId: string, sponsorId: string) =>
+  post<void>('/sponsors/assign', undefined, { patientId, sponsorId })

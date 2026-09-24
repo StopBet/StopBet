@@ -31,6 +31,21 @@ export class SponsorDesignationService {
   ) {}
 
   /**
+   * Nadie mira a un paciente de otra sede.
+   *
+   * Va en un solo método a propósito: cuando la comprobación estaba escrita a mano en
+   * cada operación, dos de las seis se quedaron sin ella y quedó un endpoint que
+   * devolvía nombres de pacientes de cualquier sede a quien supiera el UUID.
+   *
+   * El coordinador no tiene sede propia (`sedeId: null`) y ve todas: es su rol.
+   */
+  private mismaSede(patient: User, actor?: AuthUser): void {
+    if (actor?.sedeId && patient.sedeId !== actor.sedeId) {
+      throw new ForbiddenException('El paciente no pertenece a tu sede');
+    }
+  }
+
+  /**
    * CA21.2: candidatos a designar — pacientes activos que aún no son padrinos.
    *
    * El listado se acota a la sede de quien consulta. El criterio no lo pide con esas
@@ -88,10 +103,7 @@ export class SponsorDesignationService {
         'La cuenta del paciente no está activa',
       );
     }
-    // Mismo criterio que el listado: el psicólogo decide dentro de su sede.
-    if (actor.sedeId && patient.sedeId !== actor.sedeId) {
-      throw new ForbiddenException('El paciente no pertenece a tu sede');
-    }
+    this.mismaSede(patient, actor);
 
     const existing = await this.designationRepo.findOne({
       where: { patientId, isActive: true },
@@ -148,9 +160,7 @@ export class SponsorDesignationService {
     const patient = await this.userRepo.findOne({ where: { id: patientId } });
     if (!patient) throw new NotFoundException('El paciente no existe');
 
-    if (actor.sedeId && patient.sedeId !== actor.sedeId) {
-      throw new ForbiddenException('El paciente no pertenece a tu sede');
-    }
+    this.mismaSede(patient, actor);
 
     const aCargo = await this.assignmentRepo.count({
       where: { sponsorId: patientId, isActive: true },
@@ -169,6 +179,148 @@ export class SponsorDesignationService {
     const saved = await this.designationRepo.save(designation);
 
     return this.serialize(saved, patient);
+  }
+
+  /**
+   * CA20.2: a quién se le puede asignar este paciente.
+   *
+   * Tres filtros, los tres del criterio: designados como compañero de viaje, activos
+   * en la sede *del paciente* (no la de quien consulta — un coordinador asigna dentro
+   * de la sede del paciente, no de la suya), y sin el propio paciente en la lista.
+   */
+  async listAvailable(
+    patientId: string,
+    actor: AuthUser,
+  ): Promise<SponsorCandidate[]> {
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient) throw new NotFoundException('El paciente no existe');
+    this.mismaSede(patient, actor);
+
+    const designations = await this.designationRepo.find({
+      where: { isActive: true },
+      select: ['patientId'],
+    });
+
+    const ids = designations
+      .map((d) => d.patientId)
+      .filter((id) => id !== patientId);
+    if (ids.length === 0) return [];
+
+    const where: FindOptionsWhere<User> = {
+      id: In(ids),
+      accountStatus: 'active',
+    };
+    if (patient.sedeId) where.sedeId = patient.sedeId;
+
+    const available = await this.userRepo.find({
+      where,
+      order: { firstName: 'ASC', lastName: 'ASC' },
+    });
+
+    return available.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      sedeId: u.sedeId,
+    }));
+  }
+
+  /**
+   * CA20.4: quién acompaña hoy a este paciente, o `null` si no tiene a nadie.
+   *
+   * `GET /panic/sponsor` no sirve para esto: devuelve el del usuario que llama, y acá
+   * quien pregunta es el psicólogo por un paciente suyo.
+   */
+  async getCurrent(
+    patientId: string,
+    actor: AuthUser,
+  ): Promise<SponsorCandidate | null> {
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient) throw new NotFoundException('El paciente no existe');
+    this.mismaSede(patient, actor);
+
+    const assignment = await this.assignmentRepo.findOne({
+      where: { patientId, isActive: true },
+      relations: ['sponsor'],
+    });
+    if (!assignment?.sponsor) return null;
+
+    const { id, firstName, lastName, sedeId } = assignment.sponsor;
+    return { id, firstName, lastName, sedeId };
+  }
+
+  /**
+   * CA20.1 y CA20.3: vincula al compañero de viaje y avisa a los dos.
+   *
+   * El reemplazo no borra nada: cierra la asignación anterior con `isActive: false` y
+   * abre una nueva, para que el CA20.3 pueda mostrar quién acompañaba antes.
+   */
+  async assign(
+    patientId: string,
+    sponsorId: string,
+    actor?: AuthUser,
+  ): Promise<void> {
+    if (patientId === sponsorId) {
+      throw new BadRequestException(
+        'Un paciente no puede ser su propio compañero de viaje',
+      );
+    }
+
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient) throw new NotFoundException('El paciente no existe');
+    // `actor` es opcional porque `POST /panic/assign` delega acá sin pasarlo — esa ruta
+    // nunca tuvo control por sede, solo por rol. Las demás validaciones sí corren.
+    this.mismaSede(patient, actor);
+
+    const sponsor = await this.userRepo.findOne({ where: { id: sponsorId } });
+    if (!sponsor) throw new NotFoundException('El compañero de viaje no existe');
+
+    // Que esté designado es lo que separa este endpoint de asignar a cualquiera:
+    // sin esta comprobación el CA20.2 sería solo una sugerencia de la pantalla.
+    const designation = await this.designationRepo.findOne({
+      where: { patientId: sponsorId, isActive: true },
+    });
+    if (!designation) {
+      throw new BadRequestException(
+        'Esa persona no está designada como compañero de viaje',
+      );
+    }
+    if (sponsor.accountStatus !== 'active') {
+      throw new BadRequestException(
+        'La cuenta del compañero de viaje no está activa',
+      );
+    }
+    if (patient.sedeId !== sponsor.sedeId) {
+      throw new BadRequestException(
+        'El compañero de viaje debe ser de la misma sede que el paciente',
+      );
+    }
+
+    await this.assignmentRepo.update(
+      { patientId, isActive: true },
+      { isActive: false },
+    );
+    await this.assignmentRepo.save(
+      this.assignmentRepo.create({ patientId, sponsorId, isActive: true }),
+    );
+
+    // CA20.1: "notifica a ambos". Los dos lados tienen que saberlo — el paciente para
+    // saber a quién va a llegarle su alerta, y el compañero de viaje porque desde
+    // ahora puede sonarle el teléfono por esta persona.
+    await this.notificationRepo.save([
+      this.notificationRepo.create({
+        userId: patientId,
+        type: 'info',
+        title: 'Tienes un compañero de viaje',
+        body: `${sponsor.firstName} ${sponsor.lastName} va a acompañarte. Si activas el botón de pánico, le llega a esa persona.`,
+      }),
+      this.notificationRepo.create({
+        userId: sponsorId,
+        type: 'info',
+        title: 'Acompañas a una persona nueva',
+        body: `Tu psicólogo te asignó como compañero de viaje de ${patient.firstName} ${patient.lastName}. Vas a recibir sus alertas de pánico.`,
+      }),
+    ]);
   }
 
   /**
