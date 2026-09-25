@@ -1,5 +1,11 @@
 import { DemoService, DEMO_PATIENT_ID, DEMO_SPONSOR_ID } from './demo.service';
 import { EXTRA_DEMO_PATIENTS } from './demo-patients';
+import { ensureFamilyDemoSessions } from '../family/family-demo-sessions';
+
+jest.mock('../family/family-demo-sessions', () => ({
+  ensureFamilyDemoSessions: jest.fn(),
+}));
+const ensureSessions = ensureFamilyDemoSessions as jest.MockedFunction<typeof ensureFamilyDemoSessions>;
 
 describe('DemoService', () => {
   let env: Record<string, string | undefined>;
@@ -12,7 +18,7 @@ describe('DemoService', () => {
   let periodRepo: { findOne: jest.Mock };
   let badgeRepo: { update: jest.Mock };
   let userRepo: { exist: jest.Mock };
-  let dataSource: { getRepository: jest.Mock; transaction: jest.Mock };
+  let dataSource: { getRepository: jest.Mock; transaction: jest.Mock; manager: object };
   let service: DemoService;
 
   beforeAll(() => {
@@ -26,6 +32,7 @@ describe('DemoService', () => {
 
   beforeEach(() => {
     env = {};
+    ensureSessions.mockReset().mockResolvedValue({ created: [], moved: [], answers: 0 });
     alertRepo = {
       find: jest.fn().mockResolvedValue([]),
       save: jest.fn((v) => Promise.resolve(v)),
@@ -39,7 +46,7 @@ describe('DemoService', () => {
     periodRepo = { findOne: jest.fn().mockResolvedValue({ id: 'period-1' }) };
     badgeRepo = { update: jest.fn() };
     userRepo = { exist: jest.fn() };
-    dataSource = { getRepository: jest.fn(() => userRepo), transaction: jest.fn() };
+    dataSource = { getRepository: jest.fn(() => userRepo), transaction: jest.fn(), manager: {} };
     service = new DemoService(
       { get: (key: string) => env[key] } as any,
       dataSource as any,
@@ -165,6 +172,24 @@ describe('DemoService', () => {
       await service.onApplicationBootstrap();
 
       expect(dataSource.transaction).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('refreshFamilyDemoSessions', () => {
+    it('corre al arrancar sin que haya que encenderlo, sin mover las sesiones vigentes', async () => {
+      await service.onApplicationBootstrap();
+      expect(ensureSessions).toHaveBeenCalledWith(dataSource.manager, { resetDates: false });
+    });
+
+    it('se apaga con DEMO_SESIONES_FAMILIARES=false', async () => {
+      env.DEMO_SESIONES_FAMILIARES = 'false';
+      await service.onApplicationBootstrap();
+      expect(ensureSessions).not.toHaveBeenCalled();
+    });
+
+    it('si falla, el backend arranca igual', async () => {
+      ensureSessions.mockRejectedValue(new Error('sin base'));
+      await expect(service.onApplicationBootstrap()).resolves.toBeUndefined();
     });
   });
 });
