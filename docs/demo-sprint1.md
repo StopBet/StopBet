@@ -160,3 +160,37 @@ arriba); dura hasta 120 s antes de escalar solo, tiempo de sobra para mostrarlo 
 | `notifications` | 6 para Carlos, 2 para Pedro (solo la primera vez) |
 | Comunidad | Post de Carlos (para 5.4/5.5 en vivo), anuncio con evento futuro + 3 confirmaciones, 2 posts limpios (para reportar en vivo), 1 post con 1 reporte (segundo caso de moderación) |
 | `subscriptions`/`invoices` | Carlos y Pedro al día; Lucía suspendida con **3 cuotas vencidas** ($90.000), que es el umbral en que el cliente suspende |
+
+## 7. Cuentas para el video de usuario (3 participantes)
+
+`pnpm run seed:usuarios` (`apps/backend/src/usuarios-prueba.seed.ts`) crea 3 cuentas de
+paciente para el paquete de grabación de [E4] (`video-usuario-sprint1.pdf`). Van aparte de
+Carlos porque ese paquete está pensado para **una** persona: la primera de 3 participantes
+seguidos dejaría el check-in de hoy hecho, su post borrado, posts reportados y una alerta de
+pánico, y la segunda ya no arrancaría desde el mismo punto de partida.
+
+```bash
+pnpm run seed          # si Daniela Soto (compañera de viaje) todavía no existe
+pnpm run seed:usuarios -- --reset
+```
+
+Igual que `seed:demo`, si el comando de la raíz no reenvía los flags, corre el segundo directo
+desde `apps/backend`. **`--reset` caduca cada 24 h** (borra el check-in de hoy): correrlo la
+misma mañana de la grabación.
+
+| Cuenta | Nombre | Para qué |
+|---|---|---|
+| `prueba1@stopbet.cl` | Martín Aravena | Participante 1 |
+| `prueba2@stopbet.cl` | Constanza Figueroa | Participante 2 |
+| `prueba3@stopbet.cl` | Ignacio Salinas | Participante 3 |
+
+Clave de las 3: `Stopbet2026!`. Las tres parten del mismo estado: sede Santiago, racha de 20
+días, compañera de viaje Daniela Soto activa (para la Tarea 4), y check-ins de los últimos 7
+días **sin el de hoy** (para que la Tarea 1 no arranque ya cumplida). Sin RUT — no hace falta
+para ninguna de las 4 tareas, y así el script no depende de que la `ENCRYPTION_KEY` local
+coincida con la de Railway.
+
+`--reset` limpia, para cada una de las 3: el check-in de hoy, las alertas de pánico que
+quedaron `pending`/`escalated` (las pasa a `cancelled`), los posts y reportes que la cuenta
+dejó en la Tarea 2, y el silencio de comunidad si lo activaron. No hace falta correrlo si es la
+primera vez que se usan las cuentas.

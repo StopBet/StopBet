@@ -24,7 +24,7 @@ import { isNetworkError } from '../services/checkInQueue';
 import { useReduceMotion } from '../hooks/useReduceMotion';
 import { Touchable } from '../components/Touchable';
 import { useCurrentUser, useUserId } from '../context/AuthContext';
-
+import { logInfo, logWarn, logError } from '../utils/log';
 
 const MONTH_LABELS: Record<string, string> = {
   '01': 'Enero',  '02': 'Febrero',   '03': 'Marzo',
@@ -86,9 +86,9 @@ export function SuspendedAccountScreen({ navigation }: Props) {
       // Sin red es un estado esperado, no un fallo: con console.error React
       // Native levanta el LogBox encima de la pantalla.
       if (isNetworkError(err)) {
-        console.log('[SuspendedAccountScreen] sin conexión al cargar');
+        logInfo('[SuspendedAccountScreen] sin conexión al cargar');
       } else {
-        console.error('[SuspendedAccountScreen] load error', (err as Error).message);
+        logError('[SuspendedAccountScreen] load error', (err as Error).message);
       }
     }
   }, []);

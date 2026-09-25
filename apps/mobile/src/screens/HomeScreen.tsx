@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -19,7 +19,8 @@ import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { DayCounter } from '../components/DayCounter';
 import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
-import { NotificationSection } from '../components/NotificationSection';
+import { NotificationBell } from '../components/NotificationBell';
+import { NotificationCard } from '../components/NotificationCard';
 import { Icon } from '../components/Icon';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
@@ -43,7 +44,9 @@ import { useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
 import { useCurrentUser, useUserId } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
+import { logInfo, logWarn, logError } from '../utils/log';
 
+import { useIntervaloActivo } from '../hooks/useIntervaloActivo';
 const REFRESH_MS = 3 * 60 * 1000;
 
 // Vive en el navegador de pestañas, pero también navega al stack de arriba
@@ -149,7 +152,7 @@ export function HomeScreen({ navigation }: Props) {
       // pantalla; los errores de verdad sí lo siguen levantando.
       // Solo loguea el error sin exponer datos del paciente.
       if (isNetworkError(err)) {
-        console.log('[HomeScreen] sin conexión al cargar');
+        logInfo('[HomeScreen] sin conexión al cargar');
         // Se recupera el último progreso conocido: mostrar 0 días le diría al
         // paciente que perdió su racha cuando solo se cayó la red.
         setOffline(true);
@@ -164,7 +167,7 @@ export function HomeScreen({ navigation }: Props) {
         }
       } else {
         setLoadFailed(true);
-        console.error('[HomeScreen] load error', (err as Error).message);
+        logError('[HomeScreen] load error', (err as Error).message);
       }
     } finally {
       setLoading(false);
@@ -174,13 +177,10 @@ export function HomeScreen({ navigation }: Props) {
   // Antes recargaba cada 5 s mientras la pantalla estuviera abierta: con 4 llamadas
   // por vuelta son 2.880 peticiones por hora de pantalla, en batería y datos del
   // paciente. Nada de acá cambia por segundo; lo urgente llega por push.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      const interval = setInterval(load, REFRESH_MS);
-      return () => clearInterval(interval);
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const enfocada = useIsFocused();
+  useIntervaloActivo(load, REFRESH_MS, enfocada);
 
   // CA7.4: el recordatorio de las 20:00 llega como push. Antes se pedía el permiso
   // del sistema apenas cargaba esta pantalla, sin explicar para qué: se pregunta
@@ -282,6 +282,8 @@ export function HomeScreen({ navigation }: Props) {
   };
 
   const unreadNotifs = notifications.filter((n) => !n.read);
+  // Una alerta de pánico no puede quedar a un toque de distancia: esa sí se queda a la vista.
+  const urgentes = unreadNotifs.filter((n) => n.type === 'danger');
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -298,6 +300,10 @@ export function HomeScreen({ navigation }: Props) {
             Día {progress?.daysStreak ?? '…'} de tu camino
           </Text>
         </View>
+        <NotificationBell
+          sinLeer={unreadNotifs.length}
+          onPress={() => navigation.navigate('Notifications')}
+        />
         {/* Tenía tamaño, borde y posición de botón de perfil, y no hacía nada */}
         <Pressable
           style={styles.avatar}
@@ -322,11 +328,21 @@ export function HomeScreen({ navigation }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {unreadNotifs.length > 0 && (
-            <NotificationSection
-              notifications={unreadNotifs}
-              onMarkRead={handleMarkRead}
-            />
+          {/* Solo lo urgente. La lista entera vive detrás de la campana: acá ocupaba toda
+              la pantalla y empujaba la racha, el check-in y el asistente fuera de la vista. */}
+          {urgentes.length > 0 && (
+            <View style={styles.urgentes}>
+              {urgentes.map((n) => (
+                <NotificationCard
+                  key={n.id}
+                  notification={n}
+                  onPress={() => {
+                    handleMarkRead(n.id);
+                    navigation.navigate('Notifications');
+                  }}
+                />
+              ))}
+            </View>
           )}
 
           {askReminder && (
@@ -524,6 +540,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     color: c.fg2,
     textAlign: 'center',
   },
+  urgentes: { paddingHorizontal: 16, gap: 10 },
   reminderCard: {
     backgroundColor: c.surface,
     borderRadius: 16,

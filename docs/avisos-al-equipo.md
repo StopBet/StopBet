@@ -20,6 +20,96 @@ está.
 
 ---
 
+## 2026-09-22 - Las notificaciones del paciente se mudaron a una campana
+
+**A quién le pega:** a **Matías Barraza** (Inicio y check-in) y a quien cree notificaciones
+desde el backend.
+
+**Qué hacer después de pullear:** nada. La columna nueva la crea `synchronize` al arrancar.
+Si quieres ver el enrutado con los datos que ya tienes, las notificaciones viejas quedan sin
+destino y solo se marcan leídas; `pnpm run seed` las recrea con destino.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **El Inicio ya no lista las notificaciones.** Ahora hay una **campana con contador** en el
+  encabezado que abre `NotificationsScreen`. La lista dentro del Inicio no tenía techo: con
+  seis avisos, la racha, el check-in y el acceso al asistente quedaban fuera de pantalla.
+- **En el Inicio se quedan solo las `danger`**, porque una alerta de pánico no puede estar a
+  un toque de distancia. Si publicas una notificación `info` esperando verla en el Inicio,
+  está en la campana.
+- **`NotificationSection` ya no existe.** Se reemplazó por `NotificationCard` (una tarjeta,
+  memorizada) y `NotificationBell`.
+
+**Lo que te pega si escribes código en el backend:**
+
+- **`Notification` tiene un campo nuevo, `target`**, con los valores `check-in`, `community`,
+  `achievements`, `panic` y `payment`. Es lo que hace que tocar una notificación abra la
+  pantalla correcta, y cierra el resto de INI-05 de la auditoría UX. Es **nullable** a
+  propósito: lo anterior no lo tiene.
+- **Cuando crees una notificación, ponle `target`.** Sin él se puede leer pero no lleva a
+  ninguna parte, y eso no se nota hasta que un paciente la toca y no pasa nada. Los tres
+  sitios que ya las crean (`check-in-reminder`, `panic`, `community`) lo traen puesto.
+
+---
+
+## 2026-09-22 - Optimización de la app móvil: el bundle bajó a la mitad
+
+**A quién le pega:** a todo el que toque `apps/mobile`. **Recompila** después de pullear
+(cambiaron recursos nativos y `build.gradle`); con recargar Metro no basta.
+
+**Qué hacer después de pullear:** `pnpm install` no hace falta, no hay dependencias nuevas.
+Sí **recompilar la app**.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **El bundle de producción pasó de 3,29 MB a 1,78 MB.** Casi todo salió de cómo se importan
+  los íconos: `components/Icon.tsx` ya **no importa desde `'lucide-react-native'`** sino de a
+  uno (`lucide-react-native/dist/esm/icons/house.mjs`). Metro no hace tree shaking, así que el
+  import del índice metía los 1.714 íconos del paquete para usar 67. **Si agregas un ícono,
+  copia el estilo de los que están**: volver al import del índice devuelve 1,5 MB al bundle
+  sin que nada lo delate. Los tipos de esas rutas están en `src/types/lucide-icons.d.ts`.
+- **Lato ya no se empaqueta.** No la usaba ninguna pantalla y sus dos archivos pesaban 1,28 MB.
+  `Fonts.caption` y `Fonts.captionBold` **ya no existen**: si los estabas usando en una rama,
+  el type-check te lo va a decir. Usa `Fonts.body` o `Fonts.bodyMedium`.
+- **El splash es WebP.** `splash_logo.png` se fue en las cinco densidades y ahora es
+  `splash_logo.webp`: 1.355 KB a 139 KB. El XML no cambia, referencia `@drawable/splash_logo`
+  sin extensión.
+- **R8 quedó activo en release** (`minifyEnabled` y `shrinkResources` en `true`), con reglas
+  de `keep` para JNI en `proguard-rules.pro`. El APK de release se compiló, se instaló y se
+  recorrió a mano antes de dejarlo así. Si algo se rompe **solo** en release, mira ahí primero.
+- ⚠️ **Para probar un release en el emulador hay que compilarlo para su arquitectura**:
+  `./gradlew assembleRelease -PreactNativeArchitectures=x86_64`. Con el `arm64-v8a` de
+  `gradle.properties`, el APK instala pero **muere al arrancar** con un
+  `UnsatisfiedLinkError` de `librnscreens.so` que parece un problema de R8 y no lo es.
+- **`console.log`/`warn`/`error` salieron de las pantallas.** Ahora van `logWarn` y `logError`
+  de `utils/log.ts`, que **no hacen nada fuera de `__DEV__`**. En desarrollo se ven igual.
+- **La app ya no manda `x-user-id`.** El backend dejó de leerlo el 16-09. El parámetro
+  `userId` sigue en las firmas de `api.*` porque lo pasan decenas de llamadas, pero ya no
+  viaja a ninguna parte.
+
+**Lo que te pega si escribes código en mobile:**
+
+- **Las listas que crecen van en `FlatList`, no en `ScrollView` + `.map()`.** Ya se pasaron la
+  comunidad del equipo clínico, el hilo de respuestas y la lista de pacientes (esta última con
+  la fila memorizada). La comunidad del equipo clínico y el hilo llegan con el PR del foro,
+  que va encima de este. Copia los parámetros que ya están puestos (`initialNumToRender`,
+  `windowSize`, `removeClippedSubviews`).
+- **Las filas de una lista van memorizadas** (la del Resumen del equipo clínico ya lo está). `PostCard` del foro, que llega con el PR del foro, lleva `React.memo` con un
+  comparador que **ignora los callbacks a propósito**; está explicado sobre el componente. Si
+  le agregas una prop de datos, acuérdate de sumarla al comparador o esa prop no se verá.
+- **Los sondeos usan `useIntervaloActivo`** (`hooks/useIntervaloActivo.ts`), que los detiene
+  con la app en segundo plano. Un `setInterval` pelado sigue pidiendo con la pantalla apagada:
+  el contador de alertas del equipo clínico lo hacía cada minuto.
+- **Volver a una pestaña ya no vuelve a pedir todo:** `hooks/useCargaFresca.ts` ignora una
+  carga si la anterior tiene menos de 30 segundos. Tirar para actualizar sí fuerza.
+- **El caché sin conexión guarda como máximo 50 mensajes y espera un segundo antes de
+  escribir**, y al entrar se borran las cachés de otras cuentas del teléfono.
+
+**De dónde salió todo esto:** `docs/auditoria-rendimiento-mobile-2026-09-22.md`, con la
+medición de cada cosa.
+
+---
+
 ## 2026-09-24 - Asignar compañero de viaje ahora valida, y la ficha clínica tiene sección nueva (PR #119)
 
 **A quién le pega:** a **Alex** (`FichaClinicaPage.tsx`), a **Catalina** (`panic.service.spec.ts`) y a
@@ -70,6 +160,28 @@ particular a **Alex** (ficha clínica / perfil del paciente) y a **José** (`use
   (CA21.3): hay que reasignarlos primero, o sus alertas de pánico se quedarían sin destinatario.
 - **En textos de cara al usuario va «compañero de viaje», no «padrino»** — el término del programa
   desde `00f2910`. En el código el identificador sigue siendo `sponsor`.
+
+---
+
+## 2026-09-23 - Demo sin computador: 4 pacientes demo, Daniela responde sola y reinicio al entrar
+
+**A quién le pega:** a quien grabe o presente la demo, y a quien toque `panic` o `auth`.
+
+**Qué hacer después de pullear:** nada. Las tres herramientas vienen **apagadas** y se prenden
+con variables en Railway (servicio del backend → *Variables*):
+
+| Variable | Qué hace |
+|---|---|
+| `DEMO_PADRINO_SEGUNDOS=45` | Daniela Soto responde sola las alertas de pánico que le lleguen, a los N s (entre 0 y 110; a los 120 escalan a la IA). Solo por la cuenta de Daniela. |
+| `DEMO_PACIENTES_EXTRA=true` | Al arrancar, crea tres copias de Carlos Demo si no existen: **Martina** (`demo2@stopbet.cl`), **Diego** (`demo3@`) y **Javiera** (`demo4@`), clave `Stopbet2026!`. Tienen su racha, insignias, historial de check-ins, chats con el asistente, pagos, psicólogo, ficha clínica y a Daniela como compañera. No se copian sus mensajes del foro. |
+| `DEMO_RESET_ON_LOGIN=true` | Entrar como Carlos Demo (`demo@stopbet.cl`) o una de sus copias deja esa cuenta como después de `seed:demo --reset`: sin check-in de hoy, sin alertas, sin reportes propios, comunidad sin silenciar, insignia de 45 días sin compartir y Daniela activa como compañera de viaje. Otras cuentas no se tocan. |
+
+Desde el teléfono, para repetir una toma: **Perfil → Cerrar sesión → volver a entrar con
+esa misma cuenta**. No hace falta APK nuevo ni un computador corriendo `demo:padrino`.
+
+**Qué cambió, y por qué te puede parecer un bug:** con `DEMO_PADRINO_SEGUNDOS` puesta, las
+alertas de las cuentas demo se responden aunque nadie las haya leído. **Es una respuesta automática, no
+de una persona.** Borra la variable después de grabar. Las copias quedan creadas aunque apagues `DEMO_PACIENTES_EXTRA`; para rehacer una, se borra ese usuario y se reinicia el backend. Todo está en `apps/backend/src/demo/`.
 
 ---
 

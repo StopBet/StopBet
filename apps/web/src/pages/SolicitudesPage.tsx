@@ -275,7 +275,7 @@ function FlaggedPostsSection() {
                   <div style={{ fontSize: 13, color: 'var(--fg2)', lineHeight: 1.5 }}>{p.body ?? '-'}</div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                    <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                     <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
                       <button onClick={() => setDeleteTarget(p)}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 14px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
@@ -293,7 +293,7 @@ function FlaggedPostsSection() {
           ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup>
-              <col /><col style={{ width: 100 }} /><col style={{ width: 80 }} />
+              <col /><col style={{ width: 132 }} /><col style={{ width: 80 }} />
               <col style={{ width: 130 }} /><col style={{ width: 220 }} />
             </colgroup>
             <thead>
@@ -318,7 +318,7 @@ function FlaggedPostsSection() {
                     </div>
                   </td>
                   <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                    <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                   </td>
                   <td style={{ padding: '14px 14px', verticalAlign: 'middle' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-50)', color: 'var(--danger-text)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700 }}>
@@ -421,7 +421,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
+                    <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
                     <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.date} · {r.rel}</span>
                   </div>
 
@@ -440,7 +440,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
             </div>
           ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 110 }} /><col style={{ width: 155 }} /><col style={{ width: 85 }} /><col style={{ width: 260 }} /></colgroup>
+            <colgroup><col /><col style={{ width: 132 }} /><col style={{ width: 155 }} /><col style={{ width: 85 }} /><col style={{ width: 260 }} /></colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <Head label="Solicitante" /><Head label="Sede" /><Head label="Fecha solicitud" /><Head label="Arancel" /><Head label="Acciones" />
@@ -461,7 +461,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
                     </div>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
+                    <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
                     <div style={{ fontSize: 13, color: 'var(--fg1)' }}>{r.date}</div>

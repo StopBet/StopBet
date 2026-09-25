@@ -133,6 +133,7 @@ export class PanicService {
         userId: assignment.sponsorId,
         type: 'danger',
         title: 'Alerta de pánico',
+        target: 'panic',
         body: `Alerta: El paciente ${patientName} requiere contención inmediata por riesgo de recaída`,
       }),
     );

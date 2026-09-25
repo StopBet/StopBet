@@ -651,7 +651,7 @@ async function seed() {
       sede: SANTIAGO_SEDE,
       // El 18 de junio de 2026 es jueves: el texto decía miércoles y no calzaba con la
       // fecha que muestra la app, que la formatea desde eventDate
-      title: 'Sesión grupal presencial — Jueves 18 de junio',
+      title: 'Sesión grupal presencial, jueves 18 de junio',
       body: 'Recordatorio: este jueves 18 de junio a las 18:30 tendremos nuestra sesión grupal presencial en la sede Santiago. ¡Los esperamos!',
       eventDate: new Date('2026-06-18T18:30:00'),
     }));

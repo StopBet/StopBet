@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { Modal, StyleSheet, Text, View } from 'react-native';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from './ThemeContext';
@@ -45,6 +45,10 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
 
   const showDialog = useCallback((options: DialogOptions) => setDialog(options), []);
 
+  // Igual que en ToastContext: el valor tiene que ser estable o abrir un diálogo repinta
+  // a todos sus consumidores.
+  const value = useMemo(() => ({ showDialog }), [showDialog]);
+
   const cerrar = () => setDialog(null);
 
   const ejecutar = (action: DialogAction) => {
@@ -53,7 +57,7 @@ export function DialogProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <DialogContext.Provider value={{ showDialog }}>
+    <DialogContext.Provider value={value}>
       {children}
       <Modal
         visible={dialog !== null}

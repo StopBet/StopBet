@@ -10,6 +10,7 @@ import { NewAnnouncementScreen } from '../screens/staff/NewAnnouncementScreen';
 import { SedeProvider } from '../context/SedeContext';
 import { api } from '../services/api';
 import { isToday, needsAttention } from '../utils/staff';
+import { useIntervaloActivo } from '../hooks/useIntervaloActivo';
 import type { StaffStackParamList, StaffTabsParamList } from './types';
 
 const Tabs = createMaterialTopTabNavigator<StaffTabsParamList>();
@@ -31,21 +32,20 @@ function TabBar({ state, navigation }: MaterialTopTabBarProps) {
 
   // El contador vive en la barra y no en la pantalla de Resumen: si viviera ahí, un
   // psicólogo que se queda en Comunidad no se enteraría de una alerta nueva.
-  React.useEffect(() => {
-    let vivo = true;
-    const contar = () => {
-      api.getStaffAlerts()
-        .then((alertas) => {
-          if (!vivo) return;
-          setSinAtender(alertas.filter((a) => isToday(a.createdAt) && needsAttention(a.status)).length);
-        })
-        // El número es un aviso, no la pantalla: si falla, se queda con el último
-        .catch(() => {});
-    };
-    contar();
-    const id = setInterval(contar, REFRESH_MS);
-    return () => { vivo = false; clearInterval(id); };
+  const contar = React.useCallback(() => {
+    api.getStaffAlerts()
+      .then((alertas) => {
+        setSinAtender(alertas.filter((a) => isToday(a.createdAt) && needsAttention(a.status)).length);
+      })
+      // El número es un aviso, no la pantalla: si falla, se queda con el último
+      .catch(() => {});
   }, []);
+
+  React.useEffect(() => { contar(); }, [contar]);
+
+  // Con `setInterval` pelado esto seguía pidiendo alertas cada minuto con la pantalla
+  // apagada, mientras la sesión estuviera abierta.
+  useIntervaloActivo(contar, REFRESH_MS);
 
   return (
     <StaffBottomNav

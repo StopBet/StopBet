@@ -58,7 +58,7 @@ export function resetRelapseDetection(): void {
 // En debug el teléfono alcanza el backend del PC por `adb reverse tcp:3000 tcp:3000`.
 // En release no hay túnel: el APK que se instala fuera del computador de alguien
 // del equipo tiene que ir contra el backend desplegado o no llega a nada.
-const BASE_URL = __DEV__
+export const BASE_URL = __DEV__
   ? 'http://localhost:3000'
   : 'https://stopbetbackend-production.up.railway.app';
 
@@ -85,12 +85,23 @@ async function tryRefresh(): Promise<boolean> {
 
 const refreshOnce = singleFlight(tryRefresh);
 
+/**
+ * Renueva el access token, una sola vez aunque lo pidan varios a la vez. Lo usa el stream
+ * de la comunidad, que vive fuera de `request()` y también se cae cuando el token vence.
+ */
+export const refrescarSesión = refreshOnce;
+
+/**
+ * `options.userId` **ya no se manda**: el backend dejó de leer `x-user-id` el 16-09 y la
+ * identidad sale del token (`@UserId()`). Se acepta todavía porque medio centenar de
+ * llamadas lo pasan; sacarlo de todas ellas es una limpieza aparte, no de rendimiento.
+ */
 async function request<T>(
   path: string,
   options?: RequestInit & { userId?: string },
 ): Promise<T> {
   if (devFlags.simulateOffline) throw new Error('Network request failed');
-  const { userId, ...fetchOpts } = options ?? {};
+  const { userId: _ignorado, ...fetchOpts } = options ?? {};
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
@@ -102,9 +113,6 @@ async function request<T>(
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          // 14 de 17 controladores del backend todavía leen `x-user-id` sin verificarlo.
-          // Se sigue mandando, pero con el id real de la sesión, no con uno fijo.
-          ...(userId ? { 'x-user-id': userId } : {}),
           ...fetchOpts.headers,
         },
       });
@@ -247,6 +255,9 @@ export const api = {
   // ── Notificaciones ───────────────────────────────────────────────────
   getNotifications: (userId: string) =>
     request<Notification[]>('/notifications', { userId }),
+
+  markAllNotificationsRead: (userId: string) =>
+    request<void>('/notifications/read-all', { userId, method: 'PATCH' }),
 
   markNotificationRead: (userId: string, notificationId: string) =>
     request<void>(`/notifications/${notificationId}/read`, {

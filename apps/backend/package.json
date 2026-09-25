@@ -12,6 +12,7 @@
     "seed:family": "node --env-file=.env --require ts-node/register src/family/family.seed.ts",
     "seed:fichas": "node --env-file=.env --require ts-node/register src/clinical-records/clinical-records.seed.ts",
     "seed:demo": "node --env-file=.env --require ts-node/register src/demo.seed.ts",
+    "seed:usuarios": "node --env-file=.env --require ts-node/register src/usuarios-prueba.seed.ts",
     "backfill:institution": "node --env-file=.env --require ts-node/register src/institutions/institution-backfill.ts",
     "demo:padrino": "node scripts/demo-padrino.mjs",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
