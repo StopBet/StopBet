@@ -4,13 +4,17 @@ import { Throttle } from '@nestjs/throttler';
 import { LoginResponse } from '@stopbet/shared-types';
 import { Public } from '../common/decorators/public.decorator';
 import { AuthService } from './auth.service';
+import { DemoService } from '../demo/demo.service';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly demoService: DemoService,
+  ) {}
 
   @Public()
   @Post('login')
@@ -24,8 +28,11 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Credenciales incorrectas' })
   @ApiResponse({ status: 403, description: 'Cuenta suspendida' })
   @ApiResponse({ status: 429, description: 'Demasiados intentos de login' })
-  login(@Body() body: LoginDto): Promise<LoginResponse> {
-    return this.authService.login(body.email, body.password);
+  async login(@Body() body: LoginDto): Promise<LoginResponse> {
+    const response = await this.authService.login(body.email, body.password);
+    // Solo hace algo con DEMO_RESET_ON_LOGIN=true y la cuenta de Carlos Demo (demo.service.ts).
+    await this.demoService.onLogin(response.user.id);
+    return response;
   }
 
   @Public()

@@ -165,7 +165,7 @@ export function AlertasPage() {
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
+                        <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
                       </div>
                     </div>
                   )
@@ -177,7 +177,7 @@ export function AlertasPage() {
                 {/* Sin las columnas "Tipo" (siempre decía "Botón de pánico") ni "Ver" (no
                     hacía nada), la fecha y el estado tienen el ancho que necesitan: antes la
                     hora quedaba cortada. */}
-                <col /><col style={{ width: 92 }} /><col style={{ width: 180 }} /><col style={{ width: 210 }} />
+                <col /><col style={{ width: 132 }} /><col style={{ width: 180 }} /><col style={{ width: 210 }} />
               </colgroup>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -197,7 +197,7 @@ export function AlertasPage() {
                       </div>
                     </td>
                     <td style={{ padding: '14px 14px' }}>
-                      <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
+                      <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{a.sede}</span>
                     </td>
                     <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg2)', whiteSpace: 'nowrap' }}>{a.fecha}</td>
                     <td style={{ padding: '14px 14px' }}><AlertStatusBadge status={a.status} /></td>
