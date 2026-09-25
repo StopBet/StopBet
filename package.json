@@ -12,6 +12,7 @@
     "migrate:logros": "pnpm --filter @stopbet/backend migrate:logros",
     "seed:demo": "pnpm --filter @stopbet/backend run seed:demo",
     "seed:usuarios": "pnpm --filter @stopbet/backend run seed:usuarios",
+    "demo:padrino": "pnpm --filter @stopbet/backend run demo:padrino --",
     "build:web": "pnpm --filter @stopbet/web build",
     "build:backend": "pnpm --filter @stopbet/backend build",
     "test": "pnpm --filter @stopbet/backend test",

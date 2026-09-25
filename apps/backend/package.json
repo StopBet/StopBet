@@ -16,6 +16,7 @@
     "migrate:logros": "node --env-file=.env --require ts-node/register src/migrate-achievement-posts.ts",
     "migrate:replies": "node --env-file=.env --require ts-node/register src/migrate-replies.ts",
     "backfill:institution": "node --env-file=.env --require ts-node/register src/institutions/institution-backfill.ts",
+    "demo:padrino": "node scripts/demo-padrino.mjs",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
     "test:cov": "jest --coverage",
