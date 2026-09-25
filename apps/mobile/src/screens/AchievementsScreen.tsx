@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
@@ -38,6 +38,9 @@ import { readAchievements, saveAchievements } from '../services/offlineStore';
 import { Touchable } from '../components/Touchable';
 import { useUserId } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
+import { logInfo, logWarn, logError } from '../utils/log';
+
+import { useIntervaloActivo } from '../hooks/useIntervaloActivo';
 
 // Ajustar cuando se conecte autenticación real
 const REFRESH_MS = 3 * 60 * 1000;
@@ -159,14 +162,14 @@ export function AchievementsScreen({ navigation }: Props) {
       // Sin red es un estado esperado, no un fallo: con console.error React
       // Native levanta el LogBox encima de la pantalla.
       if (isNetworkError(err)) {
-        console.log('[AchievementsScreen] sin conexión al cargar');
+        logInfo('[AchievementsScreen] sin conexión al cargar');
         // Sin esto la pantalla queda en EMPTY_DATA: cero días y todas las
         // insignias con candado, como si el paciente no hubiera avanzado nada.
         setOffline(true);
         const cached = await readAchievements(userId);
         if (cached) setData((prev) => (prev.currentPeriod.id ? prev : cached));
       } else {
-        console.error('[AchievementsScreen] load error', (err as Error).message);
+        logError('[AchievementsScreen] load error', (err as Error).message);
       }
     } finally {
       setLoading(false);
@@ -176,13 +179,10 @@ export function AchievementsScreen({ navigation }: Props) {
   // Antes recargaba cada 5 s mientras la pantalla estuviera abierta: con 4 llamadas
   // por vuelta son 2.880 peticiones por hora de pantalla, en batería y datos del
   // paciente. Nada de acá cambia por segundo; lo urgente llega por push.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      const interval = setInterval(load, REFRESH_MS);
-      return () => clearInterval(interval);
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const enfocada = useIsFocused();
+  useIntervaloActivo(load, REFRESH_MS, enfocada);
 
   const handleRelapse = () => {
     showDialog({

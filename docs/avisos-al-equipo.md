@@ -20,6 +20,64 @@ está.
 
 ---
 
+## 2026-09-22 - Optimización de la app móvil: el bundle bajó a la mitad
+
+**A quién le pega:** a todo el que toque `apps/mobile`. **Recompila** después de pullear
+(cambiaron recursos nativos y `build.gradle`); con recargar Metro no basta.
+
+**Qué hacer después de pullear:** `pnpm install` no hace falta, no hay dependencias nuevas.
+Sí **recompilar la app**.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **El bundle de producción pasó de 3,29 MB a 1,78 MB.** Casi todo salió de cómo se importan
+  los íconos: `components/Icon.tsx` ya **no importa desde `'lucide-react-native'`** sino de a
+  uno (`lucide-react-native/dist/esm/icons/house.mjs`). Metro no hace tree shaking, así que el
+  import del índice metía los 1.714 íconos del paquete para usar 67. **Si agregas un ícono,
+  copia el estilo de los que están**: volver al import del índice devuelve 1,5 MB al bundle
+  sin que nada lo delate. Los tipos de esas rutas están en `src/types/lucide-icons.d.ts`.
+- **Lato ya no se empaqueta.** No la usaba ninguna pantalla y sus dos archivos pesaban 1,28 MB.
+  `Fonts.caption` y `Fonts.captionBold` **ya no existen**: si los estabas usando en una rama,
+  el type-check te lo va a decir. Usa `Fonts.body` o `Fonts.bodyMedium`.
+- **El splash es WebP.** `splash_logo.png` se fue en las cinco densidades y ahora es
+  `splash_logo.webp`: 1.355 KB a 139 KB. El XML no cambia, referencia `@drawable/splash_logo`
+  sin extensión.
+- **R8 quedó activo en release** (`minifyEnabled` y `shrinkResources` en `true`), con reglas
+  de `keep` para JNI en `proguard-rules.pro`. El APK de release se compiló, se instaló y se
+  recorrió a mano antes de dejarlo así. Si algo se rompe **solo** en release, mira ahí primero.
+- ⚠️ **Para probar un release en el emulador hay que compilarlo para su arquitectura**:
+  `./gradlew assembleRelease -PreactNativeArchitectures=x86_64`. Con el `arm64-v8a` de
+  `gradle.properties`, el APK instala pero **muere al arrancar** con un
+  `UnsatisfiedLinkError` de `librnscreens.so` que parece un problema de R8 y no lo es.
+- **`console.log`/`warn`/`error` salieron de las pantallas.** Ahora van `logWarn` y `logError`
+  de `utils/log.ts`, que **no hacen nada fuera de `__DEV__`**. En desarrollo se ven igual.
+- **La app ya no manda `x-user-id`.** El backend dejó de leerlo el 16-09. El parámetro
+  `userId` sigue en las firmas de `api.*` porque lo pasan decenas de llamadas, pero ya no
+  viaja a ninguna parte.
+
+**Lo que te pega si escribes código en mobile:**
+
+- **Las listas que crecen van en `FlatList`, no en `ScrollView` + `.map()`.** Ya se pasaron la
+  comunidad del equipo clínico, el hilo de respuestas y la lista de pacientes (esta última con
+  la fila memorizada). La comunidad del equipo clínico y el hilo llegan con el PR del foro,
+  que va encima de este. Copia los parámetros que ya están puestos (`initialNumToRender`,
+  `windowSize`, `removeClippedSubviews`).
+- **Las filas de una lista van memorizadas** (la del Resumen del equipo clínico ya lo está). `PostCard` del foro, que llega con el PR del foro, lleva `React.memo` con un
+  comparador que **ignora los callbacks a propósito**; está explicado sobre el componente. Si
+  le agregas una prop de datos, acuérdate de sumarla al comparador o esa prop no se verá.
+- **Los sondeos usan `useIntervaloActivo`** (`hooks/useIntervaloActivo.ts`), que los detiene
+  con la app en segundo plano. Un `setInterval` pelado sigue pidiendo con la pantalla apagada:
+  el contador de alertas del equipo clínico lo hacía cada minuto.
+- **Volver a una pestaña ya no vuelve a pedir todo:** `hooks/useCargaFresca.ts` ignora una
+  carga si la anterior tiene menos de 30 segundos. Tirar para actualizar sí fuerza.
+- **El caché sin conexión guarda como máximo 50 mensajes y espera un segundo antes de
+  escribir**, y al entrar se borran las cachés de otras cuentas del teléfono.
+
+**De dónde salió todo esto:** `docs/auditoria-rendimiento-mobile-2026-09-22.md`, con la
+medición de cada cosa.
+
+---
+
 ## 2026-09-24 - Asignar compañero de viaje ahora valida, y la ficha clínica tiene sección nueva (PR #119)
 
 **A quién le pega:** a **Alex** (`FichaClinicaPage.tsx`), a **Catalina** (`panic.service.spec.ts`) y a

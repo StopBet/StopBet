@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -74,6 +75,17 @@ export function AssistantScreen() {
   const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
 
   const listRef = useRef<FlatList>(null);
+  const itemsAlBajar = useRef(0);
+
+  // Abrir el teclado encoge la lista y el último mensaje queda tapado. Antes se arreglaba
+  // solo porque se bajaba en cada medida del contenido; ahora que eso está acotado a los
+  // mensajes nuevos, el teclado necesita su propio aviso.
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      listRef.current?.scrollToEnd({ animated: false });
+    });
+    return () => sub.remove();
+  }, []);
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inactivityWarning = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -261,7 +273,7 @@ export function AssistantScreen() {
     ? Math.max(1, Math.round((Date.now() - sessionStartedAt.getTime()) / 60000))
     : 1;
 
-  const renderItem = ({ item }: { item: ListItem }) => {
+  const renderItem = useCallback(({ item }: { item: ListItem }) => {
     if (item.type === 'privacy') {
       return (
         <View style={styles.sectionPad}>
@@ -318,7 +330,7 @@ export function AssistantScreen() {
         </View>
       </View>
     );
-  };
+  }, [c.accent, c.white, styles]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -374,8 +386,20 @@ export function AssistantScreen() {
           keyExtractor={(i) => i.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+          // Solo baja cuando la conversación crece. Antes bajaba en cada medida del
+          // contenido, así que el indicador de "escribiendo" y cualquier reflujo del
+          // teclado peleaban con el dedo de quien estaba leyendo hacia arriba.
+          onContentSizeChange={() => {
+            if (items.length !== itemsAlBajar.current) {
+              itemsAlBajar.current = items.length;
+              listRef.current?.scrollToEnd({ animated: false });
+            }
+          }}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={11}
+          removeClippedSubviews
         />
 
         {crisis && (

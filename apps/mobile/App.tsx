@@ -8,6 +8,7 @@ import type { AuthUser } from '@stopbet/shared-types';
 import { api, resetRelapseDetection } from './src/services/api';
 import { session } from './src/services/session';
 import { isNetworkError } from './src/services/checkInQueue';
+import { podarCachésDeOtrasCuentas } from './src/services/offlineStore';
 import { ToastProvider } from './src/context/ToastContext';
 import { DialogProvider } from './src/context/DialogContext';
 import { ThemeProvider } from './src/context/ThemeContext';
@@ -110,6 +111,8 @@ export default function App() {
         await api.logout();
         return 'rol';
       }
+      // Lo que quedó guardado de otra cuenta en este teléfono ya no lo va a leer nadie.
+      void podarCachésDeOtrasCuentas(data.user.id);
       setUser(data.user);
       return null;
     } catch (err) {
