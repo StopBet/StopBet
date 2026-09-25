@@ -1,6 +1,9 @@
 package com.stopbet
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -50,9 +53,47 @@ class MainApplication : Application(), ReactApplication {
           .build()
     }
 
+    crearCanalesDeNotificacion()
+
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       load()
     }
+  }
+
+  // El backend manda sus push con un `channelId` explícito (`recordatorios` para el aviso
+  // de check-in y el de insignia nueva, `panic_alerts` para la escalada del pánico). Si el
+  // canal no existe en el dispositivo, FCM no falla: entrega por su canal de respaldo, que
+  // tiene importancia media — la notificación queda guardada en la barra y solo se ve al
+  // desplegarla. Para HDU3 CA1 eso es la diferencia entre que la felicitación aparezca
+  // sobre la pantalla o que el paciente no se entere hasta que abra la app.
+  //
+  // Crear un canal es idempotente mientras no cambie el id, pero Android ignora cualquier
+  // cambio de importancia posterior: si alguna vez hay que subirla, el id tiene que ser
+  // nuevo. Los canales existen desde Android 8 y el `minSdkVersion` del proyecto es 24.
+  private fun crearCanalesDeNotificacion() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+
+    val manager = getSystemService(NotificationManager::class.java) ?: return
+
+    manager.createNotificationChannel(
+        NotificationChannel(
+            "recordatorios",
+            "Recordatorios y logros",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+          description = "Tu check-in diario y las insignias que vas ganando."
+        }
+    )
+
+    manager.createNotificationChannel(
+        NotificationChannel(
+            "panic_alerts",
+            "Alertas de pánico",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+          description = "Avisos urgentes de tu red de apoyo."
+        }
+    )
   }
 }
