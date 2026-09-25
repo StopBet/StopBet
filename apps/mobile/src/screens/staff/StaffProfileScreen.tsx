@@ -102,7 +102,7 @@ export function StaffProfileScreen() {
           <Icon name="chart-column" size={16} color={c.primaryText} />
           <Text style={styles.notaTexto}>
             El panel completo - solicitudes, finanzas, equipo, informes y el historial clínico -
-            vive en la web. Esta app es para mirar rápido, publicar anuncios y acompañar el foro.
+            vive en la web. Esta app es para mirar rápido, publicar anuncios y acompañar el chat.
           </Text>
         </View>
 

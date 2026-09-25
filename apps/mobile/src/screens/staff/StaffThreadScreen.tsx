@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,15 +15,22 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CommunityPost } from '@stopbet/shared-types';
 import { Icon } from '../../components/Icon';
 import { Touchable } from '../../components/Touchable';
+import {
+  ChatMessage,
+  CitaEnComposer,
+  citaDe,
+  díaDelMensaje,
+  díasDistintos,
+} from '../../components/ChatMessage';
 import type { Palette } from '../../constants/colors';
 import { useColors, useStyles } from '../../context/ThemeContext';
 import { Fonts } from '../../constants/typography';
 import { useToast } from '../../context/ToastContext';
+import { useDialog } from '../../context/DialogContext';
 import { useUserId } from '../../context/AuthContext';
 import { api } from '../../services/api';
 import { isNetworkError } from '../../services/checkInQueue';
-import { timeAgo } from '../../utils/staff';
-import { ROLE_LABEL, esEquipoClínico } from '../../utils/roles';
+import { ROLE_LABEL } from '../../utils/roles';
 import { newRequestId, withRetry } from '../../utils/retry';
 import type { StaffStackParamList } from '../../navigation/types';
 import { logWarn } from '../../utils/log';
@@ -33,11 +40,14 @@ const LARGO_MÁXIMO = 1000;
 type Props = NativeStackScreenProps<StaffStackParamList, 'StaffThread'>;
 
 /**
+ * Responder a un mensaje del chat de la sede, con el mismo aspecto que el chat del paciente:
+ * el mensaje citado arriba, lo que ya le respondieron debajo y la cita sobre el composer.
+ *
  * Es una pantalla del stack y no un composer dentro de la pestaña Comunidad, por lo mismo
  * que `NewAnnouncementScreen`: Comunidad vive en un pager y con `adjustResize` el teclado
  * lo rearma en la primera página, así que la respuesta se perdía a medio escribir.
  *
- * Lo que el psicólogo escribe acá entra al foro de la sede como una respuesta más, firmada
+ * Lo que el psicólogo escribe acá entra al chat de la sede como una respuesta más, firmada
  * con su nombre y su rol. No hay moderación en esta pantalla: eliminar sigue estando solo
  * en la pestaña «Reportadas», sobre lo que alguien denunció.
  */
@@ -46,6 +56,7 @@ export function StaffThreadScreen({ navigation, route }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
+  const { showDialog } = useDialog();
   const userId = useUserId();
 
   const [respuestas, setRespuestas] = useState<CommunityPost[] | null>(null);
@@ -70,6 +81,18 @@ export function StaffThreadScreen({ navigation, route }: Props) {
 
   useEffect(() => { void cargar(); }, [cargar]);
 
+  // El citado primero y sus respuestas debajo, de la más vieja a la más nueva, como se lee
+  // una conversación.
+  const mensajes = useMemo(
+    () => [
+      post,
+      ...[...(respuestas ?? [])].sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      ),
+    ],
+    [post, respuestas],
+  );
+
   const enviar = async () => {
     const body = borrador.trim();
     if (!body || !userId) return;
@@ -89,7 +112,6 @@ export function StaffThreadScreen({ navigation, route }: Props) {
       });
       setBorrador('');
       envíoPendiente.current = null;
-      showToast('Tu respuesta ya está en el chat.');
     } catch (err) {
       logWarn('[Comunidad] falló enviar la respuesta del psicólogo:', err);
       showToast(
@@ -103,6 +125,22 @@ export function StaffThreadScreen({ navigation, route }: Props) {
     }
   };
 
+  // Responder a una de las respuestas abre su propia conversación: en el chat, la cita
+  // tiene que apuntar al mensaje que se contesta.
+  const abrirMenú = useCallback(
+    (mensaje: CommunityPost) => {
+      if (mensaje.id === post.id) return;
+      showDialog({
+        title: `Mensaje de ${mensaje.authorName}`,
+        actions: [
+          { label: 'Responder', onPress: () => navigation.push('StaffThread', { post: mensaje }) },
+          { label: 'Cancelar', tone: 'cancel' },
+        ],
+      });
+    },
+    [navigation, post.id, showDialog],
+  );
+
   const puedeEnviar = borrador.trim().length > 0 && !enviando;
 
   return (
@@ -115,135 +153,114 @@ export function StaffThreadScreen({ navigation, route }: Props) {
           onPress={() => navigation.goBack()}
           hitSlop={10}
           accessibilityRole="button"
-          accessibilityLabel="Volver a Comunidad"
+          accessibilityLabel="Volver al chat"
         >
           <Icon name="chevron-left" size={24} color={c.white} />
         </Touchable>
-        <Text style={styles.titulo}>Conversación</Text>
+        <View style={styles.flex}>
+          <Text style={styles.titulo} numberOfLines={1}>Responder a {post.authorName}</Text>
+          <Text style={styles.subtitulo}>Chat de la sede</Text>
+        </View>
       </View>
 
       <KeyboardAvoidingView
-        style={styles.flex}
+        style={[styles.flex, styles.fondo]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Virtualizada: un hilo activo puede tener decenas de respuestas y el composer
+        {/* Virtualizada: un mensaje activo puede tener decenas de respuestas, y el composer
             está fuera de la lista, así que el teclado no la remonta. */}
         <FlatList
-          style={styles.scroll}
+          style={styles.flex}
           contentContainerStyle={styles.contenido}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          data={respuestas ?? []}
-          keyExtractor={(r) => r.id}
-          renderItem={({ item }) => <Respuesta respuesta={item} />}
+          data={mensajes}
+          keyExtractor={(m) => m.id}
+          renderItem={({ item: m, index }) => (
+            <ChatMessage
+              post={m}
+              isOwn={m.authorId === userId}
+              enviando={false}
+              falló={false}
+              showAuthor={mensajes[index - 1]?.authorId !== m.authorId}
+              díaEncima={
+                !mensajes[index - 1] || díasDistintos(mensajes[index - 1].createdAt, m.createdAt)
+                  ? díaDelMensaje(m.createdAt)
+                  : null
+              }
+              disabled={false}
+              onResponder={() => abrirMenú(m)}
+              onReintentar={() => {}}
+              onMenuPress={() => abrirMenú(m)}
+            />
+          )}
           initialNumToRender={10}
           maxToRenderPerBatch={10}
           windowSize={9}
           removeClippedSubviews
-          ListHeaderComponent={
-            <>
-              <View style={styles.publicación}>
-                <View style={styles.autorFila}>
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarLetra}>{inicial(post.authorName)}</Text>
-                  </View>
-                  <View style={styles.flex}>
-                    <Text style={styles.autorNombre} numberOfLines={1}>{post.authorName}</Text>
-                    <Text style={styles.autorRol}>
-                      {ROLE_LABEL[post.authorRole]} · {timeAgo(post.createdAt)}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.cuerpo}>{post.body}</Text>
-              </View>
-
-              {error ? (
-                <View style={styles.errorCaja}>
-                  <Text style={styles.errorTexto}>
-                    No pudimos cargar las respuestas. Lo que ves puede estar incompleto.
-                  </Text>
-                  <Touchable style={styles.errorBoton} onPress={cargar} accessibilityRole="button">
-                    <Text style={styles.errorBotonTexto}>Reintentar</Text>
-                  </Touchable>
-                </View>
-              ) : null}
-            </>
-          }
-          ListEmptyComponent={
+          ListFooterComponent={
             respuestas === null ? (
               <ActivityIndicator size="small" color={c.primaryText} style={styles.cargando} />
-            ) : (
+            ) : error ? (
+              <View style={styles.errorCaja}>
+                <Text style={styles.errorTexto}>
+                  No pudimos cargar las respuestas. Lo que ves puede estar incompleto.
+                </Text>
+                <Touchable style={styles.errorBoton} onPress={cargar} accessibilityRole="button">
+                  <Text style={styles.errorBotonTexto}>Reintentar</Text>
+                </Touchable>
+              </View>
+            ) : respuestas.length === 0 ? (
               <Text style={styles.sinRespuestas}>
                 Todavía nadie responde. Si escribes, te lee toda la comunidad de la sede.
               </Text>
-            )
+            ) : null
           }
         />
 
-        <View style={styles.pie}>
-          <Text style={styles.avisoVisible}>
-            Respondes como {ROLE_LABEL.psychologist}: tu nombre y tu rol quedan a la vista de
-            toda la sede.
-          </Text>
-          <View style={styles.composer}>
-            <TextInput
-              style={styles.input}
-              value={borrador}
-              onChangeText={setBorrador}
-              placeholder="Escribe una respuesta…"
-              placeholderTextColor={c.fg2}
-              accessibilityLabel="Tu respuesta"
-              maxLength={LARGO_MÁXIMO}
-              multiline
-              editable={!enviando}
-            />
-            <Touchable
-              style={[styles.enviar, !puedeEnviar && styles.enviarApagado]}
-              onPress={enviar}
-              disabled={!puedeEnviar}
-              rippleColor="rgba(255,255,255,0.28)"
-              accessibilityRole="button"
-              accessibilityLabel="Enviar la respuesta"
-              accessibilityState={{ disabled: !puedeEnviar }}
-            >
-              {enviando ? (
-                <ActivityIndicator size="small" color={c.white} />
-              ) : (
-                <Icon name="send" size={18} color={c.white} />
-              )}
-            </Touchable>
-          </View>
+        <CitaEnComposer cita={citaDe(post)} />
+        <Text style={styles.avisoVisible}>
+          Respondes como {ROLE_LABEL.psychologist}: tu nombre y tu rol quedan a la vista de
+          toda la sede.
+        </Text>
+        <View style={styles.composer}>
+          <TextInput
+            style={styles.input}
+            value={borrador}
+            onChangeText={setBorrador}
+            placeholder="Escribe una respuesta…"
+            placeholderTextColor={c.fg2}
+            accessibilityLabel="Tu respuesta"
+            maxLength={LARGO_MÁXIMO}
+            multiline
+            editable={!enviando}
+          />
+          <Touchable
+            style={[styles.enviar, !puedeEnviar && styles.enviarApagado]}
+            onPress={enviar}
+            disabled={!puedeEnviar}
+            hitSlop={4}
+            rippleColor="rgba(255,255,255,0.28)"
+            accessibilityRole="button"
+            accessibilityLabel="Enviar la respuesta"
+            accessibilityState={{ disabled: !puedeEnviar, busy: enviando }}
+          >
+            {enviando ? (
+              <ActivityIndicator size="small" color={c.white} />
+            ) : (
+              <Icon name="send" size={18} color={c.white} />
+            )}
+          </Touchable>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const Respuesta = React.memo(function Respuesta({ respuesta }: { respuesta: CommunityPost }) {
-  const styles = useStyles(makeStyles);
-  return (
-    <View style={styles.respuesta}>
-      <View style={styles.respuestaHeader}>
-        <Text style={styles.respuestaNombre} numberOfLines={1}>{respuesta.authorName}</Text>
-        {esEquipoClínico(respuesta.authorRole) ? (
-          <View style={styles.chipEquipo}>
-            <Text style={styles.chipEquipoTexto}>{ROLE_LABEL[respuesta.authorRole]}</Text>
-          </View>
-        ) : null}
-        <Text style={styles.respuestaFecha}>{timeAgo(respuesta.createdAt)}</Text>
-      </View>
-      <Text style={styles.respuestaCuerpo}>{respuesta.body}</Text>
-    </View>
-  );
-});
-
-function inicial(nombre: string): string {
-  return (nombre?.trim().charAt(0) || '?').toUpperCase();
-}
-
 const makeStyles = (c: Palette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: c.bg },
+  safe: { flex: 1, backgroundColor: c.primary },
   flex: { flex: 1 },
+  fondo: { backgroundColor: c.bg },
 
   header: {
     backgroundColor: c.primary, flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -251,23 +268,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   },
   volver: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   titulo: { fontFamily: Fonts.headingBold, fontSize: 20, color: c.white, letterSpacing: -0.3 },
+  subtitulo: { fontFamily: Fonts.body, fontSize: 12, color: c.onPrimaryMuted },
 
-  scroll: { flex: 1 },
-  contenido: { padding: 16, paddingBottom: 20, gap: 12 },
-
-  publicación: {
-    backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
-    borderRadius: 16, padding: 14, gap: 10,
-  },
-  autorFila: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  avatar: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: c.teal400,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  avatarLetra: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.white },
-  autorNombre: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1 },
-  autorRol: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
-  cuerpo: { fontFamily: Fonts.body, fontSize: 15, color: c.fg1, lineHeight: 22 },
+  contenido: { paddingHorizontal: 12, paddingVertical: 12 },
 
   cargando: { paddingVertical: 20 },
   sinRespuestas: {
@@ -275,23 +278,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     textAlign: 'center', lineHeight: 20, paddingHorizontal: 16, paddingVertical: 24,
   },
 
-  respuesta: {
-    backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
-    borderRadius: 14, padding: 12, gap: 5, marginLeft: 16,
-  },
-  respuestaHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  respuestaNombre: { flexShrink: 1, fontFamily: Fonts.bodyBold, fontSize: 13, color: c.fg1 },
-  chipEquipo: {
-    backgroundColor: c.infoSurface, borderRadius: 9999,
-    paddingHorizontal: 8, paddingVertical: 2,
-  },
-  chipEquipoTexto: { fontFamily: Fonts.bodyBold, fontSize: 11, color: c.primaryText },
-  respuestaFecha: { flex: 1, textAlign: 'right', fontFamily: Fonts.body, fontSize: 11, color: c.fg2 },
-  respuestaCuerpo: { fontFamily: Fonts.body, fontSize: 14, color: c.fg1, lineHeight: 21 },
-
   errorCaja: {
     backgroundColor: c.dangerSurface, borderWidth: 1, borderColor: c.dangerBorder,
-    borderRadius: 14, padding: 13, gap: 10, alignItems: 'flex-start',
+    borderRadius: 14, padding: 13, gap: 10, alignItems: 'flex-start', marginTop: 12,
   },
   errorTexto: { fontFamily: Fonts.body, fontSize: 13, color: c.fg1, lineHeight: 19 },
   errorBoton: {
@@ -300,21 +289,24 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   },
   errorBotonTexto: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.dangerText },
 
-  pie: {
-    borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg,
-    paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12, gap: 8,
+  avisoVisible: {
+    fontFamily: Fonts.body, fontSize: 12, color: c.fg2, lineHeight: 18,
+    paddingHorizontal: 16, paddingTop: 8, backgroundColor: c.surface,
   },
-  avisoVisible: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, lineHeight: 18 },
-  composer: { flexDirection: 'row', alignItems: 'flex-end', gap: 10 },
+  // El mismo composer que el del chat del paciente.
+  composer: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
+    paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14,
+    backgroundColor: c.surface,
+  },
   input: {
-    flex: 1, minHeight: 48, maxHeight: 120,
-    backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 20,
-    paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12,
-    fontFamily: Fonts.body, fontSize: 15, color: c.fg1,
+    fontFamily: Fonts.body, flex: 1, backgroundColor: c.bg,
+    borderWidth: 1, borderColor: c.border, borderRadius: 24,
+    paddingHorizontal: 16, paddingVertical: 11, fontSize: 14, color: c.ink900, maxHeight: 110,
   },
   enviar: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: c.primary,
+    width: 44, height: 44, borderRadius: 22, backgroundColor: c.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  enviarApagado: { opacity: 0.45 },
+  enviarApagado: { backgroundColor: c.border },
 });
