@@ -9,6 +9,7 @@
     "seed:family": "pnpm --filter @stopbet/backend run seed:family",
     "seed:fichas": "pnpm --filter @stopbet/backend run seed:fichas",
     "seed:demo": "pnpm --filter @stopbet/backend run seed:demo",
+    "demo:padrino": "pnpm --filter @stopbet/backend run demo:padrino --",
     "build:web": "pnpm --filter @stopbet/web build",
     "build:backend": "pnpm --filter @stopbet/backend build",
     "test": "pnpm --filter @stopbet/backend test",
