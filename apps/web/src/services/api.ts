@@ -94,7 +94,7 @@ async function request(
   const isAuthRoute = path.startsWith('/auth/')
 
   // Sin refresh token el 401 se ignoraba y la sesión nunca se daba por caída: el dashboard
-  // se quedaba abierto mostrando ceros —"0 pacientes", "0 alertas hoy"— que en una
+  // se quedaba abierto mostrando ceros - "0 pacientes", "0 alertas hoy" - que en una
   // plataforma clínica se leen como "nadie está en crisis", no como "no tienes sesión".
   if (res.status === 401 && !isAuthRoute) {
     if (refreshToken && (await refreshOnce())) {
@@ -141,6 +141,23 @@ async function patch<T>(path: string, headers?: Record<string, string>, body?: u
   return (text ? JSON.parse(text) : undefined) as T
 }
 
+// PUT conserva el cuerpo del error, al revés que get/post, porque la ficha clínica necesita
+// saber QUÉ campo rechazó el backend para resaltarlo (HdU13 CA3). `failed()` solo guarda el
+// status, y con eso no se puede pintar un campo.
+async function put<T>(path: string, body: unknown): Promise<T> {
+  const res = await request(path, { method: 'PUT', body: JSON.stringify(body) })
+  if (!res.ok) {
+    const text = await res.text()
+    const err = new Error(`PUT ${path} → ${res.status}`) as ApiError
+    err.status = res.status
+    err.body = text ? JSON.parse(text) : undefined
+    throw err
+  }
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
 async function post<T>(path: string, headers?: Record<string, string>, body?: unknown): Promise<T> {
   const res = await request(
     path,
@@ -166,6 +183,9 @@ export interface AuthUser {
   firstName: string
   lastName: string
   sedeId: string | null
+  // Institución cliente (hoy solo 'AJUTER'). Las sesiones guardadas antes de que existiera
+  // no la traen hasta volver a iniciar sesión.
+  institutionId?: string | null
 }
 
 export interface LoginResponse {
@@ -250,6 +270,24 @@ export interface PatientsBySede {
   count: number
 }
 
+// Espeja `BillingStatus` de @stopbet/shared-types; la web declara sus tipos aparte
+// (ver la nota de arriba). Solo los campos que usa el reporte.
+export interface BillingInvoice {
+  month: string
+  amountCLP: number
+  dueDate: string
+}
+
+export interface BillingStatus {
+  accountStatus: 'active' | 'suspended' | 'pending'
+  overdueInvoices: BillingInvoice[]
+  totalOwedCLP: number
+  overdueMonths: number
+  firstOverdueDate: string | null
+  daysOverdue: number
+  nextPaymentDate: string | null
+}
+
 export interface PsychologistListItem {
   id: string
   firstName: string
@@ -279,6 +317,102 @@ export interface CreatePsychologistResponse {
   credentialsEmailSent: boolean
 }
 
+// ── Registro público del familiar (HDU 22) ──────────────────────────────────
+
+export interface RegisterFamilyPayload {
+  firstName: string
+  lastName: string
+  rut: string
+  email: string
+  password: string
+  phone?: string
+  patientRut: string
+}
+
+// Misma forma exista o no el paciente declarado (CA2 de HDU 22): la respuesta
+// nunca delata si hubo coincidencia.
+export interface RegisterFamilyResponse {
+  userId: string
+  status: 'pending'
+}
+
+// ── Ficha clínica (HdU13) ─────────────────────────────────────────────────────
+// Espeja los tipos de @stopbet/shared-types. Se redeclaran acá porque apps/web todavía no
+// depende de ese paquete (misma deuda que AuthUser más arriba).
+
+export const CLINICAL_FIELDS = [
+  'admissionReason',
+  'gamblingHistory',
+  'triggers',
+  'healthAndSupport',
+  'treatmentGoals',
+] as const
+
+export type ClinicalField = (typeof CLINICAL_FIELDS)[number]
+export type ClinicalContent = Record<ClinicalField, string>
+
+export interface ClinicalRecord extends ClinicalContent {
+  id: string
+  patientId: string
+  updatedBy: string
+  updatedByName: string
+  updatedAt: string
+  createdAt: string
+}
+
+export interface ClinicalRecordView {
+  exists: boolean
+  record: ClinicalRecord | null
+  content: ClinicalContent
+}
+
+export interface IntakeAnswers {
+  motive: string | null
+  motiveOther: string | null
+  gamblingTypes: string[]
+  gamblingTypesOther: string | null
+  duration: string | null
+  triggers: string[]
+  triggersOther: string | null
+}
+
+export interface IntakeView {
+  answered: boolean
+  submittedAt: string | null
+  answers: IntakeAnswers | null
+}
+
+export interface ClinicalNote {
+  id: string
+  patientId: string
+  authorId: string
+  authorName: string
+  content: string
+  createdAt: string
+}
+
+export interface ClinicalRecordStatus {
+  patientId: string
+  updatedAt: string
+  updatedByName: string
+}
+
+export interface ClinicalFieldChange {
+  field: ClinicalField
+  before: string
+  after: string
+}
+
+export interface ClinicalRecordVersion {
+  id: string
+  recordId: string
+  versionNumber: number
+  changedBy: string
+  changedByName: string
+  changedAt: string
+  changedFields: ClinicalFieldChange[]
+}
+
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
@@ -302,7 +436,7 @@ export const api = {
   getSedes:           () => get<Sede[]>('/sedes'),
 
   // Ya no mandan `x-user-id`: ambos endpoints tienen guard y el backend saca al revisor del
-  // token. `assignedPsychologistId` es opcional — sin él queda asignado quien aprueba.
+  // token. `assignedPsychologistId` es opcional. Sin él queda asignado quien aprueba.
   approveRequest: (requestId: string, assignedPsychologistId?: string) =>
     patch<void>(
       `/registration/${requestId}/approve`,
@@ -313,21 +447,56 @@ export const api = {
   rejectRequest: (requestId: string) =>
     patch<void>(`/registration/${requestId}/reject`),
 
+  // El equipo clínico registra la recaída con su propio token. Antes mandaba el id del
+  // paciente en x-user-id, haciéndose pasar por él; el backend ya no lee ese header.
   reportRelapse: (patientId: string) =>
-    post<void>('/achievements/relapse', { 'x-user-id': patientId }),
+    post<void>(`/achievements/patients/${patientId}/relapse`),
 
-  getFlaggedPosts: (psychId: string) =>
-    get<FlaggedPost[]>('/community/moderation/flagged', { 'x-user-id': psychId }),
+  getFlaggedPosts: () =>
+    get<FlaggedPost[]>('/community/moderation/flagged'),
 
-  deletePost: (postId: string, psychId: string) =>
-    del<{ deleted: boolean }>(`/community/posts/${postId}`, { 'x-user-id': psychId }),
+  deletePost: (postId: string) =>
+    del<{ deleted: boolean }>(`/community/posts/${postId}`),
+
+  // Deja la publicación en la comunidad y la saca de la cola de moderación de todo el equipo
+  dismissReports: (postId: string) =>
+    post<{ dismissed: number }>(`/community/moderation/posts/${postId}/dismiss`),
 
   getPatientMetrics: (patientId: string) =>
     get<PatientMetrics>(`/metrics/patients/${patientId}`),
 
+  // Estado de cuotas de un paciente, para el reporte PDF. El backend exige rol de equipo
+  // clínico y que el paciente esté asignado a quien pregunta (o que sea coordinación).
+  getPatientBilling: (patientId: string) =>
+    get<BillingStatus>(`/billing/patients/${patientId}/status`),
+
   // ── Portal del familiar (HU-11) ─────────────────────────────────────────────
 
+  getClinicalRecordStatus: () =>
+    get<ClinicalRecordStatus[]>('/clinical-records/status'),
+
+  getClinicalRecord: (patientId: string) =>
+    get<ClinicalRecordView>(`/clinical-records/patients/${patientId}`),
+
+  saveClinicalRecord: (patientId: string, content: ClinicalContent) =>
+    put<ClinicalRecord>(`/clinical-records/patients/${patientId}`, content),
+
+  getPatientIntake: (patientId: string) =>
+    get<IntakeView>(`/clinical-records/patients/${patientId}/intake`),
+
+  getClinicalNotes: (patientId: string) =>
+    get<ClinicalNote[]>(`/clinical-records/patients/${patientId}/notes`),
+
+  addClinicalNote: (patientId: string, content: string) =>
+    post<ClinicalNote>(`/clinical-records/patients/${patientId}/notes`, undefined, { content }),
+
+  getClinicalRecordHistory: (patientId: string) =>
+    get<ClinicalRecordVersion[]>(`/clinical-records/patients/${patientId}/history`),
+
   getFamilySessions: () => get<FamilySessionsResponse>('/family/sessions'),
+
+  // Solo lectura: todavía no hay pasarela, así que el portal muestra qué pagar pero no cobra.
+  getFamilyBilling: () => get<FamilyBilling>('/family/billing'),
 
   confirmAttendance: (sessionId: string, confirmed: boolean) =>
     post<SessionAttendance>(`/family/sessions/${sessionId}/attendance`, undefined, { confirmed }),
@@ -353,6 +522,11 @@ export const api = {
   // por qué atender todas las sedes del psicólogo que se da de baja.
   deactivatePsychologistBySede: (id: string, reassignments: Record<string, string>) =>
     patchWithAuth<void>(`/psychologists/${id}/deactivate`, { reassignments }),
+
+  // Sin sesión — @Public() en el backend. Usa postPublicWithError, no post(), porque
+  // necesita el cuerpo del error 409 (correo/RUT duplicado) que failed() descarta.
+  registerFamily: (payload: RegisterFamilyPayload) =>
+    postPublicWithError<RegisterFamilyResponse>('/family/register', payload),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────
@@ -408,8 +582,8 @@ export interface SedeFamilySession {
 }
 
 // ── Auth Bearer para /psychologists ─────────────────────────────────────────────
-// Estas llamadas arman su propio fetch —necesitan el cuerpo del error de Nest, que
-// failed() descarta— y por eso no pasan por buildHeaders(): tienen que poner el Bearer
+// Estas llamadas arman su propio fetch - necesitan el cuerpo del error de Nest, que
+// failed() descarta - y por eso no pasan por buildHeaders(): tienen que poner el Bearer
 // a mano. Sale de `session`, la misma fuente que usa el resto del cliente; leerlo de
 // otra clave dejaba las mutaciones sin Authorization y el backend respondía 401 siempre.
 function authHeaders(): Record<string, string> {
@@ -419,7 +593,7 @@ function authHeaders(): Record<string, string> {
 
 export interface ApiError extends Error {
   status: number
-  // Cuerpo JSON del error de Nest — trae `message`, y en los 409 de /psychologists
+  // Cuerpo JSON del error de Nest. Trae `message`, y en los 409 de /psychologists
   // también `patientIds` / `sedeId` (ver PsychologistsService)
   body: { message?: string; [key: string]: unknown } | undefined
 }
@@ -444,3 +618,62 @@ async function requestWithAuth<T>(method: 'POST' | 'PATCH', path: string, body: 
 
 const postWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('POST', path, body)
 const patchWithAuth = <T,>(path: string, body: unknown) => requestWithAuth<T>('PATCH', path, body)
+
+// Mismo trato que requestWithAuth (necesita el cuerpo del error de Nest), sin el header
+// de autorización: el registro del familiar no tiene sesión todavía.
+async function postPublicWithError<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text()
+    const err = new Error(`POST ${path} → ${res.status}`) as ApiError
+    err.status = res.status
+    err.body = text ? JSON.parse(text) : undefined
+    throw err
+  }
+  if (res.status === 204) return undefined as unknown as T
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
+// Shape real de GET /family/billing (family.service.ts → getBillingForFamily)
+export interface FamilyInvoice {
+  month: string
+  amountCLP: number
+  dueDate: string
+}
+
+export interface FamilyBilling {
+  linkStatus: FamilyLinkState
+  patientFirstName: string | null
+  accountStatus: 'active' | 'suspended' | null
+  overdueInvoices: FamilyInvoice[]
+  totalOwedCLP: number
+  nextInvoice: FamilyInvoice | null
+}
+
+// ── HdU20: compañero de viaje (asignación desde el perfil del paciente) ──
+// Van sueltas y no dentro del objeto `api` porque este archivo es compartido y la regla
+// del proyecto es agregar solo al final, sin editar lo que ya está.
+
+export interface SponsorCandidate {
+  id: string
+  firstName: string
+  lastName: string
+  sedeId: string | null
+}
+
+/** CA20.4: quién acompaña hoy al paciente, o `null` si no tiene a nadie. */
+export const getCurrentSponsor = (patientId: string) =>
+  get<SponsorCandidate | null>(`/sponsors/current?patientId=${patientId}`)
+
+/** CA20.2: designados y activos en la sede del paciente, sin el paciente mismo. */
+export const getAvailableSponsors = (patientId: string) =>
+  get<SponsorCandidate[]>(`/sponsors/available?patientId=${patientId}`)
+
+/** CA20.1 y CA20.3: vincula y avisa a ambos; si ya había uno, lo reemplaza. */
+export const assignSponsor = (patientId: string, sponsorId: string) =>
+  post<void>('/sponsors/assign', undefined, { patientId, sponsorId })

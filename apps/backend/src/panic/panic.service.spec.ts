@@ -10,6 +10,7 @@ describe('PanicService', () => {
   let userRepo: { findOne: jest.Mock };
   let notificationRepo: { save: jest.Mock; create: jest.Mock };
   let communityService: { createPanicAlertPost: jest.Mock };
+  let sponsorService: { assign: jest.Mock };
 
   beforeAll(() => {
     jest.useFakeTimers();
@@ -37,6 +38,7 @@ describe('PanicService', () => {
     userRepo = { findOne: jest.fn() };
     notificationRepo = { save: jest.fn((v) => Promise.resolve(v)), create: jest.fn((v) => v) };
     communityService = { createPanicAlertPost: jest.fn().mockResolvedValue(undefined) };
+    sponsorService = { assign: jest.fn().mockResolvedValue(undefined) };
 
     service = new PanicService(
       assignmentRepo as any,
@@ -44,6 +46,7 @@ describe('PanicService', () => {
       userRepo as any,
       notificationRepo as any,
       communityService as any,
+      sponsorService as any,
     );
   });
 
@@ -288,16 +291,15 @@ describe('PanicService', () => {
       });
     });
 
-    it('assignSponsor: desactiva la asignación anterior y crea la nueva activa', async () => {
+    // La escritura se movió a SponsorDesignationService (HU-20) para que exista una
+    // sola forma de asignar, con las validaciones del CA20.2. Lo que se desactiva y
+    // lo que se crea está probado en `sponsor-designation.service.spec.ts`; acá solo
+    // queda verificar que la ruta vieja siga entrando por ahí.
+    it('assignSponsor: delega en el servicio de compañeros de viaje', async () => {
       await service.assignSponsor({ patientId: 'p1', sponsorId: 's2' } as any);
 
-      expect(assignmentRepo.update).toHaveBeenCalledWith(
-        { patientId: 'p1', isActive: true },
-        { isActive: false },
-      );
-      expect(assignmentRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ patientId: 'p1', sponsorId: 's2', isActive: true }),
-      );
+      expect(sponsorService.assign).toHaveBeenCalledWith('p1', 's2');
+      expect(assignmentRepo.save).not.toHaveBeenCalled();
     });
 
     it('listHistory: mapea el historial con datos del paciente', async () => {

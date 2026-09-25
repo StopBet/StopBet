@@ -12,8 +12,10 @@ import { FamilyService } from './family.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
+import { RegisterFamilyDto } from './dto/register-family.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AuthUser } from '@stopbet/shared-types';
@@ -23,6 +25,16 @@ import { AuthUser } from '@stopbet/shared-types';
 @Controller('family')
 export class FamilyController {
   constructor(private readonly familyService: FamilyService) {}
+
+  // Público: quien se registra todavía no tiene cuenta (HDU 22).
+  @Public()
+  @Post('register')
+  @ApiOperation({ summary: 'Registra la cuenta de un familiar declarando el RUT del paciente' })
+  @ApiResponse({ status: 201, description: 'RegisterFamilyResponse — misma respuesta exista o no el paciente' })
+  @ApiResponse({ status: 409, description: 'Ya existe una cuenta con ese correo o RUT' })
+  register(@Body() dto: RegisterFamilyDto) {
+    return this.familyService.registerFamily(dto);
+  }
 
   // ── Vínculo ───────────────────────────────────────────────────────────────
 
@@ -40,6 +52,21 @@ export class FamilyController {
   @ApiResponse({ status: 200, description: 'active | pending | unlinked' })
   getLinkStatus(@CurrentUser() user: AuthUser) {
     return this.familyService.getLinkStatus(user.id);
+  }
+
+  // ── Mensualidad ───────────────────────────────────────────────────────────
+
+  @Get('billing')
+  @Roles('family')
+  @ApiOperation({ summary: 'Cuotas del paciente vinculado, para que el familiar las pague' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'linkStatus, nombre de pila del paciente, cuotas vencidas con su total y la próxima ' +
+      'cuota pendiente. Sin vínculo activo no trae cuotas.',
+  })
+  getBilling(@CurrentUser() user: AuthUser) {
+    return this.familyService.getBillingForFamily(user.id);
   }
 
   // ── Sesiones ──────────────────────────────────────────────────────────────

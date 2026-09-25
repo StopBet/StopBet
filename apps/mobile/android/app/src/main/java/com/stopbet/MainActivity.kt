@@ -10,7 +10,8 @@ class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     setTheme(R.style.AppTheme)
-    super.onCreate(savedInstanceState)
+    // null: react-native-screens no restaura fragments y la app se caía al cambiar la letra o restaurar el proceso
+    super.onCreate(null)
   }
 
   override fun getMainComponentName(): String = "StopBet"

@@ -8,11 +8,13 @@ import { RefreshToken } from './entities/refresh-token.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { DemoModule } from '../demo/demo.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, RefreshToken]),
     PassportModule,
+    DemoModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

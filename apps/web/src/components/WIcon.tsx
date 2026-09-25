@@ -3,9 +3,10 @@ import {
   Activity, AlertTriangle, ArrowRight, BarChart2, Bell, Calendar,
   Camera, Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert,
   CircleCheck, ClipboardList, Clock, Download, Flag, Hand, HeartHandshake,
-  Home, Inbox, LifeBuoy, MapPin, Menu, MessageCircle, MoreHorizontal,
+  Home, Inbox, LifeBuoy, Loader2, LogOut, MapPin, Menu, MessageCircle, MoreHorizontal,
   NotebookPen, Search, Send, Settings, Shield, Sparkles, Target,
   Trash2, TrendingUp, Trophy, Users, UserRound, UserPlus, Wallet, X,
+  CreditCard, Landmark,
   type LucideProps,
 } from 'lucide-react'
 import type { FC } from 'react'
@@ -32,6 +33,8 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'house':          Home,
   'inbox':          Inbox,
   'life-buoy':      LifeBuoy,
+  'loader':         Loader2,
+  'log-out':        LogOut,
   'map-pin':        MapPin,
   'message-circle': MessageCircle,
   'menu':           Menu,
@@ -52,6 +55,8 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'user-plus':      UserPlus,
   'wallet':         Wallet,
   'x':              X,
+  'credit-card':    CreditCard,
+  'landmark':       Landmark,
 }
 
 interface WIconProps {

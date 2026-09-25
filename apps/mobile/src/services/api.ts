@@ -1,4 +1,5 @@
 import type {
+  LoginResponse,
   ActiveAlertResponse,
   AchievementsData,
   RelapseResponse,
@@ -7,12 +8,10 @@ import type {
   BillingStatus,
   CheckIn,
   CommunityPost,
-  CommunityReply,
   EmotionType,
   Notification,
   PaginatedResponse,
   PanicAlertDto,
-  PatientProgress,
   PaymentMethod,
   ReactionEmoji,
   ReactionSummary,
@@ -20,10 +19,13 @@ import type {
   SendMessageResponse,
   SponsorInfo,
   StartSessionResponse,
+  IntakeAnswers,
   SubmitRegistrationResponse,
 } from '@stopbet/shared-types';
 
 import { devFlags } from '../store/devFlags';
+import { session } from './session';
+import { singleFlight } from './singleFlight';
 
 // ── Detección de recaída externa (psicólogo desde dashboard) ─────────────────
 let _lastAttemptNumber: number | null = null;
@@ -40,33 +42,94 @@ export function suppressNextExternalRelapseDetection(): void {
   _suppressExternalDetection = true;
 }
 
+/**
+ * El número de intento recordado es de un paciente concreto. Al cambiar de cuenta, el de
+ * la nueva casi nunca coincide con el de la anterior y la app le anunciaba a quien recién
+ * entraba: "tu psicólogo registró una recaída en tu historial". En una app clínica ese
+ * aviso falso no es un detalle.
+ */
+export function resetRelapseDetection(): void {
+  _lastAttemptNumber = null;
+  _pendingExternalRelapse = false;
+  _suppressExternalDetection = false;
+}
+
 // En debug el teléfono alcanza el backend del PC por `adb reverse tcp:3000 tcp:3000`.
 // En release no hay túnel: el APK que se instala fuera del computador de alguien
 // del equipo tiene que ir contra el backend desplegado o no llega a nada.
-const BASE_URL = __DEV__
+export const BASE_URL = __DEV__
   ? 'http://localhost:3000'
   : 'https://stopbetbackend-production.up.railway.app';
 
 const REQUEST_TIMEOUT_MS = 25000;
 
+// El access token dura 15 min. Ante un 401 se rota una vez con el refresh token; si eso
+// falla, se limpia la sesión y la app vuelve al login.
+async function tryRefresh(): Promise<boolean> {
+  const token = session.getRefreshToken();
+  if (!token) return false;
+  try {
+    const res = await fetch(`${BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: token }),
+    });
+    if (!res.ok) return false;
+    await session.save((await res.json()) as LoginResponse);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const refreshOnce = singleFlight(tryRefresh);
+
+/**
+ * Renueva el access token, una sola vez aunque lo pidan varios a la vez. Lo usa el stream
+ * de la comunidad, que vive fuera de `request()` y también se cae cuando el token vence.
+ */
+export const refrescarSesión = refreshOnce;
+
+/**
+ * `options.userId` **ya no se manda**: el backend dejó de leer `x-user-id` el 16-09 y la
+ * identidad sale del token (`@UserId()`). Se acepta todavía porque medio centenar de
+ * llamadas lo pasan; sacarlo de todas ellas es una limpieza aparte, no de rendimiento.
+ */
 async function request<T>(
   path: string,
   options?: RequestInit & { userId?: string },
 ): Promise<T> {
   if (devFlags.simulateOffline) throw new Error('Network request failed');
-  const { userId, ...fetchOpts } = options ?? {};
+  const { userId: _ignorado, ...fetchOpts } = options ?? {};
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const res = await fetch(`${BASE_URL}${path}`, {
-      ...fetchOpts,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(userId ? { 'x-user-id': userId } : {}),
-        ...fetchOpts.headers,
-      },
-    });
+    const enviar = () => {
+      const token = session.getAccessToken();
+      return fetch(`${BASE_URL}${path}`, {
+        ...fetchOpts,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...fetchOpts.headers,
+        },
+      });
+    };
+
+    let res = await enviar();
+
+    // Las rutas de /auth quedan fuera del reintento: un 401 ahí significa "credenciales
+    // incorrectas", no "token vencido".
+    if (res.status === 401 && !path.startsWith('/auth/')) {
+      if (await refreshOnce()) {
+        res = await enviar();
+      } else {
+        await session.clear();
+        session.notifyExpired();
+      }
+    }
+
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`${res.status} ${body}`);
@@ -80,12 +143,98 @@ async function request<T>(
   }
 }
 
+// ── Tipos de la vista del equipo clínico ─────────────────────────────────────
+// Se declaran acá y no en `@stopbet/shared-types` por la misma razón que en el dashboard
+// web, que ya los tiene locales: tocar el paquete compartido obliga a todo el equipo a
+// recompilarlo después de pullear. Si algún día se mueven, se mueven los dos juntos.
+
+export interface StaffPatient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  sedeId: string | null;
+  daysStreak: number;
+  accountStatus: string;
+  onboardingStatus: string | null;
+  lastCheckIn: { emotion: string; date: string } | null;
+  recentCheckIns: { emotion: string; date: string }[];
+  createdAt: string;
+}
+
+export type PanicStatus = 'pending' | 'responded' | 'escalated' | 'cancelled';
+
+export interface StaffAlert {
+  id: string;
+  patientId: string;
+  patientName: string;
+  sedeId: string | null;
+  status: PanicStatus;
+  communityNotified: boolean;
+  createdAt: string;
+  respondedAt: string | null;
+  escalatedAt: string | null;
+  cancelledAt: string | null;
+}
+
+export interface StaffPendingRequest {
+  id: string;
+  userId: string;
+  sedeId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface FlaggedPost {
+  id: string;
+  authorId: string;
+  authorName: string | null;
+  type: string;
+  sede: string;
+  body: string | null;
+  reportCount: number;
+  replyCount: number;
+  createdAt: string;
+}
+
+export interface StaffProfile {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  accountStatus: string;
+  sedes: Sede[];
+  patientCount: number;
+  patientsBySede: { sedeId: string; sedeName: string; count: number }[];
+}
+
 export const api = {
-  // ── Progreso del paciente ────────────────────────────────────────────
-  getProgress: async (userId: string) => {
-    const data = await request<PatientProgress>(`/users/${userId}/progress`, { userId });
-    const override = devFlags.overrideDays;
-    return override !== null ? { ...data, daysStreak: override } : data;
+  // ── Sesión ───────────────────────────────────────────────────────────
+  login: async (email: string, password: string): Promise<LoginResponse> => {
+    const data = await request<LoginResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+    await session.save(data);
+    return data;
+  },
+
+  logout: async (): Promise<void> => {
+    const refreshToken = session.getRefreshToken();
+    try {
+      if (refreshToken) {
+        await request<void>('/auth/logout', {
+          method: 'POST',
+          body: JSON.stringify({ refreshToken }),
+        });
+      }
+    } catch {
+      // Si el servidor no responde igual se cierra la sesión local: dejar al paciente
+      // dentro de una cuenta que quiso cerrar es peor que un token sin revocar.
+    } finally {
+      await session.clear();
+    }
   },
 
   // ── Check-in emocional ───────────────────────────────────────────────
@@ -105,6 +254,9 @@ export const api = {
   // ── Notificaciones ───────────────────────────────────────────────────
   getNotifications: (userId: string) =>
     request<Notification[]>('/notifications', { userId }),
+
+  markAllNotificationsRead: (userId: string) =>
+    request<void>('/notifications/read-all', { userId, method: 'PATCH' }),
 
   markNotificationRead: (userId: string, notificationId: string) =>
     request<void>(`/notifications/${notificationId}/read`, {
@@ -127,6 +279,7 @@ export const api = {
     referralSource?: string;
     sedeId: string;
     institutionId: string;
+    intake?: IntakeAnswers;
   }) =>
     request<SubmitRegistrationResponse>('/registration/submit', {
       method: 'POST',
@@ -309,11 +462,17 @@ export const api = {
   // `clientRequestId` se conserva entre reintentos: si la respuesta se pierde de
   // vuelta y el paciente vuelve a enviar, el backend devuelve el post ya creado en
   // vez de publicarlo dos veces.
-  createForumPost: (userId: string, sede: string, body: string, clientRequestId?: string) =>
+  createForumPost: (
+    userId: string,
+    sede: string,
+    body: string,
+    clientRequestId?: string,
+    replyToId?: string,
+  ) =>
     request<CommunityPost>('/community/posts', {
       userId,
       method: 'POST',
-      body: JSON.stringify({ sede, body, clientRequestId }),
+      body: JSON.stringify({ sede, body, clientRequestId, replyToId }),
     }),
 
   addReaction: (userId: string, postId: string, emoji: ReactionEmoji) =>
@@ -329,11 +488,12 @@ export const api = {
       { userId, method: 'DELETE' },
     ),
 
+  /** Los mensajes que citan a este. Desde que el foro es plano, son mensajes como cualquier otro. */
   getReplies: (userId: string, postId: string) =>
-    request<CommunityReply[]>(`/community/posts/${postId}/replies`, { userId }),
+    request<CommunityPost[]>(`/community/posts/${postId}/replies`, { userId }),
 
   createReply: (userId: string, postId: string, body: string, clientRequestId?: string) =>
-    request<CommunityReply>(`/community/posts/${postId}/replies`, {
+    request<CommunityPost>(`/community/posts/${postId}/replies`, {
       userId,
       method: 'POST',
       body: JSON.stringify({ body, clientRequestId }),
@@ -367,4 +527,34 @@ export const api = {
 
   unmuteCommunity: (userId: string) =>
     request<{ muted: boolean }>('/notifications/community-mute', { userId, method: 'DELETE' }),
+
+  // ── Vista del equipo clínico ─────────────────────────────────────────
+  // Estos cinco endpoints ya exigen `Authorization: Bearer` y rol en el backend, así que
+  // no se les manda `x-user-id`: el servidor saca quién pregunta del token.
+
+  getStaffProfile: (psychologistId: string) =>
+    request<StaffProfile>(`/psychologists/${psychologistId}`),
+
+  getStaffPatients: () => request<StaffPatient[]>('/users/patients'),
+
+  getStaffAlerts: () => request<StaffAlert[]>('/panic/alerts/history'),
+
+  getStaffPendingRequests: () =>
+    request<StaffPendingRequest[]>('/registration/pending'),
+
+  getFlaggedPosts: (sede?: string) =>
+    request<FlaggedPost[]>(
+      `/community/moderation/flagged${sede ? `?sede=${encodeURIComponent(sede)}` : ''}`,
+    ),
+
+  createAnnouncement: (data: {
+    sede: string;
+    body: string;
+    title?: string;
+    eventDate?: string;
+  }) =>
+    request<CommunityPost>('/community/announcements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };

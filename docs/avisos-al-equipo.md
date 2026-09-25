@@ -20,42 +20,1478 @@ está.
 
 ---
 
-## 2026-09-25 — La insignia nueva ahora llega como push, y hay que recompilar el APK (rama `feature/HU-03-notificacion-logros`)
+## 2026-09-25 - La insignia nueva avisa por push, aunque la app esté cerrada (PR #129)
 
-**A quién le pega:** a todos los que corran la app en un teléfono. También a **Matías
-Barraza** y a quien toque `panic`: el canal `panic_alerts` recién ahora existe de verdad
-en el dispositivo.
+**A quién le pega:** a quien pruebe Logros o toque `achievements`. **No hay que recompilar
+nada ni instalar dependencias**: es solo backend.
 
-**Qué hacer:** recompilar el APK después de pullear. Es código nativo (`MainApplication.kt`),
-así que recargar Metro no alcanza:
+**Qué cambió:** al ganar una insignia, el paciente recibe un push y la notificación le queda
+en la campana (`target: 'achievements'`, así que tocarla abre Logros).
+
+**Por qué te puede parecer un bug:** el aviso **no sale en el instante** en que se cumple el
+hito. Las insignias se otorgaban solo al entrar a la pantalla de Logros, y el CA1 de HdU3 pide
+que la felicitación llegue con la app cerrada, así que ahora hay una pasada diaria a las
+**09:00 de Chile** (`BadgeNotifierService`). Si cruzas un hito a las 10:00, la insignia
+aparece igual apenas abres Logros -el otorgamiento sigue estando ahí-, pero el push de esa
+tanda ya pasó.
+
+Dos detalles que conviene no "arreglar" sin leer el porqué:
+
+- **Registrar una recaída no felicita.** Al cerrar el período se otorgan los hitos que el
+  paciente alcanzó antes de recaer, y mandar "¡felicitaciones!" ahí es lo último que
+  corresponde. Vale también para el psicólogo que la registra desde la ficha.
+- **Varios hitos juntos avisan una sola vez**, por el más alto. Pasa al recuperar días
+  atrasados, y encadenar cinco notificaciones convierte la felicitación en ruido.
+
+**Cómo probarlo** (el endpoint de dev quedó detrás de `ENABLE_DEV_TOOLS` en el PR #108, y la
+API ya no lee `x-user-id`):
 
 ```bash
-pnpm run android:device     # o el flujo de tu sistema, ver apps/mobile/README.md
+# en apps/backend/.env
+ENABLE_DEV_TOOLS=true
+
+TOKEN=$(curl -s -X POST localhost:3000/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"<paciente del seed>","password":"Stopbet2026!"}' | jq -r .accessToken)
+
+curl -X POST localhost:3000/achievements/dev-set-days \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"days":7}'
 ```
 
-No hay variables de entorno nuevas ni dependencias nuevas.
+En local, sin `FIREBASE_SERVICE_ACCOUNT_PATH`, el backend arranca igual y el envío queda
+desactivado (`Firebase sin configurar` en el log): la notificación **sí** se guarda y se ve en
+la campana, pero no llega al teléfono. Para verla llegar hay que apuntar a Railway o levantar
+el backend con las credenciales.
 
-**Por qué:** HDU3 CA1 pide que el paciente reciba la felicitación por su insignia
-**aunque la app esté cerrada**. Dos cosas lo impedían.
+---
 
-La primera: la insignia se otorgaba dentro de `getAchievements()`, o sea al entrar a
-Logros. Con la app cerrada no nacía, así que no había qué notificar. Ahora hay una pasada
-diaria a las 09:00 de Chile (`BadgeNotifierService`) y el otorgamiento quedó centralizado
-en un solo método: la fila de `earned_badges` es el punto de deduplicación, así que el
-aviso sale una vez, lo gane el cron o la pantalla.
+## 2026-09-25 - El psicólogo ve el chat igual que el paciente: la burbuja salió de `CommunityScreen`
 
-La segunda, y es la que te obliga a recompilar: **la app nunca creó los canales de
-notificación que el backend viene usando desde el recordatorio de check-in**. Cuando el
-`channelId` no existe, FCM no falla — entrega por su canal de respaldo, de importancia
-media, y la notificación queda en la barra sin aviso flotante. Por eso el recordatorio de
-las 20:00 se veía más apagado de lo que decía el código. Con el APK nuevo ambos canales
-existen con importancia alta.
+**A quién le pega:** a **Catalina Yáñez** (Comunidad) y a quien toque el chat en mobile.
 
-**Ojo con probarlo:** el push necesita Firebase configurado. En local, sin
-`FIREBASE_SERVICE_ACCOUNT_PATH`, el backend arranca igual y el envío queda desactivado
-(`Firebase sin configurar` en el log) — la notificación **sí** se guarda y se ve dentro de
-la app, pero no llega al teléfono. Para probar el CA1 de punta a punta: matar la app y
-llamar a `POST /achievements/dev-set-days` con `{"days": 7}`.
+**Qué hacer después de pullear:** nada. Basta recargar Metro.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **La burbuja del chat ya no vive en `CommunityScreen.tsx`.** `PostCard` pasó a
+  `components/ChatMessage.tsx` como `ChatMessage`, con sus estilos y las funciones de hora y
+  día (`horaDelMensaje`, `díaDelMensaje`, `díasDistintos`), `REACTION_ICON_MAP`,
+  `REACTION_NAME` y la cita sobre el composer (`CitaEnComposer`, `citaDe`). Se movió tal
+  cual: el paciente ve exactamente lo mismo. **Si cambias cómo se ve un mensaje, es ahí**, y
+  el cambio lo ven las dos apps.
+- **La pestaña Chat del psicólogo usa esas burbujas**: hora exacta, separador de día,
+  mensajes seguidos pegados, citas, tarjeta de logro, mensajes que llegan en vivo y más
+  antiguos al subir. Antes eran tarjetas de foro con «hace 3 h» y «N respuestas».
+- **Se responde como en WhatsApp**: toque largo o «···» → *Responder*. Abre la pantalla del
+  stack `StaffThread`, ahora también con burbujas y la barra «Respondiendo a…». Sigue siendo
+  una pantalla aparte por el pager y el teclado. El equipo clínico todavía no reacciona:
+  ve los chips, pero no los puede tocar (`onReact` es opcional en `ChatMessage`).
+
+---
+
+## 2026-09-25 - El backend mantiene solo las sesiones familiares de la demo
+
+**A quién le pega:** a quien presente el portal del familiar o la página *Sesiones de
+familiares*, y a quien toque `family` o `demo`.
+
+**Qué hacer después de pullear:** nada. Si quieres las 3 sesiones nuevas en tu base local,
+`pnpm run seed:family`.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Al arrancar y cada día a las 05:00 (hora de Chile), el backend deja sesiones familiares
+  próximas en la sede de Carlos Demo**: crea las que falten y mueve hacia adelante las que ya
+  pasaron. La base de Railway se sembró una sola vez el 01-09 y las fechas del seed caducaban,
+  así que el portal se iba quedando vacío. **Si ves que una sesión cambió de fecha sola, es
+  esto.** Las vigentes no se tocan.
+- Ahora son **9 sesiones de demo**: 7 próximas en la sede de Carlos dentro de las 4 semanas,
+  la pasada (que no debe aparecer) y la lejana de la otra sede (CA 11.5). Las nuevas son dos
+  charlas y un grupo de apoyo.
+- **Viene encendido**, al revés que las otras herramientas de la demo, y se apaga con
+  `DEMO_SESIONES_FAMILIARES=false` en Railway. Sin Carlos Demo en la base no hace nada.
+- Las horas se calculan en hora de Chile. Antes el seed usaba la hora del computador que lo
+  corría: desde un servidor en UTC, una sesión «de las 19:00» quedaba a las 15:00 o 16:00.
+- Las sesiones viven en `apps/backend/src/family/family-demo-sessions.ts`, que usan el seed
+  y `DemoService`. **Si agregas una sesión de demo, va ahí**, no en el seed.
+
+---
+
+## 2026-09-23 - Los mensajes del foro avisan por push: hay que RECOMPILAR
+
+**A quién le pega:** a todo el que corra la app mobile, y a quien toque `community` o `push`.
+
+**Qué tienes que hacer después de pullear:** **recompilar** (`pnpm run android` o
+`android:device`). Cambió código nativo: con recargar Metro no alcanza. Sin dependencias
+nuevas.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Un mensaje nuevo en el foro avisa por push a toda la sede**, como un grupo de WhatsApp.
+  No le llega al autor ni a quien silenció la comunidad desde Perfil, que hasta ahora solo
+  apagaba los avisos dentro de la app.
+- **La notificación dice quién escribió, pero no lo que escribió**: «Pedro Álvarez escribió en
+  la comunidad». Decisión del PO: la pantalla de bloqueo la ve cualquiera que pase cerca y en
+  el foro se habla de recaídas. **No metas el texto del mensaje en el push.**
+- **Al equipo clínico no le llega.** Un psicólogo con dos sedes tendría el teléfono encendido
+  todo el día; para eso tiene la pestaña Comunidad.
+- **El push sale sin bloquear la publicación** (`void`), y si Firebase falla no pasa nada: el
+  mensaje ya está guardado, que es lo que importa. Si escribes un test sobre esto, acuérdate
+  de dejar correr la microcola antes de mirar si se mandó.
+
+**Lo que se arregló de paso, y conviene saber:**
+
+- ⚠️ **La app nunca creó los canales de notificación de Android.** El backend mandaba
+  `recordatorios` desde hace tiempo dando por hecho que existía, y desde Android 8 un canal
+  que no existe **no se crea solo**: la notificación cae en el canal de respaldo de Firebase,
+  con importancia media, y queda en la barra sin avisar. Es decir, **el recordatorio de las
+  20:00 probablemente nunca salió con la prioridad que creíamos.**
+- Ahora `MainApplication.kt` crea tres canales al arrancar: `recordatorios` (alta),
+  `comunidad` (normal) y `panic_alerts` (alta, con vibración). Separados a propósito: silenciar
+  los mensajes del foro desde los ajustes de Android no puede apagar también el recordatorio
+  del check-in ni una alerta de pánico.
+- **Si mandas un push con un `channelId` que no esté en esa lista, se entrega degradado.**
+  Agrega el canal ahí primero.
+
+---
+
+## 2026-09-22 - El foro se limpió: las reacciones y «Responder» se fueron al menú
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad) y a quien pruebe la app y piense que
+faltan botones.
+
+**Qué hacer después de pullear:** nada.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Desapareció la barra de acciones bajo cada mensaje.** Antes cada burbuja arrastraba cuatro
+  controles siempre visibles (las tres reacciones y «Responder»), estuvieran usados o no:
+  entraban cuatro mensajes por pantalla y el chat parecía una lista de fichas. Ahora entran
+  seis o siete.
+- **Las reacciones se siguen viendo, pero solo cuando alguien ya reaccionó**, como chips bajo
+  la burbuja con su contador. Tocar el chip quita o pone la tuya, como antes.
+- **Reaccionar y responder viven en el menú de la burbuja**, al que se llega con el «···» o
+  con toque largo. El menú abre con las tres reacciones arriba (Fuerza · Cariño · Abrazo) y
+  «Responder» debajo.
+- **No se perdió accesibilidad**: la auditoría UX dejó el «···» visible justamente porque un
+  gesto invisible no lo encuentra TalkBack ni quien no lo sabe, y ese botón sigue ahí. Lo que
+  se quitó es la duplicación.
+
+**Si echas de menos el botón de reaccionar:** está a un toque, en el «···» del mensaje.
+
+**Y el foro se acercó más a WhatsApp**, porque el PO fijó el criterio: la app la usan adultos
+mayores, así que la comunidad tiene que parecerse a lo que ya conocen y no innovar en la
+interacción. Concretamente:
+
+- **La hora del mensaje es exacta y en 24 h** (`15:52`) en vez de «hace 3 h». En *Anuncios* se
+  mantiene el tiempo relativo: el tablón no es una conversación.
+- **Hay separadores de día** («Hoy», «Ayer», «14 de septiembre»), centrados como en cualquier
+  chat.
+- **Los mensajes seguidos de la misma persona van pegados**; el aire separa a un hablante del
+  siguiente.
+
+El criterio quedó en `CLAUDE.md`: ante una duda de diseño en el chat, hacer lo que hace
+WhatsApp.
+
+---
+
+## 2026-09-22 - Los logros compartidos ahora son una tarjeta en el foro
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad) y a quien toque `achievements`.
+
+**Qué hacer después de pullear:** correr **`pnpm run migrate:logros`** si quieres que los
+logros ya publicados se vean como tarjeta. Es opcional y no rompe nada: sin correrlo, los
+antiguos siguen apareciendo como texto y los nuevos salen bien. La columna la crea
+`synchronize`.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **`community_posts` tiene `achievementDays`**: los días que celebra un mensaje cuando es
+  un logro compartido. La app le da una tarjeta con **el ícono del hito** en vez de una
+  burbuja de texto, porque perdido entre el resto del chat pasaba de largo.
+- **`BADGE_CONFIG` se mudó a `constants/badges.ts`.** Lo usan la colección de Logros y la
+  tarjeta del foro: duplicado, el día que cambie un ícono la comunidad mostraría uno distinto
+  al de la insignia que celebra.
+- **El campo no se acepta desde el cuerpo de la petición**, a propósito: si viajara en el
+  DTO, cualquiera podría publicar un logro de 500 días que nunca cumplió. Lo pone
+  `createBadgeAnnouncementPost` a partir de la insignia ya ganada, por un parámetro interno
+  de `createPost`.
+- **Compartir una insignia ya compartida ahora lo dice.** El backend nunca republicó el mismo
+  hito (`achievements.service.ts`, para no llenar el foro de anuncios repetidos), pero el
+  modal ofrecía «Compartir con la comunidad» igual y el toque no hacía nada: se ve idéntico a
+  un botón roto. Ahora, si ya está publicada, el modal dice «Ya la compartiste» y el botón
+  lleva al foro.
+
+**Si estabas por reportar que compartir logros estaba roto:** probablemente era esto. El
+flujo funciona; lo que faltaba era que la app dijera lo que estaba pasando.
+
+---
+
+## 2026-09-22 - El foro pasó a ser un chat plano: hay que correr una migración
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad), a quien toque `apps/mobile` y a quien
+consuma `GET /community/posts` desde la web.
+
+**Qué tienes que hacer después de pullear, en este orden:**
+
+1. `pnpm install` (viene de la entrada de más abajo: `react-native-sse`).
+2. **`pnpm run migrate:replies`.** Mueve lo que había en `post_replies` al foro plano. Se
+   puede correr más de una vez y **no borra nada**: `post_replies` queda intacta.
+3. Recargar Metro. La columna nueva la crea `synchronize` al arrancar el backend.
+
+**Si no corres la migración**, las respuestas que ya existían **no se ven** en la app: siguen
+en la tabla vieja y el foro dejó de leerla. No se pierden, pero no aparecen.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Ya no hay hilos que se expanden.** El foro es una conversación plana donde un mensaje
+  puede citar a otro (`community_posts.replyToId`), como en WhatsApp: tocas *Responder*, la
+  cita queda sobre el composer y el mensaje sale con el original arriba.
+- **`GET /community/posts` devuelve un campo nuevo, `replyTo`** (`{ id, authorName, body }`,
+  el cuerpo recortado a 120 caracteres). Viaja **dentro** del mensaje y no en otra consulta:
+  pedirlo aparte sería un N+1 en la pantalla que el paciente abre todos los días.
+- **`GET /community/posts/:id/replies` ahora devuelve `CommunityPost[]`**, no
+  `CommunityReply[]`: los mensajes que citan a ese. `POST /community/posts/:id/replies` sigue
+  existiendo para las apps instaladas, pero por dentro crea un mensaje con `replyToId`.
+- **`CommunityStreamEvent` ya no tiene `kind: 'reply'`.** Una respuesta llega como `post`,
+  porque eso es.
+
+**Lo que te pega si escribes código:**
+
+- **`replyToId` se valida con `@IsDbUuid()`, no con `@IsUUID()`.** Los ids escritos a mano del
+  seed no cumplen la RFC y `@IsUUID()` los rechaza con un 400 que parece un bug del cliente
+  (me pasó: «replyToId must be a UUID» al citar un mensaje del seed).
+- **Citar valida la sede**: el mensaje original tiene que ser de la misma comunidad, porque la
+  cita viaja dentro de la respuesta y si no sería una forma de leer el foro ajeno.
+- **`post_replies` sigue en el repo y en la base a propósito.** Con `synchronize` encendido,
+  borrar la entidad borraría la tabla y con ella el respaldo de lo migrado. Se elimina cuando
+  alguien confirme que el foro se ve bien.
+
+---
+
+## 2026-09-22 - El foro ahora es en vivo: `pnpm install` obligatorio
+
+**A quién le pega:** a todo el que corra la app mobile y a quien toque el módulo `community`.
+
+**Qué tienes que hacer después de pullear:**
+
+1. **`pnpm install` en la raíz.** Hay una dependencia nueva, **`react-native-sse`**. Es JS
+   puro, así que **no** hace falta recompilar: basta recargar Metro.
+2. Nada en la base: `synchronize` no tiene que crear nada para esto.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Los mensajes del foro llegan solos.** `GET /community/stream?sede=...` es un SSE que
+  **empuja el mensaje ya armado**. Si ves aparecer publicaciones sin haber refrescado, es
+  esto.
+- **El servidor no sondea la base.** `createPost` y `createReply` emiten a un `Subject` en
+  memoria y el stream filtra por sede. Copiar el patrón de `panic-stream.controller.ts`
+  —que consulta la base cada 5 s por cada cliente conectado— habría significado 10
+  consultas por segundo con 50 pacientes mirando la pantalla.
+- **El stream exige token**, porque el evento lleva el mensaje dentro. Por eso el cliente es
+  `react-native-sse` y no el `EventSource` del navegador, que no puede mandar cabeceras.
+- **Tu propio mensaje aparece al tiro, con un reloj**, y el reloj se apaga cuando el servidor
+  confirma. Si no sale, queda en la lista con «No se envió · toca para reintentar»: el texto
+  ya no se pierde. El reintento reusa la misma clave de idempotencia, así que no publica dos
+  veces.
+
+**Lo que te pega si escribes código:**
+
+- **El stream vive en memoria y con una sola instancia.** Si algún día el backend corre
+  replicado, los eventos tendrán que pasar por algo compartido (Redis o la base); está
+  anotado sobre el `Subject` en `community.service.ts`.
+- **La suscripción solo está viva con la pestaña a la vista** (`useFocusEffect` en
+  `CommunityScreen`): una conexión abierta con la app en el bolsillo es batería del paciente
+  a cambio de nada.
+- Si el token vence, el stream se cae con 401; el cliente lo renueva y reconecta con espera
+  creciente. Eso ya pasó en la primera prueba y se resolvió solo.
+
+---
+
+## 2026-09-22 - El psicólogo ya lee y responde el foro desde el teléfono
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad), a quien toque `apps/mobile` y a quien
+llame a `POST /community/posts` o a `/replies` desde cualquier cliente.
+
+**Qué hacer después de pullear:** nada. No hay dependencias nuevas ni módulos nativos, así
+que basta con recargar Metro; no hace falta recompilar.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **La pestaña Comunidad del equipo clínico tiene tres pestañas, no dos: Anuncios, Foro y
+  Reportadas.** Antes lo único del foro que veía un psicólogo era lo que alguien había
+  reportado, así que en una sede con 9 publicaciones veía 2 y parecía que el foro estaba
+  vacío. El backend nunca lo bloqueó: `GET /community/posts` siempre le respondió completo,
+  era la pantalla la que no lo pedía.
+- **El psicólogo ahora responde en el foro**, y su respuesta entra como una más, firmada con
+  su nombre y su rol. Decisión del PO del 22-09. Lo que **no** cambió: eliminar sigue estando
+  solo en «Reportadas», sobre lo que alguien denunció, y no hay reacciones desde la vista del
+  equipo clínico.
+- **En el foro del paciente, las respuestas del equipo clínico llevan una etiqueta con el
+  rol** («Psicólogo», «Coordinador»). Sin ella, una respuesta del psicólogo era un nombre más
+  en el hilo.
+
+**Backend - quién puede escribir en el foro, y en qué sede.** Tres cambios en `community`,
+que pueden devolver **403 donde antes había 201**:
+
+- **`POST /community/posts` ahora exige rol `patient` o `sponsor`.** Abrir una publicación es
+  de la comunidad; el equipo clínico responde y publica anuncios, que van firmados con el rol.
+  Antes el endpoint no miraba el rol: cualquier sesión abría tema en el foro.
+- **La sede de una publicación sale de la cuenta, no del cuerpo.** `CreatePostDto.sede` quedó
+  **deprecado y se ignora** (se sigue aceptando porque el `ValidationPipe` va con
+  `forbidNonWhitelisted` y las apps instaladas lo mandan). Antes la elegía el cliente:
+  verificado contra el backend, una cuenta de Santiago publicaba en el foro de Concepción
+  mandándolo en el JSON.
+- **Responder en una publicación de otra sede da 403.** Un psicólogo cuenta con **todas** sus
+  sedes (`psychologist_sedes`, con el respaldo de `User.sedeId`), así que Miguel Ángel responde
+  en Santiago y en Viña del Mar, pero no en Concepción.
+- De paso, las tres lecturas por sede aceptan **el nombre o el UUID** y devuelven las dos
+  formas. `users.sedeId` guarda una u otra según de dónde venga la cuenta, así que el foro de
+  una sede estaba partido en dos mitades que no se veían entre sí. Sigue faltando la migración
+  que normalice la columna; esto solo deja de dolerlo.
+
+**Lo que te pega si escribes código:**
+
+- **El hilo es una pantalla del stack, `StaffThread`, no un composer dentro de la pestaña.**
+  Es la misma razón que tiene `NewAnnouncementScreen`: Comunidad vive en un pager y con el
+  manifiesto en `adjustResize` el teclado lo rearma en la primera página y remonta la
+  pantalla, así que la respuesta se perdía a medio escribir. Si vas a poner un `TextInput`
+  dentro de una pestaña, acuérdate de esto antes.
+- **`withRetry` y `newRequestId` salieron de `CommunityScreen` a `src/utils/retry.ts`**, y
+  `ROLE_LABEL` a `src/utils/roles.ts`. Las dos pantallas del foro los comparten: si tocas el
+  reintento de las escrituras, ahora es un solo lugar.
+
+---
+
+## 2026-09-22 - Las notificaciones del paciente se mudaron a una campana
+
+**A quién le pega:** a **Matías Barraza** (Inicio y check-in) y a quien cree notificaciones
+desde el backend.
+
+**Qué hacer después de pullear:** nada. La columna nueva la crea `synchronize` al arrancar.
+Si quieres ver el enrutado con los datos que ya tienes, las notificaciones viejas quedan sin
+destino y solo se marcan leídas; `pnpm run seed` las recrea con destino.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **El Inicio ya no lista las notificaciones.** Ahora hay una **campana con contador** en el
+  encabezado que abre `NotificationsScreen`. La lista dentro del Inicio no tenía techo: con
+  seis avisos, la racha, el check-in y el acceso al asistente quedaban fuera de pantalla.
+- **En el Inicio se quedan solo las `danger`**, porque una alerta de pánico no puede estar a
+  un toque de distancia. Si publicas una notificación `info` esperando verla en el Inicio,
+  está en la campana.
+- **`NotificationSection` ya no existe.** Se reemplazó por `NotificationCard` (una tarjeta,
+  memorizada) y `NotificationBell`.
+
+**Lo que te pega si escribes código en el backend:**
+
+- **`Notification` tiene un campo nuevo, `target`**, con los valores `check-in`, `community`,
+  `achievements`, `panic` y `payment`. Es lo que hace que tocar una notificación abra la
+  pantalla correcta, y cierra el resto de INI-05 de la auditoría UX. Es **nullable** a
+  propósito: lo anterior no lo tiene.
+- **Cuando crees una notificación, ponle `target`.** Sin él se puede leer pero no lleva a
+  ninguna parte, y eso no se nota hasta que un paciente la toca y no pasa nada. Los tres
+  sitios que ya las crean (`check-in-reminder`, `panic`, `community`) lo traen puesto.
+
+---
+
+## 2026-09-22 - Optimización de la app móvil: el bundle bajó a la mitad
+
+**A quién le pega:** a todo el que toque `apps/mobile`. **Recompila** después de pullear
+(cambiaron recursos nativos y `build.gradle`); con recargar Metro no basta.
+
+**Qué hacer después de pullear:** `pnpm install` no hace falta, no hay dependencias nuevas.
+Sí **recompilar la app**.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **El bundle de producción pasó de 3,29 MB a 1,78 MB.** Casi todo salió de cómo se importan
+  los íconos: `components/Icon.tsx` ya **no importa desde `'lucide-react-native'`** sino de a
+  uno (`lucide-react-native/dist/esm/icons/house.mjs`). Metro no hace tree shaking, así que el
+  import del índice metía los 1.714 íconos del paquete para usar 67. **Si agregas un ícono,
+  copia el estilo de los que están**: volver al import del índice devuelve 1,5 MB al bundle
+  sin que nada lo delate. Los tipos de esas rutas están en `src/types/lucide-icons.d.ts`.
+- **Lato ya no se empaqueta.** No la usaba ninguna pantalla y sus dos archivos pesaban 1,28 MB.
+  `Fonts.caption` y `Fonts.captionBold` **ya no existen**: si los estabas usando en una rama,
+  el type-check te lo va a decir. Usa `Fonts.body` o `Fonts.bodyMedium`.
+- **El splash es WebP.** `splash_logo.png` se fue en las cinco densidades y ahora es
+  `splash_logo.webp`: 1.355 KB a 139 KB. El XML no cambia, referencia `@drawable/splash_logo`
+  sin extensión.
+- **R8 quedó activo en release** (`minifyEnabled` y `shrinkResources` en `true`), con reglas
+  de `keep` para JNI en `proguard-rules.pro`. El APK de release se compiló, se instaló y se
+  recorrió a mano antes de dejarlo así. Si algo se rompe **solo** en release, mira ahí primero.
+- ⚠️ **Para probar un release en el emulador hay que compilarlo para su arquitectura**:
+  `./gradlew assembleRelease -PreactNativeArchitectures=x86_64`. Con el `arm64-v8a` de
+  `gradle.properties`, el APK instala pero **muere al arrancar** con un
+  `UnsatisfiedLinkError` de `librnscreens.so` que parece un problema de R8 y no lo es.
+- **`console.log`/`warn`/`error` salieron de las pantallas.** Ahora van `logWarn` y `logError`
+  de `utils/log.ts`, que **no hacen nada fuera de `__DEV__`**. En desarrollo se ven igual.
+- **La app ya no manda `x-user-id`.** El backend dejó de leerlo el 16-09. El parámetro
+  `userId` sigue en las firmas de `api.*` porque lo pasan decenas de llamadas, pero ya no
+  viaja a ninguna parte.
+
+**Lo que te pega si escribes código en mobile:**
+
+- **Las listas que crecen van en `FlatList`, no en `ScrollView` + `.map()`.** Ya se pasaron la
+  comunidad del equipo clínico, el hilo de respuestas y la lista de pacientes (esta última con
+  la fila memorizada). La comunidad del equipo clínico y el hilo llegan con el PR del foro,
+  que va encima de este. Copia los parámetros que ya están puestos (`initialNumToRender`,
+  `windowSize`, `removeClippedSubviews`).
+- **Las filas de una lista van memorizadas** (la del Resumen del equipo clínico ya lo está). `PostCard` del foro, que llega con el PR del foro, lleva `React.memo` con un
+  comparador que **ignora los callbacks a propósito**; está explicado sobre el componente. Si
+  le agregas una prop de datos, acuérdate de sumarla al comparador o esa prop no se verá.
+- **Los sondeos usan `useIntervaloActivo`** (`hooks/useIntervaloActivo.ts`), que los detiene
+  con la app en segundo plano. Un `setInterval` pelado sigue pidiendo con la pantalla apagada:
+  el contador de alertas del equipo clínico lo hacía cada minuto.
+- **Volver a una pestaña ya no vuelve a pedir todo:** `hooks/useCargaFresca.ts` ignora una
+  carga si la anterior tiene menos de 30 segundos. Tirar para actualizar sí fuerza.
+- **El caché sin conexión guarda como máximo 50 mensajes y espera un segundo antes de
+  escribir**, y al entrar se borran las cachés de otras cuentas del teléfono.
+
+**De dónde salió todo esto:** `docs/auditoria-rendimiento-mobile-2026-09-22.md`, con la
+medición de cada cosa.
+
+---
+
+## 2026-09-24 - Asignar compañero de viaje ahora valida, y la ficha clínica tiene sección nueva (PR #119)
+
+**A quién le pega:** a **Alex** (`FichaClinicaPage.tsx`), a **Catalina** (`panic.service.spec.ts`) y a
+quien pruebe el botón de pánico o llame a `POST /panic/assign`.
+
+**Qué hacer después de pullear:** nada que correr. Pero ojo con lo de abajo si tu flujo asignaba
+compañeros de viaje a mano.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **`POST /panic/assign` ya no acepta a cualquiera.** Antes guardaba la asignación sin comprobar
+  nada. Ahora exige que la persona **esté designada como compañero de viaje** (HdU21), tenga la
+  cuenta activa y sea **de la misma sede que el paciente**. Si tu seed o tu prueba asignaba a
+  alguien sin designar, va a responder **400**. La ruta sigue existiendo y delega en
+  `SponsorDesignationService`, para que haya una sola forma de asignar.
+- **Endpoints nuevos:** `GET /sponsors/current`, `GET /sponsors/available`, `POST /sponsors/assign`.
+- **La ficha clínica tiene una sección «Compañero de viaje»** en la columna lateral. Si el paciente
+  no tiene a nadie, avisa que su alerta de pánico se deriva al asistente virtual (CA20.4).
+- **OJO ALEX:** toqué `apps/web/src/pages/FichaClinicaPage.tsx` — dos líneas, el import y el
+  componente al final del `aside`. La lógica vive en `components/SeccionCompaneroViaje.tsx`.
+- **OJO CATALINA:** toqué `apps/backend/src/panic/panic.service.spec.ts` — el sexto argumento del
+  constructor de `PanicService` y el test de `assignSponsor`, que ahora comprueba la delegación en
+  vez de la escritura directa. Lo que se desactiva y lo que se crea sigue probado, en
+  `sponsor-designation.service.spec.ts`.
+
+---
+
+## 2026-09-23 - El rol de compañero de viaje ya no se lee de `User.role` (PR #118)
+
+**A quién le pega:** a **todos los que necesiten saber si alguien es compañero de viaje**, y en
+particular a **Alex** (ficha clínica / perfil del paciente) y a **José** (`users`).
+
+**Qué hacer después de pullear:** nada. La tabla nueva la crea `synchronize` al arrancar.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **`user.role === 'sponsor'` ya no responde la pregunta.** El rol de compañero de viaje vive en
+  una tabla nueva, `sponsor_designations`, no en `User.role`. La razón: `role` es un solo valor y
+  un compañero de viaje **sigue siendo paciente** — cambiarle el rol le quitaría el check-in, los
+  logros, la ficha clínica y su propio botón de pánico. El CA21.2 lo pide así al hablar de
+  "pacientes activos que aún no tienen el rol de padrino": se suma, no reemplaza.
+  - Si necesitas saberlo desde otro módulo, **pídemelo y expongo el método** en vez de consultar
+    la tabla por tu cuenta. Así queda una sola fuente de verdad.
+  - Las cuentas con `role: 'sponsor'` del seed siguen existiendo y funcionando; son de antes.
+- **Endpoints nuevos bajo `/sponsors`** (psicólogo y coordinación): `GET /sponsors/candidates`,
+  `POST /sponsors/designate`, `POST /sponsors/:patientId/revoke`.
+- **Revocar falla con 409 si el compañero de viaje tiene pacientes a cargo.** Es a propósito
+  (CA21.3): hay que reasignarlos primero, o sus alertas de pánico se quedarían sin destinatario.
+- **En textos de cara al usuario va «compañero de viaje», no «padrino»** — el término del programa
+  desde `00f2910`. En el código el identificador sigue siendo `sponsor`.
+
+---
+
+## 2026-09-23 - Demo sin computador: 4 pacientes demo, Daniela responde sola y reinicio al entrar
+
+**A quién le pega:** a quien grabe o presente la demo, y a quien toque `panic` o `auth`.
+
+**Qué hacer después de pullear:** nada. Las tres herramientas vienen **apagadas** y se prenden
+con variables en Railway (servicio del backend → *Variables*):
+
+| Variable | Qué hace |
+|---|---|
+| `DEMO_PADRINO_SEGUNDOS=45` | Daniela Soto responde sola las alertas de pánico que le lleguen, a los N s (entre 0 y 110; a los 120 escalan a la IA). Solo por la cuenta de Daniela. |
+| `DEMO_PACIENTES_EXTRA=true` | Al arrancar, crea tres copias de Carlos Demo si no existen: **Martina** (`demo2@stopbet.cl`), **Diego** (`demo3@`) y **Javiera** (`demo4@`), clave `Stopbet2026!`. Tienen su racha, insignias, historial de check-ins, chats con el asistente, pagos, psicólogo, ficha clínica y a Daniela como compañera. No se copian sus mensajes del foro. |
+| `DEMO_RESET_ON_LOGIN=true` | Entrar como Carlos Demo (`demo@stopbet.cl`) o una de sus copias deja esa cuenta como después de `seed:demo --reset`: sin check-in de hoy, sin alertas, sin reportes propios, comunidad sin silenciar, insignia de 45 días sin compartir y Daniela activa como compañera de viaje. Otras cuentas no se tocan. |
+
+Desde el teléfono, para repetir una toma: **Perfil → Cerrar sesión → volver a entrar con
+esa misma cuenta**. No hace falta APK nuevo ni un computador corriendo `demo:padrino`.
+
+**Qué cambió, y por qué te puede parecer un bug:** con `DEMO_PADRINO_SEGUNDOS` puesta, las
+alertas de las cuentas demo se responden aunque nadie las haya leído. **Es una respuesta automática, no
+de una persona.** Borra la variable después de grabar. Las copias quedan creadas aunque apagues `DEMO_PACIENTES_EXTRA`; para rehacer una, se borra ese usuario y se reinicia el backend. Todo está en `apps/backend/src/demo/`.
+
+---
+
+## 2026-09-22 - Revisión de botones del panel: Equipo, moderación y login (PR #116)
+
+**A quién le pega:** a **Matías Lara** (Equipo), a **Catalina** (`community`) y a quien haga la
+demo del panel.
+
+**Qué hacer después de pullear:** nada. La columna nueva la crea `synchronize` al arrancar.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Un psicólogo ya no ve «Crear psicólogo», «Sedes» ni «Desactivar» en Equipo.** El backend
+  los tiene con `@Roles('coordinator')`: el psicólogo llenaba el formulario y recibía un 403. Si
+  haces la demo de la HU-24, **entra con la cuenta de coordinación**.
+- **«Ocultar» en Posts reportados ahora es «Descartar» y se guarda.** Antes vivía en memoria: al
+  recargar la publicación volvía y el Resumen la seguía contando. Ahora
+  `POST /community/moderation/posts/:id/dismiss` marca los reportes con `dismissedAt` y
+  `dismissedBy` (columnas nuevas en `post_reports`; no se borran, quedan como registro) y deja
+  `reportCount` en 0. La publicación sale de la cola del **equipo entero**, también en la app
+  móvil del psicólogo, y vuelve si alguien nuevo la reporta.
+- **Login:** apretar «Iniciar sesión» con un campo vacío ahora avisa, y «¿Olvidaste tu
+  contraseña?» muestra a quién pedirle una clave nueva en vez de abrir un `mailto:`.
+
+---
+
+## 2026-09-22 - Las cuentas tienen institución y el equipo de AJUTER arranca con sus colores (PR #115)
+
+**A quién le pega:** a **José** (`users`, `auth`), a **Matías Lara** (`psychologists`) y a quien
+despliegue en Railway.
+
+**Qué hacer después de pullear:**
+
+- `pnpm install` no hace falta. Sí recompilar `shared-types` (`AuthUser` tiene un campo nuevo):
+  `pnpm run backend` ya lo hace solo.
+- La columna nueva la crea `synchronize` al arrancar. Para marcar las cuentas que ya tienes en
+  tu base local: `pnpm run seed` **o** `pnpm --filter @stopbet/backend run backfill:institution`.
+- **En Railway hay que correr `backfill:institution` una vez**, o el equipo clínico que ya
+  existe en producción se queda sin institución y sigue viendo StopBet.
+
+**Qué cambió:**
+
+- **`users.institutionId`** (`varchar`, nullable), mismo valor que ya usaba
+  `registration_requests.institutionId` (`'AJUTER'`). `/auth/login` la devuelve dentro de
+  `user`. En `AuthUser` es opcional, así que nada de mobile se rompe.
+- **`POST /psychologists`** deja al psicólogo nuevo en la institución de la coordinación que lo
+  crea (`create(dto, coordinatorId)`; el segundo parámetro es opcional).
+- **La web**: psicólogos y coordinación de AJUTER arrancan con los colores de AJUTER. Si alguien
+  elige StopBet en Apariencia, se respeta. Familias y pacientes no cambian.
+
+**Por qué te puede parecer un bug:** si entras como psicólogo y el panel sale carbón y ocre con
+otra letra, **está funcionando**. Se cambia en Configuración → Apariencia → Colores. Una sesión
+abierta antes de este cambio no trae la institución hasta volver a iniciar sesión.
+
+---
+
+## 2026-09-20 - El asistente tacha más cosas antes de mandarlas al modelo (PR #111)
+
+**A quién le pega:** a **Matías Barraza** (S.3, el sanitizador) y a quien mire resúmenes de
+sesión del asistente.
+
+**Qué hacer después de pullear:** nada. No hay dependencias nuevas ni columnas nuevas.
+
+**Qué cambió:** `sanitizePii` (`apps/backend/src/ai-assistant/sanitizer.ts`) ya no omite solo
+el nombre del paciente y los RUT. Ahora también:
+
+- **teléfonos y correos**, que salen como `[CONTACTO OMITIDO]`;
+- los **nombres de los familiares vinculados y del compañero de viaje** del paciente, que
+  salen como `[NOMBRE OMITIDO]` igual que el suyo.
+
+**Por qué te puede parecer un bug:** si abres un resumen de sesión y ves `[CONTACTO OMITIDO]`
+donde antes iba un número, **está funcionando**. El CA6 de la HdU13 pide mandar los detonantes
+de la ficha al modelo «sin nombre, RUT ni datos de contacto», y los detonantes los escribe el
+psicólogo en texto libre. **Lo guardado en la base sigue intacto**: se sanea solo lo que sale
+hacia el LLM, igual que antes.
+
+**Un efecto secundario que es un arreglo:** la comparación de nombres ahora respeta los límites
+de palabra. Antes, una paciente llamada Ana convertía «mañana» en «mañ[NOMBRE OMITIDO]» dentro
+del prompt.
+
+Un tercero que **no** está registrado en la plataforma («su jefe Nelson») sigue llegando al
+modelo, y eso está anotado en `docs/ASUNCIONES-PENDIENTES.md`, punto 2-bis.
+
+---
+
+## 2026-09-19 — El formulario de ingreso pregunta por el juego (HdU13 + HdU19)
+
+**A quién le pega:** a **Matías Lara** sobre todo (`registration` es su módulo y lleva la
+HdU19), y a quien toque el registro en la app móvil.
+
+**Qué hacer después de pullear:** nada que instalar más allá de recompilar `shared-types`. La
+columna nueva la crea `synchronize` al arrancar.
+
+**Qué cambió, y qué NO:**
+
+- **`registration_requests` tiene una columna nueva, `intake` (`jsonb`, nullable).** Se eligió
+  **una sola columna** en vez de seis sueltas justamente para dejar la huella más chica posible
+  en una tabla que es de otra pista. `null` = la solicitud es anterior a estas preguntas o el
+  paciente se las saltó.
+- **`POST /registration/submit` acepta un `intake` opcional.** Todo dentro es opcional y el
+  endpoint sigue funcionando igual sin él: **ninguna llamada existente se rompe**. Los tests de
+  registro pasan sin tocarlos.
+- **El registro móvil tiene un paso nuevo** entre Datos y Sede: `RegisterIntakeScreen`, con
+  cuatro preguntas de alternativas y un «Otro» de texto libre. Se puede saltar («Prefiero no
+  responder ahora»). El stepper pasó de 2 a 3 pasos.
+- **Lo que el paciente declara NO se copia a la ficha clínica.** Se lee desde
+  `GET /clinical-records/patients/:patientId/intake` y el panel lo muestra aparte, marcado como
+  «Declarado por el paciente al ingresar», en solo lectura. Si se fusionara con lo que redacta
+  el psicólogo se perdería el contraste entre lo que el paciente dice de sí mismo y lo que el
+  equipo observa, que clínicamente es lo que importa.
+- **No se tocó ningún endpoint del controller de `registration`** salvo el DTO de `submit`.
+  Aprobar, rechazar y listar pendientes quedaron intactos.
+
+**Ojo con el CA1 de la HdU13**, que dice que el psicólogo ve una ficha «vacía, lista para
+completar». Sigue siendo así: el cuestionario se muestra al lado, no adentro. Verificado.
+
+---
+
+## 2026-09-19 — Ficha clínica (HdU13): módulo nuevo y tipos compartidos
+
+**A quién le pega:** a **todos** (hay que recompilar `shared-types`), y en particular a quien
+toque `ai-assistant` o vaya a agregar su módulo a `app.module.ts` esta semana.
+
+**Qué hacer después de pullear:**
+
+```bash
+pnpm --filter @stopbet/shared-types build
+pnpm run seed:fichas          # opcional, después de `pnpm run seed`
+```
+
+Sin eso, el backend no compila y el error sale en archivos que nadie tocó: los tipos
+`ClinicalRecord`, `ClinicalRecordVersion` y `CLINICAL_RECORD_FIELDS` son nuevos. No hay
+dependencias nuevas, así que `pnpm install` no hace falta.
+
+**Qué cambió:**
+
+- **Módulo `clinical-records`** con tres endpoints, todos para el equipo clínico
+  (`GET`/`PUT /clinical-records/patients/:patientId` y `GET .../history`). La ficha es una por
+  paciente y guarda los cinco campos del CA1.
+- **Dos tablas nuevas**, `clinical_records` y `clinical_record_versions`. En local las crea
+  `synchronize` al arrancar; no hay que correr nada.
+- **`ai-assistant` cambió de firma.** `AiAssistantService` recibe un parámetro más en el
+  constructor (`ClinicalRecordsService`). Si tienes un test que lo instancia a mano, agrégale el
+  doble o te va a fallar el type-check. Los detonantes de la ficha ahora entran al prompt del
+  modelo, saneados; `previousContext` (lo que ve el paciente) no cambió.
+- **`app.module.ts` tiene tres líneas más.** Es el archivo compartido del que habla el reparto
+  del sprint: si vas a registrar tu módulo, mergea seguido para no chocar.
+
+**Datos de prueba — `pnpm run seed:fichas` hace dos cosas, ojo con la segunda:**
+
+1. **Llena fichas clínicas**: Carlos (con 3 versiones, para ver el historial), Ana, Marcela,
+   Paulina, Lucía y Jorge. **Pedro, Roberto, Rodrigo, Héctor e Ignacio quedan sin ficha a
+   propósito**: sirven para ver la ficha vacía del CA1 y el chip «Sin ficha clínica» de la
+   lista. Si los llenas todos, esos estados dejan de poder demostrarse.
+2. **Crea 4 pacientes nuevos** (Marcela Ibáñez, Rodrigo Cáceres, Paulina Núñez, Héctor
+   Sandoval) y los asigna a **Miguel Ángel Lara**, más Ignacio Vidal, que estaba sin
+   psicólogo. Miguel pasa de 3 a 8 pacientes: con 3 filas no se puede juzgar cómo se ve la
+   lista del panel.
+
+**No toca a los `approval_pending`** (Fernanda, Diego, Camila): son las solicitudes de ingreso
+de la HdU19 y asignarlas las haría desaparecer de esa pantalla. **Tampoco mueve** a los
+pacientes de Tomás ni de Valentina, para que se siga viendo que cada psicólogo alcanza solo a
+los suyos.
+
+El seed es idempotente: correrlo dos veces no duplica nada.
+
+**Cambio de nombre que te puede confundir:** el panel lateral de «Mis pacientes» (Evolución,
+Alertas, Sesiones IA, Datos) **ya no se llama «ficha»: ahora es «Seguimiento»**. Su botón en la
+lista dice `Seguimiento` y al lado hay uno nuevo, `Ficha clínica`, que es otra pantalla. Son
+cosas distintas: el Seguimiento es lo que genera el paciente, la ficha clínica es lo que el
+psicólogo escribe sobre él. Si buscas «ficha» en el código y no encuentras lo que esperabas, es
+por esto.
+
+**Ojo con una cosa:** el historial de versiones **no se borra ni se edita nunca**. Es el registro
+de auditoría clínica del CA4. Si necesitas limpiar datos de prueba, bórralos por la base.
+
+---
+
+## 2026-09-16 — El backend exige token en todo: `x-user-id` ya no se lee
+
+**A quién le pega:** a **todos** los que toquen el backend, y a cualquiera con scripts,
+colecciones de Postman o pruebas con `curl` que manden `x-user-id` sin token.
+
+**Qué hacer:** nada que instalar. Pero **si llamas a la API a mano, necesitas un token**:
+`POST /auth/login` y después `Authorization: Bearer <accessToken>`. Con solo `x-user-id`,
+ahora recibes **401**.
+
+**Qué cambió:**
+
+- **`JwtAuthGuard` está registrado global** (`app.module.ts`). Todo endpoint exige token
+  salvo los marcados con `@Public()`: login, refresh, logout, `/health`, `GET /sedes`, el envío
+  y la consulta de una solicitud de registro, y el stream de alertas (SSE, porque `EventSource`
+  no puede mandar `Authorization`; solo emite conteos).
+- **La identidad sale del token.** Los 40 `@Headers('x-user-id')` de 9 controladores pasaron a
+  `@UserId()` (`common/decorators/user-id.decorator.ts`). Antes, quien supiera el UUID de un
+  paciente podía leer sus check-ins o sus conversaciones con el asistente sin iniciar sesión.
+- **Tres endpoints que no pedían nada:** `POST /panic/assign` (cualquiera cambiaba el compañero
+  de viaje de cualquier paciente) ahora exige rol de equipo clínico; `POST /subscriptions` toma
+  el paciente del token, no del cuerpo; y `GET /community/posts/:id/replies` quedó cubierto por
+  el guard global.
+- **Guard nuevo `PatientAccessGuard`** para endpoints del equipo clínico sobre un paciente: la
+  coordinación accede a todos y un psicólogo, solo a sus asignados. Se aplica a
+  `GET /metrics/patients/:id` y `GET /users/:id/progress`, que antes dejaban a cualquier
+  psicólogo leer cualquier paciente cambiando el id en la URL.
+- **Dos endpoints nuevos** para que la web deje de hacerse pasar por el paciente:
+  `POST /achievements/patients/:patientId/relapse` (la ficha registraba la recaída mandando el
+  id del paciente en `x-user-id`) y `GET /billing/patients/:patientId/status` (el reporte PDF).
+
+**Si escribes un endpoint nuevo:**
+
+1. **No uses `@Headers('x-user-id')`.** Usa `@UserId()` para quien pregunta.
+2. Si es público, `@Public()` **con un comentario que diga por qué**.
+3. Si el equipo clínico actúa sobre un paciente puntual, `@UseGuards(RolesGuard, PatientAccessGuard)`
+   con el id en la ruta como `:patientId` o `:id`.
+
+**Clientes:** la web y mobile ya mandaban `Authorization: Bearer`, así que siguen funcionando.
+Verificado: las 12 llamadas de la app del paciente responden 200 con token, y la web completa
+con psicólogo, coordinadora y familiar no tiene ningún 401/403 nuevo. **Mobile sigue mandando
+`x-user-id`**: es inofensivo (se ignora) y se puede sacar de `services/api.ts` cuando alguien
+toque ese archivo. ⚠️ Un **APK anterior al 15-09** (sin sesión real) ya no puede hablar con el
+backend: hay que reinstalar.
+
+**Tests:** 5 unitarios nuevos del guard y 15 e2e nuevos en `test/auth-global.e2e-spec.ts`.
+Quedan 279 unitarios y 66 e2e pasando. La matriz de permisos
+(`docs/security/permissions-matrix.md`) está reescrita, con lo que sigue pendiente: sobre todo,
+que varios endpoints autenticados no restringen **qué rol** puede llamarlos.
+
+---
+
+## 2026-09-16 — El panel web tiene modo oscuro: usa `--primary-text` y `--danger-text` para texto
+
+**A quién le pega:** a cualquiera que escriba UI en `apps/web`.
+
+**Qué hacer:** nada que instalar. Pero **si escribes un color, fíjate en qué token usas**, o tu
+pantalla va a quedar ilegible en oscuro sin que nada te avise en claro.
+
+**Cómo funciona.** `styles/stopbet-dark.css` redefine los tokens semánticos. Se activa solo si
+el sistema está en oscuro, o se fuerza desde **Configuración → Apariencia** (Automático / Claro /
+Oscuro, igual que Perfil → Apariencia en mobile). La elección se guarda en `localStorage`
+(`sb-theme`) y `index.html` la aplica antes de pintar, para que no destelle. La paleta es la de
+mobile (`darkColors`), así que las dos apps se ven hermanas.
+
+**Las tres reglas para no romperlo:**
+
+1. **Texto e íconos de marca van con `--primary-text` y `--danger-text`**, no con `--primary` ni
+   `--danger`. En claro son el mismo color, así que no vas a notar la diferencia hasta que
+   alguien active el oscuro: ahí `#396fb6` da 3,16:1 y `#B83232` 2,72:1. `--primary` y
+   `--danger` quedan para **rellenos y bordes** (botones, sidebar, bordes de error).
+2. **Sobre un relleno verde (`--secondary`) el texto va con `--fg-on-secondary`**, que es oscuro
+   en los dos temas. `--fg1` en oscuro es casi blanco.
+3. **Si agregas un token de color, defínelo también en `stopbet-dark.css`** — en los dos bloques
+   de ese archivo, que están repetidos a propósito.
+
+**Qué se tocó:** 96 usos de azul y rojo como texto pasaron a los tokens de texto (script que mira
+la propiedad CSS de cada uso, no un reemplazo ciego), más ~20 revisados a mano. También
+`utils/alertStatus.ts`: los chips de estado de alerta.
+
+**Verificado con axe-core** (la herramienta de la auditoría): **0 nodos con contraste
+insuficiente en los dos temas**, en las 8 páginas del panel, el login, el portal del familiar, la
+ficha con sus 4 pestañas y el diálogo del reporte.
+
+**Tres cosas que se arreglaron de paso:**
+
+- **El reporte PDF siempre sale en claro.** Lee los colores del CSS, así que con el panel en
+  oscuro habría impreso texto casi blanco. Además los leía una sola vez al cargar: ahora los
+  lee en cada documento.
+- **Las cifras del PDF estaban mal.** «Check-ins registrados» contaba los puntos del gráfico,
+  que agrupa por semana: a Ana, con 28 check-ins, le ponía 5. Y «alertas del período» era el
+  total histórico. Ahora las dos salen de `/metrics` (últimos 30 días) y la etiqueta lo dice.
+- **El botón «Iniciar sesión» quedaba sin fondo mientras cargaba:** usaba `${BLUE}cc`, que con
+  un token CSS produce `var(--sb-blue)cc`, que no es un color.
+
+⚠️ **Queda una inconsistencia en el PDF, para decidir:** el diálogo pide un rango de fechas y el
+informe lo imprime como «Período del reporte», pero **no filtra nada con él**: las cifras son de
+los últimos 30 días y el gráfico y las alertas, de lo que haya. O se quita el selector de fechas,
+o el backend tiene que aceptar un rango.
+
+---
+
+## 2026-09-16 — El Resumen pasó a ser solo un resumen; la ficha y el PDF se mudaron a «Mis pacientes»
+
+**A quién le pega:** a **Eduardo** (Resumen, `OverviewPage.tsx`), a quien toque la vista del
+psicólogo en **mobile**, y a quien consuma `GET /users/patients`.
+
+**Qué hacer:** nada que instalar. Pero si tenías algo abierto en `OverviewPage.tsx`, el archivo
+se reescribió entero: rebasea antes de seguir.
+
+**El Resumen ya no es una sección de pacientes.** Decisión del PO: un bloque por sección, que
+responde una sola pregunta y lleva a la sección con un clic. El detalle vive en cada sección.
+
+| Bloque | Qué muestra | Lleva a |
+|---|---|---|
+| Alertas que requieren atención | Esperando respuesta o escaladas (no «las de hoy») | Alertas de pánico |
+| Requieren seguimiento | Los 3 primeros con su motivo | Mis pacientes |
+| Por revisar | Solicitudes de ingreso + posts reportados | Solicitudes |
+| Próxima sesión de familiares | Fecha, lugar y confirmaciones | Sesiones de familiares |
+| Equipo *(solo coordinación)* | Psicólogos activos y **sedes sin psicólogo activo** | Equipo |
+
+Las tarjetas de arriba son las cifras de esos bloques. Salió «Promedio abstinencia», que no le
+pedía nada a nadie. **Finanzas no aparece a propósito:** sigue con datos de ejemplo, y un número
+inventado en la pantalla de inicio es justo el problema de confianza que marcó la auditoría.
+
+**Qué se movió:**
+
+- La **tabla de pacientes** salió del Resumen: duplicaba «Mis pacientes».
+- La **ficha** es ahora `components/PatientDrawer.tsx` y la abre «Mis pacientes». El Resumen
+  manda a una ficha puntual con `/pacientes?paciente=<id>`.
+- El **reporte PDF** se genera desde cada fila de «Mis pacientes» (`components/ReportDialog.tsx`),
+  ya sin desplegable para elegir paciente. Valida que el rango de fechas no esté invertido.
+- La lógica de «quién requiere seguimiento» y el armado del paciente viven en
+  `utils/patientView.ts`. **Usala en vez de copiarla:** «Mis pacientes» tenía su propia tabla
+  de ánimo y puntuaba distinto la misma emoción que el Resumen.
+
+**Backend — `GET /users/patients` ya no devuelve postulantes.** `registration.submit` crea el
+usuario con rol `patient` antes de la revisión, así que las solicitudes pendientes
+(`onboardingStatus: 'approval_pending'`) aparecían como pacientes en el panel de la coordinadora,
+duplicando Solicitudes. Ahora se excluyen. Verificado: Sofía pasa de 10 a 7. Con test nuevo;
+274 unitarios y 49 e2e pasando.
+
+⚠️ **Para mobile:** el filtro por psicólogo asignado de la entrada de abajo también le cambió a
+`StaffHomeScreen` lo que cuenta. Antes mostraba todos los pacientes de la sede; ahora, solo los
+asignados al psicólogo. La etiqueta sigue diciendo **«Pacientes activos · en esta sede»**, que
+quedó impreciso — debería decir algo como «tus pacientes en esta sede». No se tocó mobile.
+
+**Pregunta abierta para el PO:** las alertas del Resumen son de toda la sede, la lista de
+pacientes es solo la del psicólogo. Un psicólogo ve nombre y hora de la crisis de pacientes de
+otros colegas (sin poder abrir su ficha). Puede ser deseable por cobertura —si alguien está de
+vacaciones—, pero es una decisión de confidencialidad, no de diseño.
+
+---
+
+## 2026-09-16 — «Mis pacientes» ya existe, y `/users/patients` ahora filtra por psicólogo
+
+**A quién le pega:** a **José** (es su `users.service.ts`), a **Eduardo** (Resumen) y a
+cualquiera que consuma `GET /users/patients`.
+
+**Qué hacer:** nada que instalar. Pero si tenías una pantalla contando pacientes, ojo con el
+cambio de abajo.
+
+**El cambio de fondo.** `GET /users/patients` devolvía **todos** los pacientes del sistema a
+cualquiera de los dos roles. En el panel, «Mis pacientes» le mostraba a Miguel también los de
+Valentina y Tomás, con su correo y su historial de alertas. Ahora:
+
+- un **psicólogo** recibe solo los pacientes con asignación activa en `patient_assignments`;
+- un **coordinador** los sigue recibiendo todos, porque es administrativo — si filtrara, una
+  sede sin psicólogos no tendría quién la mire.
+
+Verificado contra la base del seed: Miguel 3, Valentina 2, Sofía 10. Coincide con lo que
+muestra Equipo. Hay 3 tests nuevos en `users.service.spec.ts` y uno en el del controller; los
+273 unitarios y los 49 e2e siguen pasando.
+
+⚠️ **Esto cambia lo que ves en el Resumen:** consume la misma query, así que un psicólogo pasa
+de ver 7–10 pacientes a ver los suyos. No es que se hayan perdido datos.
+
+**Sección nueva: «Mis pacientes»** (`pages/MisPacientesPage.tsx`, ruta `/pacientes`). Dejó de
+ser «Próximamente». No repite la tabla del Resumen: ordena por **quién necesita atención**, con
+el motivo escrito (`N días sin check-in`, `Nunca hizo check-in`, `Ánimo bajo esta semana`,
+`Registro sin completar`, `Cuenta suspendida`), más adherencia de 28 días, racha y ánimo de la
+semana. Todo sale de lo que `/users/patients` ya mandaba y nadie mostraba.
+
+**Dos cosas que conviene saber si tocás esto:**
+
+- **El umbral de 7 días sin check-in no está validado clínicamente.** Es
+  `DIAS_SIN_CHECKIN_ALERTA` en esa página, y conviene revisarlo con AJUTER. La pantalla dice el
+  motivo en vez de emitir un juicio, justamente por eso.
+- **«Ver ficha» navega a `/?paciente=<id>`.** La ficha sigue siendo un cajón que vive dentro de
+  `OverviewPage`, así que se abre por query param. Cuando tenga su propia ruta
+  (`/pacientes/:id`), eso se reemplaza por navegación normal.
+
+**Para José:** se tocó `users/users.service.ts`, `users.controller.ts` y `users.module.ts`, que
+son tuyos. El cambio es acotado (un filtro por asignación y el `@CurrentUser()` en el
+controller) y quedó con tests, pero avísame si preferís revisarlo antes de que suba.
+
+---
+
+## 2026-09-16 — Regla de cobro del cliente: la cuenta se suspende al TERCER mes · corre `seed:demo`
+
+**A quién le pega:** a quien muestre la demo o toque algo de `billing`.
+
+**Qué tienes que hacer:**
+
+```bash
+pnpm run seed:demo -- --reset
+```
+
+Sin eso, Lucía Vega te queda con **1 cuota vencida y la cuenta suspendida**, que con la regla
+nueva es un estado imposible.
+
+**La regla, traída del cliente por el PO:** el paciente **pierde el acceso a la app al cumplir
+el tercer mes de no pago**, no antes. Con una o dos cuotas vencidas sigue entrando con
+normalidad. Hay además una figura de **«congelar suscripción»** —la mensualidad se detiene y el
+paciente tampoco entra— que **no existe en el código**.
+
+**Ojo con la distancia entre la regla y lo implementado:**
+
+- **Nada suspende por mora.** El único lugar que escribe `accountStatus: 'suspended'` fuera de
+  los seeds es desactivar un *psicólogo*. Un paciente moroso **no se suspende nunca solo**:
+  hoy habría que hacerlo a mano en la base.
+- **No existe el estado congelado.** `AccountStatus` es `'active' | 'suspended'`; cero
+  ocurrencias de frozen/congelar/pause en los cuatro workspaces.
+
+**Qué se ajustó mientras tanto:**
+
+- **El reporte PDF** usa 3 meses como umbral (`MESES_PARA_PERDER_ACCESO`). Con 1 o 2 cuotas la
+  deuda va en tono neutro y dice cuánto margen queda; recién al tercer mes se pone en rojo.
+  Antes alarmaba desde la primera cuota, y el rojo está reservado a la crisis.
+- **El seed de Lucía** pasó de 1 a **3 cuotas vencidas** ($90.000), coherente con estar
+  suspendida.
+
+**Lo que falta decidir con el cliente** (en `ASUNCIONES-PENDIENTES.md`): qué conserva un
+paciente suspendido o congelado. `CLAUDE.md` exige que la ruta de escalada del pánico esté
+**siempre** disponible; si dejar de pagar apaga el botón de pánico y el `*4141`, eso choca con
+la regla clínica del proyecto. Es la pregunta importante, y no es de facturación.
+
+---
+
+## 2026-09-16 — La auditoría UX de la web quedó cerrada: 42 de 42
+
+**A quién le pega:** a quien toque estilos en `apps/web`, y a **Eduardo** (dueño de
+`Sidebar.tsx` y del reporte PDF).
+
+**Qué hacer:** nada que instalar ni correr. Tres cosas que conviene saber si escribes UI:
+
+1. **No escribas `#fff` ni `rgba()` de marca a mano.** Ya no queda ninguno en `.tsx`. Usa
+   `var(--fg-on-primary)` para texto e íconos sobre azul o rojo, `var(--surface)` para
+   fondos blancos, y `var(--scrim)` para el velo de un modal (token nuevo: estaba escrito a
+   mano en 6 archivos, así que cambiar la opacidad obligaba a tocar los seis). Para una
+   opacidad puntual de un color de marca, `color-mix(in srgb, var(--primary) 30%, transparent)`.
+   Los `rgba` de blanco y negro con alfa del sidebar **se dejaron a propósito**: no son
+   colores del design system.
+2. **El logo de AJUTER ya no se pide a `ajuter.org`.** Vive en
+   `apps/web/src/assets/logo-ajuter.png` y `Sidebar.tsx` lo importa como módulo. Si el sitio
+   del cliente cambiaba, el panel perdía el logo, y cada carga quedaba registrada en un
+   servidor de terceros. **Para el PO:** el archivo se bajó del sitio público de AJUTER
+   porque no estaba en la carpeta de marca; conviene que AJUTER confirme que es la versión
+   vigente.
+3. **El reporte PDF salía con la marca naranja de AJUTER.** `generatePatientPDF.ts` tenía la
+   paleta vieja escrita a mano (`#E8883A`, `#574F4A`, `#2A2624`, `#FAF7F4`) desde antes del
+   cambio de marca del 31-08: **el panel era azul y el informe que el psicólogo entrega salía
+   naranja.** Ahora los colores se leen de los tokens del CSS en runtime, con respaldo fijo,
+   así que el PDF no puede volver a desincronizarse del tema.
+
+4. **En el login ya no aparece AJUTER.** El panel de marca decía «Para el equipo clínico de
+   AJUTER y las familias…» y ahora dice «Para los equipos clínicos y las familias…».
+   **Decisión del PO:** StopBet es el producto y AJUTER su primer cliente, pero puede haber
+   más; quien todavía no entró no tiene sesión, así que el sistema no sabe a qué institución
+   pertenece y nombrar una sería adivinar. Dentro del panel el logo de AJUTER **se queda** al
+   pie del sidebar: ahí ya se sabe de quién es la cuenta. Es la misma regla que mobile aplicó
+   en el PR #100.
+
+   ⚠️ **Queda AJUTER escrito a mano en tres lugares post-login** (ver abajo), y sacarlo de uno
+   de ellos no es solo cambiar el texto.
+
+**AJUTER salió también de los textos post-login, en neutro.** Decisión del PO del 16-09: en
+vez de esperar a que exista un campo de institución, los textos se escriben sin nombrar a
+nadie. Qué cambió:
+
+| Dónde | Antes | Ahora |
+|---|---|---|
+| `pages/familiar/FamiliarPortal.tsx` | «Portal de familiares de AJUTER» · «Un profesional de AJUTER debe aprobar tu vínculo…» · «Pídele a tu profesional de AJUTER…» | «Portal de familiares» · «Un profesional del equipo clínico…» · «Pídele al equipo clínico…» |
+| `utils/generatePatientPDF.ts` | «Dashboard Clínico - AJUTER» · «Sede AJUTER:» · pie «StopBet · Dashboard Clínico AJUTER…» | «Panel clínico» · «Sede:» · «StopBet · Panel clínico · Documento de uso interno» |
+| `pages/EquipoPage.tsx` | `placeholder` `fernanda.fuentes@ajuter.cl` | `nombre.apellido@tuinstitucion.cl` |
+
+«Sede AJUTER:» era además redundante: el valor que va al lado ya es la sede.
+
+**Lo único que sigue nombrando a AJUTER es el logo al pie del sidebar**, y se queda: ahí ya hay
+sesión y el panel identifica a la institución dueña de la cuenta.
+
+**Se borró `--ajuter-gradient`** de `stopbet-theme.css`. Era el último resto del tema naranja y
+**no lo usaba ningún archivo** — FAM-01 lo había reemplazado en el portal del familiar.
+
+⚠️ **El bloqueo de fondo sigue en pie, y es bueno saberlo antes de prometer multi-institución:**
+`institutionId` existe en `registration_requests` pero **no en `users`**, así que al aprobar un
+registro el usuario se crea sin institución y **después del login el sistema no sabe a cuál
+pertenece**. Mientras eso no cambie, el panel no puede mostrar la marca de cada cliente: el
+texto neutro es la solución correcta, no un parche. Está anotado en
+`ASUNCIONES-PENDIENTES.md`, ítem 7.
+
+**Un dato para quien mire rendimiento:** Inter y Nunito **no se descargan nunca** — son solo
+respaldo de Chillax y Satoshi, y el navegador solo baja una fuente que se usa. Está medido en
+`docs/auditoria-ux-web-2026-09-14.md`. Lo que sí pesa: **Chillax y Satoshi están en TTF
+(263 KB)**, y pasarlas a woff2 ahorraría del orden de 150 KB por primera visita. Queda
+propuesto, no hecho.
+
+---
+
+## 2026-09-16 — Cinco documentos decían cosas que el código ya no hace
+
+**A quién le pega:** a quien use `docs/` como fuente de verdad — sobre todo **José** (matriz
+de permisos), **Eduardo** y quien consuma `riskLevel` en el panel, y quien toque pánico.
+
+**Qué hacer:** nada que instalar ni correr. Solo saber que estos cinco quedaron al día, todos
+verificados contra el código de `main`, no contra otro documento:
+
+1. **`security/permissions-matrix.md`** — los tres endpoints de `community` que se cerraron el
+   16-09 seguían figurando como abiertos. `POST /announcements` pasó de ❌ a ✅, y
+   `moderation/flagged` y `DELETE /posts/:id` a una categoría nueva, **✅ Autenticado**
+   (`JwtAuthGuard` sin `@Roles`, porque el servicio ya distingue autor de psicólogo). El total
+   protegido pasó de 19 a 20. `dev-set-days` salió de los huecos críticos: está detrás de
+   `ENABLE_DEV_TOOLS` desde el 14-09.
+2. **`reglas-asistente.md` §5** — decía que ante un fallo del LLM el `catch` guardaba
+   `riskLevel: 'low'`. **Ya no:** hoy guarda `null`, y el tipo es `RiskLevel | null`. La
+   distinción importa en pantalla: **`null` es "no se pudo evaluar", `'low'` es "evaluado y
+   sin riesgo"**. Si muestras ese dato, no los pintes igual.
+3. **`superpowers/specs/…-panic-button-design.md`** — el diseño de junio dice 3 minutos de
+   escalada. Manda el criterio CA1.3: **120 s**, que es lo que tienen hoy el backend
+   (`ESCALATION_MS`) y mobile (`ESCALATION_SECONDS`). Se avisa arriba del documento.
+4. **`planning/evidencia-spike-sprint1.md`** — S.4 decía 19 `@Roles()`; ahora dice 20 y explica
+   por qué el número sube. S.8 aclara que su evidencia sigue reproducible (la key local hoy
+   está vacía, mismo camino) pero que el modelo cambió a `gemini-3.5-flash-lite`.
+5. **`ASUNCIONES-PENDIENTES.md` ítem #4** — pedía reescribir commits por un trailer de
+   co-autoría **antes de mergear**. La rama se mergeó hace meses y en `main` conviven cuatro
+   variantes del trailer. Se cerró sin acción: reescribir historia compartida por seis
+   personas obliga a todos a rebasear sus ramas vivas, y la regla vigente de `CLAUDE.md` ya es
+   no ponerlo.
+
+**Lo que NO se tocó, porque sigue siendo verdad:** `POST /panic/assign`,
+`GET /community/posts/:id/replies` y `POST /subscriptions` siguen abiertos sin ninguna
+identidad. Están en "Huecos críticos" de la matriz, cada uno con su dueño.
+
+---
+
+## 2026-09-16 — Si `pnpm install` te falla con "supply-chain policy check", pullea esto
+
+**A quién le pega:** a todo el que pulleara después del PR #96 (navegación por pestañas).
+
+**El síntoma:** `pnpm install` corta antes de instalar nada, con
+
+```
+✗ Lockfile failed supply-chain policy check
+[ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION] 4 lockfile entries failed verification:
+  @react-navigation/material-top-tabs@7.7.1 ... within the minimumReleaseAge cutoff
+```
+
+**Qué hacer:** pullear y listo, ya está arreglado. No hay comando nuevo.
+
+**Por qué pasaba.** pnpm rechaza paquetes publicados hace muy poco — es una defensa contra
+versiones maliciosas subidas hace horas. Las dependencias de navegación del PR #96 se
+publicaron el 2026-09-15 y quedaron dentro de esa ventana. Se agregaron a
+`minimumReleaseAgeExclude` en `pnpm-workspace.yaml`, **con versión fija**, igual que se hizo
+en su momento con los paquetes de React Native 0.86. Son cuatro: las dos directas
+(`material-top-tabs`, `native`) y dos transitivas que reclama después (`core`, `elements`).
+
+**Ojo con el síntoma engañoso:** mientras el install está bloqueado, el `tsc` del backend tira
+errores que parecen de código (`Cannot find module 'nodemailer'`,
+`Property 'credentialsEmailSent' does not exist`). No son: es el entorno a medias, porque
+`nodemailer` no se instaló y `shared-types` no se pudo recompilar. Con el install arreglado
+desaparecen los cinco.
+
+### ⚠️ Hallazgo aparte, para José: `pnpm.overrides` ya no se lee
+
+Al instalar, pnpm avisa:
+
+```
+[WARN] The "pnpm" field in package.json is no longer read by pnpm.
+       The following keys were ignored: "pnpm.overrides"
+```
+
+Es el pin de `@nestjs/core`/`@nestjs/common` a `10.4.22` que se agregó el 01-09 para que no
+se resolvieran dos instancias de `@nestjs/core` (lo que rompía los 49 tests e2e). **pnpm 11
+lo ignora**: ese ajuste se mudó a `pnpm-workspace.yaml`.
+
+Hoy no está causando daño — verificado con pnpm 11.22: queda **una sola** instancia de
+`@nestjs/core@10.4.22` y los 270 tests unitarios pasan, porque las bajadas de
+`@nestjs/schedule` y `@nestjs/terminus` a versiones de Nest 10 alcanzan por sí solas. Pero el
+pin quedó sin efecto, así que la red de seguridad que se puso en su momento ya no está.
+
+**No se tocó acá a propósito**, porque además tiene un efecto colateral: al instalar con
+pnpm 11 el lockfile se regenera sin la sección `overrides`. Esa regeneración **no se subió**.
+Si alguien la sube sin querer, el diff son ~850 líneas y arranca borrando ese bloque.
+
+---
+
+## 2026-09-16 — La app móvil ahora también es del psicólogo
+
+**A quién le pega:** a quien toque `apps/mobile`, y a quien toque el módulo `community` del
+backend.
+
+**Qué cambió.** Al entrar con una cuenta de **psicólogo**, la app ya no rechaza la sesión:
+muestra una vista propia con tres secciones —Resumen, Comunidad y Perfil— en vez de la app
+del paciente. Es un espejo condensado del Resumen del panel web, **de solo lectura**, más lo
+único que se puede escribir desde el teléfono: publicar anuncios de la sede y eliminar
+publicaciones reportadas.
+
+**Tres cosas que conviene saber antes de tocar esto:**
+
+1. **Hay dos árboles de navegación, no uno.** `App.tsx` decide por rol: `patient` va a
+   `AppNavigator` (lo de siempre) y `psychologist` a `StaffTabs`. El del equipo clínico **no
+   monta pánico, asistente ni check-in**, y su barra inferior **no tiene el botón SOS**:
+   `POST /panic/alerts` crea una alerta a nombre de quien lo toca, así que ahí no significa
+   nada y podría generar una crisis falsa.
+2. **El coordinador sigue sin entrar por la app, y no es criterio de producto.** El backend
+   no lo atiende: `GET /psychologists/:id` filtra por `role: 'psychologist'` y le responde
+   404, y `assertPsychologist` le cierra la moderación con 403. Entraría a una app rota. Si
+   alguien quiere sumarlo, primero hay que arreglar esos dos endpoints.
+3. **`users.sedeId` guarda dos cosas distintas** y esto no es nuevo, pero acá se nota: las
+   cuentas del seed tienen el **nombre** ("Santiago") y las creadas desde el registro tienen
+   el **UUID**. `panic_alerts` copia la del paciente, así que arrastra lo mismo. Por eso
+   existe `utils/staff.ts → mismaSede()`, que acepta las dos formas. Comparar solo por id
+   deja fuera a media sede **sin que nada lo delate**: la lista sale vacía, no rota. El
+   arreglo de verdad es normalizar la columna, y eso es una migración.
+
+**Backend — `POST /community/announcements` ahora exige token y rol.** Antes **no verificaba
+nada**: bastaba mandar el `x-user-id` de un psicólogo, sin ninguna credencial, para publicar
+un anuncio firmado con su nombre a toda la sede. Ahora lleva `JwtAuthGuard + RolesGuard` y el
+autor sale del token. `GET /community/moderation/flagged` y `DELETE /community/posts/:id`
+llevan `JwtAuthGuard` (sin `@Roles`, porque el servicio ya distingue autor de psicólogo y un
+guard de rol le quitaría al paciente el borrado de lo suyo). **Si algo tuyo llama a esos tres
+endpoints con `x-user-id` y sin `Authorization: Bearer`, ahora recibe 401.** La web y mobile
+ya mandan Bearer.
+
+**No hace falta correr nada** después de pullear: no hay dependencias nuevas. Sí hay que
+**recompilar la app** si la tenías instalada, porque cambió la navegación nativa.
+
+---
+
+## 2026-09-15 — La auditoría UX de la web ya está hecha: no la repitas
+
+**A quién le pega:** a quien tome el dashboard web (y a quien vaya a tocar mobile).
+
+**Qué cambió.** Las dos auditorías de UX quedaron cerradas y documentadas. Antes de
+auditar nada por tu cuenta, lee la sección de arriba del archivo que te toque:
+
+- **Web** — `docs/auditoria-ux-web-2026-09-14.md` → «Estado al cierre y traspaso». **39 de 42
+  hallazgos arreglados y mergeados (PR #95).** Quedan tres (SIS-09 colores a mano, SIS-13
+  fuentes de respaldo, SHL-03 el logo de AJUTER que se carga desde ajuter.org), con el porqué
+  de cada uno. Esa sección también lista **lo que cambió después de la auditoría** —para que
+  no lo reportes como bug— y los huecos que la auditoría UX no cubre (Finanzas y
+  Configuración con datos mock, los 14 controladores sin guard, los vínculos de familiar que
+  nadie aprueba).
+- **Mobile** — `docs/auditoria-ux-mobile-2026-09-14.md` → «Estado al cierre». **72 de 76
+  cerrados (PRs #90–#101)**, con la tabla de qué cerró cada PR.
+
+**Lo que falta en las dos no es código: son decisiones.** Están juntas y con nombre en
+`docs/ASUNCIONES-PENDIENTES.md`, sección «2026-09-15». Empieza por ahí si vas a hablar con
+AJUTER o con el cliente: la pasarela de pago y quién paga, el texto de privacidad del
+asistente, el tono de la cuenta suspendida y el género de «compañero de viaje».
+
+**No hace falta correr nada** después de pullear esto: son solo documentos.
+
+---
+
+## 2026-09-15 — El término del programa es «compañero de viaje», no «padrino»
+
+**A quién le pega:** a quien escriba textos en mobile, en la web o en correos.
+
+**Qué cambió.** AJUTER no usa «padrino» ni «madrina»: en su programa la persona que acompaña
+al paciente es su **compañero de viaje**. La app usaba el término equivocado en todas partes.
+Se renombró el **texto visible** en mobile (pánico, comunidad, plan), en el panel web
+(Alertas, Solicitudes) y en los mensajes del backend que llegan al paciente, incluidos los
+de respaldo del asistente.
+
+**En el código NO se renombró nada.** El rol sigue siendo `sponsor`, la tabla
+`sponsor_assignments`, el header, los DTO y Swagger. Cambiar eso sería un refactor de base
+de datos por un tema de vocabulario. **Regla: `sponsor` en el código, «compañero de viaje»
+en la pantalla.**
+
+**Dos cosas que conviene saber:**
+
+- **El término es largo** (19 caracteres contra 7). Si escribes una fila de una línea que lo
+  incluya, pruébala: las de pánico y comunidad se revisaron una por una y entran, pero
+  cualquier fila nueva puede no hacerlo.
+- **Queda una pregunta para AJUTER:** para una mujer sería «compañera de viaje», y el género
+  de quien acompaña no se conoce en el código. Hoy se usa la forma masculina como nombre del
+  rol y, donde se puede, se dice el nombre de la persona en vez del rol («Llamar a Daniela»,
+  «Alerta enviada a Daniela»). Si AJUTER prefiere otra fórmula, es cambiar los textos, no la
+  estructura.
+
+---
+
+## 2026-09-15 — AJUTER sale del cromo de la app: es un cliente, no la marca
+
+**A quién le pega:** a quien escriba textos de la app mobile.
+
+**La regla, decidida por el PO:** la app es **StopBet**; AJUTER es su primer cliente y en el
+futuro puede haber más. Entonces:
+
+- **En el cromo de la app no va el nombre del cliente.** "Ingresa con tus credenciales",
+  no "…de AJUTER". "Tu equipo clínico", no "tu equipo AJUTER". "Tu sede", no "tu sede
+  AJUTER".
+- **Donde sí es un dato del paciente, sale de la sesión.** Perfil ahora dice
+  "Paciente · Sede Santiago" leyendo `user.sedeId`, no un texto fijo.
+- **Se queda escrito solo donde AJUTER es el dato**: la pantalla de elegir institución, que
+  es literalmente la lista de instituciones.
+
+De paso, **Perfil mostraba "Carlos" y la inicial "C" escritos a mano en el JSX**, así que
+seguía saliendo Carlos con cualquier cuenta aunque el resto de la app ya usara la sesión
+real. Ahora sale el nombre, el apellido y la inicial de quien entró.
+
+Queda pendiente `contacto@ajuter.cl`, que es el correo real del cliente: cuando haya una
+segunda institución tendrá que venir de la sede, no del código.
+
+---
+
+## 2026-09-15 — Mobile tiene sesión real: se acabó la cuenta de demo
+
+**A quién le pega:** a todos. Si probabas la app entrando con cualquier cosa, eso ya no
+funciona.
+
+**Qué tienes que hacer:** entrar con una cuenta de verdad. Las del seed sirven —
+`ana.perez@stopbet.cl`, `pedro.alvarez@stopbet.cl`, `demo@stopbet.cl`… — todas con la clave
+`Stopbet2026!`. Si no corriste `pnpm run seed`, no vas a poder entrar.
+
+**Qué estaba pasando.** `LoginScreen` tenía un `TODO`: esperaba 900 ms y llamaba a
+`signIn()`. **Cualquier correo con cualquier clave abría la sesión**, y las siete pantallas
+leían un `TEMP_USER_ID` fijo. Por eso toda cuenta mostraba "Hola, Carlos" con el mismo
+progreso: no es que no se guardara el cambio de cuenta, es que nunca hubo cuentas.
+
+**Qué cambió:**
+
+- `POST /auth/login` de verdad, con sus errores distinguidos: credenciales incorrectas
+  (401), cuenta suspendida (403) y "esta app es para pacientes" si entra alguien del equipo
+  clínico — el backend no filtra por rol, lo hace la app, igual que la web.
+- El token va en `Authorization: Bearer` y **rota solo ante un 401**, con `singleFlight`
+  para que varias llamadas en paralelo no se pisen (el backend revoca el refresh al primer
+  uso). Si el refresh ya no sirve, la app vuelve al login sola.
+- **La sesión sobrevive a cerrar la app.** Ya no vuelve a Bienvenida cada vez.
+- Se sigue mandando `x-user-id`, pero **con el id real**: 14 de 17 controladores lo leen sin
+  verificarlo. Cuando se registre `JwtAuthGuard` como guard global, ese header se puede
+  sacar.
+
+**Si tocas código:**
+
+- **No existe más `TEMP_USER_ID`.** Usa `useUserId()` de `context/AuthContext`, y
+  `useCurrentUser()` si necesitas el nombre o la sede.
+- **Las cachés sin conexión reciben el `userId`**: `readProgress(userId)`,
+  `saveCommunity(userId, data)`, etc. La clave en disco es `@stopbet/last-progress/<userId>`.
+
+**Dos fugas entre cuentas que arreglamos de paso**, y que conviene conocer porque el patrón
+se puede repetir: las cachés sin conexión usaban **una sola clave para toda la app**, así que
+entrar con otra cuenta y quedarse sin red mostraba el progreso —y el teléfono del padrino—
+del paciente anterior. Y el detector de recaída externa guardaba el número de intento del
+usuario previo en una variable de módulo: al cambiar de cuenta le anunciaba a quien recién
+entraba **"tu psicólogo registró una recaída en tu historial"**. Ojo con el estado de módulo
+en `services/`: ahora es por paciente.
+
+⚠️ **Una consecuencia para decidir:** el backend rechaza el login de cuentas suspendidas
+(403), y `JwtStrategy` corta las sesiones ya abiertas. Eso deja **`SuspendedAccountScreen`
+sin forma de alcanzarse**: un paciente suspendido no puede entrar a pagar desde la app. Hoy
+el login le dice que escriba a `contacto@ajuter.cl`. Cuando exista la pasarela habrá que
+decidir si el backend le da una sesión limitada para pagar, o si el cobro se resuelve fuera
+de la app.
+
+---
+
+## 2026-09-15 — La app ya tiene tema oscuro: no uses `Colors` directo
+
+**A quién le pega:** a cualquiera que escriba UI en mobile.
+
+**Qué cambió.** La app sigue el tema del teléfono, o el que el paciente elija en **Perfil → Apariencia** (Automático / Claro / Oscuro; se guarda en `AsyncStorage`). `StyleSheet.create` corre una sola vez al
+cargar el módulo, así que una hoja de estilos fija no puede cambiar de tema. El patrón nuevo:
+
+```tsx
+const makeStyles = (c: Palette) => StyleSheet.create({
+  card: { backgroundColor: c.surface, borderColor: c.border },
+  title: { color: c.fg1 },
+});
+
+export function MiPantalla() {
+  const c = useColors();               // solo si usas colores en el JSX
+  const styles = useStyles(makeStyles);
+  ...
+}
+```
+
+**Tres reglas para no romperlo:**
+
+1. **No importes `Colors`.** Sigue existiendo apuntando a la paleta clara, pero un color
+   leído así se queda claro en modo oscuro. Usa `useColors()` / `makeStyles(c)`.
+2. **Para texto e íconos usa `c.primaryText` y `c.dangerText`, no `c.primary` ni `c.danger`.**
+   El azul y el rojo del manual son para **rellenos**: como texto sobre fondo oscuro dan
+   3,16:1 y 2,72:1, bajo el mínimo. Es el mismo criterio que ya existía con `greenText`.
+3. **Si agregas un color, agrégalo a las dos paletas.** El tipo `Palette` obliga a que la
+   oscura tenga las mismas llaves, así que el type-check te avisa.
+
+**El manual de marca no se tocó:** el azul, el verde y el rojo son los mismos en los dos
+temas como relleno. Un botón azul con texto blanco da 5,09:1 en claro y en oscuro.
+
+Los 12 pares de contraste principales están medidos: **cero por debajo de 4,5:1 en ambos
+temas**. Si cambias un color, vuelve a medir.
+
+**Lo que sigue en claro a propósito:** los diálogos nativos (`Alert`), porque el tema de
+Android se fijó claro con los colores de marca — ver el aviso de la segunda tanda.
+
+---
+
+## 2026-09-15 — Deslizar entre secciones, avisos que no interrumpen y onda al tocar: `pnpm install` y recompilar
+
+**A quién le pega:** a todo el que corra la app mobile. Y si tocas navegación —**Matías
+Barraza** (Inicio, Pánico, Asistente), **Catalina Yáñez** (Comunidad), **HdU03** (Logros)—
+léete lo de abajo antes de escribir un `navigate`.
+
+**Qué tienes que hacer, en este orden:**
+
+1. `pnpm install` en la raíz. Hay dos dependencias nuevas: **`react-native-pager-view`**
+   (nativa) y `@react-navigation/material-top-tabs`. De paso `@react-navigation/native`
+   subió a `^7.4.1`, que es lo que pide la de pestañas.
+2. **Recompilar**: `pnpm run android` (o `android:device`). Con solo recargar Metro la app
+   arranca en blanco con `Cannot read property 'ScreenStack' of undefined` o similar,
+   porque falta el módulo nativo.
+
+**Qué cambió.** Las cuatro secciones de la barra inferior (Inicio, Comunidad, Logros,
+Perfil) dejaron de ser pantallas sueltas del stack y ahora son un **navegador de pestañas**,
+así que se puede cambiar de sección **deslizando**, no solo tocando. El pánico, el asistente
+y la cuenta suspendida siguen siendo pantallas del stack, por encima de las pestañas.
+
+**Lo que te pega si escribes código:**
+
+- **`AppStackParamList` cambió.** Home, Community, Achievements y Profile ya no están ahí:
+  viven en `MainTabsParamList`, y el stack expone una sola ruta `MainTabs`.
+- **Desde una pantalla que NO es pestaña** (pánico, asistente, cuenta suspendida) hay que
+  navegar a la sección anidada:
+  ```ts
+  navigation.navigate('MainTabs', { screen: 'Community', params: { initialTab: 'forum' } });
+  ```
+  Desde una pestaña hacia otra, `navigation.navigate('Community')` sigue funcionando igual.
+- **Las pantallas de pestaña usan `CompositeScreenProps`**, porque navegan tanto entre
+  pestañas como al stack de arriba. Copia el patrón de `HomeScreen.tsx` si agregas una.
+- **`BottomNav` ya no se dibuja dentro de cada pantalla.** La pinta el navegador una sola
+  vez, en `src/navigation/MainTabs.tsx`. Si la vuelves a poner en una pantalla van a salir
+  dos barras. Con eso se fueron los cuatro `handleTabPress` duplicados.
+
+**Tres piezas nuevas que hay que usar en vez de lo de antes:**
+
+- **`components/Touchable.tsx` reemplaza a `TouchableOpacity`.** Android responde al toque
+  con una onda; la app solo bajaba la opacidad, que es el gesto de iOS. Migraron los 182
+  usos. Tiene la misma forma que `TouchableOpacity` (`style`, `activeOpacity`, `onPress`,
+  accesibilidad), así que cambiar el nombre alcanza. Sobre fondo azul o rojo, pásale
+  `rippleColor="rgba(255,255,255,0.28)"`: la onda gris no se ve sobre color.
+- **`useToast()` para lo que solo hay que leer.** El diálogo del sistema queda para las
+  decisiones: eliminar, cerrar sesión, registrar una recaída, salir de una alerta activa.
+  Para "Gracias, lo revisaremos" o "guardamos tu check-in" va `showToast(mensaje)`, o
+  `toast(mensaje, 'error')` si estás fuera de un componente y no puedes usar hooks.
+- **Hay un `SafeAreaProvider` en la raíz de `App.tsx`.** Antes no existía: los insets venían
+  del que monta React Navigation dentro de cada navegador. Si algo tuyo usa
+  `useSafeAreaInsets` fuera de un navegador, ahora funciona.
+
+**Un arreglo que te puede cambiar lo que ves:** `isNetworkError` ahora reconoce `Aborted`.
+El cliente HTTP corta a los 25 s con `AbortController` y eso llegaba como un error normal,
+no como falta de conexión: un backend caído mostraba "No pudimos cargar tu progreso" en vez
+del estado sin conexión, y en desarrollo levantaba el LogBox encima de la pantalla.
+
+**Dos decisiones, por si te llama la atención:**
+
+- **El botón de pánico quedó fuera del gesto**: el orden de deslizamiento es Inicio →
+  Comunidad → Logros → Perfil. A la pantalla de crisis se entra apretando, nunca por un
+  deslizamiento accidental.
+- **Dentro de Comunidad, deslizar cambia de sección, no de pestaña.** Anuncios y Foro se
+  siguen cambiando tocando: un gesto, un significado en toda la app.
+
+---
+
+## 2026-09-15 — Auditoría UX de mobile, segunda tanda: hay que recompilar (PR #96)
+
+**A quién le pega:** a todo el que corra la app en su teléfono o emulador, y en particular a
+**Matías Barraza** (Inicio, Pánico, Asistente), **Catalina Yáñez** (Comunidad), **Matías
+Lara** (Registro) y **José Meza** (login).
+
+**Qué tienes que hacer:**
+
+1. **Recompilar la app, no basta con recargar el bundle.** Cambiaron `styles.xml` y
+   `colors.xml`: `pnpm run android` (o `android:device`). Si solo recargas Metro, los
+   diálogos del sistema van a seguir viéndose como antes.
+2. **Vuelve a correr `pnpm run seed`** si quieres el texto corregido del anuncio de la
+   sesión grupal. Decía «miércoles 18 de junio» y el 18 de junio de 2026 es jueves, así que
+   no calzaba con la fecha que la app formatea desde `eventDate`.
+
+**Dos APIs internas cambiaron.** Si tocas estos archivos, ojo:
+
+- `registrarParaNotificaciones(userId)` ya no devuelve una función, devuelve
+  `{ activado, detener }`. Se necesitaba saber si el paciente aceptó el permiso para poder
+  decírselo en pantalla.
+- `StepperHeader` recibe `labels: string[]` y `current: number`. El registro declara sus dos
+  pasos reales (Datos · Sede); `PaymentScreen` pasa los tres explícitamente.
+
+**Comportamientos que cambiaron a propósito** (para que nadie los reporte como bug):
+
+- **Inicio y Logros se refrescan cada 3 minutos, no cada 5 segundos.** Si cambias algo en la
+  base de datos y no aparece al tiro en la app, es esto: sal y vuelve a entrar a la pantalla.
+  Antes eran 2.880 peticiones por hora de pantalla abierta.
+- **La pantalla de «tu padrino respondió» ya no se cierra sola a los 30 segundos.** La
+  cierra el paciente. Ese temporizador además marcaba como *cancelada* una alerta que sí
+  había sido *respondida*, o sea ensuciaba el historial del psicólogo.
+- **El registro salta el paso de elegir institución** mientras AJUTER sea la única, y el
+  indicador muestra dos pasos en vez de tres. La pantalla `SelectInstitutionScreen` sigue
+  existiendo para cuando haya una segunda.
+- **El foro usa `FlatList`.** Si agregas contenido al foro, ya no se monta todo de una vez.
+- **La app fuerza tema claro.** Con el teléfono en modo oscuro se ve igual que siempre; lo
+  que cambia es que los `Alert` nativos ahora salen con los colores de StopBet en vez de
+  gris oscuro con botones verde azulado. El modo oscuro de verdad sigue pendiente (SIS-07).
+- **Los campos de tarjeta de `PaymentScreen` se eliminaron.** Con una pasarela real (Webpay)
+  los datos de tarjeta no deben pasar por la app: el flujo correcto es redirigir al
+  formulario alojado de Transbank. Ver `docs/presupuesto-stack-2026-09.md`.
+
+**Colores:** hay cinco tokens nuevos en `constants/colors.ts` (`dangerSurface`,
+`dangerBorder`, `successSurface`, `infoSurface`, `infoBorder`). Si vas a pintar un fondo de
+estado, úsalos; no inventes otro pálido. Se reemplazaron 57 hex escritos a mano, entre ellos
+los restos del tema AJUTER naranja y verde azulado.
+
+El detalle hallazgo por hallazgo está en `docs/auditoria-ux-mobile-2026-09-14.md`.
+
+---
+
+## 2026-09-14 — Auditoría UX de la web: cambios visibles en el panel y el portal (PR #95)
+
+**A quién le pega:** a quien use o muestre el panel web, sobre todo a **Eduardo** (Resumen,
+Alertas y `DashboardApp.tsx`), **José Meza** (login), **Matías Lara** y **Catalina Yáñez**
+(Solicitudes) y a quien toque Equipo o el portal del familiar.
+
+**Qué hacer:** no hay nada que instalar ni correr. Estos cambios son a propósito:
+
+- **Estados de alerta reales.** Las alertas de pánico muestran «Esperando al padrino»,
+  «Escalada · sin respuesta», «El padrino respondió» o «Cerrada». Antes, una alerta
+  escalada (que sigue abierta) decía «Resuelto con IA», y una cerrada decía «Sin resolver».
+  Se usa `utils/alertStatus.ts` y `components/AlertStatusBadge.tsx`: no vuelvas a mapear
+  los estados a mano.
+- **Se quitaron botones sin acción:**
+  - «Exportar lista», `···`, la paginación falsa y la campana con «3» fijo;
+  - «Atender» y «Exportar» en Alertas;
+  - los «Guardar cambios» de la ficha y de Configuración.
+
+  Si esperabas verlos, no es un bug.
+- **Solicitudes pide menos datos.** Al aprobar ya no se piden padrino, fecha ni notas, y
+  al rechazar ya no se pide motivo, porque el backend no recibía ninguno de esos datos.
+- **Secciones marcadas como provisorias:**
+  - Configuración muestra el usuario de la sesión, en solo lectura;
+  - Finanzas avisa que sus datos son de ejemplo;
+  - «Mis pacientes» y «Reportes» dicen «Próximamente».
+- **Contraste.** Hay un token nuevo, `--secondary-text` (verde para texto), y `--teal-50`
+  quedó un punto más claro. El verde `#97b23f` y el azul claro ya no se usan como texto,
+  porque no alcanzaban el contraste mínimo. La skill `stopbet-web-design` está actualizada.
+- **Modales accesibles.** Para uno nuevo usa `hooks/useDialog`: se cierra con Escape y el
+  foco no se escapa.
+
+Detalle completo: `docs/auditoria-ux-web-2026-09-14.md`.
+
+---
+
+## 2026-09-14 — Auditoría UX mobile: hay que recompilar Android y agregar `ENABLE_DEV_TOOLS` al backend (PR #90 a #94)
+
+**A quién le pega:** a todos los que corren la app mobile, y a quien use las herramientas de
+prueba de Perfil en la demo. Los cambios tocan pantallas de varios dueños: Pánico, Asistente,
+Comunidad, Registro, Login, Logros, Pago y Perfil. El detalle de cada una está en
+`docs/auditoria-ux-mobile-2026-09-14.md`.
+
+**Qué hacer:**
+
+1. **Recompilar la app** (PR #94). Recargar Metro no alcanza, porque cambiaron `MainActivity.kt` y el
+   ícono adaptativo. En un teléfono: `pnpm run android:device`. En el emulador:
+   `npx react-native run-android --active-arch-only`.
+2. **Agregar `ENABLE_DEV_TOOLS=true` a `apps/backend/.env`** (PR #93; ya está en `.env.example`) y
+   reiniciar el backend. Sin esa línea, "Días sin apostar" de Perfil muestra "Error al
+   sincronizar con el servidor", porque `POST /achievements/dev-set-days` responde 404.
+   **En Railway no hay que ponerla.** Allá `NODE_ENV` es `development` y no distingue
+   producción, así que esta variable es lo único que mantiene cerradas esas herramientas.
+
+**Lo que puede parecer un bug y no lo es:**
+
+- Las herramientas de prueba de Perfil ya no aparecen en un APK de release (`__DEV__`). En
+  debug siguen apareciendo.
+- El texto secundario (`Colors.fg2`) es un poco más oscuro: ahora es `#6b6a6a`, el mismo de
+  la web. El anterior no llegaba al contraste mínimo sobre el fondo crema.
+- Hay dos tokens nuevos para texto: `onPrimaryMuted` (sobre azul) y `greenText`. El verde y el
+  azul claros quedan solo para rellenos.
+- Si Android mata la app en segundo plano o cambias el tamaño de letra, la app arranca de cero
+  en vez de intentar restaurar la pantalla (antes se caía). Por ahora eso la deja en
+  Bienvenida, porque la sesión demo no se guarda.
+
+---
 
 ## 2026-09-03 — Aprobar una solicitud ya refresca el conteo de pacientes en Equipo (commit directo en `main`)
 
@@ -107,6 +1543,28 @@ mirar antigüedad razonable — una alerta sembrada con `createdAt` de hace vari
 escala sola en los primeros 10 s tras arrancar el backend. Por eso `seed:demo` no siembra
 ninguna alerta en `pending`: las tres "de hoy" nacen ya `escalated`/`responded`. Si necesitas
 una alerta `pending` real para probar algo, dispárala desde el celular.
+
+---
+
+## 2026-09-03 — El RUT ya no se duplica al escribirlo en el registro mobile (PR #86)
+
+### Si viste el campo RUT escribiendo `123123123123...` solo, esto era
+
+**A quién le pega:** a quien pruebe el registro de paciente (`RegisterStep1Screen`) en un
+Android con **texto predictivo activado** en el teclado. Con predicción apagada, o en
+iOS, nunca se vio.
+
+**Qué pasaba:** el campo reformatea el RUT en cada tecla (`formatRut` agrega puntos y
+mueve el guión), y eso rompía la composición del teclado predictivo: al reescribirle el
+texto por debajo, el teclado volvía a soltar su buffer entero. No era una regresión —
+estaba así desde HU-06 (27-ago) — pero solo se disparaba con esa combinación puntual de
+teclado y ajuste, así que a la mayoría nunca le tocó verlo.
+
+**Qué hacer:** nada que instalar ni correr. Si a alguien le vuelve a pasar en **otro**
+campo que se reformatea solo (no en el RUT, que ya está resuelto), es el mismo bug:
+revisar `apps/mobile/src/components/FormInput.tsx` — el prop `autoCorrect` no basta en
+todos los teclados (el de Samsung lo ignora), hace falta `keyboardType="visible-password"`
+en el campo específico, como se dejó en el de RUT.
 
 ---
 

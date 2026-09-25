@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -10,62 +11,83 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type {
+  AuthUser,
   CommunityPost,
-  CommunityReply,
+  QuotedMessage,
   ReactionEmoji,
-  ReactionSummary,
-  UserRole,
 } from '@stopbet/shared-types';
-import type { AppStackParamList } from '../navigation/types';
-import { BottomNav } from '../components/BottomNav';
+import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { Icon, type IconName } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import {
+  ChatMessage,
+  CitaEnComposer,
+  REACTION_ICON_MAP,
+  REACTION_NAME,
+  citaDe,
+  díaDelMensaje,
+  díasDistintos,
+  initial,
+} from '../components/ChatMessage';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
 import { isNetworkError } from '../services/checkInQueue';
 import { readCommunity, saveCommunity } from '../services/offlineStore';
+import { abrirStreamDeComunidad } from '../services/communityStream';
 import { devFlags } from '../store/devFlags';
-
-// Ajustar cuando se conecte la autenticación real
-const TEMP_USER_ID = '11111111-1111-1111-1111-111111111111';
-const TEMP_SEDE = 'Santiago';
+import { toast, useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
+import { useCurrentUser, useUserId } from '../context/AuthContext';
+import { useDialog } from '../context/DialogContext';
+import { ROLE_LABEL, esEquipoClínico } from '../utils/roles';
+import { newRequestId, withRetry } from '../utils/retry';
+import { logInfo, logWarn, logError } from '../utils/log';
 
 const REACTION_EMOJIS: ReactionEmoji[] = ['💪', '❤️', '🤗'];
 
-const REACTION_ICON_MAP: Record<ReactionEmoji, IconName> = {
-  '💪': 'hand-heart',
-  '❤️': 'heart',
-  '🤗': 'smile',
-};
-
-const ROLE_LABEL: Record<UserRole, string> = {
-  patient: 'Paciente',
-  psychologist: 'Psicólogo',
-  sponsor: 'Padrino',
-  family: 'Familiar',
-  coordinator: 'Coordinador',
-};
+// Igual que el valor por omisión del backend: la primera página y cada tanda siguiente.
+const POSTS_POR_PÁGINA = 20;
 
 // Caché en memoria de lo último cargado, para mostrarlo sin conexión (CA4).
 // Sobrevive a navegar entre pantallas, pero no al reinicio de la app: para eso
 // se respalda en disco con saveCommunity/readCommunity.
-const offlineCache: { announcements: CommunityPost[]; posts: CommunityPost[] } = {
+const offlineCache: {
+  userId: string | null;
+  announcements: CommunityPost[];
+  posts: CommunityPost[];
+} = {
+  // Sin el id, al cambiar de cuenta el foro de la sede anterior se mostraba como propio
+  userId: null,
   announcements: [],
   posts: [],
 };
 
 type Tab = 'announcements' | 'forum';
 
-type Props = NativeStackScreenProps<AppStackParamList, 'Community'>;
+// Vive en el navegador de pestañas, pero también navega al stack de arriba
+// (asistente, pánico), así que necesita los dos juegos de props.
+type Props = CompositeScreenProps<
+  MaterialTopTabScreenProps<MainTabsParamList, 'Community'>,
+  NativeStackScreenProps<AppStackParamList>
+>;
 
 export function CommunityScreen({ navigation, route }: Props) {
+  const { showDialog } = useDialog();
+  const userId = useUserId();
+  const user = useCurrentUser();
+  const sede = user?.sedeId ?? '';
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>(route.params?.initialTab ?? 'announcements');
   const [announcements, setAnnouncements] = useState<CommunityPost[]>([]);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
@@ -81,38 +103,52 @@ export function CommunityScreen({ navigation, route }: Props) {
   const [reportReason, setReportReason] = useState('');
   const [reportSending, setReportSending] = useState(false);
 
+  // Menú de cada publicación (hoja inferior)
+  const [menuPost, setMenuPost] = useState<CommunityPost | null>(null);
+
   // Respuestas: expansión y cache por post
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [repliesByPost, setRepliesByPost] = useState<Record<string, CommunityReply[]>>({});
-  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
+  // A quién se está respondiendo. El foro es plano: responder es publicar citando.
+  const [citando, setCitando] = useState<QuotedMessage | null>(null);
 
   // Claves de idempotencia de los envíos que todavía no confirmaron. Se guarda el
   // texto junto al id: si el paciente corrige lo que escribió antes de reintentar,
   // eso es un mensaje distinto y necesita clave nueva, o el backend le devolvería
   // el anterior.
   const [pendingPost, setPendingPost] = useState<{ id: string; body: string } | null>(null);
-  const [pendingReply, setPendingReply] = useState<Record<string, { id: string; body: string }>>({});
+  // Paginación del foro: la primera página llega con `load`, las de más atrás con el scroll.
+  const [totalPosts, setTotalPosts] = useState(0);
+  const [cargandoMás, setCargandoMás] = useState(false);
+  // Envíos que no salieron, por clave de idempotencia: se muestran con "No se envió".
+  const [envíosFallidos, setEnvíosFallidos] = useState<Record<string, boolean>>({});
 
   const load = useCallback(async () => {
     try {
       const [anns, forum] = await Promise.all([
-        api.getAnnouncements(TEMP_USER_ID, TEMP_SEDE),
-        api.getForumPosts(TEMP_USER_ID, TEMP_SEDE),
+        api.getAnnouncements(userId, sede),
+        api.getForumPosts(userId, sede),
       ]);
       setAnnouncements(anns);
       setPosts(forum.data);
+      setTotalPosts(forum.total);
       setOffline(false);
       // Guarda lo cargado para poder mostrarlo sin conexión (CA4)
+      offlineCache.userId = userId;
       offlineCache.announcements = anns;
       offlineCache.posts = forum.data;
-      void saveCommunity({ announcements: anns, posts: forum.data });
+      void saveCommunity(userId, { announcements: anns, posts: forum.data });
     } catch (err) {
       // Sin conexión: caemos al último contenido cacheado (CA4)
       setOffline(true);
       // El caché en memoria se vacía al reiniciar la app, y ahí el feed salía
       // vacío como si nadie hubiera publicado. Se completa desde disco.
+      // Si el caché en memoria es de otra cuenta, no sirve: se descarta y se lee el de disco
+      if (offlineCache.userId !== userId) {
+        offlineCache.userId = userId;
+        offlineCache.announcements = [];
+        offlineCache.posts = [];
+      }
       if (offlineCache.posts.length === 0 && offlineCache.announcements.length === 0) {
-        const stored = await readCommunity();
+        const stored = await readCommunity(userId);
         if (stored) {
           offlineCache.announcements = stored.announcements;
           offlineCache.posts = stored.posts;
@@ -124,9 +160,9 @@ export function CommunityScreen({ navigation, route }: Props) {
       // Sin red es un estado esperado, no un fallo: con console.error React
       // Native levanta el LogBox encima de la pantalla.
       if (isNetworkError(err)) {
-        console.log('[CommunityScreen] sin conexión al cargar');
+        logInfo('[CommunityScreen] sin conexión al cargar');
       } else {
-        console.error('[CommunityScreen] load error', (err as Error).message);
+        logError('[CommunityScreen] load error', (err as Error).message);
       }
     } finally {
       setLoading(false);
@@ -153,7 +189,7 @@ export function CommunityScreen({ navigation, route }: Props) {
   // ── Asistencia a eventos ───────────────────────────────────────────────
   const handleToggleAttendance = async (announcementId: string) => {
     try {
-      const { attends } = await withRetry(() => api.toggleAttendance(TEMP_USER_ID, announcementId));
+      const { attends } = await withRetry(() => api.toggleAttendance(userId, announcementId));
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === announcementId ? { ...a, userAttends: attends } : a)),
       );
@@ -162,14 +198,63 @@ export function CommunityScreen({ navigation, route }: Props) {
     }
   };
 
+  /**
+   * Trae la página siguiente al llegar al final de la lista. Antes se pedían los primeros 20
+   * mensajes y no había forma de ver más atrás: en un foro pasaba desapercibido, en una
+   * conversación es lo primero que se busca.
+   */
+  const cargarMásAntiguos = useCallback(async () => {
+    if (cargandoMás || offline || posts.length === 0 || posts.length >= totalPosts) return;
+    setCargandoMás(true);
+    try {
+      const página = Math.floor(posts.length / POSTS_POR_PÁGINA) + 1;
+      const siguiente = await api.getForumPosts(userId, sede, página, POSTS_POR_PÁGINA);
+      setPosts((prev) => {
+        const vistos = new Set(prev.map((p) => p.id));
+        return [...prev, ...siguiente.data.filter((p) => !vistos.has(p.id))];
+      });
+      setTotalPosts(siguiente.total);
+    } catch {
+      // Silencioso a propósito: es contenido viejo, no algo que el paciente pidió ver ahora.
+    } finally {
+      setCargandoMás(false);
+    }
+  }, [cargandoMás, offline, posts.length, totalPosts, sede, userId]);
+
+  /**
+   * Los mensajes de los demás llegan solos mientras la pantalla está abierta. Antes había
+   * que salir y volver para verlos, que es lo que separa un foro de una conversación.
+   *
+   * Solo con la pestaña a la vista: una conexión abierta con la app en el bolsillo es
+   * batería del paciente a cambio de nada, y al volver la carga trae lo que se perdió.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (!sede || offline) return;
+      const cerrar = abrirStreamDeComunidad(sede, (evento) => {
+        if (evento.kind === 'post') {
+          const llegado = evento.post;
+          setPosts((prev) => {
+            // Lo propio ya está en la lista desde que se envió: el eco no lo duplica.
+            if (prev.some((p) => p.id === llegado.id)) return prev;
+            return [llegado, ...prev];
+          });
+          setTotalPosts((n) => n + 1);
+          return;
+        }
+      });
+      return cerrar;
+    }, [sede, offline]),
+  );
+
   // ── Reacciones ─────────────────────────────────────────────────────────
   const handleReaction = async (post: CommunityPost, emoji: ReactionEmoji) => {
     const current = post.reactions.find((r) => r.emoji === emoji);
     const reacting = !current?.userReacted;
     try {
       const { reactions } = reacting
-        ? await withRetry(() => api.addReaction(TEMP_USER_ID, post.id, emoji))
-        : await withRetry(() => api.removeReaction(TEMP_USER_ID, post.id, emoji));
+        ? await withRetry(() => api.addReaction(userId, post.id, emoji))
+        : await withRetry(() => api.removeReaction(userId, post.id, emoji));
       setPosts((prev) => prev.map((p) => (p.id === post.id ? { ...p, reactions } : p)));
     } catch (err) {
       alertFailure('registrar tu reacción', err);
@@ -185,60 +270,59 @@ export function CommunityScreen({ navigation, route }: Props) {
     const requestId = pendingPost?.body === body ? pendingPost.id : newRequestId();
     setPendingPost({ id: requestId, body });
     setPosting(true);
+
+    // El mensaje aparece al tiro con su reloj, como en cualquier chat: esperar la respuesta
+    // del servidor con el campo ya vacío deja al paciente sin saber si se envió.
+    const citado = citando;
+    const enCamino = mensajeEnCamino(requestId, body, sede, user, citado);
+    setPosts((prev) => [enCamino, ...prev]);
+    setDraft('');
+    setCitando(null);
+
     try {
-      const created = await withRetry(() => api.createForumPost(TEMP_USER_ID, TEMP_SEDE, body, requestId));
-      setPosts((prev) => [created, ...prev]);
-      setDraft('');
+      const created = await withRetry(() =>
+        api.createForumPost(userId, sede, body, requestId, citado?.id),
+      );
+      // El de verdad reemplaza al provisorio, salvo que el stream ya lo haya traído.
+      setPosts((prev) => {
+        const sinProvisorio = prev.filter((p) => p.id !== enCamino.id);
+        if (sinProvisorio.some((p) => p.id === created.id)) return sinProvisorio;
+        return [created, ...sinProvisorio];
+      });
       setPendingPost(null);
+      setEnvíosFallidos((prev) => {
+        const { [requestId]: _descartado, ...resto } = prev;
+        return resto;
+      });
     } catch (err) {
+      // Se queda en la lista marcado como no enviado: el texto no se pierde y se puede
+      // reintentar tocándolo, con la misma clave, así que no se publica dos veces.
+      setEnvíosFallidos((prev) => ({ ...prev, [requestId]: true }));
       alertFailure('publicar tu mensaje', err);
     } finally {
       setPosting(false);
     }
   };
 
+  /** Pone el mensaje sobre el composer para responderlo, como al citar en WhatsApp. */
+  const citar = useCallback((post: CommunityPost) => {
+    setCitando(citaDe(post));
+  }, []);
+
+  /** Reintenta un mensaje que no salió, con su misma clave. */
+  const reintentarEnvío = useCallback((post: CommunityPost) => {
+    setPosts((prev) => prev.filter((p) => p.id !== post.id));
+    setDraft(post.body);
+    // Si citaba a alguien, la cita vuelve al composer con el texto.
+    // Si citaba a alguien, la cita vuelve al composer junto con el texto.
+    setCitando(post.replyTo ?? null);
+    setEnvíosFallidos((prev) => {
+      const { [post.id]: _descartado, ...resto } = prev;
+      return resto;
+    });
+  }, []);
+
   // ── Respuestas ─────────────────────────────────────────────────────────
-  const handleToggleReplies = async (postId: string) => {
-    const willExpand = !expanded[postId];
-    setExpanded((prev) => ({ ...prev, [postId]: willExpand }));
-    if (willExpand && !repliesByPost[postId]) {
-      try {
-        const replies = await api.getReplies(TEMP_USER_ID, postId);
-        setRepliesByPost((prev) => ({ ...prev, [postId]: replies }));
-      } catch {
-        setRepliesByPost((prev) => ({ ...prev, [postId]: [] }));
-      }
-    }
-  };
-
-  const handleReply = async (postId: string) => {
-    const body = (replyDraft[postId] ?? '').trim();
-    if (!body) return;
-    const pending = pendingReply[postId];
-    const requestId = pending?.body === body ? pending.id : newRequestId();
-    setPendingReply((prev) => ({ ...prev, [postId]: { id: requestId, body } }));
-    try {
-      const created = await withRetry(() => api.createReply(TEMP_USER_ID, postId, body, requestId));
-      // Si el envío anterior sí había llegado, el backend devuelve aquella misma
-      // respuesta: se descarta el duplicado local en vez de mostrarla dos veces.
-      setRepliesByPost((prev) => {
-        const current = prev[postId] ?? [];
-        if (current.some((r) => r.id === created.id)) return prev;
-        return { ...prev, [postId]: [...current, created] };
-      });
-      setReplyDraft((prev) => ({ ...prev, [postId]: '' }));
-      setPendingReply((prev) => {
-        const { [postId]: _discarded, ...rest } = prev;
-        return rest;
-      });
-      setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, replyCount: p.replyCount + 1 } : p)),
-      );
-    } catch (err) {
-      alertFailure('enviar tu respuesta', err);
-    }
-  };
-
   // ── Reportar ───────────────────────────────────────────────────────────
   // CA5.3 exige indicar un motivo. Android no tiene Alert.prompt, así que el
   // motivo se pide en un modal propio en vez de un Alert.
@@ -252,14 +336,14 @@ export function CommunityScreen({ navigation, route }: Props) {
     if (!reason || !reportPostId || reportSending) return;
     setReportSending(true);
     try {
-      await withRetry(() => api.reportPost(TEMP_USER_ID, reportPostId, reason));
+      await withRetry(() => api.reportPost(userId, reportPostId, reason));
       // CA5.3: el backend ya deja de devolvérselo a quien reportó, pero
       // la pantalla carga una sola vez y el post seguía a la vista hasta
       // salir y volver. Se quita del feed apenas se confirma.
       setPosts((prev) => prev.filter((p) => p.id !== reportPostId));
       setAnnouncements((prev) => prev.filter((p) => p.id !== reportPostId));
       setReportPostId(null);
-      Alert.alert('Gracias', 'El equipo clínico revisará esta publicación.');
+      showToast('Gracias. El equipo clínico revisará esta publicación.');
     } catch (err) {
       alertFailure('enviar el reporte', err);
     } finally {
@@ -269,72 +353,71 @@ export function CommunityScreen({ navigation, route }: Props) {
 
   // ── Eliminar publicación propia ──────────────────────────────────────
   const handleDelete = (postId: string) => {
-    Alert.alert(
-      'Eliminar publicación',
-      '¿Seguro que quieres eliminarla? No podrás deshacerlo.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
+    showDialog({
+      title: 'Eliminar publicación',
+      message: '¿Seguro que quieres eliminarla? No podrás deshacerlo.',
+      actions: [
         {
-          text: 'Eliminar',
-          style: 'destructive',
+          label: 'Eliminar',
+          tone: 'danger',
           onPress: async () => {
             try {
-              await api.deletePost(TEMP_USER_ID, postId);
+              await api.deletePost(userId, postId);
               setPosts((prev) => prev.filter((p) => p.id !== postId));
             } catch (err) {
               alertFailure('eliminar tu publicación', err);
             }
           },
         },
+        { label: 'Cancelar', tone: 'cancel' },
       ],
-    );
+    });
   };
 
+  // El "···" disparaba directo Eliminar o Reportar según de quién fuera el post: mismo ícono,
+  // dos acciones distintas y ninguna escrita. Ahora abre un menú con las opciones a la vista.
   const handleMenuPress = (post: CommunityPost) => {
-    if (post.authorId === TEMP_USER_ID) handleDelete(post.id);
-    else handleReport(post.id);
-  };
-
-  const handleTabPress = (navTab: 'home' | 'community' | 'achievements' | 'profile') => {
-    if (navTab === 'home') navigation.navigate('Home');
-    else if (navTab === 'achievements') navigation.navigate('Achievements');
-    else if (navTab === 'profile') navigation.navigate('Profile');
+    setMenuPost(post);
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <StatusBar barStyle="light-content" backgroundColor={c.primary} />
 
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerMeta}>
           <Text style={styles.headerTitle}>Comunidad</Text>
-          <Text style={styles.headerSub}>Sede {TEMP_SEDE}</Text>
+          <Text style={styles.headerSub}>Sede {sede}</Text>
         </View>
-        <TouchableOpacity
-          style={styles.panicBtn}
-          activeOpacity={0.85}
-          onPress={() => navigation.navigate('Panic')}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Icon name="siren" size={14} color={Colors.white} />
-            <Text style={styles.panicBtnText}>Pánico</Text>
-          </View>
-        </TouchableOpacity>
+        {/* Acá había una segunda entrada al pánico: el SOS de la barra de abajo está
+            en esta misma pantalla, más grande y en el mismo lugar de siempre. */}
       </View>
 
       {/* Tabs */}
-      <View style={styles.tabs}>
-        <TouchableOpacity style={styles.tab} onPress={() => setTab('announcements')} activeOpacity={0.7}>
+      <View style={styles.tabs} accessibilityRole="tablist">
+        <Touchable
+          style={styles.tab}
+          onPress={() => setTab('announcements')}
+          activeOpacity={0.7}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'announcements' }}
+        >
           <Text style={[styles.tabText, tab === 'announcements' && styles.tabTextActive]}>
             Anuncios
           </Text>
           {tab === 'announcements' && <View style={styles.tabUnderline} />}
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tab} onPress={() => setTab('forum')} activeOpacity={0.7}>
-          <Text style={[styles.tabText, tab === 'forum' && styles.tabTextActive]}>Foro</Text>
+        </Touchable>
+        <Touchable
+          style={styles.tab}
+          onPress={() => setTab('forum')}
+          activeOpacity={0.7}
+          accessibilityRole="tab"
+          accessibilityState={{ selected: tab === 'forum' }}
+        >
+          <Text style={[styles.tabText, tab === 'forum' && styles.tabTextActive]}>Chat</Text>
           {tab === 'forum' && <View style={styles.tabUnderline} />}
-        </TouchableOpacity>
+        </Touchable>
       </View>
 
       {/* El modo simulado producía un banner idéntico al de una caída real, así que
@@ -342,7 +425,7 @@ export function CommunityScreen({ navigation, route }: Props) {
       {(offline || devFlags.simulateOffline) && (
         <View style={styles.offlineBanner}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="triangle-alert" size={14} color={Colors.accent} />
+            <Icon name="triangle-alert" size={14} color={c.accent} />
             <Text style={styles.offlineText}>
               {devFlags.simulateOffline
                 ? 'Modo sin conexión SIMULADO · actívalo o apágalo en Perfil'
@@ -354,7 +437,7 @@ export function CommunityScreen({ navigation, route }: Props) {
 
       {loading ? (
         <View style={styles.loader}>
-          <ActivityIndicator size="large" color={Colors.primary} />
+          <ActivityIndicator size="large" color={c.primaryText} />
         </View>
       ) : (
         <KeyboardAvoidingView
@@ -372,7 +455,7 @@ export function CommunityScreen({ navigation, route }: Props) {
                 <EmptyState
                   iconName="megaphone"
                   title="Sin anuncios"
-                  text="Aquí verás los avisos y eventos de tu sede AJUTER."
+                  text="Acá verás los avisos y eventos de tu sede."
                 />
               ) : (
                 announcements.map((a) => (
@@ -386,73 +469,200 @@ export function CommunityScreen({ navigation, route }: Props) {
               )}
               <View style={styles.readonlyNote}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Icon name="lock" size={13} color={Colors.fg2} />
+                  <Icon name="lock" size={13} color={c.fg2} />
                   <Text style={styles.readonlyNoteText}>Solo el equipo puede publicar en Anuncios</Text>
                 </View>
               </View>
             </ScrollView>
           ) : (
             <>
-              <ScrollView
+              {/* Era un ScrollView con posts.map: en una sede activa se dibujaban
+                  cientos de publicaciones de una vez, con sus respuestas. FlatList
+                  monta solo lo que está a la vista. */}
+              <FlatList
                 style={styles.scroll}
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={styles.forumContent}
                 showsVerticalScrollIndicator={false}
-              >
-                {posts.length === 0 ? (
+                data={posts}
+                inverted={posts.length > 0}
+                keyExtractor={(p) => p.id}
+                initialNumToRender={6}
+                maxToRenderPerBatch={8}
+                windowSize={11}
+                removeClippedSubviews
+                keyboardShouldPersistTaps="handled"
+                onEndReached={cargarMásAntiguos}
+                onEndReachedThreshold={0.4}
+                ListFooterComponent={
+                  cargandoMás ? (
+                    <ActivityIndicator size="small" color={c.primary} style={styles.cargandoMás} />
+                  ) : null
+                }
+                ListEmptyComponent={
                   <EmptyState
                     iconName="message-circle"
                     title="Sé el primero en escribir"
                     text="Comparte cómo te sientes o anima a quienes están en el mismo camino."
                   />
-                ) : (
-                  posts.map((p) => (
-                    <PostCard
-                      key={p.id}
-                      post={p}
-                      disabled={offline}
-                      expanded={!!expanded[p.id]}
-                      replies={repliesByPost[p.id]}
-                      replyDraft={replyDraft[p.id] ?? ''}
-                      onReact={(emoji) => handleReaction(p, emoji)}
-                      onToggleReplies={() => handleToggleReplies(p.id)}
-                      onChangeReplyDraft={(text) =>
-                        setReplyDraft((prev) => ({ ...prev, [p.id]: text }))
-                      }
-                      onSendReply={() => handleReply(p.id)}
-                      onMenuPress={() => handleMenuPress(p)}
-                    />
-                  ))
+                }
+                renderItem={({ item: p, index }) => (
+                  <ChatMessage
+                    post={p}
+                    isOwn={p.authorId === userId}
+                    enviando={p.id === pendingPost?.id && !envíosFallidos[p.id]}
+                    falló={!!envíosFallidos[p.id]}
+                    // La lista llega de la más nueva a la más vieja y se pinta
+                    // invertida, así que la de arriba en pantalla es index + 1.
+                    showAuthor={posts[index + 1]?.authorId !== p.authorId}
+                    díaEncima={
+                      !posts[index + 1] ||
+                      díasDistintos(posts[index + 1].createdAt, p.createdAt)
+                        ? díaDelMensaje(p.createdAt)
+                        : null
+                    }
+                    disabled={offline}
+                    onReact={(emoji) => handleReaction(p, emoji)}
+                    onResponder={() => citar(p)}
+                    onReintentar={() => reintentarEnvío(p)}
+                    onMenuPress={() => handleMenuPress(p)}
+                  />
                 )}
-              </ScrollView>
+              />
+
+              {/* A quién se está respondiendo, encima del composer */}
+              {citando ? <CitaEnComposer cita={citando} onQuitar={() => setCitando(null)} /> : null}
 
               {/* Composer */}
               <View style={[styles.composer, offline && styles.composerOff]}>
                 <TextInput
                   style={styles.composerInput}
+                  accessibilityLabel="Mensaje para la comunidad"
                   placeholder={offline ? 'Necesitas conexión para publicar' : 'Escribe un mensaje de apoyo…'}
-                  placeholderTextColor={Colors.fg2}
+                  placeholderTextColor={c.fg2}
                   value={draft}
                   onChangeText={setDraft}
                   editable={!offline}
                   multiline
                 />
-                <TouchableOpacity
+                <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                   style={[styles.sendBtn, (offline || !draft.trim()) && styles.sendBtnDisabled]}
                   onPress={handlePost}
                   disabled={offline || !draft.trim() || posting}
+                  accessibilityRole="button"
+                  accessibilityLabel="Publicar mensaje"
+                  accessibilityState={{ busy: posting }}
                   activeOpacity={0.85}
                 >
                   {posting ? (
-                    <ActivityIndicator size="small" color={Colors.white} />
+                    <ActivityIndicator size="small" color={c.white} />
                   ) : (
-                    <Icon name="send" size={18} color={Colors.white} />
+                    <Icon name="send" size={18} color={c.white} />
                   )}
-                </TouchableOpacity>
+                </Touchable>
               </View>
             </>
           )}
         </KeyboardAvoidingView>
       )}
+
+      {/* Menú de la publicación: las opciones se leen antes de tocarlas */}
+      <Modal
+        visible={menuPost !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuPost(null)}
+      >
+        <Touchable
+          style={styles.sheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setMenuPost(null)}
+          accessible={false}
+        >
+          <View style={styles.sheetCard}>
+            {/* Las reacciones viven acá desde que la barra bajo cada mensaje se fue: en
+                pantalla eran cuatro controles por burbuja, casi siempre sin usar, y el chat
+                parecía una lista de fichas. Con toque largo o el «···» se llega igual. */}
+            <View style={styles.sheetReacciones}>
+              {REACTION_EMOJIS.map((emoji) => {
+                const resumen = menuPost?.reactions.find((r) => r.emoji === emoji);
+                return (
+                  <Touchable
+                    key={emoji}
+                    style={[styles.sheetReaccion, resumen?.userReacted && styles.sheetReaccionOn]}
+                    accessibilityRole="button"
+                    accessibilityLabel={REACTION_NAME[emoji]}
+                    accessibilityState={{ selected: !!resumen?.userReacted }}
+                    onPress={() => {
+                      const post = menuPost!;
+                      setMenuPost(null);
+                      void handleReaction(post, emoji);
+                    }}
+                  >
+                    <Icon
+                      name={REACTION_ICON_MAP[emoji]}
+                      size={22}
+                      color={resumen?.userReacted ? c.primary : c.fg1}
+                    />
+                    <Text style={styles.sheetReaccionTexto}>{REACTION_NAME[emoji]}</Text>
+                  </Touchable>
+                );
+              })}
+            </View>
+
+            <Touchable
+              style={styles.sheetItem}
+              accessibilityRole="button"
+              onPress={() => {
+                const post = menuPost!;
+                setMenuPost(null);
+                citar(post);
+              }}
+            >
+              <Icon name="message-circle" size={18} color={c.fg1} />
+              <Text style={styles.sheetItemText}>Responder</Text>
+            </Touchable>
+
+            {menuPost?.authorId === userId ? (
+              <Touchable
+                style={styles.sheetItem}
+                accessibilityRole="button"
+                onPress={() => {
+                  const id = menuPost.id;
+                  setMenuPost(null);
+                  handleDelete(id);
+                }}
+              >
+                <Icon name="trash-2" size={18} color={c.dangerText} />
+                <Text style={[styles.sheetItemText, { color: c.dangerText }]}>
+                  Eliminar mi publicación
+                </Text>
+              </Touchable>
+            ) : (
+              <Touchable
+                style={styles.sheetItem}
+                accessibilityRole="button"
+                onPress={() => {
+                  const id = menuPost!.id;
+                  setMenuPost(null);
+                  handleReport(id);
+                }}
+              >
+                <Icon name="flag" size={18} color={c.fg1} />
+                <Text style={styles.sheetItemText}>Reportar publicación</Text>
+              </Touchable>
+            )}
+            <Touchable
+              style={styles.sheetItem}
+              accessibilityRole="button"
+              onPress={() => setMenuPost(null)}
+            >
+              <Icon name="x" size={18} color={c.fg2} />
+              <Text style={[styles.sheetItemText, { color: c.fg2 }]}>Cancelar</Text>
+            </Touchable>
+          </View>
+        </Touchable>
+      </Modal>
 
       {/* CA5.3: motivo del reporte */}
       <Modal
@@ -469,8 +679,9 @@ export function CommunityScreen({ navigation, route }: Props) {
             </Text>
             <TextInput
               style={styles.modalInput}
+              accessibilityLabel="Motivo del reporte"
               placeholder="Motivo del reporte…"
-              placeholderTextColor={Colors.fg2}
+              placeholderTextColor={c.fg2}
               value={reportReason}
               onChangeText={setReportReason}
               multiline
@@ -478,28 +689,32 @@ export function CommunityScreen({ navigation, route }: Props) {
               autoFocus
             />
             <View style={styles.modalActions}>
-              <TouchableOpacity
+              <Touchable
                 style={styles.modalCancel}
                 onPress={() => setReportPostId(null)}
+                accessibilityRole="button"
                 disabled={reportSending}
               >
                 <Text style={styles.modalCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
+              </Touchable>
+              <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
                 style={[styles.modalSubmit, (!reportReason.trim() || reportSending) && styles.modalSubmitDisabled]}
                 onPress={submitReport}
                 disabled={!reportReason.trim() || reportSending}
+                accessibilityRole="button"
+                accessibilityLabel="Reportar"
+                accessibilityState={{ busy: reportSending }}
               >
                 {reportSending
-                  ? <ActivityIndicator size="small" color={Colors.white} />
+                  ? <ActivityIndicator size="small" color={c.white} />
                   : <Text style={styles.modalSubmitText}>Reportar</Text>}
-              </TouchableOpacity>
+              </Touchable>
             </View>
           </View>
         </View>
       </Modal>
 
-      <BottomNav active="community" onTabPress={handleTabPress} onPanicPress={() => navigation.navigate('Panic')} />
     </SafeAreaView>
   );
 }
@@ -507,9 +722,11 @@ export function CommunityScreen({ navigation, route }: Props) {
 // ── Subcomponentes ─────────────────────────────────────────────────────────
 
 function EmptyState({ iconName, title, text }: { iconName: IconName; title: string; text: string }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.emptyCard}>
-      <Icon name={iconName} size={44} color={Colors.fg2} />
+      <Icon name={iconName} size={44} color={c.fg2} />
       <Text style={styles.emptyTitle}>{title}</Text>
       <Text style={styles.emptyText}>{text}</Text>
     </View>
@@ -525,15 +742,20 @@ function AnnouncementCard({
   disabled: boolean;
   onToggleAttendance: () => void;
 }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const isPsychologist = announcement.authorRole === 'psychologist';
+  // La sesión de junio seguía pidiendo "Confirmar asistencia" en septiembre
+  const eventPassed =
+    !!announcement.eventDate && new Date(announcement.eventDate).getTime() < Date.now();
   return (
     <View style={styles.pinCard}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
-        <Icon name="bell" size={12} color={Colors.fg2} />
+        <Icon name="bell" size={12} color={c.fg2} />
         <Text style={styles.pinFlag}>Equipo clínico · Sede {announcement.sede}</Text>
       </View>
       <View style={styles.pinHead}>
-        <View style={[styles.avatar, { backgroundColor: isPsychologist ? Colors.primary : Colors.accent }]}>
+        <View style={[styles.avatar, { backgroundColor: isPsychologist ? c.primary : c.accent }]}>
           <Text style={styles.avatarLetter}>{initial(announcement.authorName)}</Text>
         </View>
         <View style={styles.flex}>
@@ -543,8 +765,9 @@ function AnnouncementCard({
           </Text>
         </View>
         <View style={[styles.roleChip, !isPsychologist && styles.roleChipAdmin]}>
+          {/* Decía "Admin": el paciente ve a un coordinador de AJUTER, no a un administrador */}
           <Text style={[styles.roleChipText, !isPsychologist && styles.roleChipTextAdmin]}>
-            {isPsychologist ? 'Psicólogo' : 'Admin'}
+            {ROLE_LABEL[announcement.authorRole]}
           </Text>
         </View>
       </View>
@@ -553,137 +776,35 @@ function AnnouncementCard({
       {!!announcement.eventDate && (
         <View style={styles.annCta}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Icon name="calendar" size={12} color={Colors.fg2} />
+            <Icon name="calendar" size={12} color={c.fg2} />
             <Text style={styles.annDate}>{formatEventDate(announcement.eventDate)}</Text>
           </View>
-          <TouchableOpacity
-            style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
-            onPress={onToggleAttendance}
-            disabled={disabled}
-            activeOpacity={0.85}
-          >
-            {announcement.userAttends ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <Icon name="check" size={14} color={Colors.white} />
-                <Text style={[styles.attendBtnText, styles.attendBtnTextOn]}>Asistiré</Text>
-              </View>
-            ) : (
-              <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
-  );
-}
-
-function PostCard({
-  post,
-  disabled,
-  expanded,
-  replies,
-  replyDraft,
-  onReact,
-  onToggleReplies,
-  onChangeReplyDraft,
-  onSendReply,
-  onMenuPress,
-}: {
-  post: CommunityPost;
-  disabled: boolean;
-  expanded: boolean;
-  replies?: CommunityReply[];
-  replyDraft: string;
-  onReact: (emoji: ReactionEmoji) => void;
-  onToggleReplies: () => void;
-  onChangeReplyDraft: (text: string) => void;
-  onSendReply: () => void;
-  onMenuPress: () => void;
-}) {
-  const summaryFor = (emoji: ReactionEmoji): ReactionSummary =>
-    post.reactions.find((r) => r.emoji === emoji) ?? { emoji, count: 0, userReacted: false };
-
-  return (
-    <View style={styles.msgCard}>
-      <View style={styles.msgHead}>
-        <View style={[styles.avatar, { backgroundColor: Colors.teal400 }]}>
-          <Text style={styles.avatarLetter}>{initial(post.authorName)}</Text>
-        </View>
-        <View style={styles.flex}>
-          <Text style={styles.authorName}>{post.authorName}</Text>
-          <Text style={styles.authorMeta}>{timeAgo(post.createdAt)}</Text>
-        </View>
-        <TouchableOpacity onPress={onMenuPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Icon name="ellipsis" size={20} color={Colors.fg2} />
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.msgBody}>{post.body}</Text>
-
-      {/* Reacciones */}
-      <View style={styles.reactRow}>
-        {REACTION_EMOJIS.map((emoji) => {
-          const s = summaryFor(emoji);
-          return (
-            <TouchableOpacity
-              key={emoji}
-              style={[styles.reactChip, s.userReacted && styles.reactChipOn]}
-              onPress={() => onReact(emoji)}
-              disabled={disabled}
-              activeOpacity={0.7}
-            >
-              <Icon name={REACTION_ICON_MAP[emoji]} size={14} color={s.userReacted ? Colors.primary : Colors.fg2} />
-              {s.count > 0 && <Text style={styles.reactCount}>{s.count}</Text>}
-            </TouchableOpacity>
-          );
-        })}
-        <View style={styles.flex} />
-        <TouchableOpacity onPress={onToggleReplies} activeOpacity={0.7}>
-          <Text style={styles.replyLink}>
-            {post.replyCount > 0 ? `${post.replyCount} respuestas` : 'Responder'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Respuestas */}
-      {expanded && (
-        <View style={styles.repliesWrap}>
-          {replies === undefined ? (
-            <ActivityIndicator size="small" color={Colors.primary} style={styles.replyLoader} />
-          ) : (
-            replies.map((r) => (
-              <View key={r.id} style={styles.reply}>
-                <View style={styles.replyHead}>
-                  <View style={[styles.avatarSm, { backgroundColor: Colors.sage500 }]}>
-                    <Text style={styles.avatarSmLetter}>{initial(r.authorName)}</Text>
-                  </View>
-                  <Text style={styles.replyName}>{r.authorName}</Text>
-                  <Text style={styles.replyTime}>· {timeAgo(r.createdAt)}</Text>
-                </View>
-                <Text style={styles.replyBody}>{r.body}</Text>
-              </View>
-            ))
-          )}
-
-          {!disabled && (
-            <View style={styles.replyComposer}>
-              <TextInput
-                style={styles.replyInput}
-                placeholder="Escribe una respuesta…"
-                placeholderTextColor={Colors.fg2}
-                value={replyDraft}
-                onChangeText={onChangeReplyDraft}
-                multiline
-              />
-              <TouchableOpacity
-                style={[styles.replySendBtn, !replyDraft.trim() && styles.sendBtnDisabled]}
-                onPress={onSendReply}
-                disabled={!replyDraft.trim()}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.replySendText}>Enviar</Text>
-              </TouchableOpacity>
+          {eventPassed ? (
+            <View style={styles.finishedChip}>
+              <Text style={styles.finishedText}>
+                {announcement.userAttends ? 'Finalizado · asististe' : 'Finalizado'}
+              </Text>
             </View>
+          ) : (
+            <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
+              style={[styles.attendBtn, announcement.userAttends && styles.attendBtnOn]}
+              onPress={onToggleAttendance}
+              disabled={disabled}
+              accessibilityRole="button"
+              accessibilityState={{ selected: !!announcement.userAttends }}
+              hitSlop={{ top: 7, bottom: 7 }}
+              activeOpacity={0.85}
+            >
+              {announcement.userAttends ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Icon name="check" size={14} color={c.white} />
+                  <Text style={[styles.attendBtnText, styles.attendBtnTextOn]}>Asistiré</Text>
+                </View>
+              ) : (
+                <Text style={styles.attendBtnText}>Confirmar asistencia</Text>
+              )}
+            </Touchable>
           )}
         </View>
       )}
@@ -693,36 +814,37 @@ function PostCard({
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-// Android reutiliza conexiones de un pool. Si el servidor cerró una que quedó
-// ociosa y la app manda un POST justo por ahí, la petición llega y se procesa,
-// pero la respuesta se pierde: el cliente ve "Network request failed" con el
-// cambio ya hecho. OkHttp reintenta solo los GET —nunca un POST, porque no sabe
-// si es seguro repetirlo—, y por eso el feed carga bien y solo fallan las
-// escrituras.
-//
-// Verificado en la tablet: `curl` al mismo endpoint responde 200 en 0,5 s
-// mientras la app falla, y el reporte igual quedaba registrado.
-//
-// Reintentar es seguro porque estas escrituras ya son idempotentes: publicar y
-// responder van con `clientRequestId`, y reportar comprueba en el backend antes
-// de insertar.
-async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
-  try {
-    return await fn();
-  } catch (err) {
-    if (!isNetworkError(err)) throw err;
-    // Da tiempo a que el pool descarte la conexión muerta antes de reintentar.
-    await new Promise<void>((resolve) => setTimeout(() => resolve(), 600));
-    return fn();
-  }
-}
-
-// Identifica un envío para que el backend reconozca el reintento. No es
-// criptografía y no sale del par teléfono-servidor: solo tiene que ser
-// irrepetible entre envíos, así que no se agrega una dependencia de UUID.
-function newRequestId(): string {
-  const rand = () => Math.random().toString(36).slice(2, 10);
-  return `${Date.now().toString(36)}-${rand()}-${rand()}`;
+/**
+ * El mensaje que se muestra mientras viaja al servidor.
+ *
+ * Usa la clave de idempotencia como id: así el reintento reconoce el mismo envío y, cuando
+ * llega el de verdad, se sabe cuál reemplazar. `createdAt` es la hora del teléfono, que es
+ * justo lo que el paciente espera ver en su propio mensaje.
+ */
+function mensajeEnCamino(
+  requestId: string,
+  body: string,
+  sede: string,
+  user: AuthUser | null,
+  citado: QuotedMessage | null,
+): CommunityPost {
+  return {
+    id: requestId,
+    authorId: user?.id ?? '',
+    authorName: user ? `${user.firstName} ${user.lastName}` : '',
+    authorRole: user?.role ?? 'patient',
+    type: 'forum_post',
+    sede,
+    title: null,
+    body,
+    eventDate: null,
+    reportCount: 0,
+    replyCount: 0,
+    reactions: [],
+    userAttends: false,
+    replyTo: citado,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 // Antes cada acción avisaba "Sin conexión" pasara lo que pasara: un 500 del
@@ -733,36 +855,35 @@ function newRequestId(): string {
 // frase "No se pudo ...".
 function alertFailure(action: string, err: unknown) {
   // Deja rastro en logcat: el catch se lo tragaba y no quedaba nada que mirar.
-  console.warn(`[Comunidad] falló ${action}:`, err);
+  logWarn(`[Comunidad] falló ${action}:`, err);
 
   if (devFlags.simulateOffline) {
-    Alert.alert(
-      'Modo sin conexión simulado',
-      `No se intentó ${action}: tienes activado "Simular sin conexión" en Perfil → ` +
-        'Herramientas de prueba. Apágalo para volver a la normalidad.',
+    toast(
+      `No se intentó ${action}: tienes "Simular sin conexión" activado en Perfil.`,
+      'error',
     );
     return;
   }
 
   if (isNetworkError(err)) {
-    Alert.alert('Sin conexión', `No se pudo ${action}. Revisa tu conexión e inténtalo de nuevo.`);
+    toast(`Sin conexión: no se pudo ${action}. Inténtalo de nuevo.`, 'error');
     return;
   }
 
   // `request()` lanza "<status> <cuerpo>" ante una respuesta no OK.
   const status = parseInt((err as Error)?.message ?? '', 10);
-  Alert.alert(
-    'No se pudo completar',
+  toast(
     Number.isFinite(status)
       ? `No se pudo ${action}. El servidor respondió ${status}.`
       : `No se pudo ${action}. Inténtalo de nuevo.`,
+    'error',
   );
 }
 
-function initial(name: string): string {
-  return (name?.trim().charAt(0) || '?').toUpperCase();
-}
-
+/**
+ * Cuánto hace, para los **anuncios**. El tablón de la sede no es una conversación: ahí
+ * importa si algo es de hoy o de la semana pasada, no la hora exacta.
+ */
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return '';
@@ -779,19 +900,21 @@ function timeAgo(iso: string): string {
 function formatEventDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
+  // "jue 12 jun" al lado de un cuerpo que dice "miércoles" hace dudar de la fecha;
+  // el día completo deja claro cuál manda
   return d.toLocaleDateString('es-CL', {
-    weekday: 'short',
+    weekday: 'long',
     day: 'numeric',
-    month: 'short',
+    month: 'long',
     hour: '2-digit',
     minute: '2-digit',
   });
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.primary },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.primary },
   flex: { flex: 1 },
-  kav: { backgroundColor: Colors.bg },
+  kav: { backgroundColor: c.bg },
 
   header: {
     flexDirection: 'row',
@@ -799,79 +922,75 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 14,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     gap: 12,
   },
   headerMeta: { flex: 1, minWidth: 0 },
-  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: Colors.white },
-  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: Colors.teal400, marginTop: 3 },
-  panicBtn: {
-    backgroundColor: Colors.danger,
-    borderRadius: 9999,
-    paddingHorizontal: 13,
-    paddingVertical: 8,
-  },
-  panicBtnText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
+  headerTitle: { fontFamily: Fonts.headingBold, fontSize: 20, color: c.white },
+  headerSub: { fontFamily: Fonts.body, fontSize: 14, color: c.onPrimaryMuted, marginTop: 3 },
 
   tabs: {
     flexDirection: 'row',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    borderBottomColor: c.border,
   },
-  tab: { flex: 1, alignItems: 'center', paddingTop: 14, paddingBottom: 12 },
-  tabText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.fg2 },
-  tabTextActive: { fontFamily: Fonts.bodyBold, color: Colors.primary },
+  tab: { flex: 1, alignItems: 'center', paddingTop: 14, paddingBottom: 12, minHeight: 48 },
+  tabText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg2 },
+  tabTextActive: { fontFamily: Fonts.bodyBold, color: c.primaryText },
   tabUnderline: {
     position: 'absolute',
     bottom: 0,
     height: 2,
     width: '60%',
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
   },
 
   offlineBanner: {
-    backgroundColor: Colors.amber50,
+    backgroundColor: c.amber50,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.accent,
+    borderBottomColor: c.accent,
     paddingVertical: 11,
     paddingHorizontal: 18,
   },
-  offlineText: { fontFamily: Fonts.bodyBold, color: Colors.accent, fontSize: 13 },
+  offlineText: { fontFamily: Fonts.bodyBold, color: c.primaryText, fontSize: 13 },
 
-  loader: { flex: 1, backgroundColor: Colors.bg, alignItems: 'center', justifyContent: 'center' },
+  loader: { flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' },
 
-  scroll: { flex: 1, backgroundColor: Colors.bg },
+  scroll: { flex: 1, backgroundColor: c.bg },
   scrollContent: { padding: 12, paddingBottom: 24, gap: 12 },
+  // Con la lista invertida, el padding de abajo se ve arriba: va parejo.
+  // El hueco chico es lo que agrupa visualmente una tanda del mismo autor.
+  forumContent: { paddingHorizontal: 12, paddingVertical: 12, gap: 4 },
 
   emptyCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 28,
     alignItems: 'center',
     marginTop: 8,
     gap: 12,
   },
-  emptyTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900, marginBottom: 8 },
-  emptyText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, textAlign: 'center', lineHeight: 21 },
+  emptyTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: c.ink900, marginBottom: 8 },
+  emptyText: { fontFamily: Fonts.body, fontSize: 14, color: c.fg2, textAlign: 'center', lineHeight: 21 },
 
   // Anuncios
   pinCard: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     borderTopWidth: 3,
-    borderTopColor: Colors.primary,
+    borderTopColor: c.primary,
     padding: 14,
-    shadowColor: Colors.shadowSoft,
+    shadowColor: c.shadowSoft,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 6,
     elevation: 2,
   },
-  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 11, color: Colors.fg2 },
+  pinFlag: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.fg2 },
   pinHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  pinTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.primary, marginTop: 11 },
-  pinBody: { fontFamily: Fonts.body, fontSize: 15, color: Colors.ink900, lineHeight: 22, marginTop: 6 },
+  pinTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.primaryText, marginTop: 11 },
+  pinBody: { fontFamily: Fonts.body, fontSize: 15, color: c.ink900, lineHeight: 22, marginTop: 6 },
   annCta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -879,92 +998,63 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
     gap: 10,
     flexWrap: 'wrap',
   },
-  annDate: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.fg2 },
+  annDate: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.fg2 },
   attendBtn: {
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
+    borderColor: c.primary,
     borderRadius: 9999,
     paddingHorizontal: 14,
     paddingVertical: 7,
   },
-  attendBtnOn: { backgroundColor: Colors.primary },
-  attendBtnText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.primary },
-  attendBtnTextOn: { color: Colors.white },
+  attendBtnOn: { backgroundColor: c.primary },
+  attendBtnText: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.primaryText },
+  attendBtnTextOn: { color: c.white },
 
   // Avatares y autores
   avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
-  authorName: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink900 },
-  authorMeta: { fontFamily: Fonts.body, fontSize: 12, color: Colors.fg2, marginTop: 1 },
+  avatarLetter: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 16 },
+  authorName: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.ink900 },
+  authorMeta: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, marginTop: 1 },
   roleChip: {
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderRadius: 9999,
     paddingHorizontal: 11,
     paddingVertical: 4,
   },
-  roleChipAdmin: { backgroundColor: Colors.amber50 },
-  roleChipText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.primary },
-  roleChipTextAdmin: { color: Colors.accent },
+  roleChipAdmin: { backgroundColor: c.amber50 },
+  roleChipText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.primaryText },
+  roleChipTextAdmin: { color: c.fg1 },
 
-  // Foro
-  msgCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 14,
-    shadowColor: Colors.shadowSoft,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  msgHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  msgBody: { fontFamily: Fonts.body, fontSize: 15, color: Colors.ink900, lineHeight: 22, paddingTop: 10 },
-
-  reactRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 7,
-    borderTopWidth: 1,
-    borderTopColor: Colors.border,
-    paddingTop: 9,
-    marginTop: 10,
-  },
-  reactChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: Colors.bg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: 9999,
-    paddingHorizontal: 11,
-    paddingVertical: 5,
-  },
-  reactChipOn: { backgroundColor: Colors.sage50, borderColor: Colors.primary },
-  reactCount: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.ink900 },
-  replyLink: { fontFamily: Fonts.bodyBold, fontSize: 12, color: Colors.primary, paddingVertical: 5 },
+  flex1: { flex: 1 },
+  replyLink: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2, paddingVertical: 3, marginLeft: 6 },
 
   // Respuestas
-  repliesWrap: { marginTop: 8 },
+  repliesWrap: { marginTop: 8, alignSelf: 'stretch' },
+  cargandoMás: { paddingVertical: 16 },
   replyLoader: { alignSelf: 'flex-start', marginLeft: 12, marginVertical: 6 },
   reply: {
     marginLeft: 10,
     paddingLeft: 12,
     paddingVertical: 8,
     borderLeftWidth: 2,
-    borderLeftColor: Colors.border,
+    borderLeftColor: c.border,
   },
   replyHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  avatarSm: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  avatarSmLetter: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 12 },
-  replyName: { fontFamily: Fonts.bodyBold, fontSize: 13, color: Colors.ink900 },
-  replyTime: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2 },
-  replyBody: { fontFamily: Fonts.body, fontSize: 13, color: Colors.ink900, lineHeight: 20, marginTop: 5, marginLeft: 36 },
+  replyName: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.ink900 },
+  // Una respuesta del psicólogo no se lee igual que la de un par: sin la etiqueta es
+  // un nombre más en el hilo.
+  replyRoleChip: {
+    backgroundColor: c.infoSurface, borderRadius: 9999,
+    paddingHorizontal: 7, paddingVertical: 2,
+  },
+  replyRoleText: { fontFamily: Fonts.bodyBold, fontSize: 10, color: c.primaryText },
+  replyTime: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
+  replyBody: { fontFamily: Fonts.body, fontSize: 13, color: c.ink900, lineHeight: 20, marginTop: 5, marginLeft: 36 },
 
   replyComposer: {
     flexDirection: 'row',
@@ -976,23 +1066,23 @@ const styles = StyleSheet.create({
   replyInput: {
     fontFamily: Fonts.body,
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 16,
     paddingHorizontal: 12,
     paddingVertical: 8,
     fontSize: 13,
-    color: Colors.ink900,
+    color: c.ink900,
     maxHeight: 90,
   },
   replySendBtn: {
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-  replySendText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 13 },
+  replySendText: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 13 },
 
   // Composer foro
   composer: {
@@ -1002,81 +1092,124 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingTop: 10,
     paddingBottom: 14,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
+    borderTopColor: c.border,
   },
   composerOff: { opacity: 0.7 },
   composerInput: {
     fontFamily: Fonts.body,
     flex: 1,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 24,
     paddingHorizontal: 16,
     paddingVertical: 11,
     fontSize: 14,
-    color: Colors.ink900,
+    color: c.ink900,
     maxHeight: 110,
   },
   sendBtn: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: Colors.border },
+  sendBtnDisabled: { backgroundColor: c.border },
 
   readonlyNote: {
     alignItems: 'center',
     paddingVertical: 14,
   },
-  readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2 },
+  readonlyNoteText: { fontFamily: Fonts.body, fontSize: 12.5, color: c.fg2 },
+
+  // Menú de la publicación
+  sheetBackdrop: { flex: 1, backgroundColor: c.overlay, justifyContent: 'flex-end' },
+  sheetCard: {
+    backgroundColor: c.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 26,
+  },
+  sheetTitle: { fontFamily: Fonts.headingBold, fontSize: 16, color: c.ink900, marginBottom: 6 },
+  sheetReacciones: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 6,
+    marginBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: c.border,
+  },
+  sheetReaccion: {
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 84,
+    minHeight: 60,
+    justifyContent: 'center',
+    borderRadius: 14,
+  },
+  sheetReaccionOn: { backgroundColor: c.infoSurface },
+  sheetReaccionTexto: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
+
+  sheetItem: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingVertical: 8 },
+  sheetItemText: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.fg1 },
 
   // Modal de reporte (CA5.3)
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: c.overlay,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
   modalCard: {
     width: '100%',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 18,
     padding: 20,
     gap: 12,
   },
-  modalTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: Colors.ink900 },
-  modalText: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, lineHeight: 20 },
+  modalTitle: { fontFamily: Fonts.headingBold, fontSize: 18, color: c.ink900 },
+  modalText: { fontFamily: Fonts.body, fontSize: 14, color: c.fg2, lineHeight: 20 },
   modalInput: {
     fontFamily: Fonts.body,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: Colors.ink900,
-    backgroundColor: Colors.bg,
+    color: c.ink900,
+    backgroundColor: c.bg,
     minHeight: 90,
     textAlignVertical: 'top',
   },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 4 },
   modalCancel: { paddingHorizontal: 18, paddingVertical: 11 },
-  modalCancelText: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: Colors.fg2 },
+  modalCancelText: { fontFamily: Fonts.bodyMedium, fontSize: 14, color: c.fg2 },
   modalSubmit: {
-    backgroundColor: Colors.danger,
+    backgroundColor: c.danger,
     borderRadius: 9999,
     paddingHorizontal: 22,
     paddingVertical: 11,
     minWidth: 110,
     alignItems: 'center',
   },
-  modalSubmitDisabled: { backgroundColor: Colors.border },
-  modalSubmitText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.white },
+  modalSubmitDisabled: { backgroundColor: c.border },
+  modalSubmitText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.white },
+  finishedChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9999,
+    backgroundColor: c.bg,
+    borderWidth: 1,
+    borderColor: c.border,
+  },
+  finishedText: { fontFamily: Fonts.bodyBold, fontSize: 12.5, color: c.fg2 },
+
 });

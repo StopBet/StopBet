@@ -177,7 +177,15 @@ export class AchievementsService implements OnModuleInit {
     // La fila va primero: es lo que el paciente ve al abrir la app, y tiene que quedar
     // registrada aunque el push no salga. Mismo criterio que el recordatorio de check-in.
     await this.notificationRepo.save(
-      this.notificationRepo.create({ userId, type: 'success', title, body }),
+      // `target` es lo que hace que tocar la notificación abra Logros en vez de solo
+      // marcarse leída (ver NotificationsScreen).
+      this.notificationRepo.create({
+        userId,
+        type: 'success',
+        title,
+        body,
+        target: 'achievements',
+      }),
     );
 
     // CA1: el push es lo que llega con la app cerrada. Si Firebase falla no se propaga:

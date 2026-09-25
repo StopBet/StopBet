@@ -20,12 +20,15 @@ describe('UsersController', () => {
     controller = new UsersController(usersService as unknown as UsersService);
   });
 
-  it('listPatients delega en usersService.listPatients', async () => {
+  it('listPatients pasa el usuario del token al servicio', async () => {
     usersService.listPatients.mockResolvedValue([{ id: 'p1' }]);
+    const viewer = { id: 'psy-1', role: 'psychologist' } as any;
 
-    const result = await controller.listPatients();
+    const result = await controller.listPatients(viewer);
 
-    expect(usersService.listPatients).toHaveBeenCalled();
+    // El filtrado depende de quién consulta: si el controller no propaga el usuario,
+    // el servicio devuelve la lista completa a cualquiera.
+    expect(usersService.listPatients).toHaveBeenCalledWith(viewer);
     expect(result).toEqual([{ id: 'p1' }]);
   });
 

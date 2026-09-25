@@ -12,6 +12,13 @@ import { Sede } from '../sedes/entities/sede.entity';
 import { FamilyLink } from './entities/family-link.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
+import {
+  DEMO_PATIENT_ID,
+  FAMILY_ACTIVE_ID,
+  FAMILY_DEMO_SESSIONS,
+  FAMILY_EXTRA_IDS,
+  ensureFamilyDemoSessions,
+} from './family-demo-sessions';
 
 // Seed propio de HU-11. Va aparte de src/seed.ts para no tocar un archivo compartido:
 // se ejecuta después de `pnpm run seed` y sólo agrega lo del portal familiar.
@@ -22,43 +29,16 @@ import { SessionAttendance } from './entities/session-attendance.entity';
 const DEV_PASSWORD = 'Stopbet2026!';
 
 // Paciente creado por src/seed.ts (Carlos Demo, sede Santiago).
-const DEMO_PATIENT_ID = '11111111-1111-1111-1111-111111111111';
 const PATIENT2_ID     = '44444444-4444-4444-4444-444444444444';
 const PATIENT3_ID     = '55555555-5555-5555-5555-555555555555';
 const PATIENT4_ID     = '66666666-6666-6666-6666-666666666666';
 
-const FAMILY_ACTIVE_ID  = 'f1000000-0000-0000-0000-000000000001';
 const FAMILY_PENDING_ID = 'f1000000-0000-0000-0000-000000000002';
 const FAMILY_EMPTY_ID   = 'f1000000-0000-0000-0000-000000000003';
-
-// Familiares de relleno: con uno solo, la vista del psicólogo mostraba "1
-// confirman · 0 no asisten" en todas las sesiones y no se entendía para qué
-// sirve la pantalla. Estos dan un reparto realista de respuestas.
-const FAMILY_EXTRA_IDS = [
-  'f1000000-0000-0000-0000-000000000011',
-  'f1000000-0000-0000-0000-000000000012',
-  'f1000000-0000-0000-0000-000000000013',
-  'f1000000-0000-0000-0000-000000000014',
-  'f1000000-0000-0000-0000-000000000015',
-] as const;
 
 // Paciente propio de este seed, en otra sede, para poder demostrar CA 11.5
 // sin alterar los pacientes que crea src/seed.ts.
 const REMOTE_PATIENT_ID = 'f1000000-0000-0000-0000-000000000004';
-
-const SESSION_PAST_ID   = 'f2000000-0000-0000-0000-000000000001';
-const SESSION_SOON_ID   = 'f2000000-0000-0000-0000-000000000002';
-const SESSION_ONLINE_ID = 'f2000000-0000-0000-0000-000000000003';
-const SESSION_LATER_ID  = 'f2000000-0000-0000-0000-000000000004';
-const SESSION_FAR_ID    = 'f2000000-0000-0000-0000-000000000005';
-const SESSION_MANDATORY_ID = 'f2000000-0000-0000-0000-000000000006';
-
-function daysFromNow(days: number, hour: number): Date {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  d.setHours(hour, 0, 0, 0);
-  return d;
-}
 
 async function upsert<T extends ObjectLiteral>(
   repo: Repository<T>,
@@ -94,8 +74,6 @@ async function seedFamily(): Promise<void> {
 
   const userRepo       = ds.getRepository(User);
   const linkRepo       = ds.getRepository(FamilyLink);
-  const sessionRepo    = ds.getRepository(FamilySession);
-  const attendanceRepo = ds.getRepository(SessionAttendance);
 
   const demoPatient = await userRepo.findOne({ where: { id: DEMO_PATIENT_ID } });
   if (!demoPatient) {
@@ -128,10 +106,6 @@ async function seedFamily(): Promise<void> {
     throw new Error('Se necesitan al menos 2 sedes para poder demostrar la CA 11.5.');
   }
   const remoteSedeId = remoteSede.id;
-
-  const describe = (sede: Sede): string => `${sede.name} — ${sede.address}`;
-  const localPlace  = describe(localSede);
-  const remotePlace = describe(remoteSede);
 
   const passwordHash = await bcrypt.hash(DEV_PASSWORD, 10);
 
@@ -239,117 +213,22 @@ async function seedFamily(): Promise<void> {
     }
   }
 
-  console.log('\n── Sesiones grupales ─────────────────────');
+  console.log('\n── Sesiones grupales y asistencias ────────');
 
-  // La sesión pasada comprueba que getSessionsForFamily la filtra (CA 11.1).
-  await upsert(sessionRepo, {
-    id: SESSION_PAST_ID,
-    title: 'Grupo de apoyo para familias',
-    sessionDate: daysFromNow(-6, 19),
-    location: localPlace,
-    isOnline: false,
-    sedeId: localSedeId,
-  }, 'Sesión pasada (no debe aparecer)');
-
-  await upsert(sessionRepo, {
-    id: SESSION_SOON_ID,
-    title: 'Grupo de apoyo para familias',
-    sessionDate: daysFromNow(2, 19),
-    location: localPlace,
-    isOnline: false,
-    sedeId: localSedeId,
-  }, 'En 2 días — presencial');
-
-  await upsert(sessionRepo, {
-    id: SESSION_ONLINE_ID,
-    title: 'Taller: cómo acompañar sin controlar',
-    sessionDate: daysFromNow(9, 20),
-    location: 'Videollamada (el enlace llega por correo)',
-    isOnline: true,
-    sedeId: localSedeId,
-  }, 'En 9 días — online');
-
-  // Obligatoria: parte del tratamiento del paciente. Sirve para ver en la misma
-  // pantalla la diferencia con las opcionales de arriba.
-  await upsert(sessionRepo, {
-    id: SESSION_MANDATORY_ID,
-    title: 'Sesión familiar del proceso terapéutico',
-    sessionDate: daysFromNow(5, 18),
-    location: localPlace,
-    isOnline: false,
-    sedeId: localSedeId,
-    isMandatory: true,
-  }, 'En 5 días — obligatoria');
-
-  await upsert(sessionRepo, {
-    id: SESSION_LATER_ID,
-    title: 'Círculo de familiares',
-    sessionDate: daysFromNow(21, 18),
-    location: localPlace,
-    isOnline: false,
-    sedeId: localSedeId,
-  }, 'En 21 días — presencial');
-
-  // Fuera de la ventana de 4 semanas: Elena debe ver el mensaje de CA 11.5.
-  await upsert(sessionRepo, {
-    id: SESSION_FAR_ID,
-    title: 'Jornada de familias',
-    sessionDate: daysFromNow(45, 17),
-    location: remotePlace,
-    isOnline: false,
-    sedeId: remoteSedeId,
-  }, 'En 45 días — fuera de la ventana de 4 semanas');
-
-  console.log('\n── Asistencias ───────────────────────────');
-
-  const existingAttendance = await attendanceRepo.findOne({
-    where: { sessionId: SESSION_SOON_ID, familyUserId: FAMILY_ACTIVE_ID },
-  });
-  if (!existingAttendance) {
-    await attendanceRepo.save(
-      attendanceRepo.create({
-        sessionId: SESSION_SOON_ID,
-        familyUserId: FAMILY_ACTIVE_ID,
-        confirmed: true,
-      }),
-    );
-    console.log('  ✓ Patricia confirmó la sesión de en 2 días');
-  } else {
-    console.log('  → Patricia ya tenía respuesta registrada');
-  }
-
-  // Reparto por sesión: cada una queda con una mezcla distinta de confirmados y
-  // rechazos, para que los contadores del psicólogo no se vean todos iguales.
-  const respuestas: Array<[string, string, boolean]> = [
-    [SESSION_SOON_ID,   FAMILY_EXTRA_IDS[0], true],
-    [SESSION_SOON_ID,   FAMILY_EXTRA_IDS[1], true],
-    [SESSION_SOON_ID,   FAMILY_EXTRA_IDS[2], false],
-    [SESSION_SOON_ID,   FAMILY_EXTRA_IDS[3], true],
-
-    [SESSION_ONLINE_ID, FAMILY_EXTRA_IDS[0], true],
-    [SESSION_ONLINE_ID, FAMILY_EXTRA_IDS[2], true],
-    [SESSION_ONLINE_ID, FAMILY_EXTRA_IDS[4], false],
-
-    [SESSION_LATER_ID,  FAMILY_EXTRA_IDS[1], false],
-    [SESSION_LATER_ID,  FAMILY_EXTRA_IDS[3], true],
-    [SESSION_LATER_ID,  FAMILY_EXTRA_IDS[4], true],
-  ];
-
-  let creadas = 0;
-  for (const [sessionId, familyUserId, confirmed] of respuestas) {
-    const yaExiste = await attendanceRepo.findOne({ where: { sessionId, familyUserId } });
-    if (yaExiste) continue;
-    await attendanceRepo.save(attendanceRepo.create({ sessionId, familyUserId, confirmed }));
-    creadas++;
-  }
-  console.log(`  ✓ ${creadas} respuestas más repartidas entre las 3 sesiones`);
+  // Las sesiones viven en family-demo-sessions.ts porque el backend también las mantiene
+  // al arrancar (DemoService): así la demo en Railway no se queda sin sesiones próximas.
+  const sesiones = await ensureFamilyDemoSessions(ds.manager, { resetDates: true });
+  if (sesiones.skipped) throw new Error(`No se pudieron crear las sesiones: ${sesiones.skipped}`);
+  for (const label of sesiones.created) console.log(`  ✓ ${label}`);
+  for (const label of sesiones.moved) console.log(`  → ${label} (fecha actualizada)`);
+  console.log(`  ✓ ${sesiones.answers} respuestas de asistencia nuevas`);
 
   await ds.destroy();
 
   console.log(`
 Listo. Cuentas de familiar (clave: ${DEV_PASSWORD})
 
-  patricia.gomez@stopbet.cl   vínculo activo   → 4 sesiones, 1 de ellas obligatoria
+  patricia.gomez@stopbet.cl   vínculo activo   → ${FAMILY_DEMO_SESSIONS.filter((x) => x.days >= 0 && !x.remote).length} sesiones próximas, 1 de ellas obligatoria
   rodrigo.munoz@stopbet.cl    vínculo pendiente → CA 11.6
   elena.vidal@stopbet.cl      activo sin sesiones próximas → CA 11.5
 `);

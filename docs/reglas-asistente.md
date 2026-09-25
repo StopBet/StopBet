@@ -60,10 +60,12 @@ el interruptor de seguridad. Se combinan con OR, nunca con AND.**
    respondió en tono conversacional normal (por ejemplo, porque no reconoció la crisis), la
    tarjeta se muestra igual. El código no espera confirmación del LLM para escalar.
 
-Esto es directamente relevante hoy: **`GEMINI_API_KEY` está inválida en el entorno actual**
-(ver §5). Si la escalada dependiera del LLM, en este momento no habría escalada en
-absoluto. La detección por palabras clave es lo único que sostiene la ruta de pánico ahora
-mismo.
+Esto no es teórico: **`GEMINI_API_KEY` es opcional y sin ella todo cae al mensaje de
+respaldo** (ver §5). Es lo que pasa hoy en cualquier `.env` local que no tenga la key —el
+caso normal— y lo que pasaría en producción ante una cuota agotada o un modelo retirado, algo
+que al proyecto ya le ocurrió una vez. En todos esos escenarios, si la escalada dependiera
+del LLM no habría escalada en absoluto. La detección por palabras clave es lo único que
+sostiene la ruta de pánico cuando el asistente no responde.
 
 ## 4. Qué cuenta como crisis severa (para 2.1) vs. qué no (para 2.2)
 
@@ -78,17 +80,30 @@ sin ideación de daño, o pedir información general sobre las técnicas.
 La distinción no es el tema (apuestas, ánimo bajo) sino la **presencia de riesgo inmediato**.
 Hablar de la ludopatía no es una crisis; estar en medio de una sí.
 
-## 5. Nota sobre `riskLevel` y la API key inválida
+## 5. Nota sobre `riskLevel` cuando el resumen no se puede evaluar
 
-Hallazgo relevante para las métricas de 4.4 (Eduardo) y para cualquiera que consuma
-`riskLevel` en el dashboard: con `GEMINI_API_KEY` inválida, el `catch` de
-`ai-assistant.service.ts:277` y `:300` devuelve `riskLevel: 'low'` como valor de respaldo.
+> **Actualizado el 16-09-2026 — el hallazgo original ya está arreglado.** Se deja escrito
+> porque el criterio que lo motivó sigue vigente y porque el dashboard tiene que distinguir
+> los dos casos.
 
-**Un `'low'` guardado en este momento no significa "sin riesgo" — significa "no se pudo
-evaluar".** Es exactamente la razón por la que la escalada de crisis (§3) no puede depender
-del LLM: si dependiera de él, un fallo silencioso de la API key se traduciría en "todo bien"
-tanto para el resumen clínico como para el protocolo de pánico. La detección por palabras
-clave es el único mecanismo que sigue funcionando sin importar el estado de la API.
+Relevante para las métricas de 4.4 (Eduardo) y para cualquiera que consuma `riskLevel` en el
+dashboard.
+
+**Lo que pasaba:** si el LLM fallaba —`GEMINI_API_KEY` inválida, timeout, cuota—, el `catch`
+del resumen devolvía `riskLevel: 'low'` como valor de respaldo. Un `'low'` así **no
+significaba "sin riesgo", significaba "no se pudo evaluar"**, y las dos cosas se veían igual
+en el panel.
+
+**Lo que hay hoy:** el tipo es `RiskLevel | null` (`packages/shared-types/src/index.ts:211`)
+y los dos `catch` del resumen devuelven `riskLevel: null`
+(`ai-assistant/ai-assistant.service.ts:400` y `:430`). **`null` significa "no se pudo
+evaluar"; `'low'` significa "evaluado y sin riesgo".** Quien muestre este dato tiene que
+tratarlos distinto: un `null` se rotula "sin evaluar", nunca "riesgo bajo".
+
+**Por qué se deja la nota:** es exactamente la razón por la que la escalada de crisis (§3) no
+puede depender del LLM. Si dependiera de él, un fallo silencioso de la API se traduciría en
+"todo bien" tanto para el resumen clínico como para el protocolo de pánico. La detección por
+palabras clave sigue siendo el único mecanismo que funciona sin importar el estado de la API.
 
 ## 6. Tres conversaciones de prueba
 

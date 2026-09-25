@@ -1,63 +1,45 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Colors } from '../constants/colors';
+import { StyleSheet, Text, View } from 'react-native';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
+import { Touchable } from './Touchable';
 
 interface Props {
   onPressAssistant: () => void;
-  onPressCommunity: () => void;
-  onPressAchievements: () => void;
 }
 
-export function QuickAccess({ onPressAssistant, onPressCommunity, onPressAchievements }: Props) {
+export function QuickAccess({ onPressAssistant }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   return (
     <View style={styles.wrapper}>
-      {/* CTA principal — Hablar con el asistente IA */}
-      <TouchableOpacity
+      {/* CTA principal - Hablar con el asistente IA */}
+      <Touchable
         activeOpacity={0.85}
         onPress={onPressAssistant}
         style={styles.primaryButton}
+        accessibilityRole="button"
       >
         <View style={styles.primaryIcon}>
-          <Icon name="sparkles" size={24} color={Colors.white} />
+          <Icon name="sparkles" size={24} color={c.white} />
         </View>
         <View style={styles.primaryText}>
           <Text style={styles.primaryTitle}>Hablar con el asistente</Text>
           <Text style={styles.primarySubtitle}>Apoyo inmediato · disponible ahora</Text>
         </View>
-        <Icon name="chevron-right" size={22} color={Colors.overlayWhite72} />
-      </TouchableOpacity>
+        <Icon name="chevron-right" size={22} color={c.overlayWhite72} />
+      </Touchable>
 
-      {/* Grid secundario */}
-      <View style={styles.grid}>
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={onPressCommunity}
-          style={styles.secondaryButton}
-        >
-          <View style={[styles.secondaryIcon, { backgroundColor: '#E6F4F2' }]}>
-            <Icon name="users" size={20} color={Colors.primary} />
-          </View>
-          <Text style={styles.secondaryLabel}>Comunidad</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={onPressAchievements}
-          style={styles.secondaryButton}
-        >
-          <View style={[styles.secondaryIcon, { backgroundColor: Colors.gold50 }]}>
-            <Icon name="trophy" size={20} color={Colors.gold} />
-          </View>
-          <Text style={styles.secondaryLabel}>Mis logros</Text>
-        </TouchableOpacity>
-      </View>
+      {/* "Comunidad" y "Mis logros" eran las mismas pestañas de la barra de abajo, a dos
+          toques de distancia una de otra. Se quitaron: el acceso rápido queda para lo que
+          no está en la barra. */}
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   wrapper: {
     paddingHorizontal: 16,
     gap: 10,
@@ -66,10 +48,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 18,
     padding: 18,
-    shadowColor: Colors.accent,
+    shadowColor: c.accent,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.32,
     shadowRadius: 16,
@@ -79,9 +61,9 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 14,
-    backgroundColor: Colors.overlayWhite16,
+    backgroundColor: c.overlayWhite16,
     borderWidth: 1.5,
-    borderColor: Colors.overlayWhite35,
+    borderColor: c.overlayWhite35,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -91,13 +73,13 @@ const styles = StyleSheet.create({
   primaryTitle: {
     fontFamily: Fonts.headingBold,
     fontSize: 17,
-    color: Colors.white,
+    color: c.white,
     lineHeight: 22,
   },
   primarySubtitle: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.overlayWhite72,
+    color: c.onPrimaryMuted,
     marginTop: 4,
   },
   grid: {
@@ -106,12 +88,12 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 14,
     padding: 14,
     gap: 10,
     alignItems: 'flex-start',
-    shadowColor: Colors.shadowSoft,
+    shadowColor: c.shadowSoft,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 1,
     shadowRadius: 4,
@@ -127,6 +109,6 @@ const styles = StyleSheet.create({
   secondaryLabel: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.fg1,
+    color: c.fg1,
   },
 });

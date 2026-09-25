@@ -15,11 +15,19 @@ export interface PendingCheckIn {
 }
 
 export function isNetworkError(err: unknown): boolean {
-  const msg = (err as Error)?.message ?? '';
+  const err_ = err as Error & { name?: string };
+  const msg = err_?.message ?? '';
   return (
     msg.includes('Network request failed') ||
     msg.includes('Failed to fetch') ||
-    msg.includes('timeout')
+    msg.includes('timeout') ||
+    // `request()` corta con AbortController a los 25 s y eso llega como "Aborted",
+    // que no calzaba con ninguna de las de arriba: un servidor que no responde se
+    // trataba como error de verdad y en desarrollo levantaba el LogBox encima de la
+    // pantalla. Un timeout es exactamente quedarse sin conexión al servidor.
+    err_?.name === 'AbortError' ||
+    msg.includes('Aborted') ||
+    msg.includes('aborted')
   );
 }
 

@@ -1,17 +1,19 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
   Easing,
   Modal,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import type { BadgeMilestone } from '@stopbet/shared-types';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 interface BadgeDef {
   label: string;
@@ -22,32 +24,45 @@ interface BadgeDef {
 interface Props {
   milestone: BadgeMilestone | null;
   badgeDef: BadgeDef | null;
+  /** El mismo modal sirve para celebrar una insignia recién ganada y para volver a
+   *  compartir una vieja: sin esto, cualquier insignia decía "¡Nueva insignia!". */
+  isNew: boolean;
+  /** Ya está en el foro: el botón no puede prometer algo que el backend no va a hacer. */
+  yaCompartida: boolean;
   onShare: () => void;
+  /** Lleva al foro cuando la insignia ya está publicada. */
+  onVerEnComunidad: () => void;
   onClose: () => void;
 }
 
-// Spark particles — pre-computed angles/distances so they're stable across renders
-const SPARKS = [
-  { angle: 0,   dist: 78, color: '#F0B040', size: 10 },
-  { angle: 35,  dist: 92, color: '#E8883A', size: 7 },
-  { angle: 72,  dist: 68, color: '#FFD060', size: 12 },
-  { angle: 112, dist: 84, color: '#C9954A', size: 8 },
-  { angle: 155, dist: 76, color: '#F0B040', size: 10 },
-  { angle: 198, dist: 88, color: '#E8883A', size: 7 },
-  { angle: 242, dist: 72, color: '#FFD060', size: 9 },
-  { angle: 285, dist: 82, color: '#C9954A', size: 8 },
-  { angle: 328, dist: 70, color: '#F0B040', size: 11 },
-  { angle: 50,  dist: 96, color: '#C9954A', size: 5 },
-  { angle: 150, dist: 94, color: '#F0B040', size: 5 },
-  { angle: 250, dist: 98, color: '#E8883A', size: 5 },
-] as const;
+// Spark particles - pre-computed angles/distances so they're stable across renders
+// Eran naranjas AJUTER (#E8883A) y oros inventados, de un tema que ya no existe.
+// Ahora salen del manual de marca: verde, azul claro y lila.
+const makeSparks = (c: Palette) => [
+  { angle: 0,   dist: 78, color: c.green,  size: 10 },
+  { angle: 35,  dist: 92, color: c.accent, size: 7 },
+  { angle: 72,  dist: 68, color: c.purple,  size: 12 },
+  { angle: 112, dist: 84, color: c.green,  size: 8 },
+  { angle: 155, dist: 76, color: c.accent, size: 10 },
+  { angle: 198, dist: 88, color: c.purple,  size: 7 },
+  { angle: 242, dist: 72, color: c.green,  size: 9 },
+  { angle: 285, dist: 82, color: c.accent, size: 8 },
+  { angle: 328, dist: 70, color: c.purple,  size: 11 },
+  { angle: 50,  dist: 96, color: c.green,  size: 5 },
+  { angle: 150, dist: 94, color: c.accent, size: 5 },
+  { angle: 250, dist: 98, color: c.purple,  size: 5 },
+];
 
 // Container big enough so sparks stay within bounds (center=100, max dist=98 → max reach=198 < 200)
 const AREA = 200;
 const CENTER = AREA / 2;
 
-export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Props) {
+export function BadgeUnlockModal({ milestone, badgeDef, isNew, yaCompartida, onShare, onVerEnComunidad, onClose }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const visible = milestone !== null && badgeDef !== null;
+  const reduceMotion = useReduceMotion();
+  const SPARKS = useMemo(() => makeSparks(c), [c]);
 
   // ── Animated values ────────────────────────────────────────────────────────
   const overlayOp   = useRef(new Animated.Value(0)).current;
@@ -86,7 +101,21 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
     if (!visible) { reset(); return; }
     reset();
 
-    // Phase 1 — overlay + modal slide-up
+    // Con "quitar animaciones" activo, la celebración se muestra de una vez: mismo
+    // contenido, sin chispas, sin onda y sin rebote.
+    if (reduceMotion) {
+      overlayOp.setValue(1);
+      modalOp.setValue(1);
+      modalY.setValue(0);
+      badgeScale.setValue(1);
+      ringOp.setValue(0);
+      textOp.setValue(1);
+      textY.setValue(0);
+      btnsOp.setValue(1);
+      return;
+    }
+
+    // Phase 1 - overlay + modal slide-up
     Animated.parallel([
       Animated.timing(overlayOp, {
         toValue: 1, duration: 240,
@@ -101,7 +130,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
         easing: Easing.out(Easing.back(1.6)), useNativeDriver: true,
       }),
     ]).start(() => {
-      // Phase 2 — badge pop + ring + sparks + text
+      // Phase 2 - badge pop + ring + sparks + text
       Animated.parallel([
         // Shockwave ring
         Animated.parallel([
@@ -164,7 +193,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
         ]),
       ]).start();
     });
-  }, [visible]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [visible, reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!visible || !milestone || !badgeDef) return null;
 
@@ -207,7 +236,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
             <Animated.View
               style={[styles.badgeDisc, { transform: [{ scale: badgeScale }] }]}
             >
-              <Icon name={badgeDef.icon} size={42} color="#C9954A" />
+              <Icon name={badgeDef.icon} size={42} color={c.greenText} />
             </Animated.View>
           </View>
 
@@ -215,22 +244,47 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
           <Animated.View
             style={{ opacity: textOp, transform: [{ translateY: textY }], alignItems: 'center', width: '100%' }}
           >
-            <Text style={styles.headline}>¡Nueva insignia desbloqueada!</Text>
+            <Text style={styles.headline}>
+              {isNew
+                ? '¡Nueva insignia desbloqueada!'
+                : yaCompartida
+                  ? 'Tu insignia'
+                  : 'Comparte tu insignia'}
+            </Text>
             <Text style={styles.days}>{milestone}</Text>
-            <Text style={styles.daysUnit}>días sin apostar</Text>
+            <Text style={styles.daysUnit}>día{milestone === 1 ? '' : 's'} sin apostar</Text>
             <Text style={styles.label}>{badgeDef.label}</Text>
-            <Text style={styles.sub}>Compártela con quienes te acompañan en tu sede.</Text>
+            <Text style={styles.sub}>
+              {yaCompartida
+                ? 'Ya la compartiste con tu sede. Está publicada en el chat.'
+                : 'Compártela con quienes te acompañan en tu sede.'}
+            </Text>
           </Animated.View>
 
           {/* Buttons */}
           <Animated.View style={{ opacity: btnsOp, width: '100%', alignItems: 'center', marginTop: 4 }}>
-            <TouchableOpacity style={styles.btnPrimary} onPress={onShare} activeOpacity={0.85}>
-              <Icon name="users" size={18} color={Colors.white} />
-              <Text style={styles.btnPrimaryText}>Compartir con la comunidad</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={onClose} style={styles.btnLink}>
-              <Text style={styles.btnLinkText}>Ahora no</Text>
-            </TouchableOpacity>
+            {/* Compartir dos veces el mismo hito no hace nada: el backend lo impide para no
+                llenar el foro de anuncios repetidos. Antes el botón se ofrecía igual y el
+                toque no producía nada, que se siente exactamente como algo roto. */}
+            <Touchable
+              rippleColor="rgba(255,255,255,0.28)"
+              style={styles.btnPrimary}
+              onPress={yaCompartida ? onVerEnComunidad : onShare}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Icon name={yaCompartida ? 'message-circle' : 'users'} size={18} color={c.white} />
+              <Text style={styles.btnPrimaryText}>
+                {yaCompartida ? 'Ver en la comunidad' : 'Compartir con la comunidad'}
+              </Text>
+            </Touchable>
+            <Touchable
+              onPress={onClose}
+              style={styles.btnLink}
+              accessibilityRole="button"
+            >
+              <Text style={styles.btnLinkText}>{yaCompartida ? 'Cerrar' : 'Ahora no'}</Text>
+            </Touchable>
           </Animated.View>
         </Animated.View>
       </Animated.View>
@@ -238,7 +292,7 @@ export function BadgeUnlockModal({ milestone, badgeDef, onShare, onClose }: Prop
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(30,20,10,0.65)',
@@ -248,13 +302,13 @@ const styles = StyleSheet.create({
   },
   modal: {
     width: '100%',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 28,
     paddingTop: 8,
     paddingBottom: 28,
     paddingHorizontal: 28,
     alignItems: 'center',
-    shadowColor: Colors.ink900,
+    shadowColor: c.ink900,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 28,
@@ -274,18 +328,18 @@ const styles = StyleSheet.create({
     height: 108,
     borderRadius: 54,
     borderWidth: 5,
-    borderColor: Colors.accent,
+    borderColor: c.accent,
   },
   badgeDisc: {
     width: 108,
     height: 108,
     borderRadius: 54,
-    backgroundColor: '#FDF8E1',
+    backgroundColor: c.sage50,
     borderWidth: 3,
-    borderColor: '#C9954A',
+    borderColor: c.green,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#C9954A',
+    shadowColor: c.green,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.55,
     shadowRadius: 18,
@@ -294,33 +348,33 @@ const styles = StyleSheet.create({
   headline: {
     fontFamily: Fonts.bodyBold,
     fontSize: 19,
-    color: Colors.ink900,
+    color: c.ink900,
     textAlign: 'center',
     marginBottom: 4,
   },
   days: {
     fontFamily: Fonts.headingBold,
     fontSize: 58,
-    color: Colors.primary,
+    color: c.primaryText,
     letterSpacing: -2,
     lineHeight: 62,
   },
   daysUnit: {
     fontFamily: Fonts.bodyBold,
     fontSize: 16,
-    color: Colors.fg2,
+    color: c.fg2,
     marginTop: 0,
   },
   label: {
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
-    color: Colors.accent,
+    color: c.primaryText,
     marginTop: 5,
   },
   sub: {
     fontFamily: Fonts.body,
     fontSize: 13,
-    color: Colors.fg2,
+    color: c.fg2,
     textAlign: 'center',
     lineHeight: 19,
     marginTop: 8,
@@ -329,7 +383,7 @@ const styles = StyleSheet.create({
   },
   btnPrimary: {
     width: '100%',
-    backgroundColor: Colors.primary,
+    backgroundColor: c.primary,
     borderRadius: 9999,
     paddingVertical: 15,
     flexDirection: 'row',
@@ -337,7 +391,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
   },
-  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: Colors.white, fontSize: 16 },
-  btnLink: { marginTop: 14, padding: 4 },
-  btnLinkText: { fontFamily: Fonts.bodyBold, color: Colors.fg2, fontSize: 14 },
+  btnPrimaryText: { fontFamily: Fonts.bodyBold, color: c.white, fontSize: 16 },
+  btnLink: { marginTop: 14, minHeight: 48, paddingHorizontal: 12, justifyContent: 'center' },
+  btnLinkText: { fontFamily: Fonts.bodyBold, color: c.fg2, fontSize: 14 },
 });

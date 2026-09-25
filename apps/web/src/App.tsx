@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from './pages/LoginPage'
+import { RegistroFamiliarPage } from './pages/RegistroFamiliarPage'
 import { DashboardApp } from './DashboardApp'
 import { FamiliarPortal } from './pages/familiar/FamiliarPortal'
 import { api, session, type AuthUser, type LoginResponse } from './services/api'
@@ -82,7 +83,13 @@ export default function App() {
   }
 
   if (!isLoggedIn || !user) {
-    return <LoginPage sessionExpired={sessionExpired} onSuccess={handleSuccess} />
+    // /registro-familiar es la única ruta pública sin sesión aparte del login (HDU 22).
+    return (
+      <Routes>
+        <Route path="/registro-familiar" element={<RegistroFamiliarPage />} />
+        <Route path="*" element={<LoginPage sessionExpired={sessionExpired} onSuccess={handleSuccess} />} />
+      </Routes>
+    )
   }
 
   // El portal familiar se enruta acá y no dentro de DashboardApp: el catch-all
@@ -103,5 +110,5 @@ export default function App() {
     return <LoginPage onSuccess={handleSuccess} />
   }
 
-  return <DashboardApp psychId={user.id} user={user} onLogout={handleLogout} />
+  return <DashboardApp user={user} onLogout={handleLogout} />
 }

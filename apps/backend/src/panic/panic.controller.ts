@@ -1,22 +1,6 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Headers,
-  HttpCode,
-  Param,
-  Post,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiHeader,
-  ApiOperation,
-  ApiParam,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { UserId } from '../common/decorators/user-id.decorator';
 import { PanicService } from './panic.service';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -24,6 +8,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @ApiTags('panic')
+@ApiBearerAuth()
 @Controller('panic')
 export class PanicController {
   constructor(private readonly service: PanicService) {}
@@ -32,16 +17,20 @@ export class PanicController {
 
   @Get('sponsor')
   @ApiOperation({ summary: 'Info del padrino asignado al paciente' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiResponse({ status: 200, description: 'SponsorInfo | null' })
-  getSponsorInfo(@Headers('x-user-id') userId: string) {
+  getSponsorInfo(@UserId() userId: string) {
     return this.service.getSponsorInfo(userId);
   }
 
+  // Antes no pedía ninguna identidad: cualquiera en internet podía cambiarle el compañero de
+  // viaje a cualquier paciente.
   @Post('assign')
+  @UseGuards(RolesGuard)
+  @Roles('psychologist', 'coordinator')
   @HttpCode(204)
   @ApiOperation({ summary: 'Asignar padrino a un paciente (psicólogo)' })
   @ApiResponse({ status: 204, description: 'Asignación actualizada' })
+  @ApiResponse({ status: 403, description: 'Rol sin permiso para asignar' })
   assignSponsor(@Body() dto: AssignSponsorDto) {
     return this.service.assignSponsor(dto);
   }
@@ -51,10 +40,9 @@ export class PanicController {
   @Post('alerts')
   @HttpCode(201)
   @ApiOperation({ summary: 'Activar alerta de pánico (hold 2 s en mobile)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiResponse({ status: 201, description: 'PanicAlertDto' })
   @ApiResponse({ status: 404, description: 'Sin padrino asignado' })
-  createAlert(@Headers('x-user-id') patientId: string) {
+  createAlert(@UserId() patientId: string) {
     return this.service.createAlert(patientId);
   }
 
@@ -75,68 +63,61 @@ export class PanicController {
 
   @Get('alerts/active')
   @ApiOperation({ summary: 'Alerta activa del usuario (polling cada 5 s)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente o del padrino' })
   @ApiResponse({ status: 200, description: 'ActiveAlertResponse' })
-  getActiveAlert(@Headers('x-user-id') userId: string) {
+  getActiveAlert(@UserId() userId: string) {
     return this.service.getActiveAlert(userId);
   }
 
   @Get('pending')
   @ApiOperation({ summary: 'Alertas pendientes del padrino (polling)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del padrino' })
   @ApiResponse({ status: 200, description: 'PanicAlertDto[]' })
-  getPendingAlerts(@Headers('x-user-id') sponsorId: string) {
+  getPendingAlerts(@UserId() sponsorId: string) {
     return this.service.getPendingAlerts(sponsorId);
   }
 
   @Post('alerts/:id/respond')
   @HttpCode(200)
   @ApiOperation({ summary: 'Padrino confirma que atenderá al paciente' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del padrino' })
   @ApiParam({ name: 'id', description: 'UUID de la alerta' })
   @ApiResponse({ status: 200, description: 'PanicAlertDto actualizado' })
   @ApiResponse({ status: 404, description: 'Alerta no encontrada' })
-  respond(@Param('id') id: string, @Headers('x-user-id') sponsorId: string) {
+  respond(@Param('id') id: string, @UserId() sponsorId: string) {
     return this.service.respond(id, sponsorId);
   }
 
   @Delete('alerts/active')
   @HttpCode(200)
   @ApiOperation({ summary: '[DEMO] Cancela cualquier alerta activa del usuario' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiResponse({ status: 200, description: '{ cancelled: boolean }' })
-  cancelActive(@Headers('x-user-id') patientId: string) {
+  cancelActive(@UserId() patientId: string) {
     return this.service.cancelActiveAlert(patientId);
   }
 
   @Post('alerts/:id/cancel')
   @HttpCode(200)
   @ApiOperation({ summary: 'Paciente cancela la alerta' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiParam({ name: 'id', description: 'UUID de la alerta' })
   @ApiResponse({ status: 200, description: 'PanicAlertDto actualizado' })
   @ApiResponse({ status: 404, description: 'Alerta no encontrada o ya cerrada' })
-  cancel(@Param('id') id: string, @Headers('x-user-id') patientId: string) {
+  cancel(@Param('id') id: string, @UserId() patientId: string) {
     return this.service.cancel(id, patientId);
   }
 
   @Post('alerts/:id/escalate')
   @HttpCode(200)
   @ApiOperation({ summary: 'Escalar alerta al asistente IA (manual o automático)' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiParam({ name: 'id', description: 'UUID de la alerta' })
   @ApiResponse({ status: 200, description: 'PanicAlertDto actualizado' })
-  escalate(@Param('id') id: string, @Headers('x-user-id') patientId: string) {
+  escalate(@Param('id') id: string, @UserId() patientId: string) {
     return this.service.escalate(id, patientId);
   }
 
   @Post('alerts/:id/community')
   @HttpCode(200)
   @ApiOperation({ summary: 'Notificar a la comunidad de la sede del paciente' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiParam({ name: 'id', description: 'UUID de la alerta' })
   @ApiResponse({ status: 200, description: '{ communityNotified: true }' })
-  notifyCommunity(@Param('id') id: string, @Headers('x-user-id') patientId: string) {
+  notifyCommunity(@Param('id') id: string, @UserId() patientId: string) {
     return this.service.notifyCommunity(id, patientId);
   }
 }

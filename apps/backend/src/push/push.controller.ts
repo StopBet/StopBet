@@ -1,18 +1,19 @@
-import { Body, Controller, Delete, Headers, Post } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Delete, Post } from '@nestjs/common';
+import { ApiOperation, ApiResponse, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { UserId } from '../common/decorators/user-id.decorator';
 import { PushService } from './push.service';
 import { RegisterTokenDto } from './dto/register-token.dto';
 
 @ApiTags('push')
+@ApiBearerAuth()
 @Controller('push')
 export class PushController {
   constructor(private readonly service: PushService) {}
 
   @Post('tokens')
   @ApiOperation({ summary: 'Registra el token FCM del dispositivo del paciente' })
-  @ApiHeader({ name: 'x-user-id', description: 'UUID del paciente' })
   @ApiResponse({ status: 201, description: 'Token registrado o reasignado' })
-  registrar(@Headers('x-user-id') userId: string, @Body() dto: RegisterTokenDto) {
+  registrar(@UserId() userId: string, @Body() dto: RegisterTokenDto) {
     return this.service.registrarToken(userId, dto.token, dto.platform);
   }
 

@@ -5,12 +5,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
+import { Touchable } from './Touchable';
 
 type Props = {
   visible: boolean;
@@ -27,7 +28,7 @@ const WEEKDAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 
 // Solo se acota lo que es objetivo: no se puede haber nacido en el futuro, ni hace mas de
 // 110 años. AJUTER no tiene definida una edad minima de ingreso; mientras no exista esa
-// regla en el proyecto, el selector no la inventa —bloquear en silencio meses que parecen
+// regla en el proyecto, el selector no la inventa - bloquear en silencio meses que parecen
 // validos deja al usuario sin saber que hizo mal.
 const MAX_AGE = 110;
 
@@ -44,6 +45,8 @@ function parse(value: string): { d: number; m: number; y: number } | null {
 }
 
 export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const today = useMemo(() => new Date(), []);
   const maxYear = today.getFullYear();
   const minYear = today.getFullYear() - MAX_AGE;
@@ -94,30 +97,40 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet}>
+      {/* accessible={false}: si no, TalkBack agrupa todo el modal en un solo elemento y no llega a las celdas */}
+      <Pressable style={styles.backdrop} onPress={onClose} accessible={false}>
+        <Pressable style={styles.sheet} accessible={false}>
           <View style={styles.header}>
-            <Text style={styles.title}>Fecha de nacimiento</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={12}>
-              <Icon name="x" size={20} color={Colors.fg2} />
-            </TouchableOpacity>
+            <Text style={styles.title} accessibilityRole="header">Fecha de nacimiento</Text>
+            <Touchable onPress={onClose} hitSlop={14} accessibilityRole="button" accessibilityLabel="Cerrar">
+
+              <Icon name="x" size={20} color={c.fg2} />
+            </Touchable>
           </View>
 
           {/* Migas: cada tramo ya elegido vuelve a su paso con un toque */}
           <View style={styles.crumbs}>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setStep('year')}
+            <Touchable activeOpacity={0.7} onPress={() => setStep('year')}
+              hitSlop={{ top: 10, bottom: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={step === 'year' ? `Año ${year}` : `Año ${year}, cambiar`}
+              accessibilityState={{ selected: step === 'year' }}
               style={[styles.crumbPill, step === 'year' && styles.crumbPillOn]}>
-              {step !== 'year' && <Icon name="chevron-left" size={14} color={Colors.primary} />}
+              {step !== 'year' && <Icon name="chevron-left" size={14} color={c.primaryText} />}
               <Text style={[styles.crumb, step === 'year' && styles.crumbActive]}>{year}</Text>
-            </TouchableOpacity>
+            </Touchable>
             {step !== 'year' && (
-              <TouchableOpacity activeOpacity={0.7} onPress={() => setStep('month')}
+              <Touchable activeOpacity={0.7} onPress={() => setStep('month')}
+                hitSlop={{ top: 10, bottom: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel={step === 'month' ? `Mes ${MONTHS[month]}` : `Mes ${MONTHS[month]}, cambiar`}
+                accessibilityState={{ selected: step === 'month' }}
                 style={[styles.crumbPill, step === 'month' && styles.crumbPillOn]}>
-                {step === 'day' && <Icon name="chevron-left" size={14} color={Colors.primary} />}
+                {step === 'day' && <Icon name="chevron-left" size={14} color={c.primaryText} />}
                 <Text style={[styles.crumb, step === 'month' && styles.crumbActive]}>
                   {MONTHS[month]}
                 </Text>
-              </TouchableOpacity>
+              </Touchable>
             )}
             <Text style={styles.crumbHint}>
               {step === 'year' ? 'Elige el año' : step === 'month' ? 'Elige el mes' : 'Elige el día'}
@@ -127,11 +140,14 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
           {step === 'year' && (
             <ScrollView ref={yearScroll} style={styles.scroll} contentContainerStyle={styles.grid}>
               {years.map(y => (
-                <TouchableOpacity key={y} style={[styles.cell3, y === year && styles.cellOn]}
+                <Touchable
+      rippleColor="rgba(255,255,255,0.28)" key={y} style={[styles.cell3, y === year && styles.cellOn]}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: y === year }}
                   onPress={() => { if (!armed) return; setYear(y); setStep('month'); }}>
                   <Text style={[styles.cellText, y === year && styles.cellTextOn]}>{y}</Text>
-                </TouchableOpacity>
+                </Touchable>
               ))}
             </ScrollView>
           )}
@@ -141,14 +157,18 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
               {MONTHS.map((name, i) => {
                 const off = monthDisabled(i);
                 return (
-                  <TouchableOpacity key={name} disabled={off}
+                  <Touchable
+      rippleColor="rgba(255,255,255,0.28)" key={name} disabled={off}
                     style={[styles.cell3, i === month && styles.cellOn, off && styles.cellOff]}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={name}
+                    accessibilityState={{ selected: i === month, disabled: off }}
                     onPress={() => { if (!armed) return; setMonth(i); setStep('day'); }}>
                     <Text style={[styles.cellText, i === month && styles.cellTextOn, off && styles.cellTextOff]}>
                       {name.slice(0, 3)}
                     </Text>
-                  </TouchableOpacity>
+                  </Touchable>
                 );
               })}
             </View>
@@ -156,7 +176,7 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
 
           {step === 'day' && (
             <View>
-              <View style={styles.weekRow}>
+              <View style={styles.weekRow} importantForAccessibility="no-hide-descendants">
                 {WEEKDAYS.map((w, i) => (
                   <Text key={i} style={styles.weekday}>{w}</Text>
                 ))}
@@ -170,13 +190,17 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
                   const off = dayDisabled(day);
                   const on = initial?.d === day && initial.m === month && initial.y === year;
                   return (
-                    <TouchableOpacity key={day} disabled={off} activeOpacity={0.7}
+                    <Touchable
+      rippleColor="rgba(255,255,255,0.28)" key={day} disabled={off} activeOpacity={0.7}
                       style={[styles.cell7, on && styles.cellOn, off && styles.cellOff]}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${day} de ${MONTHS[month].toLowerCase()} de ${year}`}
+                      accessibilityState={{ selected: on, disabled: off }}
                       onPress={() => pickDay(day)}>
                       <Text style={[styles.cellText, on && styles.cellTextOn, off && styles.cellTextOff]}>
                         {day}
                       </Text>
-                    </TouchableOpacity>
+                    </Touchable>
                   );
                 })}
               </View>
@@ -188,15 +212,15 @@ export function BirthDatePicker({ visible, value, onSelect, onClose }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (c: Palette) => StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: c.overlay,
     justifyContent: 'center',
     paddingHorizontal: 22,
   },
   sheet: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -209,7 +233,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 10,
   },
-  title: { fontFamily: Fonts.headingBold, fontSize: 16.5, color: Colors.fg1 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 16.5, color: c.fg1 },
   crumbs: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -223,14 +247,14 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     paddingHorizontal: 11,
     borderRadius: 9999,
-    backgroundColor: Colors.bg,
+    backgroundColor: c.bg,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: c.border,
   },
-  crumbPillOn: { borderColor: Colors.primary, backgroundColor: Colors.surface },
-  crumb: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.primary },
-  crumbActive: { fontFamily: Fonts.bodyBold, color: Colors.primary },
-  crumbHint: { fontFamily: Fonts.body, fontSize: 12.5, color: Colors.fg2, marginLeft: 'auto' },
+  crumbPillOn: { borderColor: c.primary, backgroundColor: c.surface },
+  crumb: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.primaryText },
+  crumbActive: { fontFamily: Fonts.bodyBold, color: c.primaryText },
+  crumbHint: { fontFamily: Fonts.body, fontSize: 12.5, color: c.fg2, marginLeft: 'auto' },
   scroll: { maxHeight: 320 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   cell3: {
@@ -241,21 +265,22 @@ const styles = StyleSheet.create({
   },
   cell7: {
     width: '14.28%',
-    paddingVertical: 10,
+    minHeight: 48,
+    justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 10,
   },
-  cellOn: { backgroundColor: Colors.primary },
+  cellOn: { backgroundColor: c.primary },
   cellOff: { opacity: 0.28 },
-  cellText: { fontFamily: Fonts.body, fontSize: 15, color: Colors.fg1 },
-  cellTextOn: { fontFamily: Fonts.bodyBold, color: Colors.white },
-  cellTextOff: { color: Colors.fg2 },
+  cellText: { fontFamily: Fonts.body, fontSize: 15, color: c.fg1 },
+  cellTextOn: { fontFamily: Fonts.bodyBold, color: c.white },
+  cellTextOff: { color: c.fg2 },
   weekRow: { flexDirection: 'row', marginBottom: 6 },
   weekday: {
     fontFamily: Fonts.bodyBold,
     width: '14.28%',
     textAlign: 'center',
     fontSize: 12,
-    color: Colors.fg2,
+    color: c.fg2,
   },
 });

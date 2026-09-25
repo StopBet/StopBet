@@ -1,5 +1,5 @@
 /* ============================================================
-   Tema StopBet — paleta y tipografías del manual de marca.
+   Tema StopBet - paleta y tipografías del manual de marca.
    Reemplaza al override AJUTER (naranja). Se importa DESPUÉS de
    colors_and_type.css para que los overrides tomen efecto.
 
@@ -21,7 +21,9 @@
   /* ---- Primario: el naranja AJUTER pasa al azul ---- */
   --teal-700: #396fb6;
   --teal-400: #2d5a9e;
-  --teal-50:  #EAF1F9;   /* tinte del primario, para fondos de etiqueta */
+  /* Tinte del primario, para fondos de etiqueta. Un punto más claro que el #EAF1F9 anterior:
+     con ese, el azul primario de los chips y las iniciales daba 4,47:1 y no llegaba a AA. */
+  --teal-50:  #ECF3FA;
 
   /* ---- Acento: el oro pasa al azul claro del manual ---- */
   --amber-500: #93bce5;
@@ -33,6 +35,20 @@
   /* ---- Verde: el del manual, no el sage genérico ---- */
   --sage-500: #97b23f;   /* c2d66e oscurecido: sobre blanco, #c2d66e no alcanza contraste AA */
   --sage-50:  #F2F7E2;
+  /* Verde para texto e íconos. #97b23f sirve de relleno, pero como texto da 2,40:1 sobre
+     blanco; este da 5,35:1. Es un derivado, no reemplaza a ningún color del manual. */
+  --secondary-text: #5B7324;
+
+  /* Tokens de TEXTO para la marca. En claro son el mismo azul y el mismo rojo; en oscuro se
+     aclaran (ver stopbet-dark.css). Úsalos para texto e íconos; --primary y --danger quedan
+     para rellenos y bordes. */
+  --primary-text: #396fb6;
+  --danger-text: #B83232;
+
+  /* Texto sobre el verde de relleno (--secondary). Es oscuro en los DOS temas: el verde no
+     cambia con el tema, así que el texto encima tampoco puede cambiar. En oscuro, --fg1
+     pasa a casi blanco y sobre el verde daba 2,16:1. */
+  --fg-on-secondary: #3a3939;
 
   /* ---- Fondo y texto ---- */
   --cream-50: #f4f4e9;
@@ -47,14 +63,16 @@
           el botón de pánico y las alertas críticas. ---- */
 
   /* ---- Sombras: azuladas en vez de cálidas ---- */
+  /* Velo de los modales: el azul oscuro de marca al 32 %. Estaba escrito a mano
+     en 6 archivos; un cambio de opacidad obligaba a tocar los seis. */
+  --scrim: rgba(45, 90, 158, 0.32);
+
   --shadow-soft:   0 2px 8px  rgba(45, 90, 158, 0.08);
   --shadow-medium: 0 4px 16px rgba(45, 90, 158, 0.11);
   --shadow-strong: 0 8px 32px rgba(45, 90, 158, 0.18);
 
   --glow-gold: 0 0 0 4px rgba(147, 188, 229, 0.22),
                0 4px 16px rgba(57, 111, 182, 0.26);
-
-  --ajuter-gradient: linear-gradient(90deg, #93bce5 0%, #396fb6 55%, #2d5a9e 100%);
 
   /* ---- Tipografías del manual. Las @font-face viven en
           stopbet-brand.css; Nunito e Inter quedan de respaldo. ---- */

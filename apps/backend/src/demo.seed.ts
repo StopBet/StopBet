@@ -11,6 +11,7 @@ import { EmotionType, isValidRut } from '@stopbet/shared-types';
 
 import { User } from './users/entities/user.entity';
 import { CheckIn } from './check-ins/entities/check-in.entity';
+import type { NotificationTarget } from '@stopbet/shared-types';
 import { Notification } from './notifications/entities/notification.entity';
 import { CommunityMute } from './notifications/entities/community-mute.entity';
 import { Sede } from './sedes/entities/sede.entity';
@@ -482,7 +483,12 @@ async function seedDemo(): Promise<void> {
   console.log('\n── Notificaciones ──────────────────────────');
   async function seedNotifications(
     userId: string,
-    items: Array<{ type: 'warning' | 'info' | 'success' | 'danger'; title: string; body: string }>,
+    items: Array<{
+      type: 'warning' | 'info' | 'success' | 'danger';
+      title: string;
+      body: string;
+      target?: NotificationTarget;
+    }>,
     label: string,
   ): Promise<void> {
     const existing = await notifRepo.count({ where: { userId } });
@@ -496,16 +502,16 @@ async function seedDemo(): Promise<void> {
     }
   }
   await seedNotifications(DEMO_USER_ID, [
-    { type: 'success', title: '¡45 días cumplidos!', body: 'Alcanzaste un nuevo hito. Sigue así.' },
-    { type: 'info', title: 'Nueva sesión grupal', body: 'Hay una sesión grupal programada en tu sede.' },
-    { type: 'info', title: 'Respondieron tu publicación', body: 'Alguien comentó en tu post de la comunidad.' },
-    { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.' },
-    { type: 'success', title: 'Pago recibido', body: 'Tu mensualidad fue procesada correctamente.' },
-    { type: 'danger', title: 'Alerta de pánico', body: 'Tu padrino fue notificado de tu alerta.' },
+    { type: 'success', title: '¡45 días cumplidos!', body: 'Alcanzaste un nuevo hito. Sigue así.', target: 'achievements' },
+    { type: 'info', title: 'Nueva sesión grupal', body: 'Hay una sesión grupal programada en tu sede.', target: 'community' },
+    { type: 'info', title: 'Respondieron tu publicación', body: 'Alguien comentó en tu post de la comunidad.', target: 'community' },
+    { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.', target: 'check-in' },
+    { type: 'success', title: 'Pago recibido', body: 'Tu mensualidad fue procesada correctamente.', target: 'payment' },
+    { type: 'danger', title: 'Alerta de pánico', body: 'Tu compañero de viaje fue notificado de tu alerta.', target: 'panic' },
   ], 'Carlos Demo');
   await seedNotifications(PATIENT2_ID, [
-    { type: 'info', title: 'Bienvenido a la comunidad', body: 'Ya puedes publicar y reaccionar a otros mensajes.' },
-    { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.' },
+    { type: 'info', title: 'Bienvenido a la comunidad', body: 'Ya puedes publicar y reaccionar a otros mensajes.', target: 'community' },
+    { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.', target: 'check-in' },
   ], 'Pedro Álvarez');
 
   // ── 8. Comunidad — lo que falta para HdU05 ─────────────────────────────────
@@ -524,7 +530,7 @@ async function seedDemo(): Promise<void> {
     authorId: PSYCHOLOGIST_ID,
     type: 'announcement',
     sede: SANTIAGO_SEDE,
-    title: 'Taller de manejo de la ansiedad — sesión abierta',
+    title: 'Taller de manejo de la ansiedad: sesión abierta',
     body: 'Sesión grupal abierta a toda la comunidad de Santiago. Confirma tu asistencia.',
     eventDate: new Date(`${daysFromNowInChile(7)}T18:30:00`),
   }, 'Anuncio con evento futuro (CA 5.1 material)');
@@ -630,21 +636,28 @@ async function seedDemo(): Promise<void> {
       paymentMethod: 'transfer', status: 'active', expiresAt: null,
     }));
   }
-  const overdueMonth = (() => {
-    const today = todayInChile();
-    const [y, m] = today.slice(0, 7).split('-').map(Number);
-    const d = new Date(y, m - 2, 1);
+  // Regla del cliente: la cuenta se suspende al cumplir el TERCER mes de no pago, no
+  // antes. Con una sola cuota vencida, una cuenta suspendida es un dato imposible —y
+  // Lucía es justamente el caso de demo de cuenta suspendida.
+  const MESES_DE_MORA = 3;
+  const monthBack = (n: number) => {
+    const [y, m] = todayInChile().slice(0, 7).split('-').map(Number);
+    const d = new Date(y, m - 1 - n, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  })();
-  const luciaInvoice = await invoiceRepo.findOne({ where: { userId: REPORTER2_ID, month: overdueMonth } });
-  if (!luciaInvoice) {
-    await invoiceRepo.save(invoiceRepo.create({
-      userId: REPORTER2_ID, month: overdueMonth, amountCLP: 30000, status: 'overdue',
-      dueDate: `${overdueMonth}-05`, paidAt: null,
-    }));
+  };
+  // Del más antiguo al más reciente, terminando en el mes pasado.
+  const overdueMonths = Array.from({ length: MESES_DE_MORA }, (_, i) => monthBack(MESES_DE_MORA - i));
+  for (const month of overdueMonths) {
+    const existing = await invoiceRepo.findOne({ where: { userId: REPORTER2_ID, month } });
+    if (!existing) {
+      await invoiceRepo.save(invoiceRepo.create({
+        userId: REPORTER2_ID, month, amountCLP: 30000, status: 'overdue',
+        dueDate: `${month}-05`, paidAt: null,
+      }));
+    }
   }
   await userRepo.update(REPORTER2_ID, { accountStatus: 'suspended' });
-  console.log('  ✓ Lucía Vega — cuenta suspendida por mora (factura vencida)');
+  console.log(`  ✓ Lucía Vega — suspendida con ${MESES_DE_MORA} meses de mora (${overdueMonths.join(', ')})`);
 
   // ── 10. --sin-padrino (CA 1.2) ───────────────────────────────────────────
   if (sinPadrino) {

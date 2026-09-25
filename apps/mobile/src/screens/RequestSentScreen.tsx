@@ -1,18 +1,20 @@
 import React from 'react';
 import {
+  Linking,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { AuthStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useTheme, useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
+import { Touchable } from '../components/Touchable';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RequestSent'>;
 
@@ -26,28 +28,33 @@ interface TimelineItem {
 
 const TIMELINE: TimelineItem[] = [
   { state: 'done',    title: 'Registro completado' },
-  { state: 'current', title: 'Revisión por psicólogo de AJUTER', meta: 'En revisión · Plazo estimado: 24-48 horas' },
-  { state: 'todo',    title: 'Pago de mensualidad' },
+  { state: 'current', title: 'Revisión de tu psicólogo', meta: 'En revisión · Plazo estimado: 24-48 horas' },
+  { state: 'todo',    title: 'Pago de la mensualidad', meta: 'Lo coordinas con tu sede' },
   { state: 'todo',    title: 'Acceso completo activado' },
 ];
 
 function TlDot({ state }: { state: TlState }) {
-  const bg = state === 'done' ? Colors.sage500 : state === 'current' ? Colors.accent : 'transparent';
-  const border = state === 'todo' ? Colors.border : bg;
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const bg = state === 'done' ? c.sage500 : state === 'current' ? c.accent : 'transparent';
+  const border = state === 'todo' ? c.border : bg;
   return (
     <View style={[styles.tlDot, { backgroundColor: bg, borderColor: border }]}>
-      {state === 'done' && <Icon name="check" size={12} color={Colors.white} />}
-      {state === 'current' && <Icon name="hourglass" size={12} color={Colors.white} />}
+      {state === 'done' && <Icon name="check" size={12} color={c.white} />}
+      {state === 'current' && <Icon name="hourglass" size={12} color={c.white} />}
     </View>
   );
 }
 
 export function RequestSentScreen({ navigation, route }: Props) {
+  const { isDark } = useTheme();
+  const c = useColors();
+  const styles = useStyles(makeStyles);
   const { email } = route.params;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -55,7 +62,7 @@ export function RequestSentScreen({ navigation, route }: Props) {
       >
         {/* Badge de reloj */}
         <View style={styles.badge}>
-          <Icon name="hourglass" size={40} color={Colors.primary} />
+          <Icon name="hourglass" size={40} color={c.primaryText} />
         </View>
 
         <Text style={styles.title}>¡Solicitud enviada!</Text>
@@ -88,25 +95,33 @@ export function RequestSentScreen({ navigation, route }: Props) {
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Touchable
           activeOpacity={0.85}
           style={styles.btnOutline}
           onPress={() => navigation.navigate('Welcome')}
+          accessibilityRole="button"
         >
           <Text style={styles.btnOutlineText}>Volver al inicio</Text>
-        </TouchableOpacity>
-        <Text style={styles.contactText}>
-          ¿Preguntas? Escríbenos a{' '}
-          <Text style={styles.contactLink}>contacto@ajuter.cl</Text>
-        </Text>
-        <Text style={styles.powered}>Powered by StopBet</Text>
+        </Touchable>
+        {/* El correo no era tocable, y "Powered by StopBet" dentro de StopBet no dice nada */}
+        <Touchable
+          onPress={() => Linking.openURL('mailto:contacto@ajuter.cl?subject=Solicitud%20de%20registro')}
+          style={styles.contactBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Escribir a contacto@ajuter.cl"
+        >
+          <Text style={styles.contactText}>
+            ¿Preguntas? Escríbenos a{' '}
+            <Text style={styles.contactLink}>contacto@ajuter.cl</Text>
+          </Text>
+        </Touchable>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   content: {
     alignItems: 'center',
     paddingHorizontal: 28,
@@ -118,10 +133,10 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: '#EAF3F2',
+    backgroundColor: c.infoSurface,
     borderWidth: 4,
-    borderColor: Colors.primary,
-    shadowColor: Colors.primary,
+    borderColor: c.primary,
+    shadowColor: c.primary,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
@@ -129,16 +144,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 22,
   },
-  title: { fontFamily: Fonts.headingBold, fontSize: 28, color: Colors.ink900, letterSpacing: -0.3, textAlign: 'center' },
-  subtitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.sage500, marginTop: 12, textAlign: 'center' },
+  title: { fontFamily: Fonts.headingBold, fontSize: 28, color: c.ink900, letterSpacing: -0.3, textAlign: 'center' },
+  subtitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.greenText, marginTop: 12, textAlign: 'center' },
 
   card: {
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderRadius: 16,
     padding: 20,
     marginTop: 24,
     width: '100%',
-    shadowColor: Colors.shadowMedium,
+    shadowColor: c.shadowMedium,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 12,
@@ -155,15 +170,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  tlLine: { width: 2, flex: 1, minHeight: 16, marginVertical: 3, backgroundColor: Colors.border },
-  tlLineDone: { backgroundColor: Colors.sage500 },
+  tlLine: { width: 2, flex: 1, minHeight: 16, marginVertical: 3, backgroundColor: c.border },
+  tlLineDone: { backgroundColor: c.sage500 },
   tlBody: { flex: 1, paddingBottom: 18 },
-  tlTitle: { fontFamily: Fonts.bodyBold, fontSize: 14, color: Colors.ink900, lineHeight: 19 },
-  tlTitleTodo: { fontFamily: Fonts.heading, color: Colors.fg2 },
-  tlMeta: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 3, lineHeight: 18 },
+  tlTitle: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.ink900, lineHeight: 19 },
+  tlTitleTodo: { fontFamily: Fonts.heading, color: c.fg2 },
+  tlMeta: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, marginTop: 3, lineHeight: 18 },
 
-  note: { fontFamily: Fonts.body, fontSize: 14, color: Colors.fg2, marginTop: 20, lineHeight: 21, textAlign: 'center', maxWidth: 290 },
-  noteEmail: { fontFamily: Fonts.bodyBold, color: Colors.fg1 },
+  note: { fontFamily: Fonts.body, fontSize: 14, color: c.fg2, marginTop: 20, lineHeight: 21, textAlign: 'center', maxWidth: 290 },
+  noteEmail: { fontFamily: Fonts.bodyBold, color: c.fg1 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14, alignItems: 'center' },
   btnOutline: {
@@ -171,12 +186,12 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     height: 54,
     borderWidth: 1.5,
-    borderColor: Colors.primary,
+    borderColor: c.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  btnOutlineText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.primary },
-  contactText: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 12 },
-  contactLink: { fontFamily: Fonts.bodyBold, color: Colors.primary },
-  powered: { fontFamily: Fonts.body, fontSize: 11, color: Colors.fg2, marginTop: 6, opacity: 0.6 },
+  btnOutlineText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: c.primaryText },
+  contactText: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, marginTop: 12 },
+  contactLink: { fontFamily: Fonts.bodyBold, color: c.primaryText },
+  contactBtn: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 8 },
 });

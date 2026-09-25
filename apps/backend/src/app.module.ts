@@ -42,6 +42,10 @@ import { PanicAlert } from './panic/entities/panic-alert.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { DeviceToken } from './push/entities/device-token.entity';
 import { FamilyModule } from './family/family.module';
+import { ClinicalRecordsModule } from './clinical-records/clinical-records.module';
+import { ClinicalRecord } from './clinical-records/entities/clinical-record.entity';
+import { ClinicalRecordVersion } from './clinical-records/entities/clinical-record-version.entity';
+import { ClinicalNote } from './clinical-records/entities/clinical-note.entity';
 import { FamilyLink } from './family/entities/family-link.entity';
 import { FamilySession } from './family/entities/family-session.entity';
 import { SessionAttendance } from './family/entities/session-attendance.entity';
@@ -50,6 +54,7 @@ import { PsychologistsModule } from './psychologists/psychologists.module';
 import { PsychologistSede } from './psychologists/entities/psychologist-sede.entity';
 import { PatientAssignment } from './psychologists/entities/patient-assignment.entity';
 import { MailModule } from './mail/mail.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -96,6 +101,7 @@ import { MailModule } from './mail/mail.module';
           FamilyLink, FamilySession, SessionAttendance,
           CommunityMute,
           PsychologistSede, PatientAssignment,
+          ClinicalRecord, ClinicalRecordVersion, ClinicalNote,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',
@@ -121,6 +127,7 @@ import { MailModule } from './mail/mail.module';
     HealthModule,
     MetricsModule,
     FamilyModule,
+    ClinicalRecordsModule,
     PushModule,
     PsychologistsModule,
     MailModule,
@@ -128,6 +135,10 @@ import { MailModule } from './mail/mail.module';
   controllers: [],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Todo endpoint exige token salvo los marcados con @Public(). Antes el guard era opcional
+    // por endpoint y 14 de 17 controladores confiaban en el header x-user-id sin verificarlo.
+    // Va después del throttler: el límite de peticiones se aplica también a las rechazadas.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
 export class AppModule {}

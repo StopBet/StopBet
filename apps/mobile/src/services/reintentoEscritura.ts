@@ -7,7 +7,7 @@ import { isNetworkError } from './checkInQueue';
 //
 // Reintentar es seguro porque el backend ya distingue el duplicado: el check-in
 // responde 409 y el pánico reutiliza la alerta abierta. Un 409 tras un fallo de red
-// no es un error — es la confirmación de que la primera sí llegó.
+// no es un error - es la confirmación de que la primera sí llegó.
 const INTENTOS = 3;
 const ESPERA_MS = 400;
 
@@ -23,7 +23,7 @@ export function esConflicto(err: unknown): boolean {
  *
  * Si un reintento devuelve 409, se entiende que el intento anterior sí llegó y se
  * resuelve con `null`: la escritura está hecha, aunque esta llamada no traiga cuerpo.
- * Cualquier otro error se propaga sin reintentar — un 400 o un 403 no mejoran
+ * Cualquier otro error se propaga sin reintentar - un 400 o un 403 no mejoran
  * repitiendo la petición.
  */
 export async function conReintento<T>(operacion: () => Promise<T>): Promise<T | null> {

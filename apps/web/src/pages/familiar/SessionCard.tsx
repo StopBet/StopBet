@@ -29,7 +29,9 @@ function AttendanceToggle({
   state,
   onToggle,
   isPending,
+  sessionTitle,
 }: {
+  sessionTitle: string
   state: AttendanceState
   onToggle: () => void
   isPending: boolean
@@ -37,7 +39,7 @@ function AttendanceToggle({
   const confirmed = state === 'yes'
   const pendingAnswer = state === 'unanswered'
 
-  const accent = confirmed ? 'var(--secondary)' : 'var(--fg2)'
+  const accent = confirmed ? 'var(--secondary-text)' : 'var(--fg2)'
   const label = confirmed ? 'Asistiré' : pendingAnswer ? 'Sin responder' : 'No podré ir'
   const hint = pendingAnswer ? 'Toca para confirmar tu asistencia' : 'Toca para cambiar tu respuesta'
 
@@ -49,7 +51,7 @@ function AttendanceToggle({
         // "mixed" es el valor ARIA para un interruptor que todavía no tiene respuesta:
         // un lector de pantalla no debe anunciarlo como desactivado.
         aria-checked={pendingAnswer ? 'mixed' : confirmed}
-        aria-label="Confirmar asistencia a la sesión"
+        aria-label={`Confirmar asistencia: ${sessionTitle}`}
         onClick={onToggle}
         disabled={isPending}
         style={{
@@ -79,7 +81,7 @@ function AttendanceToggle({
             width: 22,
             height: 22,
             borderRadius: '50%',
-            background: '#fff',
+            background: 'var(--surface)',
             boxShadow: '0 1px 3px rgba(0,0,0,.28)',
             display: 'grid',
             placeItems: 'center',
@@ -134,7 +136,7 @@ export function SessionCard({
             padding: '8px 0',
           }}
         >
-          <div style={{ fontSize: 11, color: 'var(--fg2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+          <div style={{ fontSize: 12, color: 'var(--fg2)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
             {new Intl.DateTimeFormat('es-CL', { month: 'short' }).format(date).replace('.', '')}
           </div>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, fontSize: 22, color: 'var(--fg1)', lineHeight: 1.1 }}>
@@ -154,11 +156,11 @@ export function SessionCard({
                   alignItems: 'center',
                   gap: 5,
                   background: 'var(--surface-alt)',
-                  color: 'var(--primary)',
+                  color: 'var(--primary-text)',
                   border: '1px solid var(--primary)',
                   borderRadius: 999,
                   padding: '2px 10px',
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: 700,
                   textTransform: 'uppercase',
                   letterSpacing: '.05em',
@@ -191,6 +193,7 @@ export function SessionCard({
         state={session.userAttends === null ? 'unanswered' : session.userAttends ? 'yes' : 'no'}
         onToggle={() => onRespond(session.userAttends !== true)}
         isPending={isPending}
+        sessionTitle={session.title}
       />
 
       {/* Sin --danger: la regla clínica lo reserva para el botón de pánico, así que
@@ -206,7 +209,7 @@ export function SessionCard({
             padding: '11px 13px',
           }}
         >
-          <span style={{ flexShrink: 0, color: 'var(--primary)', marginTop: 1 }}>
+          <span style={{ flexShrink: 0, color: 'var(--primary-text)', marginTop: 1 }}>
             <WIcon name="circle-alert" size={15} />
           </span>
           <p style={{ margin: 0, fontSize: 13, color: 'var(--fg2)', lineHeight: 1.55 }}>

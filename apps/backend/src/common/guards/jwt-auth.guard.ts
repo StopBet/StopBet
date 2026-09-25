@@ -16,6 +16,12 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     ]);
     if (isPublic) return true;
 
+    // Registrado global en AppModule, y además varios controladores lo declaran con
+    // @UseGuards(JwtAuthGuard, RolesGuard). Si el global ya validó el token, no se repite:
+    // cada validación consulta la base para revisar si la cuenta sigue activa.
+    const request = context.switchToHttp().getRequest<{ user?: unknown }>();
+    if (request.user) return true;
+
     return super.canActivate(context);
   }
 }

@@ -10,6 +10,9 @@ import { AttendanceConfirmation } from './entities/attendance-confirmation.entit
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { CommunityMute } from '../notifications/entities/community-mute.entity';
+import { PushModule } from '../push/push.module';
+import { Sede } from '../sedes/entities/sede.entity';
+import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 
 @Module({
   imports: [
@@ -22,7 +25,10 @@ import { CommunityMute } from '../notifications/entities/community-mute.entity';
       User,
       Notification,
       CommunityMute,
+      Sede,
+      PsychologistSede,
     ]),
+    PushModule,
   ],
   controllers: [CommunityController],
   providers: [CommunityService],

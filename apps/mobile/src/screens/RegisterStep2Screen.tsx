@@ -1,12 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,25 +14,43 @@ import type { AuthStackParamList } from '../navigation/types';
 import { TopBar } from '../components/TopBar';
 import { StepperHeader } from '../components/StepperHeader';
 import { Icon, type IconName } from '../components/Icon';
-import { Colors } from '../constants/colors';
+import type { Palette } from '../constants/colors';
+import { useTheme, useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { api } from '../services/api';
+import { useToast } from '../context/ToastContext';
+import { Touchable } from '../components/Touchable';
+import { useDialog } from '../context/DialogContext';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'RegisterStep2'>;
 
 export function RegisterStep2Screen({ navigation, route }: Props) {
-  const { institutionId, basicData } = route.params;
+  const { showDialog } = useDialog();
+  const { isDark } = useTheme();
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const { showToast } = useToast();
+  const { institutionId, basicData, intake } = route.params;
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [selectedSedeId, setSelectedSedeId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Si fallaban las sedes salía una alerta y quedaba una lista vacía, sin forma de reintentar
+  const [loadFailed, setLoadFailed] = useState(false);
 
-  useEffect(() => {
+  const loadSedes = useCallback(() => {
+    setLoading(true);
+    setLoadFailed(false);
     api.getSedes()
-      .then(setSedes)
-      .catch(() => Alert.alert('Error', 'No se pudieron cargar las sedes. Verifica tu conexión.'))
+      .then((data) => {
+        setSedes(data);
+        setLoadFailed(false);
+      })
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { loadSedes(); }, [loadSedes]);
 
   const handleSubmit = async () => {
     if (!selectedSedeId) return;
@@ -47,6 +63,8 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         birthDate: basicData.birthDate || undefined,
         sedeId: selectedSedeId,
         institutionId,
+        // Va tal cual lo respondió el paciente, o ausente si se saltó el paso (HdU13).
+        intake,
       });
       navigation.navigate('RequestSent', {
         requestId: result.requestId,
@@ -55,11 +73,19 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
     } catch (err) {
       const statusMatch = (err as Error).message?.match(/^(\d{3})\s/);
       const status = statusMatch ? Number(statusMatch[1]) : null;
-      const msg =
-        status === 409
-          ? 'Ya existe una cuenta con este correo electrónico'
-          : 'No se pudo enviar la solicitud. Inténtalo de nuevo.';
-      Alert.alert('Error', msg);
+      if (status === 409) {
+        // Antes era un aviso sin salida: el correo mal escrito quedaba dos pantallas atrás
+        showDialog({
+          title: 'Ese correo ya tiene cuenta',
+          message: `Ya existe una cuenta registrada con ${basicData.email}. Puedes corregirlo o iniciar sesión.`,
+          actions: [
+            { label: 'Corregir mi correo', onPress: () => navigation.goBack() },
+            { label: 'Iniciar sesión', onPress: () => navigation.navigate('Login') },
+          ],
+        });
+        return;
+      }
+      showToast('No pudimos enviar tu solicitud. Tus datos siguen acá; inténtalo de nuevo.', 'error');
     } finally {
       setSubmitting(false);
     }
@@ -70,9 +96,9 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.bg} />
-      <TopBar title="Crear cuenta" stepLabel="Paso 2 de 3" onBack={() => navigation.goBack()} />
-      <StepperHeader current={2} />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={c.bg} />
+      <TopBar title="Crear cuenta" onBack={() => navigation.goBack()} />
+      <StepperHeader current={3} labels={['Datos', 'Tu juego', 'Sede']} />
 
       <ScrollView
         style={styles.scroll}
@@ -85,107 +111,133 @@ export function RegisterStep2Screen({ navigation, route }: Props) {
         </Text>
 
         {loading ? (
-          <ActivityIndicator size="large" color={Colors.primary} style={{ marginTop: 32 }} />
+          <ActivityIndicator size="large" color={c.primaryText} style={{ marginTop: 32 }} />
+        ) : loadFailed ? (
+          <View style={styles.loadError}>
+            <Text style={styles.loadErrorText}>
+              No pudimos cargar las sedes. Revisa tu conexión e inténtalo de nuevo.
+            </Text>
+            <Touchable style={styles.retryBtn} onPress={loadSedes} accessibilityRole="button">
+              <Text style={styles.retryText}>Reintentar</Text>
+            </Touchable>
+          </View>
         ) : (
           sedes.map((sede) => {
             const sel = selectedSedeId === sede.id;
             return (
-              <TouchableOpacity
+              <Touchable
                 key={sede.id}
                 activeOpacity={0.85}
                 onPress={() => setSelectedSedeId(sede.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: sel }}
                 style={[styles.card, sel && styles.cardSelected]}
               >
                 <View style={[styles.pin, sel && styles.pinSelected]}>
-                  <Icon name={sedeIcon(sede.type)} size={18} color={sel ? Colors.white : Colors.primary} />
+                  <Icon name={sedeIcon(sede.type)} size={18} color={sel ? c.white : c.primary} />
                 </View>
                 <View style={styles.cardBody}>
                   <Text style={styles.cardName}>{sede.name}</Text>
                   <Text style={styles.cardAddr}>{sede.address}</Text>
                   <View style={styles.metaPill}>
-                    <Icon name="users" size={13} color={Colors.sage500} />
-                    <Text style={styles.metaText}>{sede.activeGroups} compañeros activos</Text>
+                    <Icon name="users" size={13} color={c.sage500} />
+                    {/* activeGroups es la cantidad de grupos de la sede, no de personas */}
+                    <Text style={styles.metaText}>
+                      {sede.activeGroups} grupo{sede.activeGroups === 1 ? '' : 's'} activo{sede.activeGroups === 1 ? '' : 's'}
+                    </Text>
                   </View>
                 </View>
                 {sel ? (
-                  <Icon name="check" size={20} color={Colors.primary} />
+                  <Icon name="check" size={20} color={c.primaryText} />
                 ) : (
                   <View style={styles.radio} />
                 )}
-              </TouchableOpacity>
+              </Touchable>
             );
           })
         )}
       </ScrollView>
 
       <View style={styles.footer}>
-        <TouchableOpacity
+        <Touchable
+      rippleColor="rgba(255,255,255,0.28)"
           activeOpacity={0.85}
           style={[styles.btn, (!selectedSedeId || submitting) && styles.btnDisabled]}
           onPress={handleSubmit}
           disabled={!selectedSedeId || submitting}
+          accessibilityRole="button"
+          accessibilityState={{ busy: submitting }}
         >
           {submitting ? (
-            <ActivityIndicator color={Colors.white} />
+            <ActivityIndicator color={c.white} />
           ) : (
             <>
-              <Icon name="share" size={18} color={Colors.white} />
+              {/* El ícono de compartir sugería mandarla por WhatsApp */}
+              <Icon name="send" size={18} color={c.white} />
               <Text style={styles.btnText}>Enviar solicitud</Text>
             </>
           )}
-        </TouchableOpacity>
+        </Touchable>
       </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.bg },
+const makeStyles = (c: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: c.bg },
   scroll: { flex: 1 },
   content: { paddingHorizontal: 22, paddingBottom: 16 },
-  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: Colors.fg1, letterSpacing: -0.3, marginTop: 6 },
-  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
+  title: { fontFamily: Fonts.headingBold, fontSize: 24, color: c.fg1, letterSpacing: -0.3, marginTop: 6 },
+  subtitle: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 19, marginTop: 8, marginBottom: 20 },
 
   card: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: Colors.surface,
+    backgroundColor: c.surface,
     borderWidth: 1.5,
-    borderColor: Colors.border,
+    borderColor: c.border,
     borderRadius: 16,
     padding: 15,
     marginBottom: 12,
     gap: 13,
   },
-  cardSelected: { borderWidth: 2, borderColor: Colors.primary, backgroundColor: '#EAF3F2', padding: 14 },
+  cardSelected: { borderWidth: 2, borderColor: c.primary, backgroundColor: c.infoSurface, padding: 14 },
   pin: {
     width: 42,
     height: 42,
     borderRadius: 13,
-    backgroundColor: '#EAF3F2',
+    backgroundColor: c.infoSurface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pinSelected: { backgroundColor: Colors.white },
+  pinSelected: { backgroundColor: c.white },
   cardBody: { flex: 1 },
-  cardName: { fontFamily: Fonts.headingBold, fontSize: 16, color: Colors.ink900 },
-  cardAddr: { fontFamily: Fonts.body, fontSize: 13, color: Colors.fg2, marginTop: 1 },
+  cardName: { fontFamily: Fonts.headingBold, fontSize: 16, color: c.ink900 },
+  cardAddr: { fontFamily: Fonts.body, fontSize: 13, color: c.fg2, marginTop: 1 },
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     alignSelf: 'flex-start',
-    backgroundColor: Colors.sage50,
+    backgroundColor: c.sage50,
     borderRadius: 9999,
     paddingHorizontal: 10,
     paddingVertical: 4,
     marginTop: 8,
   },
-  metaText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.sage500 },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border },
+  metaText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.greenText },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: c.border },
 
   footer: { paddingHorizontal: 22, paddingBottom: 26, paddingTop: 14 },
-  btn: { flexDirection: 'row', gap: 8, backgroundColor: Colors.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
+  btn: { flexDirection: 'row', gap: 8, backgroundColor: c.primary, borderRadius: 9999, height: 54, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.4 },
-  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.white },
+  btnText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: c.white },
+  loadError: { marginTop: 28, gap: 14, alignItems: 'flex-start' },
+  loadErrorText: { fontFamily: Fonts.body, fontSize: 14, color: c.fg1, lineHeight: 20 },
+  retryBtn: {
+    minHeight: 48, justifyContent: 'center', paddingHorizontal: 18,
+    borderRadius: 9999, borderWidth: 1.5, borderColor: c.primary,
+  },
+  retryText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.primaryText },
+
 });

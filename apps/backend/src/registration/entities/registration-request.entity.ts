@@ -6,7 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { RegistrationStatus } from '@stopbet/shared-types';
+import { IntakeAnswers, RegistrationStatus } from '@stopbet/shared-types';
 import { User } from '../../users/entities/user.entity';
 
 const STATUSES: RegistrationStatus[] = ['pending', 'approved', 'rejected'];
@@ -31,6 +31,13 @@ export class RegistrationRequest {
 
   @Column({ type: 'enum', enum: STATUSES, default: 'pending' })
   status: RegistrationStatus;
+
+  // Cuestionario de ingreso (HdU13). Va en una sola columna `jsonb` y no en seis columnas
+  // sueltas para dejar la huella más chica posible en esta tabla, que es de otra pista del
+  // sprint. `null` = la solicitud se envió antes de que existieran estas preguntas, o el
+  // paciente no respondió ninguna.
+  @Column({ type: 'jsonb', nullable: true })
+  intake: IntakeAnswers | null;
 
   // UUID del psicólogo que revisó la solicitud
   @Column({ nullable: true })

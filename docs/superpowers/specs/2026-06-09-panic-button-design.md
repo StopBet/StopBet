@@ -3,9 +3,17 @@
 **Fecha:** 2026-06-09  
 **Issue:** [#1 — HdU01 Botón de Pánico](https://github.com/StopBet/StopBet/issues/1)
 
+> ⚠️ **Documento de diseño original, de junio. El plazo de escalada cambió.**
+> Este spec dice **3 minutos**; el criterio de aceptación CA1.3 dice **2 minutos**, y esa es
+> la que manda (`docs/planning/SPRINT1.md` §1, corrección #1). Desde entonces los tres
+> valores del código están alineados en **120 segundos**: `ESCALATION_MS` en
+> `apps/backend/src/panic/panic.service.ts:23` y `ESCALATION_SECONDS` en
+> `apps/mobile/src/screens/PanicScreen.tsx:36`. Las menciones a 3 minutos que quedan abajo
+> son el diseño tal como se escribió, no el comportamiento actual.
+
 ## Contexto
 
-La función más crítica de StopBet. Un toque sostenido (2 s) alerta al padrino (sponsor) asignado. Si en 3 minutos nadie responde, el sistema escala automáticamente al asistente IA. Debe funcionar en modo lectura sin conexión mostrando el teléfono directo del padrino y la línea *4141.
+La función más crítica de StopBet. Un toque sostenido (2 s) alerta al padrino (sponsor) asignado. Si nadie responde, el sistema escala automáticamente al asistente IA (el diseño decía 3 minutos; hoy son **120 s**). Debe funcionar en modo lectura sin conexión mostrando el teléfono directo del padrino y la línea *4141.
 
 ## Base de datos
 
@@ -49,14 +57,14 @@ Restricción: un solo padrino activo por paciente (gestionado en servicio).
 | POST | /panic/assign | psicólogo | Asignar padrino a paciente |
 
 ### Escalado automático server-side
-`getActiveAlert` comprueba si `status === 'pending'` y `createdAt < NOW() - 3min`. Si es así, actualiza a `escalated` antes de devolver, como red de seguridad ante cierres de app.
+`getActiveAlert` comprueba si `status === 'pending'` y `createdAt < NOW() - 120s` (el diseño decía 3 min). Si es así, actualiza a `escalated` antes de devolver, como red de seguridad ante cierres de app.
 
 ## Mobile — PanicScreen
 
 **Máquina de estados:**
 ```
 idle ──(hold 2 s + API)──► waiting ──(sponsor responds)──► responded
-                                    ──(3 min elapsed)────► escalated  
+                                    ──(120 s elapsed)────► escalated  
                                     ──(patient cancels)──► idle
 offline (sin red)
 ```

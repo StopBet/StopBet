@@ -48,7 +48,7 @@ function SessionRow({ session }: { session: SedeFamilySession }) {
 
         {/* Envuelve en pantallas angostas: si no, el botón se sale por la derecha */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <Count icon="circle-check" value={session.confirmedCount} label="confirman" color="var(--secondary)" />
+          <Count icon="circle-check" value={session.confirmedCount} label="confirman" color="var(--secondary-text)" />
           <Count icon="x" value={session.declinedCount} label="no asisten" color="var(--fg2)" />
           <button
             onClick={() => setOpen(!open)}
@@ -63,7 +63,7 @@ function SessionRow({ session }: { session: SedeFamilySession }) {
               padding: '7px 14px',
               fontSize: 13,
               fontWeight: 600,
-              color: total === 0 ? 'var(--fg2)' : 'var(--primary)',
+              color: total === 0 ? 'var(--fg2)' : 'var(--primary-text)',
               cursor: total === 0 ? 'default' : 'pointer',
               opacity: total === 0 ? 0.55 : 1,
             }}
@@ -81,7 +81,7 @@ function SessionRow({ session }: { session: SedeFamilySession }) {
               <WIcon
                 name={a.confirmed ? 'circle-check' : 'x'}
                 size={15}
-                style={{ color: a.confirmed ? 'var(--secondary)' : 'var(--fg2)' }}
+                style={{ color: a.confirmed ? 'var(--secondary-text)' : 'var(--fg2)' }}
               />
               <span style={{ color: 'var(--fg1)' }}>{a.familyUserName}</span>
               <span style={{ color: 'var(--fg2)', fontSize: 13 }}>
