@@ -125,7 +125,7 @@ export function FinanzasPage() {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       <PayStatusChip status={p.status} />
-                      <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                      <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                       <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{p.permanencia} mes{p.permanencia !== 1 ? 'es' : ''}</span>
                     </div>
                   </div>
@@ -134,7 +134,7 @@ export function FinanzasPage() {
             </div>
           ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 102 }} /><col style={{ width: 115 }} /><col style={{ width: 100 }} /><col style={{ width: 60 }} /><col style={{ width: 120 }} /></colgroup>
+            <colgroup><col /><col style={{ width: 132 }} /><col style={{ width: 115 }} /><col style={{ width: 100 }} /><col style={{ width: 60 }} /><col style={{ width: 120 }} /></colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 <Head label="Paciente" /><Head label="Sede" /><Head label="Monto" /><Head label="Vencimiento" /><Head label="Meses" /><Head label="Estado" />
@@ -150,7 +150,7 @@ export function FinanzasPage() {
                     </div>
                   </td>
                   <td style={{ padding: '13px 14px' }}>
-                    <span style={{ background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
+                    <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
                   </td>
                   <td style={{ padding: '13px 14px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--fg1)' }}>{fmt(p.amount)}</td>
                   <td style={{ padding: '13px 14px', fontSize: 13, color: p.status === 'vencido' ? 'var(--danger-text)' : 'var(--fg2)', fontWeight: p.status === 'vencido' ? 600 : 400 }}>{p.dueDate}</td>
