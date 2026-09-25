@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Not, Repository } from 'typeorm';
 import {
@@ -12,7 +12,9 @@ import { AbstinencePeriod } from './entities/abstinence-period.entity';
 import { EarnedBadge } from './entities/earned-badge.entity';
 import { ValidatedMessage } from './entities/validated-message.entity';
 import { User } from '../users/entities/user.entity';
+import { Notification } from '../notifications/entities/notification.entity';
 import { CommunityService } from '../community/community.service';
+import { PushService } from '../push/push.service';
 import { daysAgoInChile, todayInChile } from '../common/chile-date';
 
 const MILESTONES: BadgeMilestone[] = [1, 3, 7, 14, 21, 30, 45, 60, 75, 90];
@@ -28,6 +30,8 @@ const SEED_VALIDATED_MESSAGES = [
 
 @Injectable()
 export class AchievementsService implements OnModuleInit {
+  private readonly logger = new Logger(AchievementsService.name);
+
   constructor(
     @InjectRepository(AbstinencePeriod)
     private readonly periodRepo: Repository<AbstinencePeriod>,
@@ -37,7 +41,10 @@ export class AchievementsService implements OnModuleInit {
     private readonly messageRepo: Repository<ValidatedMessage>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Notification)
+    private readonly notificationRepo: Repository<Notification>,
     private readonly communityService: CommunityService,
+    private readonly pushService: PushService,
   ) {}
 
   async onModuleInit() {
@@ -73,24 +80,13 @@ export class AchievementsService implements OnModuleInit {
 
     const daysAchieved = this.daysBetween(currentPeriod.startDate, this.today());
 
-    // Otorga insignias nuevas
-    const earnedSet = new Set(currentPeriod.earnedBadges.map((b) => b.milestone));
-    const newBadges: EarnedBadge[] = [];
-    for (const milestone of MILESTONES) {
-      if (daysAchieved >= milestone && !earnedSet.has(milestone)) {
-        const badge = await this.badgeRepo.save(
-          this.badgeRepo.create({
-            userId,
-            periodId: currentPeriod.id,
-            milestone,
-            earnedAt: this.today(),
-            sharedToCommunity: false,
-          }),
-        );
-        currentPeriod.earnedBadges.push(badge);
-        newBadges.push(badge);
-      }
-    }
+    const newBadges = await this.otorgarInsigniasPendientes(
+      userId,
+      currentPeriod.id,
+      daysAchieved,
+      currentPeriod.earnedBadges.map((b) => b.milestone),
+    );
+    currentPeriod.earnedBadges.push(...newBadges);
 
     const newestMilestone =
       newBadges.length > 0
@@ -115,6 +111,92 @@ export class AchievementsService implements OnModuleInit {
     };
   }
 
+  /**
+   * HDU3 CA1: otorga los hitos que `daysAchieved` ya cumple y avisa al paciente.
+   *
+   * Es el **único** lugar donde nacen insignias — lo llaman la pantalla de Logros, la
+   * pasada diaria del cron y el endpoint de dev. Esa exclusividad es lo que hace que el
+   * aviso salga una sola vez: la fila de `earned_badges` es el punto de deduplicación,
+   * así que gana quien la cree primero y el resto ya no ve el hito como nuevo.
+   */
+  private async otorgarInsigniasPendientes(
+    userId: string,
+    periodId: string,
+    daysAchieved: number,
+    yaOtorgadas: number[],
+    opciones: { avisar?: boolean } = {},
+  ): Promise<EarnedBadge[]> {
+    const earnedSet = new Set(yaOtorgadas);
+    const nuevas: EarnedBadge[] = [];
+
+    for (const milestone of MILESTONES) {
+      if (daysAchieved >= milestone && !earnedSet.has(milestone)) {
+        nuevas.push(
+          await this.badgeRepo.save(
+            this.badgeRepo.create({
+              userId,
+              periodId,
+              milestone,
+              earnedAt: this.today(),
+              sharedToCommunity: false,
+            }),
+          ),
+        );
+      }
+    }
+
+    // Un solo aviso, por el hito más alto. Con el cron diario nunca se cruza más de
+    // uno, pero al recuperar días atrasados salen varios de golpe y encadenar cinco
+    // notificaciones seguidas convierte la felicitación en ruido.
+    const mayor = nuevas[nuevas.length - 1];
+    if (mayor && opciones.avisar !== false) {
+      await this.avisarInsignia(userId, mayor.milestone);
+    }
+
+    return nuevas;
+  }
+
+  /** Otorga y avisa los hitos que el período abierto ya cumple (pasada diaria). */
+  async otorgarInsigniasDelPeriodo(period: AbstinencePeriod): Promise<EarnedBadge[]> {
+    const yaOtorgadas =
+      period.earnedBadges ??
+      (await this.badgeRepo.find({ where: { periodId: period.id } }));
+
+    return this.otorgarInsigniasPendientes(
+      period.userId,
+      period.id,
+      this.daysBetween(period.startDate, this.today()),
+      yaOtorgadas.map((b) => b.milestone),
+    );
+  }
+
+  private async avisarInsignia(userId: string, milestone: number): Promise<void> {
+    const title = '¡Nueva insignia!';
+    const body = `Llevas ${milestone} ${milestone === 1 ? 'día' : 'días'} sin apostar. Tu constancia se nota.`;
+
+    // La fila va primero: es lo que el paciente ve al abrir la app, y tiene que quedar
+    // registrada aunque el push no salga. Mismo criterio que el recordatorio de check-in.
+    await this.notificationRepo.save(
+      // `target` es lo que hace que tocar la notificación abra Logros en vez de solo
+      // marcarse leída (ver NotificationsScreen).
+      this.notificationRepo.create({
+        userId,
+        type: 'success',
+        title,
+        body,
+        target: 'achievements',
+      }),
+    );
+
+    // CA1: el push es lo que llega con la app cerrada. Si Firebase falla no se propaga:
+    // la insignia ya está otorgada y no puede perderse por un problema de entrega.
+    try {
+      await this.pushService.enviarAUsuarios([userId], title, body);
+    } catch (err) {
+      this.logger.error(`No se pudo enviar el push de la insignia: ${(err as Error).message}`);
+    }
+  }
+
   async reportRelapse(userId: string, devStartDate?: string): Promise<RelapseResponse> {
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Usuario no encontrado');
@@ -128,20 +210,16 @@ export class AchievementsService implements OnModuleInit {
       const effectiveStart = devStartDate ?? currentPeriod.startDate;
       const daysAchieved = this.daysBetween(effectiveStart, today);
       const existing = await this.badgeRepo.find({ where: { periodId: currentPeriod.id } });
-      const earnedSet = new Set(existing.map((b) => b.milestone));
-      for (const milestone of MILESTONES) {
-        if (daysAchieved >= milestone && !earnedSet.has(milestone)) {
-          await this.badgeRepo.save(
-            this.badgeRepo.create({
-              userId,
-              periodId: currentPeriod.id,
-              milestone,
-              earnedAt: today,
-              sharedToCommunity: false,
-            }),
-          );
-        }
-      }
+      // Sin aviso: acá se cierran los hitos que el paciente alcanzó antes de la
+      // recaída, y felicitarlo por ellos justo cuando acaba de reportarla es lo
+      // último que corresponde en una plataforma clínica.
+      await this.otorgarInsigniasPendientes(
+        userId,
+        currentPeriod.id,
+        daysAchieved,
+        existing.map((b) => b.milestone),
+        { avisar: false },
+      );
       if (devStartDate) {
         await this.periodRepo.update(currentPeriod.id, { startDate: devStartDate });
       }
@@ -187,16 +265,15 @@ export class AchievementsService implements OnModuleInit {
       await this.periodRepo.update(period.id, { startDate });
     }
 
-    // Crear insignias que correspondan según los días
+    // Pasa por el mismo camino que el cron y que la pantalla de Logros —incluido el
+    // aviso—, así que sirve para probar el CA1 sin esperar a que cambie el día.
     const existing = await this.badgeRepo.find({ where: { periodId: period.id } });
-    const earnedSet = new Set(existing.map((b) => b.milestone));
-    for (const milestone of MILESTONES) {
-      if (days >= milestone && !earnedSet.has(milestone)) {
-        await this.badgeRepo.save(
-          this.badgeRepo.create({ userId, periodId: period.id, milestone, earnedAt: today, sharedToCommunity: false }),
-        );
-      }
-    }
+    await this.otorgarInsigniasPendientes(
+      userId,
+      period.id,
+      days,
+      existing.map((b) => b.milestone),
+    );
 
     await this.userRepo.update(userId, { daysStreak: days });
 

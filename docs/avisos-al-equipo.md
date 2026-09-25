@@ -20,6 +20,50 @@ está.
 
 ---
 
+## 2026-09-25 - La insignia nueva avisa por push, aunque la app esté cerrada (PR #129)
+
+**A quién le pega:** a quien pruebe Logros o toque `achievements`. **No hay que recompilar
+nada ni instalar dependencias**: es solo backend.
+
+**Qué cambió:** al ganar una insignia, el paciente recibe un push y la notificación le queda
+en la campana (`target: 'achievements'`, así que tocarla abre Logros).
+
+**Por qué te puede parecer un bug:** el aviso **no sale en el instante** en que se cumple el
+hito. Las insignias se otorgaban solo al entrar a la pantalla de Logros, y el CA1 de HdU3 pide
+que la felicitación llegue con la app cerrada, así que ahora hay una pasada diaria a las
+**09:00 de Chile** (`BadgeNotifierService`). Si cruzas un hito a las 10:00, la insignia
+aparece igual apenas abres Logros -el otorgamiento sigue estando ahí-, pero el push de esa
+tanda ya pasó.
+
+Dos detalles que conviene no "arreglar" sin leer el porqué:
+
+- **Registrar una recaída no felicita.** Al cerrar el período se otorgan los hitos que el
+  paciente alcanzó antes de recaer, y mandar "¡felicitaciones!" ahí es lo último que
+  corresponde. Vale también para el psicólogo que la registra desde la ficha.
+- **Varios hitos juntos avisan una sola vez**, por el más alto. Pasa al recuperar días
+  atrasados, y encadenar cinco notificaciones convierte la felicitación en ruido.
+
+**Cómo probarlo** (el endpoint de dev quedó detrás de `ENABLE_DEV_TOOLS` en el PR #108, y la
+API ya no lee `x-user-id`):
+
+```bash
+# en apps/backend/.env
+ENABLE_DEV_TOOLS=true
+
+TOKEN=$(curl -s -X POST localhost:3000/auth/login -H 'Content-Type: application/json' \
+  -d '{"email":"<paciente del seed>","password":"Stopbet2026!"}' | jq -r .accessToken)
+
+curl -X POST localhost:3000/achievements/dev-set-days \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"days":7}'
+```
+
+En local, sin `FIREBASE_SERVICE_ACCOUNT_PATH`, el backend arranca igual y el envío queda
+desactivado (`Firebase sin configurar` en el log): la notificación **sí** se guarda y se ve en
+la campana, pero no llega al teléfono. Para verla llegar hay que apuntar a Railway o levantar
+el backend con las credenciales.
+
+---
+
 ## 2026-09-25 - El psicólogo ve el chat igual que el paciente: la burbuja salió de `CommunityScreen`
 
 **A quién le pega:** a **Catalina Yáñez** (Comunidad) y a quien toque el chat en mobile.
