@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import { Icon, type IconName } from '../../components/Icon';
 import { Touchable } from '../../components/Touchable';
 import { SedeSelector } from '../../components/SedeSelector';
@@ -22,6 +22,9 @@ import { useCurrentUser } from '../../context/AuthContext';
 import { useSede } from '../../context/SedeContext';
 import { api, type StaffAlert, type StaffPatient, type StaffPendingRequest } from '../../services/api';
 import { isNetworkError } from '../../services/checkInQueue';
+
+import { useIntervaloActivo } from '../../hooks/useIntervaloActivo';
+import { useCargaFresca } from '../../hooks/useCargaFresca';
 import {
   ALERT_STATUS,
   alertasPorPaciente,
@@ -86,15 +89,15 @@ export function StaffHomeScreen() {
     }
   }, []);
 
-  useEffect(() => { void cargar(); }, [cargar]);
+  const cargarSiHaceFalta = useCargaFresca(cargar);
 
-  useFocusEffect(
-    useCallback(() => {
-      void cargar();
-      const id = setInterval(() => { void cargar(); }, REFRESH_MS);
-      return () => clearInterval(id);
-    }, [cargar]),
-  );
+  useEffect(() => { void cargarSiHaceFalta(); }, [cargarSiHaceFalta]);
+
+  useFocusEffect(useCallback(() => { void cargarSiHaceFalta(); }, [cargarSiHaceFalta]));
+
+  // El sondeo corre solo con la pantalla a la vista y la app en primer plano.
+  const enfocada = useIsFocused();
+  useIntervaloActivo(() => { void cargarSiHaceFalta({ forzar: true }); }, REFRESH_MS, enfocada);
 
   // ── Derivaciones, con el mismo criterio que el Resumen de la web ───────────
   const deSede = useCallback(
@@ -193,7 +196,7 @@ export function StaffHomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refrescando}
-            onRefresh={() => cargar(true)}
+            onRefresh={() => cargarSiHaceFalta({ forzar: true, esRefresco: true })}
             colors={[c.primary]}
             tintColor={c.primary}
           />
@@ -207,7 +210,7 @@ export function StaffHomeScreen() {
                 : 'No pudimos actualizar el resumen. Lo que ves puede estar desactualizado.'}
             </Text>
             {error === 'red' ? (
-              <Touchable style={styles.errorBoton} onPress={() => cargar(true)} accessibilityRole="button">
+              <Touchable style={styles.errorBoton} onPress={() => cargarSiHaceFalta({ forzar: true, esRefresco: true })} accessibilityRole="button">
                 <Text style={styles.errorBotonTexto}>Reintentar</Text>
               </Touchable>
             ) : null}
@@ -324,38 +327,7 @@ export function StaffHomeScreen() {
             </Text>
           ) : (
             listados.map(({ p, riesgo }) => (
-              <Touchable
-                key={p.id}
-                style={styles.paciente}
-                activeOpacity={0.85}
-                onPress={() => setAbierto(p)}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  `${nombreCompleto(p)}. ${p.daysStreak} días sin apostar.` +
-                  `${riesgo ? ' En riesgo, con una alerta sin responder.' : ''} Ver ficha`
-                }
-              >
-                <View style={[styles.avatar, riesgo && styles.avatarRiesgo]}>
-                  <Text style={[styles.avatarTexto, riesgo && styles.avatarTextoRiesgo]}>
-                    {iniciales(p)}
-                  </Text>
-                </View>
-                <View style={styles.pacienteCuerpo}>
-                  <Text style={styles.pacienteNombre} numberOfLines={1}>{nombreCompleto(p)}</Text>
-                  <Text style={styles.pacienteMeta} numberOfLines={1}>
-                    {p.daysStreak} {p.daysStreak === 1 ? 'día' : 'días'}
-                    {p.lastCheckIn
-                      ? ` · ${EMOTION_EMOJI[p.lastCheckIn.emotion] ?? ''} ${timeAgo(p.lastCheckIn.date).toLowerCase()}`
-                      : ' · sin check-in'}
-                  </Text>
-                </View>
-                {riesgo ? (
-                  <View style={styles.tagRiesgo}>
-                    <Text style={styles.tagRiesgoTexto}>En riesgo</Text>
-                  </View>
-                ) : null}
-                <Icon name="chevron-right" size={18} color={c.fg2} />
-              </Touchable>
+              <FilaPaciente key={p.id} p={p} riesgo={riesgo} onPress={() => setAbierto(p)} />
             ))
           )}
         </View>
@@ -381,6 +353,56 @@ export function StaffHomeScreen() {
     </SafeAreaView>
   );
 }
+
+/**
+ * Memorizada porque la pantalla se renderiza con cada tecla del buscador y con cada sondeo:
+ * sin esto, escribir un nombre repintaba las filas de toda la sede.
+ */
+const FilaPaciente = React.memo(function FilaPaciente({
+  p,
+  riesgo,
+  onPress,
+}: {
+  p: StaffPatient;
+  riesgo: boolean;
+  onPress: () => void;
+}) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  return (
+    <Touchable
+      style={styles.paciente}
+      activeOpacity={0.85}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={
+        `${nombreCompleto(p)}. ${p.daysStreak} días sin apostar.` +
+        `${riesgo ? ' En riesgo, con una alerta sin responder.' : ''} Ver ficha`
+      }
+    >
+      <View style={[styles.avatar, riesgo && styles.avatarRiesgo]}>
+        <Text style={[styles.avatarTexto, riesgo && styles.avatarTextoRiesgo]}>
+          {iniciales(p)}
+        </Text>
+      </View>
+      <View style={styles.pacienteCuerpo}>
+        <Text style={styles.pacienteNombre} numberOfLines={1}>{nombreCompleto(p)}</Text>
+        <Text style={styles.pacienteMeta} numberOfLines={1}>
+          {p.daysStreak} {p.daysStreak === 1 ? 'día' : 'días'}
+          {p.lastCheckIn
+            ? ` · ${EMOTION_EMOJI[p.lastCheckIn.emotion] ?? ''} ${timeAgo(p.lastCheckIn.date).toLowerCase()}`
+            : ' · sin check-in'}
+        </Text>
+      </View>
+      {riesgo ? (
+        <View style={styles.tagRiesgo}>
+          <Text style={styles.tagRiesgoTexto}>En riesgo</Text>
+        </View>
+      ) : null}
+      <Icon name="chevron-right" size={18} color={c.fg2} />
+      </Touchable>
+  );
+}, (a, b) => a.p === b.p && a.riesgo === b.riesgo);
 
 const makeStyles = (c: Palette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg },

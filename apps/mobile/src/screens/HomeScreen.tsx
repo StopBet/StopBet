@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -43,7 +43,9 @@ import { useToast } from '../context/ToastContext';
 import { Touchable } from '../components/Touchable';
 import { useCurrentUser, useUserId } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
+import { logInfo, logWarn, logError } from '../utils/log';
 
+import { useIntervaloActivo } from '../hooks/useIntervaloActivo';
 const REFRESH_MS = 3 * 60 * 1000;
 
 // Vive en el navegador de pestañas, pero también navega al stack de arriba
@@ -149,7 +151,7 @@ export function HomeScreen({ navigation }: Props) {
       // pantalla; los errores de verdad sí lo siguen levantando.
       // Solo loguea el error sin exponer datos del paciente.
       if (isNetworkError(err)) {
-        console.log('[HomeScreen] sin conexión al cargar');
+        logInfo('[HomeScreen] sin conexión al cargar');
         // Se recupera el último progreso conocido: mostrar 0 días le diría al
         // paciente que perdió su racha cuando solo se cayó la red.
         setOffline(true);
@@ -164,7 +166,7 @@ export function HomeScreen({ navigation }: Props) {
         }
       } else {
         setLoadFailed(true);
-        console.error('[HomeScreen] load error', (err as Error).message);
+        logError('[HomeScreen] load error', (err as Error).message);
       }
     } finally {
       setLoading(false);
@@ -174,13 +176,10 @@ export function HomeScreen({ navigation }: Props) {
   // Antes recargaba cada 5 s mientras la pantalla estuviera abierta: con 4 llamadas
   // por vuelta son 2.880 peticiones por hora de pantalla, en batería y datos del
   // paciente. Nada de acá cambia por segundo; lo urgente llega por push.
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      const interval = setInterval(load, REFRESH_MS);
-      return () => clearInterval(interval);
-    }, [load]),
-  );
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const enfocada = useIsFocused();
+  useIntervaloActivo(load, REFRESH_MS, enfocada);
 
   // CA7.4: el recordatorio de las 20:00 llega como push. Antes se pedía el permiso
   // del sistema apenas cargaba esta pantalla, sin explicar para qué: se pregunta

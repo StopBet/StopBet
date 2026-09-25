@@ -9,6 +9,27 @@ function claveDe(base: string, userId: string): string {
   return `${base}/${userId}`;
 }
 
+/**
+ * Borra las cachés de otras cuentas.
+ *
+ * Todo lo que se guarda para ver sin conexión cuelga del id del paciente (`.../<userId>`),
+ * así que al cambiar de cuenta en el mismo teléfono lo anterior quedaba ahí para siempre:
+ * nadie lo iba a leer y en una plataforma clínica es contenido de otra persona ocupando el
+ * almacenamiento del aparato. Se corre al entrar.
+ */
+export async function podarCachésDeOtrasCuentas(userId: string): Promise<void> {
+  try {
+    const claves = await AsyncStorage.getAllKeys();
+    const ajenas = claves.filter(
+      (k) => k.startsWith('@stopbet/last-') && !k.endsWith(`/${userId}`),
+    );
+    // AsyncStorage 3 ya no trae `multiRemove`.
+    await Promise.all(ajenas.map((k) => AsyncStorage.removeItem(k)));
+  } catch {
+    // Es limpieza, no un requisito para usar la app.
+  }
+}
+
 // Sin red, la pantalla de inicio mostraba "0 días sin apostar": el estado parte
 // vacío y la carga falla, así que el contador caía a cero. A un paciente eso le
 // dice que perdió su racha cuando lo único que pasó es que se cayó el wifi.
@@ -76,12 +97,44 @@ export interface CachedCommunity {
   posts: CommunityPost[];
 }
 
-export async function saveCommunity(userId: string, data: CachedCommunity): Promise<void> {
-  try {
-    await AsyncStorage.setItem(claveDe(COMMUNITY_KEY, userId), JSON.stringify(data));
-  } catch {
-    // Ver saveProgress: el caché es una mejora, no un requisito.
-  }
+/**
+ * Cuánto se guarda del feed. El caché es para que la app no aparezca vacía sin red, no para
+ * llevarse la comunidad entera en el teléfono: guardar un historial largo significa
+ * serializarlo completo en cada guardado, y eso corre en el hilo de JS.
+ */
+const MÁXIMO_EN_CACHÉ = 50;
+const ESPERA_ESCRITURA_MS = 1_000;
+
+let escrituraPendiente: ReturnType<typeof setTimeout> | null = null;
+let últimoDato: { userId: string; data: CachedCommunity } | null = null;
+
+/**
+ * Guarda lo último cargado, **recortado y sin escribir en cada cambio**.
+ *
+ * Con un mensaje cada pocos segundos, escribir el feed entero por cada uno es el tirón más
+ * fácil de provocar en esta pantalla: `JSON.stringify` de cientos de mensajes bloquea el
+ * hilo de JS justo cuando el paciente está leyendo. Se acumula y se escribe una vez.
+ */
+export function saveCommunity(userId: string, data: CachedCommunity): void {
+  últimoDato = {
+    userId,
+    data: {
+      announcements: data.announcements.slice(0, MÁXIMO_EN_CACHÉ),
+      posts: data.posts.slice(0, MÁXIMO_EN_CACHÉ),
+    },
+  };
+  if (escrituraPendiente) return;
+  escrituraPendiente = setTimeout(() => {
+    escrituraPendiente = null;
+    const pendiente = últimoDato;
+    últimoDato = null;
+    if (!pendiente) return;
+    AsyncStorage.setItem(
+      claveDe(COMMUNITY_KEY, pendiente.userId),
+      JSON.stringify(pendiente.data),
+      // Ver saveProgress: el caché es una mejora, no un requisito.
+    ).catch(() => {});
+  }, ESPERA_ESCRITURA_MS);
 }
 
 export async function readCommunity(userId: string): Promise<CachedCommunity | null> {
