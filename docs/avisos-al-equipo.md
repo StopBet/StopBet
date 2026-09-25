@@ -73,6 +73,28 @@ particular a **Alex** (ficha clínica / perfil del paciente) y a **José** (`use
 
 ---
 
+## 2026-09-23 - Demo sin computador: 4 pacientes demo, Daniela responde sola y reinicio al entrar
+
+**A quién le pega:** a quien grabe o presente la demo, y a quien toque `panic` o `auth`.
+
+**Qué hacer después de pullear:** nada. Las tres herramientas vienen **apagadas** y se prenden
+con variables en Railway (servicio del backend → *Variables*):
+
+| Variable | Qué hace |
+|---|---|
+| `DEMO_PADRINO_SEGUNDOS=45` | Daniela Soto responde sola las alertas de pánico que le lleguen, a los N s (entre 0 y 110; a los 120 escalan a la IA). Solo por la cuenta de Daniela. |
+| `DEMO_PACIENTES_EXTRA=true` | Al arrancar, crea tres copias de Carlos Demo si no existen: **Martina** (`demo2@stopbet.cl`), **Diego** (`demo3@`) y **Javiera** (`demo4@`), clave `Stopbet2026!`. Tienen su racha, insignias, historial de check-ins, chats con el asistente, pagos, psicólogo, ficha clínica y a Daniela como compañera. No se copian sus mensajes del foro. |
+| `DEMO_RESET_ON_LOGIN=true` | Entrar como Carlos Demo (`demo@stopbet.cl`) o una de sus copias deja esa cuenta como después de `seed:demo --reset`: sin check-in de hoy, sin alertas, sin reportes propios, comunidad sin silenciar, insignia de 45 días sin compartir y Daniela activa como compañera de viaje. Otras cuentas no se tocan. |
+
+Desde el teléfono, para repetir una toma: **Perfil → Cerrar sesión → volver a entrar con
+esa misma cuenta**. No hace falta APK nuevo ni un computador corriendo `demo:padrino`.
+
+**Qué cambió, y por qué te puede parecer un bug:** con `DEMO_PADRINO_SEGUNDOS` puesta, las
+alertas de las cuentas demo se responden aunque nadie las haya leído. **Es una respuesta automática, no
+de una persona.** Borra la variable después de grabar. Las copias quedan creadas aunque apagues `DEMO_PACIENTES_EXTRA`; para rehacer una, se borra ese usuario y se reinicia el backend. Todo está en `apps/backend/src/demo/`.
+
+---
+
 ## 2026-09-22 - Revisión de botones del panel: Equipo, moderación y login (PR #116)
 
 **A quién le pega:** a **Matías Lara** (Equipo), a **Catalina** (`community`) y a quien haga la
