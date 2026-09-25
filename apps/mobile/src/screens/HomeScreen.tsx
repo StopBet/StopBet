@@ -19,7 +19,8 @@ import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { DayCounter } from '../components/DayCounter';
 import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
-import { NotificationSection } from '../components/NotificationSection';
+import { NotificationBell } from '../components/NotificationBell';
+import { NotificationCard } from '../components/NotificationCard';
 import { Icon } from '../components/Icon';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
@@ -281,6 +282,8 @@ export function HomeScreen({ navigation }: Props) {
   };
 
   const unreadNotifs = notifications.filter((n) => !n.read);
+  // Una alerta de pánico no puede quedar a un toque de distancia: esa sí se queda a la vista.
+  const urgentes = unreadNotifs.filter((n) => n.type === 'danger');
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -297,6 +300,10 @@ export function HomeScreen({ navigation }: Props) {
             Día {progress?.daysStreak ?? '…'} de tu camino
           </Text>
         </View>
+        <NotificationBell
+          sinLeer={unreadNotifs.length}
+          onPress={() => navigation.navigate('Notifications')}
+        />
         {/* Tenía tamaño, borde y posición de botón de perfil, y no hacía nada */}
         <Pressable
           style={styles.avatar}
@@ -321,11 +328,21 @@ export function HomeScreen({ navigation }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {unreadNotifs.length > 0 && (
-            <NotificationSection
-              notifications={unreadNotifs}
-              onMarkRead={handleMarkRead}
-            />
+          {/* Solo lo urgente. La lista entera vive detrás de la campana: acá ocupaba toda
+              la pantalla y empujaba la racha, el check-in y el asistente fuera de la vista. */}
+          {urgentes.length > 0 && (
+            <View style={styles.urgentes}>
+              {urgentes.map((n) => (
+                <NotificationCard
+                  key={n.id}
+                  notification={n}
+                  onPress={() => {
+                    handleMarkRead(n.id);
+                    navigation.navigate('Notifications');
+                  }}
+                />
+              ))}
+            </View>
           )}
 
           {askReminder && (
@@ -523,6 +540,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     color: c.fg2,
     textAlign: 'center',
   },
+  urgentes: { paddingHorizontal: 16, gap: 10 },
   reminderCard: {
     backgroundColor: c.surface,
     borderRadius: 16,

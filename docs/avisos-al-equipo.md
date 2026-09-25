@@ -20,6 +20,38 @@ está.
 
 ---
 
+## 2026-09-22 - Las notificaciones del paciente se mudaron a una campana
+
+**A quién le pega:** a **Matías Barraza** (Inicio y check-in) y a quien cree notificaciones
+desde el backend.
+
+**Qué hacer después de pullear:** nada. La columna nueva la crea `synchronize` al arrancar.
+Si quieres ver el enrutado con los datos que ya tienes, las notificaciones viejas quedan sin
+destino y solo se marcan leídas; `pnpm run seed` las recrea con destino.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **El Inicio ya no lista las notificaciones.** Ahora hay una **campana con contador** en el
+  encabezado que abre `NotificationsScreen`. La lista dentro del Inicio no tenía techo: con
+  seis avisos, la racha, el check-in y el acceso al asistente quedaban fuera de pantalla.
+- **En el Inicio se quedan solo las `danger`**, porque una alerta de pánico no puede estar a
+  un toque de distancia. Si publicas una notificación `info` esperando verla en el Inicio,
+  está en la campana.
+- **`NotificationSection` ya no existe.** Se reemplazó por `NotificationCard` (una tarjeta,
+  memorizada) y `NotificationBell`.
+
+**Lo que te pega si escribes código en el backend:**
+
+- **`Notification` tiene un campo nuevo, `target`**, con los valores `check-in`, `community`,
+  `achievements`, `panic` y `payment`. Es lo que hace que tocar una notificación abra la
+  pantalla correcta, y cierra el resto de INI-05 de la auditoría UX. Es **nullable** a
+  propósito: lo anterior no lo tiene.
+- **Cuando crees una notificación, ponle `target`.** Sin él se puede leer pero no lleva a
+  ninguna parte, y eso no se nota hasta que un paciente la toca y no pasa nada. Los tres
+  sitios que ya las crean (`check-in-reminder`, `panic`, `community`) lo traen puesto.
+
+---
+
 ## 2026-09-22 - Optimización de la app móvil: el bundle bajó a la mitad
 
 **A quién le pega:** a todo el que toque `apps/mobile`. **Recompila** después de pullear

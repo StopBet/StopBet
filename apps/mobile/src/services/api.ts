@@ -256,6 +256,9 @@ export const api = {
   getNotifications: (userId: string) =>
     request<Notification[]>('/notifications', { userId }),
 
+  markAllNotificationsRead: (userId: string) =>
+    request<void>('/notifications/read-all', { userId, method: 'PATCH' }),
+
   markNotificationRead: (userId: string, notificationId: string) =>
     request<void>(`/notifications/${notificationId}/read`, {
       userId,
