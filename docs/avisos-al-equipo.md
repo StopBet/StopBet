@@ -20,6 +20,43 @@ está.
 
 ---
 
+## 2026-09-25 — La insignia nueva ahora llega como push, y hay que recompilar el APK (rama `feature/HU-03-notificacion-logros`)
+
+**A quién le pega:** a todos los que corran la app en un teléfono. También a **Matías
+Barraza** y a quien toque `panic`: el canal `panic_alerts` recién ahora existe de verdad
+en el dispositivo.
+
+**Qué hacer:** recompilar el APK después de pullear. Es código nativo (`MainApplication.kt`),
+así que recargar Metro no alcanza:
+
+```bash
+pnpm run android:device     # o el flujo de tu sistema, ver apps/mobile/README.md
+```
+
+No hay variables de entorno nuevas ni dependencias nuevas.
+
+**Por qué:** HDU3 CA1 pide que el paciente reciba la felicitación por su insignia
+**aunque la app esté cerrada**. Dos cosas lo impedían.
+
+La primera: la insignia se otorgaba dentro de `getAchievements()`, o sea al entrar a
+Logros. Con la app cerrada no nacía, así que no había qué notificar. Ahora hay una pasada
+diaria a las 09:00 de Chile (`BadgeNotifierService`) y el otorgamiento quedó centralizado
+en un solo método: la fila de `earned_badges` es el punto de deduplicación, así que el
+aviso sale una vez, lo gane el cron o la pantalla.
+
+La segunda, y es la que te obliga a recompilar: **la app nunca creó los canales de
+notificación que el backend viene usando desde el recordatorio de check-in**. Cuando el
+`channelId` no existe, FCM no falla — entrega por su canal de respaldo, de importancia
+media, y la notificación queda en la barra sin aviso flotante. Por eso el recordatorio de
+las 20:00 se veía más apagado de lo que decía el código. Con el APK nuevo ambos canales
+existen con importancia alta.
+
+**Ojo con probarlo:** el push necesita Firebase configurado. En local, sin
+`FIREBASE_SERVICE_ACCOUNT_PATH`, el backend arranca igual y el envío queda desactivado
+(`Firebase sin configurar` en el log) — la notificación **sí** se guarda y se ve dentro de
+la app, pero no llega al teléfono. Para probar el CA1 de punta a punta: matar la app y
+llamar a `POST /achievements/dev-set-days` con `{"days": 7}`.
+
 ## 2026-09-03 — Aprobar una solicitud ya refresca el conteo de pacientes en Equipo (commit directo en `main`)
 
 **A quién le pega:** a **Eduardo**, porque toca `apps/web/src/DashboardApp.tsx`, que es suyo — si
