@@ -98,14 +98,14 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
 | `GET /community/announcements` | `patient`, `sponsor` (de la sede) | ✅ Autenticado (sin filtro de sede) |
-| `POST /community/announcements` | `psychologist`, `coordinator` | ✅ Protegido |
+| `POST /community/announcements` | `psychologist`, `coordinator` | ✅ Protegido + 403 si la sede no es suya (nuevo 22-09) |
 | `POST /community/announcements/:id/attend` | `patient`, `family` | ✅ Autenticado |
 | `GET /community/posts` | `patient`, `sponsor` (de la sede) | ✅ Autenticado |
-| `POST /community/posts` | `patient`, `sponsor` | ✅ Autenticado |
+| `POST /community/posts` | `patient`, `sponsor` | ✅ Protegido — nuevo 22-09: `@Roles('patient','sponsor')`; la sede sale del token, no del cuerpo |
 | `POST /community/posts/:id/reactions` | `patient`, `sponsor` | ✅ Autenticado |
 | `DELETE /community/posts/:id/reactions/:emoji` | `patient`, `sponsor` (propia reacción) | ✅ Autenticado |
 | `GET /community/posts/:id/replies` | `patient`, `sponsor` | ✅ Autenticado |
-| `POST /community/posts/:id/replies` | `patient`, `sponsor` | ✅ Autenticado |
+| `POST /community/posts/:id/replies` | `patient`, `sponsor`, `psychologist` (sus sedes) | ✅ Autenticado + 403 si la publicación es de otra sede (nuevo 22-09) |
 | `POST /community/posts/:id/report` | `patient`, `sponsor` | ✅ Autenticado |
 | `GET /community/moderation/flagged` | `psychologist` | ✅ Autenticado |
 | `DELETE /community/posts/:id` | `psychologist`, o el autor sobre su propia publicación | ✅ Autenticado |
@@ -213,13 +213,21 @@ Todo con tests: `test/auth-global.e2e-spec.ts` (15 casos), `test/roles.e2e-spec.
 ## Lo que sigue pendiente
 
 1. **Restringir por rol los endpoints «✅ Autenticado».** El token ya no se puede falsificar,
-   pero cualquier rol autenticado puede llamarlos. Ejemplos: un psicólogo puede crear una
-   alerta de pánico a su propio nombre (`POST /panic/alerts`) o escribir en el foro, y un
-   familiar puede pedir `/ai/sessions`. No expone datos ajenos —el servicio usa el id del
-   token—, pero crea filas que no deberían existir. Es agregar `@Roles()` endpoint por
-   endpoint, con cuidado de no romper la vista del psicólogo en mobile, que sí usa comunidad.
-2. **`GET /community/announcements` y `GET /community/posts` no filtran por sede** del usuario:
-   la sede llega como parámetro.
+   pero cualquier rol autenticado puede llamarlos. Ejemplo que queda: un psicólogo puede crear
+   una alerta de pánico a su propio nombre (`POST /panic/alerts`), y un familiar puede pedir
+   `/ai/sessions`. No expone datos ajenos —el servicio usa el id del token—, pero crea filas
+   que no deberían existir. Es agregar `@Roles()` endpoint por endpoint.
+   - _Cerrado en `community` el 22-09_: abrir una publicación en el foro es de `patient` y
+     `sponsor`; el equipo clínico responde y publica anuncios, que van firmados con el rol.
+2. **Las lecturas por sede siguen recibiéndola como parámetro** (`GET /community/announcements`,
+   `GET /community/posts`): un token de una sede puede listar el foro de otra. Es a propósito
+   mientras el equipo clínico use el selector de sede, pero **para un paciente no debería**.
+   - _Cerrado el 22-09 en la escritura_: `POST /community/posts` guarda la sede de la cuenta e
+     ignora la del cuerpo, y responder en una publicación de otra sede da 403. Antes cualquier
+     sesión publicaba en el foro de cualquier sede mandándola en el JSON.
+   - Las tres lecturas aceptan el **nombre o el UUID** de la sede y devuelven las dos formas
+     (`formasDeSede`), porque `users.sedeId` guarda una u otra según de dónde venga la cuenta.
+     Sin eso el foro de una sede quedaba partido en dos mitades que no se veían entre sí.
 3. **Rutas de demo en producción:** `DELETE /check-ins/today` y `DELETE /panic/alerts/active`
    siguen disponibles para cualquier paciente autenticado. Deberían ir detrás de
    `ENABLE_DEV_TOOLS`, como `dev-set-days`.

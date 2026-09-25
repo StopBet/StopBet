@@ -305,7 +305,7 @@ export function PanicScreen({ navigation }: Props) {
       if (!communityNotified) {
         showDialog({
           title: 'No pudimos avisar a tu comunidad',
-          message: `Tu mensaje no llegó al foro. Puedes intentarlo otra vez, hablar ahora con el asistente o llamar al ${CRISIS_LINE}.`,
+          message: `Tu mensaje no llegó al chat. Puedes intentarlo otra vez, hablar ahora con el asistente o llamar al ${CRISIS_LINE}.`,
           actions: [{ label: 'Entendido' }],
         });
         return;

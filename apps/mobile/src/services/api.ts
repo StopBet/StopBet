@@ -8,7 +8,6 @@ import type {
   BillingStatus,
   CheckIn,
   CommunityPost,
-  CommunityReply,
   EmotionType,
   Notification,
   PaginatedResponse,
@@ -463,11 +462,17 @@ export const api = {
   // `clientRequestId` se conserva entre reintentos: si la respuesta se pierde de
   // vuelta y el paciente vuelve a enviar, el backend devuelve el post ya creado en
   // vez de publicarlo dos veces.
-  createForumPost: (userId: string, sede: string, body: string, clientRequestId?: string) =>
+  createForumPost: (
+    userId: string,
+    sede: string,
+    body: string,
+    clientRequestId?: string,
+    replyToId?: string,
+  ) =>
     request<CommunityPost>('/community/posts', {
       userId,
       method: 'POST',
-      body: JSON.stringify({ sede, body, clientRequestId }),
+      body: JSON.stringify({ sede, body, clientRequestId, replyToId }),
     }),
 
   addReaction: (userId: string, postId: string, emoji: ReactionEmoji) =>
@@ -483,11 +488,12 @@ export const api = {
       { userId, method: 'DELETE' },
     ),
 
+  /** Los mensajes que citan a este. Desde que el foro es plano, son mensajes como cualquier otro. */
   getReplies: (userId: string, postId: string) =>
-    request<CommunityReply[]>(`/community/posts/${postId}/replies`, { userId }),
+    request<CommunityPost[]>(`/community/posts/${postId}/replies`, { userId }),
 
   createReply: (userId: string, postId: string, body: string, clientRequestId?: string) =>
-    request<CommunityReply>(`/community/posts/${postId}/replies`, {
+    request<CommunityPost>(`/community/posts/${postId}/replies`, {
       userId,
       method: 'POST',
       body: JSON.stringify({ body, clientRequestId }),

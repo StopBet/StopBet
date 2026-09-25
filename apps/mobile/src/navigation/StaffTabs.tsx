@@ -7,6 +7,7 @@ import { StaffHomeScreen } from '../screens/staff/StaffHomeScreen';
 import { StaffCommunityScreen } from '../screens/staff/StaffCommunityScreen';
 import { StaffProfileScreen } from '../screens/staff/StaffProfileScreen';
 import { NewAnnouncementScreen } from '../screens/staff/NewAnnouncementScreen';
+import { StaffThreadScreen } from '../screens/staff/StaffThreadScreen';
 import { SedeProvider } from '../context/SedeContext';
 import { api } from '../services/api';
 import { isToday, needsAttention } from '../utils/staff';
@@ -81,6 +82,7 @@ export function StaffTabs() {
       <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="StaffTabs" component={StaffPager} />
         <Stack.Screen name="NewAnnouncement" component={NewAnnouncementScreen} />
+        <Stack.Screen name="StaffThread" component={StaffThreadScreen} />
       </Stack.Navigator>
     </SedeProvider>
   );

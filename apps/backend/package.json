@@ -13,6 +13,8 @@
     "seed:fichas": "node --env-file=.env --require ts-node/register src/clinical-records/clinical-records.seed.ts",
     "seed:demo": "node --env-file=.env --require ts-node/register src/demo.seed.ts",
     "seed:usuarios": "node --env-file=.env --require ts-node/register src/usuarios-prueba.seed.ts",
+    "migrate:logros": "node --env-file=.env --require ts-node/register src/migrate-achievement-posts.ts",
+    "migrate:replies": "node --env-file=.env --require ts-node/register src/migrate-replies.ts",
     "backfill:institution": "node --env-file=.env --require ts-node/register src/institutions/institution-backfill.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",

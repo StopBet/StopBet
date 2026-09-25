@@ -1,6 +1,9 @@
 package com.stopbet
 
 import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
 import android.util.Log
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
@@ -128,9 +131,54 @@ class MainApplication : Application(), ReactApplication {
           .build()
     }
 
+    crearCanalesDeNotificacion()
+
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
       load()
     }
+  }
+
+  /**
+   * Los canales que usa el backend al mandar push.
+   *
+   * Desde Android 8 un canal que no existe **no se crea solo**: la notificación cae en el
+   * canal de respaldo de Firebase, con importancia media, y queda guardada en la barra sin
+   * avisar. El backend mandaba `recordatorios` desde hace tiempo dando por hecho que la app
+   * lo creaba, y nadie lo hacía.
+   *
+   * Separados a propósito: silenciar los mensajes de la comunidad desde los ajustes de
+   * Android no puede apagar también el recordatorio del check-in ni una alerta de pánico.
+   */
+  private fun crearCanalesDeNotificacion() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+    val manager = getSystemService(NotificationManager::class.java) ?: return
+
+    manager.createNotificationChannel(
+        NotificationChannel(
+            "recordatorios",
+            "Recordatorios",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply { description = "El aviso de las 20:00 para registrar cómo estuvo tu día" }
+    )
+
+    manager.createNotificationChannel(
+        NotificationChannel(
+            "comunidad",
+            "Comunidad",
+            NotificationManager.IMPORTANCE_DEFAULT,
+        ).apply { description = "Mensajes nuevos en el chat de tu sede" }
+    )
+
+    manager.createNotificationChannel(
+        NotificationChannel(
+            "panic_alerts",
+            "Alertas de pánico",
+            NotificationManager.IMPORTANCE_HIGH,
+        ).apply {
+          description = "Cuando alguien a quien acompañas pide ayuda"
+          enableVibration(true)
+        }
+    )
   }
 }

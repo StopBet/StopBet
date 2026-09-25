@@ -8,6 +8,8 @@
     "seed": "pnpm --filter @stopbet/backend run seed",
     "seed:family": "pnpm --filter @stopbet/backend run seed:family",
     "seed:fichas": "pnpm --filter @stopbet/backend run seed:fichas",
+    "migrate:replies": "pnpm --filter @stopbet/backend migrate:replies",
+    "migrate:logros": "pnpm --filter @stopbet/backend migrate:logros",
     "seed:demo": "pnpm --filter @stopbet/backend run seed:demo",
     "seed:usuarios": "pnpm --filter @stopbet/backend run seed:usuarios",
     "build:web": "pnpm --filter @stopbet/web build",

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsDbUuid } from '../../registration/dto/is-db-uuid.validator';
 
 export class CreatePostDto {
   @ApiProperty({ example: 'Hoy fue difícil pero lo logré. Quería compartirlo con ustedes.' })
@@ -8,10 +9,26 @@ export class CreatePostDto {
   @MaxLength(1000)
   body: string;
 
-  @ApiProperty({ example: 'Santiago', description: 'Santiago | Viña del Mar | Concepción' })
-  @IsNotEmpty()
+  /**
+   * @deprecated Se ignora: la sede sale de la cuenta que publica. Se sigue aceptando porque
+   * el `ValidationPipe` va con `forbidNonWhitelisted` y las apps instaladas todavía lo mandan.
+   */
+  @ApiPropertyOptional({
+    example: 'Santiago',
+    description: 'Ignorado. La sede se toma de la cuenta autenticada.',
+  })
+  @IsOptional()
   @IsString()
-  sede: string;
+  sede?: string;
+
+  @ApiPropertyOptional({
+    description: 'UUID del mensaje que se responde. Tiene que ser de la misma sede.',
+  })
+  @IsOptional()
+  // `@IsUUID()` mira los bits de versión de la RFC y rechaza los ids escritos a mano del
+  // seed, que son la mayoría en desarrollo. Acá basta con la forma que Postgres acepta.
+  @IsDbUuid()
+  replyToId?: string;
 
   @ApiPropertyOptional({
     description:

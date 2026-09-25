@@ -27,7 +27,11 @@ interface Props {
   /** El mismo modal sirve para celebrar una insignia recién ganada y para volver a
    *  compartir una vieja: sin esto, cualquier insignia decía "¡Nueva insignia!". */
   isNew: boolean;
+  /** Ya está en el foro: el botón no puede prometer algo que el backend no va a hacer. */
+  yaCompartida: boolean;
   onShare: () => void;
+  /** Lleva al foro cuando la insignia ya está publicada. */
+  onVerEnComunidad: () => void;
   onClose: () => void;
 }
 
@@ -53,7 +57,7 @@ const makeSparks = (c: Palette) => [
 const AREA = 200;
 const CENTER = AREA / 2;
 
-export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose }: Props) {
+export function BadgeUnlockModal({ milestone, badgeDef, isNew, yaCompartida, onShare, onVerEnComunidad, onClose }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const visible = milestone !== null && badgeDef !== null;
@@ -241,27 +245,45 @@ export function BadgeUnlockModal({ milestone, badgeDef, isNew, onShare, onClose 
             style={{ opacity: textOp, transform: [{ translateY: textY }], alignItems: 'center', width: '100%' }}
           >
             <Text style={styles.headline}>
-              {isNew ? '¡Nueva insignia desbloqueada!' : 'Comparte tu insignia'}
+              {isNew
+                ? '¡Nueva insignia desbloqueada!'
+                : yaCompartida
+                  ? 'Tu insignia'
+                  : 'Comparte tu insignia'}
             </Text>
             <Text style={styles.days}>{milestone}</Text>
             <Text style={styles.daysUnit}>día{milestone === 1 ? '' : 's'} sin apostar</Text>
             <Text style={styles.label}>{badgeDef.label}</Text>
-            <Text style={styles.sub}>Compártela con quienes te acompañan en tu sede.</Text>
+            <Text style={styles.sub}>
+              {yaCompartida
+                ? 'Ya la compartiste con tu sede. Está publicada en el chat.'
+                : 'Compártela con quienes te acompañan en tu sede.'}
+            </Text>
           </Animated.View>
 
           {/* Buttons */}
           <Animated.View style={{ opacity: btnsOp, width: '100%', alignItems: 'center', marginTop: 4 }}>
+            {/* Compartir dos veces el mismo hito no hace nada: el backend lo impide para no
+                llenar el foro de anuncios repetidos. Antes el botón se ofrecía igual y el
+                toque no producía nada, que se siente exactamente como algo roto. */}
             <Touchable
-      rippleColor="rgba(255,255,255,0.28)" style={styles.btnPrimary} onPress={onShare} activeOpacity={0.85} accessibilityRole="button">
-              <Icon name="users" size={18} color={c.white} />
-              <Text style={styles.btnPrimaryText}>Compartir con la comunidad</Text>
+              rippleColor="rgba(255,255,255,0.28)"
+              style={styles.btnPrimary}
+              onPress={yaCompartida ? onVerEnComunidad : onShare}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+            >
+              <Icon name={yaCompartida ? 'message-circle' : 'users'} size={18} color={c.white} />
+              <Text style={styles.btnPrimaryText}>
+                {yaCompartida ? 'Ver en la comunidad' : 'Compartir con la comunidad'}
+              </Text>
             </Touchable>
             <Touchable
               onPress={onClose}
               style={styles.btnLink}
               accessibilityRole="button"
             >
-              <Text style={styles.btnLinkText}>Ahora no</Text>
+              <Text style={styles.btnLinkText}>{yaCompartida ? 'Cerrar' : 'Ahora no'}</Text>
             </Touchable>
           </Animated.View>
         </Animated.View>

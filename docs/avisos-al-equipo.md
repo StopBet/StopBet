@@ -20,6 +20,252 @@ está.
 
 ---
 
+## 2026-09-23 - Los mensajes del foro avisan por push: hay que RECOMPILAR
+
+**A quién le pega:** a todo el que corra la app mobile, y a quien toque `community` o `push`.
+
+**Qué tienes que hacer después de pullear:** **recompilar** (`pnpm run android` o
+`android:device`). Cambió código nativo: con recargar Metro no alcanza. Sin dependencias
+nuevas.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Un mensaje nuevo en el foro avisa por push a toda la sede**, como un grupo de WhatsApp.
+  No le llega al autor ni a quien silenció la comunidad desde Perfil, que hasta ahora solo
+  apagaba los avisos dentro de la app.
+- **La notificación dice quién escribió, pero no lo que escribió**: «Pedro Álvarez escribió en
+  la comunidad». Decisión del PO: la pantalla de bloqueo la ve cualquiera que pase cerca y en
+  el foro se habla de recaídas. **No metas el texto del mensaje en el push.**
+- **Al equipo clínico no le llega.** Un psicólogo con dos sedes tendría el teléfono encendido
+  todo el día; para eso tiene la pestaña Comunidad.
+- **El push sale sin bloquear la publicación** (`void`), y si Firebase falla no pasa nada: el
+  mensaje ya está guardado, que es lo que importa. Si escribes un test sobre esto, acuérdate
+  de dejar correr la microcola antes de mirar si se mandó.
+
+**Lo que se arregló de paso, y conviene saber:**
+
+- ⚠️ **La app nunca creó los canales de notificación de Android.** El backend mandaba
+  `recordatorios` desde hace tiempo dando por hecho que existía, y desde Android 8 un canal
+  que no existe **no se crea solo**: la notificación cae en el canal de respaldo de Firebase,
+  con importancia media, y queda en la barra sin avisar. Es decir, **el recordatorio de las
+  20:00 probablemente nunca salió con la prioridad que creíamos.**
+- Ahora `MainApplication.kt` crea tres canales al arrancar: `recordatorios` (alta),
+  `comunidad` (normal) y `panic_alerts` (alta, con vibración). Separados a propósito: silenciar
+  los mensajes del foro desde los ajustes de Android no puede apagar también el recordatorio
+  del check-in ni una alerta de pánico.
+- **Si mandas un push con un `channelId` que no esté en esa lista, se entrega degradado.**
+  Agrega el canal ahí primero.
+
+---
+
+## 2026-09-22 - El foro se limpió: las reacciones y «Responder» se fueron al menú
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad) y a quien pruebe la app y piense que
+faltan botones.
+
+**Qué hacer después de pullear:** nada.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Desapareció la barra de acciones bajo cada mensaje.** Antes cada burbuja arrastraba cuatro
+  controles siempre visibles (las tres reacciones y «Responder»), estuvieran usados o no:
+  entraban cuatro mensajes por pantalla y el chat parecía una lista de fichas. Ahora entran
+  seis o siete.
+- **Las reacciones se siguen viendo, pero solo cuando alguien ya reaccionó**, como chips bajo
+  la burbuja con su contador. Tocar el chip quita o pone la tuya, como antes.
+- **Reaccionar y responder viven en el menú de la burbuja**, al que se llega con el «···» o
+  con toque largo. El menú abre con las tres reacciones arriba (Fuerza · Cariño · Abrazo) y
+  «Responder» debajo.
+- **No se perdió accesibilidad**: la auditoría UX dejó el «···» visible justamente porque un
+  gesto invisible no lo encuentra TalkBack ni quien no lo sabe, y ese botón sigue ahí. Lo que
+  se quitó es la duplicación.
+
+**Si echas de menos el botón de reaccionar:** está a un toque, en el «···» del mensaje.
+
+**Y el foro se acercó más a WhatsApp**, porque el PO fijó el criterio: la app la usan adultos
+mayores, así que la comunidad tiene que parecerse a lo que ya conocen y no innovar en la
+interacción. Concretamente:
+
+- **La hora del mensaje es exacta y en 24 h** (`15:52`) en vez de «hace 3 h». En *Anuncios* se
+  mantiene el tiempo relativo: el tablón no es una conversación.
+- **Hay separadores de día** («Hoy», «Ayer», «14 de septiembre»), centrados como en cualquier
+  chat.
+- **Los mensajes seguidos de la misma persona van pegados**; el aire separa a un hablante del
+  siguiente.
+
+El criterio quedó en `CLAUDE.md`: ante una duda de diseño en el chat, hacer lo que hace
+WhatsApp.
+
+---
+
+## 2026-09-22 - Los logros compartidos ahora son una tarjeta en el foro
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad) y a quien toque `achievements`.
+
+**Qué hacer después de pullear:** correr **`pnpm run migrate:logros`** si quieres que los
+logros ya publicados se vean como tarjeta. Es opcional y no rompe nada: sin correrlo, los
+antiguos siguen apareciendo como texto y los nuevos salen bien. La columna la crea
+`synchronize`.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **`community_posts` tiene `achievementDays`**: los días que celebra un mensaje cuando es
+  un logro compartido. La app le da una tarjeta con **el ícono del hito** en vez de una
+  burbuja de texto, porque perdido entre el resto del chat pasaba de largo.
+- **`BADGE_CONFIG` se mudó a `constants/badges.ts`.** Lo usan la colección de Logros y la
+  tarjeta del foro: duplicado, el día que cambie un ícono la comunidad mostraría uno distinto
+  al de la insignia que celebra.
+- **El campo no se acepta desde el cuerpo de la petición**, a propósito: si viajara en el
+  DTO, cualquiera podría publicar un logro de 500 días que nunca cumplió. Lo pone
+  `createBadgeAnnouncementPost` a partir de la insignia ya ganada, por un parámetro interno
+  de `createPost`.
+- **Compartir una insignia ya compartida ahora lo dice.** El backend nunca republicó el mismo
+  hito (`achievements.service.ts`, para no llenar el foro de anuncios repetidos), pero el
+  modal ofrecía «Compartir con la comunidad» igual y el toque no hacía nada: se ve idéntico a
+  un botón roto. Ahora, si ya está publicada, el modal dice «Ya la compartiste» y el botón
+  lleva al foro.
+
+**Si estabas por reportar que compartir logros estaba roto:** probablemente era esto. El
+flujo funciona; lo que faltaba era que la app dijera lo que estaba pasando.
+
+---
+
+## 2026-09-22 - El foro pasó a ser un chat plano: hay que correr una migración
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad), a quien toque `apps/mobile` y a quien
+consuma `GET /community/posts` desde la web.
+
+**Qué tienes que hacer después de pullear, en este orden:**
+
+1. `pnpm install` (viene de la entrada de más abajo: `react-native-sse`).
+2. **`pnpm run migrate:replies`.** Mueve lo que había en `post_replies` al foro plano. Se
+   puede correr más de una vez y **no borra nada**: `post_replies` queda intacta.
+3. Recargar Metro. La columna nueva la crea `synchronize` al arrancar el backend.
+
+**Si no corres la migración**, las respuestas que ya existían **no se ven** en la app: siguen
+en la tabla vieja y el foro dejó de leerla. No se pierden, pero no aparecen.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Ya no hay hilos que se expanden.** El foro es una conversación plana donde un mensaje
+  puede citar a otro (`community_posts.replyToId`), como en WhatsApp: tocas *Responder*, la
+  cita queda sobre el composer y el mensaje sale con el original arriba.
+- **`GET /community/posts` devuelve un campo nuevo, `replyTo`** (`{ id, authorName, body }`,
+  el cuerpo recortado a 120 caracteres). Viaja **dentro** del mensaje y no en otra consulta:
+  pedirlo aparte sería un N+1 en la pantalla que el paciente abre todos los días.
+- **`GET /community/posts/:id/replies` ahora devuelve `CommunityPost[]`**, no
+  `CommunityReply[]`: los mensajes que citan a ese. `POST /community/posts/:id/replies` sigue
+  existiendo para las apps instaladas, pero por dentro crea un mensaje con `replyToId`.
+- **`CommunityStreamEvent` ya no tiene `kind: 'reply'`.** Una respuesta llega como `post`,
+  porque eso es.
+
+**Lo que te pega si escribes código:**
+
+- **`replyToId` se valida con `@IsDbUuid()`, no con `@IsUUID()`.** Los ids escritos a mano del
+  seed no cumplen la RFC y `@IsUUID()` los rechaza con un 400 que parece un bug del cliente
+  (me pasó: «replyToId must be a UUID» al citar un mensaje del seed).
+- **Citar valida la sede**: el mensaje original tiene que ser de la misma comunidad, porque la
+  cita viaja dentro de la respuesta y si no sería una forma de leer el foro ajeno.
+- **`post_replies` sigue en el repo y en la base a propósito.** Con `synchronize` encendido,
+  borrar la entidad borraría la tabla y con ella el respaldo de lo migrado. Se elimina cuando
+  alguien confirme que el foro se ve bien.
+
+---
+
+## 2026-09-22 - El foro ahora es en vivo: `pnpm install` obligatorio
+
+**A quién le pega:** a todo el que corra la app mobile y a quien toque el módulo `community`.
+
+**Qué tienes que hacer después de pullear:**
+
+1. **`pnpm install` en la raíz.** Hay una dependencia nueva, **`react-native-sse`**. Es JS
+   puro, así que **no** hace falta recompilar: basta recargar Metro.
+2. Nada en la base: `synchronize` no tiene que crear nada para esto.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Los mensajes del foro llegan solos.** `GET /community/stream?sede=...` es un SSE que
+  **empuja el mensaje ya armado**. Si ves aparecer publicaciones sin haber refrescado, es
+  esto.
+- **El servidor no sondea la base.** `createPost` y `createReply` emiten a un `Subject` en
+  memoria y el stream filtra por sede. Copiar el patrón de `panic-stream.controller.ts`
+  —que consulta la base cada 5 s por cada cliente conectado— habría significado 10
+  consultas por segundo con 50 pacientes mirando la pantalla.
+- **El stream exige token**, porque el evento lleva el mensaje dentro. Por eso el cliente es
+  `react-native-sse` y no el `EventSource` del navegador, que no puede mandar cabeceras.
+- **Tu propio mensaje aparece al tiro, con un reloj**, y el reloj se apaga cuando el servidor
+  confirma. Si no sale, queda en la lista con «No se envió · toca para reintentar»: el texto
+  ya no se pierde. El reintento reusa la misma clave de idempotencia, así que no publica dos
+  veces.
+
+**Lo que te pega si escribes código:**
+
+- **El stream vive en memoria y con una sola instancia.** Si algún día el backend corre
+  replicado, los eventos tendrán que pasar por algo compartido (Redis o la base); está
+  anotado sobre el `Subject` en `community.service.ts`.
+- **La suscripción solo está viva con la pestaña a la vista** (`useFocusEffect` en
+  `CommunityScreen`): una conexión abierta con la app en el bolsillo es batería del paciente
+  a cambio de nada.
+- Si el token vence, el stream se cae con 401; el cliente lo renueva y reconecta con espera
+  creciente. Eso ya pasó en la primera prueba y se resolvió solo.
+
+---
+
+## 2026-09-22 - El psicólogo ya lee y responde el foro desde el teléfono
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad), a quien toque `apps/mobile` y a quien
+llame a `POST /community/posts` o a `/replies` desde cualquier cliente.
+
+**Qué hacer después de pullear:** nada. No hay dependencias nuevas ni módulos nativos, así
+que basta con recargar Metro; no hace falta recompilar.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **La pestaña Comunidad del equipo clínico tiene tres pestañas, no dos: Anuncios, Foro y
+  Reportadas.** Antes lo único del foro que veía un psicólogo era lo que alguien había
+  reportado, así que en una sede con 9 publicaciones veía 2 y parecía que el foro estaba
+  vacío. El backend nunca lo bloqueó: `GET /community/posts` siempre le respondió completo,
+  era la pantalla la que no lo pedía.
+- **El psicólogo ahora responde en el foro**, y su respuesta entra como una más, firmada con
+  su nombre y su rol. Decisión del PO del 22-09. Lo que **no** cambió: eliminar sigue estando
+  solo en «Reportadas», sobre lo que alguien denunció, y no hay reacciones desde la vista del
+  equipo clínico.
+- **En el foro del paciente, las respuestas del equipo clínico llevan una etiqueta con el
+  rol** («Psicólogo», «Coordinador»). Sin ella, una respuesta del psicólogo era un nombre más
+  en el hilo.
+
+**Backend - quién puede escribir en el foro, y en qué sede.** Tres cambios en `community`,
+que pueden devolver **403 donde antes había 201**:
+
+- **`POST /community/posts` ahora exige rol `patient` o `sponsor`.** Abrir una publicación es
+  de la comunidad; el equipo clínico responde y publica anuncios, que van firmados con el rol.
+  Antes el endpoint no miraba el rol: cualquier sesión abría tema en el foro.
+- **La sede de una publicación sale de la cuenta, no del cuerpo.** `CreatePostDto.sede` quedó
+  **deprecado y se ignora** (se sigue aceptando porque el `ValidationPipe` va con
+  `forbidNonWhitelisted` y las apps instaladas lo mandan). Antes la elegía el cliente:
+  verificado contra el backend, una cuenta de Santiago publicaba en el foro de Concepción
+  mandándolo en el JSON.
+- **Responder en una publicación de otra sede da 403.** Un psicólogo cuenta con **todas** sus
+  sedes (`psychologist_sedes`, con el respaldo de `User.sedeId`), así que Miguel Ángel responde
+  en Santiago y en Viña del Mar, pero no en Concepción.
+- De paso, las tres lecturas por sede aceptan **el nombre o el UUID** y devuelven las dos
+  formas. `users.sedeId` guarda una u otra según de dónde venga la cuenta, así que el foro de
+  una sede estaba partido en dos mitades que no se veían entre sí. Sigue faltando la migración
+  que normalice la columna; esto solo deja de dolerlo.
+
+**Lo que te pega si escribes código:**
+
+- **El hilo es una pantalla del stack, `StaffThread`, no un composer dentro de la pestaña.**
+  Es la misma razón que tiene `NewAnnouncementScreen`: Comunidad vive en un pager y con el
+  manifiesto en `adjustResize` el teclado lo rearma en la primera página y remonta la
+  pantalla, así que la respuesta se perdía a medio escribir. Si vas a poner un `TextInput`
+  dentro de una pestaña, acuérdate de esto antes.
+- **`withRetry` y `newRequestId` salieron de `CommunityScreen` a `src/utils/retry.ts`**, y
+  `ROLE_LABEL` a `src/utils/roles.ts`. Las dos pantallas del foro los comparten: si tocas el
+  reintento de las escrituras, ahora es un solo lugar.
+
+---
+
 ## 2026-09-22 - Las notificaciones del paciente se mudaron a una campana
 
 **A quién le pega:** a **Matías Barraza** (Inicio y check-in) y a quien cree notificaciones
