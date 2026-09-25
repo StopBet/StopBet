@@ -41,6 +41,20 @@ export interface CheckIn {
 
 export type NotificationType = 'warning' | 'info' | 'success' | 'danger';
 
+/**
+ * A dónde lleva tocar una notificación en la app del paciente.
+ *
+ * El `type` solo dice de qué color se pinta; deducir el destino a partir de él sería
+ * adivinar (un `info` puede ser una respuesta del foro o una sesión de la sede). Por eso el
+ * destino se guarda explícito, y `null` significa "solo se marca leída".
+ */
+export type NotificationTarget =
+  | 'check-in'
+  | 'community'
+  | 'achievements'
+  | 'panic'
+  | 'payment';
+
 export interface Notification {
   id: string;
   userId: string;
@@ -48,6 +62,8 @@ export interface Notification {
   title: string;
   body: string;
   read: boolean;
+  /** Ausente en las notificaciones creadas antes de que esto existiera. */
+  target?: NotificationTarget | null;
   createdAt: string;
 }
 

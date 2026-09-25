@@ -59,6 +59,7 @@ export class CheckInReminderService {
             type: 'info',
             title: TITULO,
             body: CUERPO,
+            target: 'check-in',
           }),
         ),
       );

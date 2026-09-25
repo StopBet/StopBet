@@ -11,6 +11,7 @@ import { EmotionType, isValidRut } from '@stopbet/shared-types';
 
 import { User } from './users/entities/user.entity';
 import { CheckIn } from './check-ins/entities/check-in.entity';
+import type { NotificationTarget } from '@stopbet/shared-types';
 import { Notification } from './notifications/entities/notification.entity';
 import { CommunityMute } from './notifications/entities/community-mute.entity';
 import { Sede } from './sedes/entities/sede.entity';
@@ -482,7 +483,12 @@ async function seedDemo(): Promise<void> {
   console.log('\n── Notificaciones ──────────────────────────');
   async function seedNotifications(
     userId: string,
-    items: Array<{ type: 'warning' | 'info' | 'success' | 'danger'; title: string; body: string }>,
+    items: Array<{
+      type: 'warning' | 'info' | 'success' | 'danger';
+      title: string;
+      body: string;
+      target?: NotificationTarget;
+    }>,
     label: string,
   ): Promise<void> {
     const existing = await notifRepo.count({ where: { userId } });
@@ -496,16 +502,16 @@ async function seedDemo(): Promise<void> {
     }
   }
   await seedNotifications(DEMO_USER_ID, [
-    { type: 'success', title: '¡45 días cumplidos!', body: 'Alcanzaste un nuevo hito. Sigue así.' },
-    { type: 'info', title: 'Nueva sesión grupal', body: 'Hay una sesión grupal programada en tu sede.' },
-    { type: 'info', title: 'Respondieron tu publicación', body: 'Alguien comentó en tu post de la comunidad.' },
-    { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.' },
-    { type: 'success', title: 'Pago recibido', body: 'Tu mensualidad fue procesada correctamente.' },
-    { type: 'danger', title: 'Alerta de pánico', body: 'Tu compañero de viaje fue notificado de tu alerta.' },
+    { type: 'success', title: '¡45 días cumplidos!', body: 'Alcanzaste un nuevo hito. Sigue así.', target: 'achievements' },
+    { type: 'info', title: 'Nueva sesión grupal', body: 'Hay una sesión grupal programada en tu sede.', target: 'community' },
+    { type: 'info', title: 'Respondieron tu publicación', body: 'Alguien comentó en tu post de la comunidad.', target: 'community' },
+    { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.', target: 'check-in' },
+    { type: 'success', title: 'Pago recibido', body: 'Tu mensualidad fue procesada correctamente.', target: 'payment' },
+    { type: 'danger', title: 'Alerta de pánico', body: 'Tu compañero de viaje fue notificado de tu alerta.', target: 'panic' },
   ], 'Carlos Demo');
   await seedNotifications(PATIENT2_ID, [
-    { type: 'info', title: 'Bienvenido a la comunidad', body: 'Ya puedes publicar y reaccionar a otros mensajes.' },
-    { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.' },
+    { type: 'info', title: 'Bienvenido a la comunidad', body: 'Ya puedes publicar y reaccionar a otros mensajes.', target: 'community' },
+    { type: 'warning', title: 'Check-in pendiente', body: 'Aún no registras tu ánimo de hoy.', target: 'check-in' },
   ], 'Pedro Álvarez');
 
   // ── 8. Comunidad — lo que falta para HdU05 ─────────────────────────────────
@@ -524,7 +530,7 @@ async function seedDemo(): Promise<void> {
     authorId: PSYCHOLOGIST_ID,
     type: 'announcement',
     sede: SANTIAGO_SEDE,
-    title: 'Taller de manejo de la ansiedad — sesión abierta',
+    title: 'Taller de manejo de la ansiedad: sesión abierta',
     body: 'Sesión grupal abierta a toda la comunidad de Santiago. Confirma tu asistencia.',
     eventDate: new Date(`${daysFromNowInChile(7)}T18:30:00`),
   }, 'Anuncio con evento futuro (CA 5.1 material)');

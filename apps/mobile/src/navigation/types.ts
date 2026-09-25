@@ -63,6 +63,7 @@ export type StaffStackParamList = {
 
 export type AppStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabsParamList> | undefined;
+  Notifications: undefined;
   Assistant: undefined;
   Panic: undefined;
   SuspendedAccount: undefined;

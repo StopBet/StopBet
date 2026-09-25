@@ -25,6 +25,7 @@ import { PaymentScreen } from './src/screens/PaymentScreen';
 
 // App screens
 import { AssistantScreen } from './src/screens/AssistantScreen';
+import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { MainTabs } from './src/navigation/MainTabs';
 import { PanicScreen } from './src/screens/PanicScreen';
 import { SuspendedAccountScreen } from './src/screens/SuspendedAccountScreen';
@@ -77,6 +78,7 @@ function AppNavigator() {
           deslizando; el asistente, el pánico y la cuenta suspendida siguen siendo
           pantallas del stack, encima de las pestañas. */}
       <AppStack.Screen name="MainTabs" component={MainTabs} />
+      <AppStack.Screen name="Notifications" component={NotificationsScreen} />
       <AppStack.Screen name="Assistant" component={AssistantScreen} />
       <AppStack.Screen name="Panic" component={PanicScreen} options={{ animation: 'slide_from_bottom', animationDuration: 320 }} />
       <AppStack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
