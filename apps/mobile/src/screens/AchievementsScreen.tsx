@@ -42,6 +42,8 @@ import { logInfo, logWarn, logError } from '../utils/log';
 
 import { useIntervaloActivo } from '../hooks/useIntervaloActivo';
 
+import { BADGE_CONFIG } from '../constants/badges';
+
 // Ajustar cuando se conecte autenticación real
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -62,18 +64,6 @@ const NEW_BADGE_TTL_MS = 60 * 60 * 1000;
 // Persiste mientras la app sigue viva - evita re-mostrar el modal al navegar de vuelta
 const shownMilestones = new Set<BadgeMilestone>();
 
-const BADGE_CONFIG: Record<BadgeMilestone, { label: string; icon: IconName; daysLabel: string }> = {
-  1:  { label: 'Primer día',    icon: 'sprout',       daysLabel: '1 día' },
-  3:  { label: 'Primeros pasos',icon: 'chart-column', daysLabel: '3 días' },
-  7:  { label: 'Una semana',    icon: 'star',         daysLabel: '7 días' },
-  14: { label: 'Dos semanas',   icon: 'sunrise',      daysLabel: '14 días' },
-  21: { label: 'Constancia',    icon: 'flame',        daysLabel: '21 días' },
-  30: { label: 'Un mes',        icon: 'medal',        daysLabel: '30 días' },
-  45: { label: 'Más fuerte',    icon: 'shield',       daysLabel: '45 días' },
-  60: { label: 'Dos meses',     icon: 'trophy',       daysLabel: '60 días' },
-  75: { label: 'Enfoque',       icon: 'target',       daysLabel: '75 días' },
-  90: { label: 'Tres meses',    icon: 'crown',        daysLabel: '90 días' },
-};
 
 function formatDateLong(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -237,6 +227,13 @@ export function AchievementsScreen({ navigation }: Props) {
       showToast('No pudimos compartir tu insignia. Inténtalo de nuevo.', 'error');
     }
   };
+
+  // El backend no publica dos veces el mismo hito: el modal tiene que saberlo para no
+  // ofrecer un botón que no va a hacer nada.
+  const insigniaYaCompartida =
+    shareMilestone !== null &&
+    (data.currentPeriod.earnedBadges.find((b) => b.milestone === shareMilestone)
+      ?.sharedToCommunity ?? false);
 
   const currentPeriod = data.currentPeriod;
   const days = currentPeriod.daysAchieved;
@@ -445,7 +442,6 @@ export function AchievementsScreen({ navigation }: Props) {
         </View>
       </Modal>
 
-
       {/* ── Modal: Recaída reportada ── */}
       <Modal
         visible={relapseModal}
@@ -495,7 +491,12 @@ export function AchievementsScreen({ navigation }: Props) {
         milestone={shareMilestone}
         badgeDef={shareMilestone ? BADGE_CONFIG[shareMilestone] : null}
         isNew={shareMilestone !== null && shareMilestone === newestEarnedMilestone}
+        yaCompartida={insigniaYaCompartida}
         onShare={handleShare}
+        onVerEnComunidad={() => {
+          setShareMilestone(null);
+          navigation.navigate('Community', { initialTab: 'forum' });
+        }}
         onClose={() => setShareMilestone(null)}
       />
     </SafeAreaView>

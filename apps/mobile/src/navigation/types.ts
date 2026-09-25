@@ -1,4 +1,4 @@
-import type { IntakeAnswers } from '@stopbet/shared-types';
+import type { CommunityPost, IntakeAnswers } from '@stopbet/shared-types';
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 // Parámetros de navegación para los stacks de auth y app principal
@@ -52,13 +52,14 @@ export type StaffTabsParamList = {
 };
 
 /**
- * El redactor de anuncios va en el stack y no dentro de la pestaña: abrir el teclado sobre
- * el pager lo rearma en la primera página y remonta la pantalla, así que un modal hijo de
- * Comunidad se cerraba con el anuncio a medio escribir.
+ * El redactor de anuncios y el hilo del foro van en el stack y no dentro de la pestaña:
+ * abrir el teclado sobre el pager lo rearma en la primera página y remonta la pantalla, así
+ * que lo escrito se perdía a medio redactar.
  */
 export type StaffStackParamList = {
   StaffTabs: NavigatorScreenParams<StaffTabsParamList> | undefined;
   NewAnnouncement: { sedeNombre: string };
+  StaffThread: { post: CommunityPost };
 };
 
 export type AppStackParamList = {

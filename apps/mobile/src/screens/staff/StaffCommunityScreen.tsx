@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   RefreshControl,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -26,8 +26,14 @@ import { useUserId } from '../../context/AuthContext';
 import { api, type FlaggedPost } from '../../services/api';
 import { isNetworkError } from '../../services/checkInQueue';
 import { fechaHora, timeAgo } from '../../utils/staff';
+import { ROLE_LABEL } from '../../utils/roles';
+import { useCargaFresca } from '../../hooks/useCargaFresca';
 
-type Pestaña = 'anuncios' | 'reportadas';
+type Pestaña = 'anuncios' | 'foro' | 'reportadas';
+
+// El foro de una sede activa es largo y acá se mira, no se recorre entero: con la primera
+// página basta para saber de qué se está hablando hoy.
+const POSTS_POR_PÁGINA = 30;
 
 export function StaffCommunityScreen() {
   const c = useColors();
@@ -40,6 +46,7 @@ export function StaffCommunityScreen() {
 
   const [pestaña, setPestaña] = useState<Pestaña>('anuncios');
   const [anuncios, setAnuncios] = useState<CommunityPost[]>([]);
+  const [foro, setForo] = useState<CommunityPost[]>([]);
   const [reportadas, setReportadas] = useState<FlaggedPost[]>([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
@@ -49,11 +56,13 @@ export function StaffCommunityScreen() {
     if (!sede || !userId) return;
     if (esRefresco) setRefrescando(true);
     try {
-      const [a, r] = await Promise.all([
+      const [a, f, r] = await Promise.all([
         api.getAnnouncements(userId, sede.name),
+        api.getForumPosts(userId, sede.name, 1, POSTS_POR_PÁGINA),
         api.getFlaggedPosts(sede.name),
       ]);
       setAnuncios(a);
+      setForo(f.data);
       setReportadas(r);
       setError(false);
     } catch {
@@ -64,15 +73,19 @@ export function StaffCommunityScreen() {
     }
   }, [sede, userId]);
 
-  useEffect(() => { void cargar(); }, [cargar]);
+  // Volver a la pestaña no vuelve a pedir las tres listas si acaban de cargarse; el gesto
+  // de tirar para actualizar sí, porque ahí lo pide el psicólogo.
+  const cargarSiHaceFalta = useCargaFresca(cargar);
 
-  useFocusEffect(useCallback(() => { void cargar(); }, [cargar]));
+  useEffect(() => { void cargarSiHaceFalta(); }, [cargarSiHaceFalta]);
+
+  useFocusEffect(useCallback(() => { void cargarSiHaceFalta(); }, [cargarSiHaceFalta]));
 
   const eliminar = (post: FlaggedPost) => {
     showDialog({
       title: 'Eliminar esta publicación',
       message:
-        'Desaparece del foro para toda la sede y no se puede recuperar. ' +
+        'Desaparece del chat para toda la sede y no se puede recuperar. ' +
         'Quien la escribió no recibe aviso.',
       actions: [
         {
@@ -101,6 +114,24 @@ export function StaffCommunityScreen() {
     });
   };
 
+  const renderItem = useCallback(
+    ({ item }: { item: CommunityPost | FlaggedPost }) => {
+      if (pestaña === 'anuncios') return <Anuncio post={item as CommunityPost} />;
+      if (pestaña === 'foro') {
+        return (
+          <PublicaciónDelForo
+            post={item as CommunityPost}
+            onPress={() => navigation.navigate('StaffThread', { post: item as CommunityPost })}
+          />
+        );
+      }
+      return <Reportada post={item as FlaggedPost} onEliminar={() => eliminar(item as FlaggedPost)} />;
+    },
+    // `eliminar` se recrea en cada render, pero solo abre un diálogo con el post que recibe.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pestaña, navigation],
+  );
+
   if (cargandoSede || cargando) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
@@ -124,6 +155,35 @@ export function StaffCommunityScreen() {
     );
   }
 
+  // Las tres pestañas alimentan la misma lista; cada fila se dibuja según cuál esté activa.
+  const datos: Array<CommunityPost | FlaggedPost> =
+    pestaña === 'anuncios' ? anuncios : pestaña === 'foro' ? foro : reportadas;
+
+  const vacío =
+    pestaña === 'anuncios' ? (
+      <View style={styles.vacíoCaja}>
+        <Icon name="megaphone" size={28} color={c.fg2} />
+        <Text style={styles.vacíoTitulo}>Todavía no hay anuncios</Text>
+        <Text style={styles.vacíoTexto}>
+          Lo que publiques acá lo ve toda la comunidad de {sede.name}.
+        </Text>
+      </View>
+    ) : pestaña === 'foro' ? (
+      <View style={styles.vacíoCaja}>
+        <Icon name="message-circle" size={28} color={c.fg2} />
+        <Text style={styles.vacíoTitulo}>El chat está en silencio</Text>
+        <Text style={styles.vacíoTexto}>Nadie ha publicado en {sede.name} todavía.</Text>
+      </View>
+    ) : (
+      <View style={styles.vacíoCaja}>
+        <Icon name="shield-check" size={28} color={c.greenText} />
+        <Text style={styles.vacíoTitulo}>Nada que revisar</Text>
+        <Text style={styles.vacíoTexto}>
+          Ninguna publicación de {sede.name} tiene reportes pendientes.
+        </Text>
+      </View>
+    );
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="light-content" backgroundColor={c.primary} />
@@ -136,6 +196,7 @@ export function StaffCommunityScreen() {
       <View style={styles.pestañas} accessibilityRole="tablist">
         {([
           { id: 'anuncios' as const, label: 'Anuncios', n: anuncios.length },
+          { id: 'foro' as const, label: 'Chat', n: foro.length },
           { id: 'reportadas' as const, label: 'Reportadas', n: reportadas.length },
         ]).map((p) => {
           const activa = pestaña === p.id;
@@ -163,90 +224,37 @@ export function StaffCommunityScreen() {
         })}
       </View>
 
-      <ScrollView
+      {/* Una sola lista virtualizada para las tres pestañas: con un `ScrollView` se montaban
+          todas las filas aunque se vieran cinco, y el foro de una sede activa no tiene techo. */}
+      <FlatList
         style={styles.scroll}
         contentContainerStyle={styles.contenido}
         showsVerticalScrollIndicator={false}
+        data={datos}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={11}
+        removeClippedSubviews
         refreshControl={
-          <RefreshControl refreshing={refrescando} onRefresh={() => cargar(true)}
+          <RefreshControl refreshing={refrescando} onRefresh={() => cargarSiHaceFalta({ forzar: true, esRefresco: true })}
             colors={[c.primary]} tintColor={c.primary} />
         }
-      >
-        {error ? (
-          <View style={styles.errorCaja}>
-            <Text style={styles.errorTexto}>
-              No pudimos actualizar la comunidad. Lo que ves puede estar desactualizado.
-            </Text>
-            <Touchable style={styles.errorBoton} onPress={() => cargar(true)} accessibilityRole="button">
-              <Text style={styles.errorBotonTexto}>Reintentar</Text>
-            </Touchable>
-          </View>
-        ) : null}
-
-        {pestaña === 'anuncios' ? (
-          anuncios.length === 0 ? (
-            <View style={styles.vacíoCaja}>
-              <Icon name="megaphone" size={28} color={c.fg2} />
-              <Text style={styles.vacíoTitulo}>Todavía no hay anuncios</Text>
-              <Text style={styles.vacíoTexto}>
-                Lo que publiques acá lo ve toda la comunidad de {sede.name}.
+        ListHeaderComponent={
+          error ? (
+            <View style={styles.errorCaja}>
+              <Text style={styles.errorTexto}>
+                No pudimos actualizar la comunidad. Lo que ves puede estar desactualizado.
               </Text>
+              <Touchable style={styles.errorBoton} onPress={() => cargarSiHaceFalta({ forzar: true, esRefresco: true })} accessibilityRole="button">
+                <Text style={styles.errorBotonTexto}>Reintentar</Text>
+              </Touchable>
             </View>
-          ) : (
-            anuncios.map((a) => (
-              <View key={a.id} style={styles.anuncio}>
-                <View style={styles.anuncioHeader}>
-                  <Icon name="megaphone" size={16} color={c.primaryText} />
-                  <Text style={styles.anuncioAutor} numberOfLines={1}>{a.authorName}</Text>
-                  <Text style={styles.anuncioFecha}>{timeAgo(a.createdAt)}</Text>
-                </View>
-                {a.title ? <Text style={styles.anuncioTitulo}>{a.title}</Text> : null}
-                <Text style={styles.anuncioCuerpo}>{a.body}</Text>
-                {a.eventDate ? (
-                  <View style={styles.evento}>
-                    <Icon name="calendar" size={14} color={c.greenText} />
-                    <Text style={styles.eventoTexto}>{fechaHora(a.eventDate)}</Text>
-                  </View>
-                ) : null}
-              </View>
-            ))
-          )
-        ) : reportadas.length === 0 ? (
-          <View style={styles.vacíoCaja}>
-            <Icon name="shield-check" size={28} color={c.greenText} />
-            <Text style={styles.vacíoTitulo}>Nada que revisar</Text>
-            <Text style={styles.vacíoTexto}>
-              Ninguna publicación de {sede.name} tiene reportes pendientes.
-            </Text>
-          </View>
-        ) : (
-          reportadas.map((p) => (
-            <View key={p.id} style={styles.reportada}>
-              <View style={styles.reportadaHeader}>
-                <Icon name="flag" size={15} color={c.dangerText} />
-                <Text style={styles.reportadaReportes}>
-                  {p.reportCount} {p.reportCount === 1 ? 'reporte' : 'reportes'}
-                </Text>
-                <Text style={styles.reportadaFecha}>{timeAgo(p.createdAt)}</Text>
-              </View>
-              <Text style={styles.reportadaAutor}>{p.authorName ?? 'Autor desconocido'}</Text>
-              <Text style={styles.reportadaCuerpo}>{p.body ?? '(sin texto)'}</Text>
-              <View style={styles.reportadaAcciones}>
-                <Touchable
-                  style={styles.botónEliminar}
-                  onPress={() => eliminar(p)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Eliminar la publicación de ${p.authorName ?? 'autor desconocido'}`}
-                >
-                  <Icon name="trash-2" size={16} color={c.dangerText} />
-                  <Text style={styles.botónEliminarTexto}>Eliminar</Text>
-                </Touchable>
-                <Text style={styles.dejarNota}>Si está bien, déjala como está.</Text>
-              </View>
-            </View>
-          ))
-        )}
-      </ScrollView>
+          ) : null
+        }
+        ListEmptyComponent={vacío}
+      />
 
       {pestaña === 'anuncios' ? (
         <View style={styles.pie}>
@@ -264,6 +272,101 @@ export function StaffCommunityScreen() {
     </SafeAreaView>
   );
 }
+
+// ── Filas ───────────────────────────────────────────────────────────────────
+// Memorizadas: la pantalla se vuelve a renderizar con cada sondeo y cada cambio de pestaña,
+// y sin esto se repintaban todas las filas montadas aunque su contenido fuera el mismo.
+
+const Anuncio = React.memo(function Anuncio({ post }: { post: CommunityPost }) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  return (
+    <View style={styles.anuncio}>
+      <View style={styles.anuncioHeader}>
+        <Icon name="megaphone" size={16} color={c.primaryText} />
+        <Text style={styles.anuncioAutor} numberOfLines={1}>{post.authorName}</Text>
+        <Text style={styles.anuncioFecha}>{timeAgo(post.createdAt)}</Text>
+      </View>
+      {post.title ? <Text style={styles.anuncioTitulo}>{post.title}</Text> : null}
+      <Text style={styles.anuncioCuerpo}>{post.body}</Text>
+      {post.eventDate ? (
+        <View style={styles.evento}>
+          <Icon name="calendar" size={14} color={c.greenText} />
+          <Text style={styles.eventoTexto}>{fechaHora(post.eventDate)}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+});
+
+const PublicaciónDelForo = React.memo(function PublicaciónDelForo({
+  post,
+  onPress,
+}: {
+  post: CommunityPost;
+  onPress: () => void;
+}) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  const respuestas = post.replyCount === 1 ? 'respuesta' : 'respuestas';
+  return (
+    <Touchable
+      style={styles.post}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Publicación de ${post.authorName}. ${post.replyCount} ${respuestas}. Abre la conversación para responder.`}
+    >
+      <View style={styles.postHeader}>
+        <Text style={styles.postAutor} numberOfLines={1}>{post.authorName}</Text>
+        <Text style={styles.postFecha}>{timeAgo(post.createdAt)}</Text>
+      </View>
+      <Text style={styles.postRol}>{ROLE_LABEL[post.authorRole]}</Text>
+      <Text style={styles.postCuerpo} numberOfLines={4}>{post.body}</Text>
+      <View style={styles.postPie}>
+        <Icon name="message-circle" size={14} color={c.primaryText} />
+        <Text style={styles.postRespuestas}>
+          {post.replyCount === 0 ? 'Responder' : `${post.replyCount} ${respuestas}`}
+        </Text>
+      </View>
+    </Touchable>
+  );
+}, (a, b) => a.post === b.post);
+
+const Reportada = React.memo(function Reportada({
+  post,
+  onEliminar,
+}: {
+  post: FlaggedPost;
+  onEliminar: () => void;
+}) {
+  const c = useColors();
+  const styles = useStyles(makeStyles);
+  return (
+    <View style={styles.reportada}>
+      <View style={styles.reportadaHeader}>
+        <Icon name="flag" size={15} color={c.dangerText} />
+        <Text style={styles.reportadaReportes}>
+          {post.reportCount} {post.reportCount === 1 ? 'reporte' : 'reportes'}
+        </Text>
+        <Text style={styles.reportadaFecha}>{timeAgo(post.createdAt)}</Text>
+      </View>
+      <Text style={styles.reportadaAutor}>{post.authorName ?? 'Autor desconocido'}</Text>
+      <Text style={styles.reportadaCuerpo}>{post.body ?? '(sin texto)'}</Text>
+      <View style={styles.reportadaAcciones}>
+        <Touchable
+          style={styles.botónEliminar}
+          onPress={onEliminar}
+          accessibilityRole="button"
+          accessibilityLabel={`Eliminar la publicación de ${post.authorName ?? 'autor desconocido'}`}
+        >
+          <Icon name="trash-2" size={16} color={c.dangerText} />
+          <Text style={styles.botónEliminarTexto}>Eliminar</Text>
+        </Touchable>
+        <Text style={styles.dejarNota}>Si está bien, déjala como está.</Text>
+      </View>
+    </View>
+  );
+}, (a, b) => a.post === b.post);
 
 const makeStyles = (c: Palette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg },
@@ -308,6 +411,18 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     backgroundColor: c.sage50, borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 4, marginTop: 2,
   },
   eventoTexto: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.greenText },
+
+  post: {
+    backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+    borderRadius: 16, padding: 14, gap: 4,
+  },
+  postHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  postAutor: { flex: 1, fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg1 },
+  postFecha: { fontFamily: Fonts.body, fontSize: 11, color: c.fg2 },
+  postRol: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
+  postCuerpo: { fontFamily: Fonts.body, fontSize: 14, color: c.fg1, lineHeight: 21, marginTop: 4 },
+  postPie: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
+  postRespuestas: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.primaryText },
 
   reportada: {
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.dangerBorder,

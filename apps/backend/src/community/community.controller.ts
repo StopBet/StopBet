@@ -1,4 +1,18 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  MessageEvent,
+  Param,
+  Post,
+  Query,
+  Sse,
+  UseGuards,
+} from '@nestjs/common';
+import { Observable, map, merge, timer } from 'rxjs';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { AuthUser, ReactionEmoji } from '@stopbet/shared-types';
@@ -12,6 +26,9 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
 import { AddReactionDto } from './dto/add-reaction.dto';
 import { ReportPostDto } from './dto/report-post.dto';
+
+// Railway y los proxies cortan las conexiones ociosas bastante antes del minuto.
+const LATIDO_MS = 25_000;
 
 @ApiTags('community')
 @ApiBearerAuth()
@@ -66,6 +83,25 @@ export class CommunityController {
 
   // ── Foro ────────────────────────────────────────────────────────────────
 
+  // El mensaje viaja dentro del evento, así que el stream **exige token** como cualquier
+  // otro endpoint: en el navegador `EventSource` no puede mandar cabeceras, pero el cliente
+  // de la app sí, y acá no entra nadie sin sesión.
+  @Sse('stream')
+  @ApiOperation({ summary: 'Mensajes del foro de una sede, en vivo (SSE)' })
+  @ApiQuery({ name: 'sede', description: 'Sede (Santiago | Viña del Mar | Concepción)' })
+  @ApiResponse({ status: 200, description: 'CommunityStreamEvent por cada mensaje nuevo' })
+  @ApiResponse({ status: 401, description: 'Token ausente o inválido' })
+  async stream(@Query('sede') sede: string): Promise<Observable<MessageEvent>> {
+    const mensajes$ = await this.service.observarSede(sede);
+    // Un proxy corta una conexión que no dice nada. El latido la mantiene viva y no
+    // cuesta: es un evento cada 25 s por cliente, sin tocar la base.
+    const latido$ = timer(LATIDO_MS, LATIDO_MS).pipe(
+      map(() => ({ kind: 'ping' as const })),
+    );
+    return merge(mensajes$, latido$).pipe(map((data) => ({ data })));
+  }
+
+
   @Get('posts')
   @ApiOperation({ summary: 'Lista publicaciones del foro por sede (paginado)' })
   @ApiQuery({ name: 'sede', description: 'Sede (Santiago | Viña del Mar | Concepción)' })
@@ -81,10 +117,16 @@ export class CommunityController {
     return this.service.findPosts(sede, Number(page), Number(limit), userId);
   }
 
+  // El foro es un espacio entre pares: abrir tema es del paciente y su compañero de viaje. El
+  // equipo clínico acompaña respondiendo y publica sus avisos como anuncio, que va firmado con
+  // el rol. Sin `@Roles` cualquier sesión podía abrir una publicación en el foro.
   @Post('posts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('patient', 'sponsor')
   @HttpCode(201)
-  @ApiOperation({ summary: 'Publica un mensaje en el foro comunitario' })
+  @ApiOperation({ summary: 'Publica un mensaje en el foro comunitario (paciente o compañero de viaje)' })
   @ApiResponse({ status: 201, description: 'Publicación creada' })
+  @ApiResponse({ status: 403, description: 'El equipo clínico no abre publicaciones: responde o publica un anuncio' })
   createPost(
     @UserId() authorId: string,
     @Body() dto: CreatePostDto,
@@ -139,6 +181,7 @@ export class CommunityController {
   @ApiOperation({ summary: 'Responde a una publicación del foro' })
   @ApiParam({ name: 'id', description: 'UUID de la publicación' })
   @ApiResponse({ status: 201, description: 'Respuesta creada' })
+  @ApiResponse({ status: 403, description: 'La publicación es de otra sede' })
   @ApiResponse({ status: 404, description: 'Publicación no encontrada' })
   createReply(
     @Param('id') id: string,

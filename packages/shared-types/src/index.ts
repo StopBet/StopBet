@@ -260,6 +260,14 @@ export interface ReactionSummary {
   userReacted: boolean;
 }
 
+/** Lo mínimo del mensaje citado para pintar la cita encima de la respuesta. */
+export interface QuotedMessage {
+  id: string;
+  authorName: string;
+  /** Recortado: en la cita solo se muestra el comienzo. */
+  body: string;
+}
+
 export interface CommunityPost {
   id: string;
   authorId: string;
@@ -274,6 +282,10 @@ export interface CommunityPost {
   replyCount: number;
   reactions: ReactionSummary[];
   userAttends: boolean;
+  /** El mensaje que este responde, si cita a alguno. */
+  replyTo?: QuotedMessage | null;
+  /** Días de abstinencia que celebra, si es un logro compartido con la comunidad. */
+  achievementDays?: number | null;
   createdAt: string;
 }
 
@@ -286,6 +298,19 @@ export interface CommunityReply {
   body: string;
   createdAt: string;
 }
+
+/**
+ * Lo que viaja por el stream de la comunidad (SSE) cuando alguien escribe.
+ *
+ * Lleva el mensaje ya armado y no un simple aviso de "hay novedades": con el aviso, cada
+ * cliente conectado tendría que volver a pedir la página entera, y un mensaje en una sede
+ * activa se convertiría en tantas consultas como pacientes mirando la pantalla.
+ */
+export type CommunityStreamEvent =
+  // Una respuesta también viaja como `post`: desde que el foro es plano, responder es
+  // publicar citando.
+  | { kind: 'post'; post: CommunityPost }
+  | { kind: 'ping' };
 
 // ── Botón de Pánico ───────────────────────────────────────────────────────
 

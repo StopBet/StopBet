@@ -105,7 +105,7 @@ export class PushService implements OnModuleInit {
     userIds: string[],
     title: string,
     body: string,
-    canal: 'recordatorios' | 'panic_alerts' = 'recordatorios',
+    canal: 'recordatorios' | 'panic_alerts' | 'comunidad' = 'recordatorios',
   ): Promise<number> {
     if (!this.app || userIds.length === 0) return 0;
 
