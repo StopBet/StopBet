@@ -20,6 +20,33 @@ está.
 
 ---
 
+## 2026-09-25 - El backend mantiene solo las sesiones familiares de la demo
+
+**A quién le pega:** a quien presente el portal del familiar o la página *Sesiones de
+familiares*, y a quien toque `family` o `demo`.
+
+**Qué hacer después de pullear:** nada. Si quieres las 3 sesiones nuevas en tu base local,
+`pnpm run seed:family`.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **Al arrancar y cada día a las 05:00 (hora de Chile), el backend deja sesiones familiares
+  próximas en la sede de Carlos Demo**: crea las que falten y mueve hacia adelante las que ya
+  pasaron. La base de Railway se sembró una sola vez el 01-09 y las fechas del seed caducaban,
+  así que el portal se iba quedando vacío. **Si ves que una sesión cambió de fecha sola, es
+  esto.** Las vigentes no se tocan.
+- Ahora son **9 sesiones de demo**: 7 próximas en la sede de Carlos dentro de las 4 semanas,
+  la pasada (que no debe aparecer) y la lejana de la otra sede (CA 11.5). Las nuevas son dos
+  charlas y un grupo de apoyo.
+- **Viene encendido**, al revés que las otras herramientas de la demo, y se apaga con
+  `DEMO_SESIONES_FAMILIARES=false` en Railway. Sin Carlos Demo en la base no hace nada.
+- Las horas se calculan en hora de Chile. Antes el seed usaba la hora del computador que lo
+  corría: desde un servidor en UTC, una sesión «de las 19:00» quedaba a las 15:00 o 16:00.
+- Las sesiones viven en `apps/backend/src/family/family-demo-sessions.ts`, que usan el seed
+  y `DemoService`. **Si agregas una sesión de demo, va ahí**, no en el seed.
+
+---
+
 ## 2026-09-23 - Los mensajes del foro avisan por push: hay que RECOMPILAR
 
 **A quién le pega:** a todo el que corra la app mobile, y a quien toque `community` o `push`.

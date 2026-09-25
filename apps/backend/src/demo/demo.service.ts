@@ -14,6 +14,7 @@ import { EarnedBadge } from '../achievements/entities/earned-badge.entity';
 import { User } from '../users/entities/user.entity';
 import { todayInChile } from '../common/chile-date';
 import { cloneDemoPatient, EXTRA_DEMO_PATIENTS } from './demo-patients';
+import { ensureFamilyDemoSessions } from '../family/family-demo-sessions';
 
 // IDs de src/seed.ts: la demo gira en torno a Carlos (paciente) y Daniela (su compañera de viaje).
 export const DEMO_PATIENT_ID = '11111111-1111-1111-1111-111111111111';
@@ -34,6 +35,13 @@ const MAX_SPONSOR_DELAY_S = 110;
  *   después de `seed:demo --reset`. Desde el teléfono basta con cerrar sesión y volver a entrar.
  * - `DEMO_PADRINO_SEGUNDOS=45`: Daniela responde sola las alertas que le lleguen, a los N s.
  *   La respuesta es automática, no de una persona; solo corre por la cuenta de Daniela.
+ *
+ * Una cuarta viene **encendida** y se apaga con `DEMO_SESIONES_FAMILIARES=false`:
+ *
+ * - Al arrancar y cada madrugada, deja sesiones familiares próximas en la sede de Carlos
+ *   (family-demo-sessions.ts). La base de Railway se sembró una sola vez y las sesiones del
+ *   seed caducaban, así que el portal del familiar quedaba vacío. Sin Carlos Demo en la base
+ *   no hace nada, por eso no necesita interruptor para encenderse.
  */
 @Injectable()
 export class DemoService implements OnApplicationBootstrap {
@@ -62,11 +70,34 @@ export class DemoService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
+    await this.refreshFamilyDemoSessions();
     if (this.config.get<string>('DEMO_PACIENTES_EXTRA') !== 'true') return;
     try {
       await this.ensureExtraDemoPatients();
     } catch (err) {
       this.logger.error(`No se pudieron crear las copias de Carlos: ${(err as Error).message}`);
+    }
+  }
+
+  // Una sesión de las 19:00 pasa a vencida esa misma noche: sin la vuelta diaria, entre dos
+  // despliegues el portal iría perdiendo sesiones una por una.
+  @Cron('0 5 * * *', { timeZone: 'America/Santiago' })
+  async refreshFamilyDemoSessions(): Promise<void> {
+    if (this.config.get<string>('DEMO_SESIONES_FAMILIARES') === 'false') return;
+    try {
+      const r = await ensureFamilyDemoSessions(this.dataSource.manager, { resetDates: false });
+      if (r.skipped) {
+        this.logger.warn(`Sesiones familiares de demo: no se hizo nada, ${r.skipped}`);
+        return;
+      }
+      if (r.created.length || r.moved.length || r.answers) {
+        this.logger.log(
+          `Sesiones familiares de demo: ${r.created.length} creadas, ${r.moved.length} movidas, ` +
+            `${r.answers} respuestas nuevas`,
+        );
+      }
+    } catch (err) {
+      this.logger.error(`No se pudieron preparar las sesiones familiares de demo: ${(err as Error).message}`);
     }
   }
 
