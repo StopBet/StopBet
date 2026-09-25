@@ -26,14 +26,14 @@ import { useUserId } from '../../context/AuthContext';
 import { api, type FlaggedPost } from '../../services/api';
 import { isNetworkError } from '../../services/checkInQueue';
 import { fechaHora, timeAgo } from '../../utils/staff';
-import { ROLE_LABEL } from '../../utils/roles';
+import { abrirStreamDeComunidad } from '../../services/communityStream';
+import { ChatMessage, díaDelMensaje, díasDistintos } from '../../components/ChatMessage';
 import { useCargaFresca } from '../../hooks/useCargaFresca';
 
 type Pestaña = 'anuncios' | 'foro' | 'reportadas';
 
-// El foro de una sede activa es largo y acá se mira, no se recorre entero: con la primera
-// página basta para saber de qué se está hablando hoy.
-const POSTS_POR_PÁGINA = 30;
+// Igual que en el chat del paciente: la primera página, y las de más atrás al llegar arriba.
+const POSTS_POR_PÁGINA = 20;
 
 export function StaffCommunityScreen() {
   const c = useColors();
@@ -47,6 +47,8 @@ export function StaffCommunityScreen() {
   const [pestaña, setPestaña] = useState<Pestaña>('anuncios');
   const [anuncios, setAnuncios] = useState<CommunityPost[]>([]);
   const [foro, setForo] = useState<CommunityPost[]>([]);
+  const [totalForo, setTotalForo] = useState(0);
+  const [cargandoMás, setCargandoMás] = useState(false);
   const [reportadas, setReportadas] = useState<FlaggedPost[]>([]);
   const [cargando, setCargando] = useState(true);
   const [refrescando, setRefrescando] = useState(false);
@@ -63,6 +65,7 @@ export function StaffCommunityScreen() {
       ]);
       setAnuncios(a);
       setForo(f.data);
+      setTotalForo(f.total);
       setReportadas(r);
       setError(false);
     } catch {
@@ -80,6 +83,83 @@ export function StaffCommunityScreen() {
   useEffect(() => { void cargarSiHaceFalta(); }, [cargarSiHaceFalta]);
 
   useFocusEffect(useCallback(() => { void cargarSiHaceFalta(); }, [cargarSiHaceFalta]));
+
+  /** Trae mensajes más antiguos al llegar arriba, como en el chat del paciente. */
+  const cargarMásAntiguos = useCallback(async () => {
+    if (!sede || !userId || cargandoMás || foro.length === 0 || foro.length >= totalForo) return;
+    setCargandoMás(true);
+    try {
+      const página = Math.floor(foro.length / POSTS_POR_PÁGINA) + 1;
+      const siguiente = await api.getForumPosts(userId, sede.name, página, POSTS_POR_PÁGINA);
+      setForo((prev) => {
+        const vistos = new Set(prev.map((p) => p.id));
+        return [...prev, ...siguiente.data.filter((p) => !vistos.has(p.id))];
+      });
+      setTotalForo(siguiente.total);
+    } catch {
+      // Es historial: si falla, se intenta de nuevo al volver a llegar arriba.
+    } finally {
+      setCargandoMás(false);
+    }
+  }, [cargandoMás, foro.length, totalForo, sede, userId]);
+
+  // Los mensajes llegan solos mientras el chat está a la vista, igual que al paciente. Solo
+  // con esta pestaña abierta: el psicólogo pasa la mayor parte del tiempo en las otras dos.
+  useFocusEffect(
+    useCallback(() => {
+      if (!sede || pestaña !== 'foro') return;
+      return abrirStreamDeComunidad(sede.name, (evento) => {
+        if (evento.kind !== 'post') return;
+        const llegado = evento.post;
+        setForo((prev) => (prev.some((p) => p.id === llegado.id) ? prev : [llegado, ...prev]));
+        setTotalForo((n) => n + 1);
+      });
+    }, [sede, pestaña]),
+  );
+
+  const responder = useCallback(
+    (post: CommunityPost) => navigation.navigate('StaffThread', { post }),
+    [navigation],
+  );
+
+  // El menú de la burbuja, como en el chat del paciente: toque largo o «···». El equipo
+  // clínico no reacciona y no borra desde acá (eso es de «Reportadas»), así que solo responde.
+  const abrirMenú = useCallback(
+    (post: CommunityPost) => {
+      showDialog({
+        title: `Mensaje de ${post.authorName}`,
+        actions: [
+          { label: 'Responder', onPress: () => responder(post) },
+          { label: 'Cancelar', tone: 'cancel' },
+        ],
+      });
+    },
+    [responder, showDialog],
+  );
+
+  const renderMensaje = useCallback(
+    ({ item: p, index }: { item: CommunityPost; index: number }) => (
+      <ChatMessage
+        post={p}
+        isOwn={p.authorId === userId}
+        enviando={false}
+        falló={false}
+        // La lista llega de la más nueva a la más vieja y se pinta invertida, así que la de
+        // arriba en pantalla es index + 1.
+        showAuthor={foro[index + 1]?.authorId !== p.authorId}
+        díaEncima={
+          !foro[index + 1] || díasDistintos(foro[index + 1].createdAt, p.createdAt)
+            ? díaDelMensaje(p.createdAt)
+            : null
+        }
+        disabled={false}
+        onResponder={() => responder(p)}
+        onReintentar={() => {}}
+        onMenuPress={() => abrirMenú(p)}
+      />
+    ),
+    [foro, userId, responder, abrirMenú],
+  );
 
   const eliminar = (post: FlaggedPost) => {
     showDialog({
@@ -117,19 +197,11 @@ export function StaffCommunityScreen() {
   const renderItem = useCallback(
     ({ item }: { item: CommunityPost | FlaggedPost }) => {
       if (pestaña === 'anuncios') return <Anuncio post={item as CommunityPost} />;
-      if (pestaña === 'foro') {
-        return (
-          <PublicaciónDelForo
-            post={item as CommunityPost}
-            onPress={() => navigation.navigate('StaffThread', { post: item as CommunityPost })}
-          />
-        );
-      }
       return <Reportada post={item as FlaggedPost} onEliminar={() => eliminar(item as FlaggedPost)} />;
     },
     // `eliminar` se recrea en cada render, pero solo abre un diálogo con el post que recibe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pestaña, navigation],
+    [pestaña],
   );
 
   if (cargandoSede || cargando) {
@@ -155,9 +227,8 @@ export function StaffCommunityScreen() {
     );
   }
 
-  // Las tres pestañas alimentan la misma lista; cada fila se dibuja según cuál esté activa.
-  const datos: Array<CommunityPost | FlaggedPost> =
-    pestaña === 'anuncios' ? anuncios : pestaña === 'foro' ? foro : reportadas;
+  // Anuncios y Reportadas comparten la lista; el chat tiene la suya porque va invertida.
+  const datos: Array<CommunityPost | FlaggedPost> = pestaña === 'anuncios' ? anuncios : reportadas;
 
   const vacío =
     pestaña === 'anuncios' ? (
@@ -183,6 +254,17 @@ export function StaffCommunityScreen() {
         </Text>
       </View>
     );
+
+  const errorCaja = (
+    <View style={styles.errorCaja}>
+      <Text style={styles.errorTexto}>
+        No pudimos actualizar la comunidad. Lo que ves puede estar desactualizado.
+      </Text>
+      <Touchable style={styles.errorBoton} onPress={() => cargarSiHaceFalta({ forzar: true, esRefresco: true })} accessibilityRole="button">
+        <Text style={styles.errorBotonTexto}>Reintentar</Text>
+      </Touchable>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -224,37 +306,62 @@ export function StaffCommunityScreen() {
         })}
       </View>
 
-      {/* Una sola lista virtualizada para las tres pestañas: con un `ScrollView` se montaban
-          todas las filas aunque se vieran cinco, y el foro de una sede activa no tiene techo. */}
-      <FlatList
-        style={styles.scroll}
-        contentContainerStyle={styles.contenido}
-        showsVerticalScrollIndicator={false}
-        data={datos}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
-        windowSize={11}
-        removeClippedSubviews
-        refreshControl={
-          <RefreshControl refreshing={refrescando} onRefresh={() => cargarSiHaceFalta({ forzar: true, esRefresco: true })}
-            colors={[c.primary]} tintColor={c.primary} />
-        }
-        ListHeaderComponent={
-          error ? (
-            <View style={styles.errorCaja}>
-              <Text style={styles.errorTexto}>
-                No pudimos actualizar la comunidad. Lo que ves puede estar desactualizado.
-              </Text>
-              <Touchable style={styles.errorBoton} onPress={() => cargarSiHaceFalta({ forzar: true, esRefresco: true })} accessibilityRole="button">
-                <Text style={styles.errorBotonTexto}>Reintentar</Text>
-              </Touchable>
-            </View>
-          ) : null
-        }
-        ListEmptyComponent={vacío}
-      />
+      {pestaña === 'foro' ? (
+        <>
+          {error ? <View style={styles.errorChat}>{errorCaja}</View> : null}
+          {/* El mismo chat que ve el paciente: burbujas, hora exacta, separador de día y
+              mensajes seguidos pegados. Antes eran tarjetas de foro con «hace 3 h» y un
+              contador de respuestas, y el psicólogo leía otra cosa que sus pacientes. */}
+          <FlatList
+            style={styles.scroll}
+            contentContainerStyle={styles.chatContenido}
+            showsVerticalScrollIndicator={false}
+            data={foro}
+            inverted={foro.length > 0}
+            keyExtractor={(p) => p.id}
+            renderItem={renderMensaje}
+            initialNumToRender={6}
+            maxToRenderPerBatch={8}
+            windowSize={11}
+            removeClippedSubviews
+            onEndReached={cargarMásAntiguos}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={
+              cargandoMás ? <ActivityIndicator size="small" color={c.primary} style={styles.cargandoMás} /> : null
+            }
+            ListEmptyComponent={vacío}
+          />
+          {/* No hay composer en la pestaña: escribir sobre el pager lo rearma y se perdía lo
+              escrito (ver StaffThreadScreen). Se responde citando, como en WhatsApp. */}
+          <View style={styles.pieChat}>
+            <Icon name="message-circle" size={16} color={c.fg2} />
+            <Text style={styles.pieChatTexto}>
+              Para responder, mantén pulsado un mensaje o toca «···».
+            </Text>
+          </View>
+        </>
+      ) : (
+        // Anuncios y Reportadas: una sola lista virtualizada. Con un `ScrollView` se montaban
+        // todas las filas aunque se vieran cinco.
+        <FlatList
+          style={styles.scroll}
+          contentContainerStyle={styles.contenido}
+          showsVerticalScrollIndicator={false}
+          data={datos}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={11}
+          removeClippedSubviews
+          refreshControl={
+            <RefreshControl refreshing={refrescando} onRefresh={() => cargarSiHaceFalta({ forzar: true, esRefresco: true })}
+              colors={[c.primary]} tintColor={c.primary} />
+          }
+          ListHeaderComponent={error ? errorCaja : null}
+          ListEmptyComponent={vacío}
+        />
+      )}
 
       {pestaña === 'anuncios' ? (
         <View style={styles.pie}>
@@ -298,39 +405,6 @@ const Anuncio = React.memo(function Anuncio({ post }: { post: CommunityPost }) {
     </View>
   );
 });
-
-const PublicaciónDelForo = React.memo(function PublicaciónDelForo({
-  post,
-  onPress,
-}: {
-  post: CommunityPost;
-  onPress: () => void;
-}) {
-  const c = useColors();
-  const styles = useStyles(makeStyles);
-  const respuestas = post.replyCount === 1 ? 'respuesta' : 'respuestas';
-  return (
-    <Touchable
-      style={styles.post}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`Publicación de ${post.authorName}. ${post.replyCount} ${respuestas}. Abre la conversación para responder.`}
-    >
-      <View style={styles.postHeader}>
-        <Text style={styles.postAutor} numberOfLines={1}>{post.authorName}</Text>
-        <Text style={styles.postFecha}>{timeAgo(post.createdAt)}</Text>
-      </View>
-      <Text style={styles.postRol}>{ROLE_LABEL[post.authorRole]}</Text>
-      <Text style={styles.postCuerpo} numberOfLines={4}>{post.body}</Text>
-      <View style={styles.postPie}>
-        <Icon name="message-circle" size={14} color={c.primaryText} />
-        <Text style={styles.postRespuestas}>
-          {post.replyCount === 0 ? 'Responder' : `${post.replyCount} ${respuestas}`}
-        </Text>
-      </View>
-    </Touchable>
-  );
-}, (a, b) => a.post === b.post);
 
 const Reportada = React.memo(function Reportada({
   post,
@@ -392,6 +466,15 @@ const makeStyles = (c: Palette) => StyleSheet.create({
 
   scroll: { flex: 1 },
   contenido: { padding: 16, paddingBottom: 24, gap: 12 },
+  chatContenido: { paddingHorizontal: 12, paddingVertical: 12 },
+  cargandoMás: { paddingVertical: 12 },
+  errorChat: { paddingHorizontal: 16, paddingTop: 12 },
+  pieChat: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.surface,
+  },
+  pieChatTexto: { flex: 1, fontFamily: Fonts.body, fontSize: 13, color: c.fg2, lineHeight: 19 },
 
   vacíoCaja: { alignItems: 'center', gap: 8, paddingVertical: 44, paddingHorizontal: 20 },
   vacíoTitulo: { fontFamily: Fonts.headingBold, fontSize: 17, color: c.fg1 },
@@ -411,18 +494,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     backgroundColor: c.sage50, borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 4, marginTop: 2,
   },
   eventoTexto: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.greenText },
-
-  post: {
-    backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
-    borderRadius: 16, padding: 14, gap: 4,
-  },
-  postHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  postAutor: { flex: 1, fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg1 },
-  postFecha: { fontFamily: Fonts.body, fontSize: 11, color: c.fg2 },
-  postRol: { fontFamily: Fonts.body, fontSize: 12, color: c.fg2 },
-  postCuerpo: { fontFamily: Fonts.body, fontSize: 14, color: c.fg1, lineHeight: 21, marginTop: 4 },
-  postPie: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 },
-  postRespuestas: { fontFamily: Fonts.bodyBold, fontSize: 13, color: c.primaryText },
 
   reportada: {
     backgroundColor: c.surface, borderWidth: 1, borderColor: c.dangerBorder,
@@ -451,10 +522,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center',
   },
   publicarTexto: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.white },
-
-
-
-
 
   errorCaja: {
     backgroundColor: c.dangerSurface, borderWidth: 1, borderColor: c.dangerBorder,

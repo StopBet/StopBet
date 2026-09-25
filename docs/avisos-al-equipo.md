@@ -20,6 +20,30 @@ está.
 
 ---
 
+## 2026-09-25 - El psicólogo ve el chat igual que el paciente: la burbuja salió de `CommunityScreen`
+
+**A quién le pega:** a **Catalina Yáñez** (Comunidad) y a quien toque el chat en mobile.
+
+**Qué hacer después de pullear:** nada. Basta recargar Metro.
+
+**Qué cambió, y por qué te puede parecer un bug:**
+
+- **La burbuja del chat ya no vive en `CommunityScreen.tsx`.** `PostCard` pasó a
+  `components/ChatMessage.tsx` como `ChatMessage`, con sus estilos y las funciones de hora y
+  día (`horaDelMensaje`, `díaDelMensaje`, `díasDistintos`), `REACTION_ICON_MAP`,
+  `REACTION_NAME` y la cita sobre el composer (`CitaEnComposer`, `citaDe`). Se movió tal
+  cual: el paciente ve exactamente lo mismo. **Si cambias cómo se ve un mensaje, es ahí**, y
+  el cambio lo ven las dos apps.
+- **La pestaña Chat del psicólogo usa esas burbujas**: hora exacta, separador de día,
+  mensajes seguidos pegados, citas, tarjeta de logro, mensajes que llegan en vivo y más
+  antiguos al subir. Antes eran tarjetas de foro con «hace 3 h» y «N respuestas».
+- **Se responde como en WhatsApp**: toque largo o «···» → *Responder*. Abre la pantalla del
+  stack `StaffThread`, ahora también con burbujas y la barra «Respondiendo a…». Sigue siendo
+  una pantalla aparte por el pager y el teclado. El equipo clínico todavía no reacciona:
+  ve los chips, pero no los puede tocar (`onReact` es opcional en `ChatMessage`).
+
+---
+
 ## 2026-09-25 - El backend mantiene solo las sesiones familiares de la demo
 
 **A quién le pega:** a quien presente el portal del familiar o la página *Sesiones de
