@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
+import { NotificationBell } from './components/NotificationBell'
 import { WIcon } from './components/WIcon'
 import { useIsNarrow } from './hooks/useIsNarrow'
 import { MisPacientesPage } from './pages/MisPacientesPage'
@@ -223,21 +224,24 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {isNarrow && (
-          <button
-            onClick={() => setMenuOpen(true)}
-            aria-label="Abrir menú"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              background: 'var(--chrome-bg)', color: 'var(--fg-on-primary)', border: 'none',
-              // Este botón hace de cabecera de la página, no de control secundario:
-              // con 15px el título se leía más chico que el contenido de abajo.
-              padding: '14px 16px', fontSize: 20, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'var(--font-heading)', textAlign: 'left', letterSpacing: -0.2,
-            }}
-          >
-            <WIcon name="menu" size={24} />
-            {PAGE_TITLES[nav]}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--chrome-bg)', paddingRight: 12 }}>
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Abrir menú"
+              style={{
+                flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12,
+                background: 'transparent', color: 'var(--fg-on-primary)', border: 'none',
+                // Este botón hace de cabecera de la página, no de control secundario:
+                // con 15px el título se leía más chico que el contenido de abajo.
+                padding: '14px 16px', fontSize: 20, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'var(--font-heading)', textAlign: 'left', letterSpacing: -0.2,
+              }}
+            >
+              <WIcon name="menu" size={24} />
+              {PAGE_TITLES[nav]}
+            </button>
+            <NotificationBell variant="chrome" />
+          </div>
         )}
         {/* La TopBar ya no cabe en angosto: el botón de arriba lleva el título */}
         {!isNarrow && <TopBar title={PAGE_TITLES[nav]} />}

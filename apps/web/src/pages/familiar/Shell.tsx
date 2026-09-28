@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { WIcon } from '../../components/WIcon'
+import { NotificationBell } from '../../components/NotificationBell'
 import isotipo from '../../assets/isotipo-blanco.png'
 import logoAjuterBlanco from '../../assets/logo-ajuter-blanco.png'
 import type { AuthUser } from '../../services/api'
@@ -43,6 +44,7 @@ export function Shell({
             </p>
           </div>
           <div style={{ gridArea: 'actions', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <NotificationBell variant="chrome" />
             {/* Solo ícono: en el teléfono el saludo y dos botones con texto no caben en una línea. */}
             <button
               onClick={() => { if (!onSettings) navigate('/familiar/ajustes') }}

@@ -74,8 +74,8 @@ aside :focus-visible {
 /* Movimiento reducido: se conserva el cambio de estado, sin desplazamientos ni latidos.
    El spinner de carga sigue girando, porque es la única señal de que algo está pasando. */
 @media (prefers-reduced-motion: reduce) {
-  [style*="sb-pulse"] { animation: none !important; }
-  [style*="sb-modal-in"], [style*="sb-drawer-in"], [style*="sb-rise"] { animation-name: sb-scrim-in !important; }
+  [style*="sb-pulse"], [style*="sb-skeleton"] { animation: none !important; }
+  [style*="sb-modal-in"], [style*="sb-drawer-in"], [style*="sb-sheet-in"], [style*="sb-rise"] { animation-name: sb-scrim-in !important; }
   * { transition-duration: 0.01ms !important; }
 }
 
@@ -107,6 +107,16 @@ aside :focus-visible {
 @keyframes sb-rise {
   from { opacity: 0; transform: translateX(-50%) translateY(18px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes sb-skeleton {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+@keyframes sb-sheet-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
 @keyframes sb-modal-in {

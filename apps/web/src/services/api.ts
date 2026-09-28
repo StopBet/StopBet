@@ -329,6 +329,20 @@ export interface CreatePsychologistResponse {
   credentialsEmailSent: boolean
 }
 
+// ── Notificaciones ───────────────────────────────────────────────────────────
+
+// Espeja Notification de shared-types. `target` es a dónde lleva tocarla; casi todos los
+// valores son pantallas de la app del paciente, y la web solo entiende 'family-links'.
+export interface AppNotification {
+  id: string
+  type: 'warning' | 'info' | 'success' | 'danger'
+  title: string
+  body: string
+  read: boolean
+  target?: string | null
+  createdAt: string
+}
+
 // ── Registro público del familiar (HDU 22) ──────────────────────────────────
 
 export interface RegisterFamilyPayload {
@@ -431,6 +445,11 @@ export interface ClinicalRecordVersion {
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
+  // ── Notificaciones (de quien tiene la sesión: el backend las acota por el token) ──
+  getNotifications: () => get<AppNotification[]>('/notifications'),
+  markNotificationRead: (id: string) => patch<void>(`/notifications/${id}/read`),
+  markAllNotificationsRead: () => patch<void>('/notifications/read-all'),
+
   // /auth/login no filtra por rol: sirve para psicólogo, coordinador y familiar
   login: (email: string, password: string) =>
     post<LoginResponse>('/auth/login', undefined, { email, password }),
