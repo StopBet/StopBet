@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-28 - Los vínculos de familiares ya se aprueban, en «Familiares» (HdU 22 y 23)
+## 2026-09-28 - Los vínculos de familiares ya se aprueban, en «Familiares» (PR #133)
 
 **A quién le pega:** a quien pruebe el portal del familiar o el shell clínico. **No hay que
 instalar nada**: `synchronize` agrega solas las columnas `reviewedBy`/`reviewedAt` a
