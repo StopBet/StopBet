@@ -200,7 +200,10 @@ const campo: React.CSSProperties = {
 
 const botonPrimario: React.CSSProperties = {
   background: 'var(--primary)',
-  color: 'var(--primary-text)',
+  // `--primary-text` es el azul para texto sobre fondo claro, no el texto sobre el
+  // relleno azul: usarlo acá dejaba el botón con la etiqueta invisible, y en la marca
+  // AJUTER pintaba ocre sobre azul.
+  color: 'var(--fg-on-primary)',
   border: 'none',
   borderRadius: 10,
   padding: '9px 14px',
