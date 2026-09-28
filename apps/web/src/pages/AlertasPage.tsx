@@ -101,7 +101,9 @@ export function AlertasPage() {
   return (
     <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1440, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       {/* Metrics */}
-      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))', gap: isNarrow ? 10 : 16, marginBottom: isNarrow ? 16 : 24 }}>
+      {/* auto-fit: en laptops más chicas (>860px pero <~1300px) un número fijo de columnas
+          cortaba la cuarta tarjeta contra el borde. Ver la misma nota en OverviewPage.tsx. */}
+      <div style={{ display: 'grid', gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: isNarrow ? 10 : 16, marginBottom: isNarrow ? 16 : 24 }}>
         {/* Antes había un "Tiempo prom. respuesta: 8m" escrito a mano: se reemplaza por
             conteos que salen del historial real. */}
         <MetricCard icon="triangle-alert" label="Total alertas" value={allRows.length} tone="teal"
@@ -172,7 +174,13 @@ export function AlertasPage() {
                 })}
               </div>
             ) : (
-            <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            // El contenedor comparte fila con el panel lateral de "Qué pasa cuando..." (ver
+            // el grid de arriba): en una laptop mediana esa columna se angosta tanto que el
+            // nombre del paciente quedaba comprimido a una sola letra sin ni el "…" del
+            // ellipsis. Con overflowX + minWidth aparece un scroll horizontal propio de la
+            // tarjeta en vez de eso — mismo patrón que ya usa EquipoPage.
+            <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', minWidth: 620, maxWidth: 850, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <colgroup>
                 {/* Sin las columnas "Tipo" (siempre decía "Botón de pánico") ni "Ver" (no
                     hacía nada), la fecha y el estado tienen el ancho que necesitan: antes la
@@ -205,6 +213,7 @@ export function AlertasPage() {
                 ))}
               </tbody>
             </table>
+            </div>
             )
           )}
 

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   UnprocessableEntityException,
   UseGuards,
@@ -52,6 +53,51 @@ export class FamilyController {
   @ApiResponse({ status: 200, description: 'active | pending | unlinked' })
   getLinkStatus(@CurrentUser() user: AuthUser) {
     return this.familyService.getLinkStatus(user.id);
+  }
+
+  // ── Revisión del vínculo por el psicólogo (HDU 23) ──────────────────────────
+
+  @Get('pending')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HDU 23 CA1 — Familiares pendientes de vinculación en mi sede' })
+  @ApiResponse({ status: 200, description: 'FamilyLinkListItem[]' })
+  listPendingLinks(@CurrentUser() user: AuthUser) {
+    return this.familyService.listPendingLinks(user);
+  }
+
+  @Get('active')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HDU 23 CA5 — Familiares vinculados en mi sede (para poder revocar)' })
+  @ApiResponse({ status: 200, description: 'FamilyLinkListItem[]' })
+  listActiveLinks(@CurrentUser() user: AuthUser) {
+    return this.familyService.listActiveLinks(user);
+  }
+
+  @Patch('links/:id/confirm')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HDU 23 CA2 — Confirmar el vínculo declarado por el familiar' })
+  @ApiResponse({ status: 200, description: 'Vínculo confirmado — notifica a ambas partes' })
+  @ApiResponse({ status: 409, description: 'El vínculo ya fue procesado' })
+  confirmLink(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.familyService.confirmLink(id, user);
+  }
+
+  @Patch('links/:id/reject')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HDU 23 CA3 — Rechazar el vínculo declarado por el familiar' })
+  @ApiResponse({ status: 200, description: 'Vínculo rechazado — notifica al familiar' })
+  @ApiResponse({ status: 409, description: 'El vínculo ya fue procesado' })
+  rejectLink(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.familyService.rejectLink(id, user);
+  }
+
+  @Patch('links/:id/revoke')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HDU 23 CA5 — Revocar un vínculo activo' })
+  @ApiResponse({ status: 200, description: 'Acceso retirado de inmediato — notifica a ambas partes' })
+  @ApiResponse({ status: 409, description: 'El vínculo no está activo' })
+  revokeLink(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.familyService.revokeLink(id, user);
   }
 
   // ── Mensualidad ───────────────────────────────────────────────────────────
