@@ -207,6 +207,17 @@ export interface FamilyLinkListItem {
   patientName: string
   sedeId: string | null
   createdAt: string
+  // HDU 23 CA4 — solo en los vinculados: cómo se verificó la confirmación.
+  verification: FamilyLinkVerification | null
+}
+
+export type FamilyLinkVerification = 'patient_consulted' | 'in_person'
+
+// HDU 22 CA6 — misma respuesta exista o no el paciente; `alreadyInReview` solo dice si el
+// familiar ya había enviado esa misma declaración y sigue pendiente.
+export interface RequestFamilyLinkResponse {
+  status: 'pending'
+  alreadyInReview: boolean
 }
 
 export interface PatientListItem {
@@ -570,8 +581,12 @@ export const api = {
   getPendingFamilyLinks: () => get<FamilyLinkListItem[]>('/family/pending'),
   getActiveFamilyLinks: () => get<FamilyLinkListItem[]>('/family/active'),
 
-  confirmFamilyLink: (linkId: string) =>
-    patchWithAuth<void>(`/family/links/${linkId}/confirm`, {}),
+  confirmFamilyLink: (linkId: string, verification: FamilyLinkVerification) =>
+    patchWithAuth<void>(`/family/links/${linkId}/confirm`, { verification }),
+
+  // Desde el portal: el familiar vuelve a declarar a su paciente (RUT mal escrito, rechazo).
+  requestFamilyLink: (payload: { patientRut?: string; patientEmail?: string }) =>
+    post<RequestFamilyLinkResponse>('/family/link', undefined, payload),
 
   rejectFamilyLink: (linkId: string) =>
     patchWithAuth<void>(`/family/links/${linkId}/reject`, {}),

@@ -37,7 +37,11 @@ instalar nada**: `synchronize` crea la tabla `family_link_reviews` y las columna
   lo hubieran revocado).
 - El registro del familiar identifica al paciente **por RUT o por correo** (selector en
   «Datos del paciente»). `POST /family/link` ahora pide `patientRut` y/o `patientEmail` y
-  responde siempre `{ status: 'pending' }`: ya no da 404 ante un correo desconocido.
+  responde siempre `{ status: 'pending', alreadyInReview }`: ya no da 404 ante un correo desconocido.
+  El portal lo usa para volver a declarar al paciente tras un rechazo.
+- `PATCH /family/links/:id/confirm` ahora **exige** `{ verification: 'patient_consulted' | 'in_person' }`:
+  sin eso responde 400. En la web, el diálogo de confirmar pide elegir cómo se verificó.
+- Aparece una **campana de notificaciones** en la barra superior del panel y en el portal del familiar.
 
 ## 2026-09-25 - La insignia nueva avisa por push, aunque la app esté cerrada (PR #129)
 

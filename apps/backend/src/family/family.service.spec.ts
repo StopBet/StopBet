@@ -323,7 +323,7 @@ describe('FamilyService (HU-11)', () => {
 
       const result = await service.requestLink(FAMILY_ID, { patientEmail: 'nadie@stopbet.cl' });
 
-      expect(result).toEqual({ status: 'pending' });
+      expect(result).toEqual({ status: 'pending', alreadyInReview: false });
       expect(linkRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({
           patientUserId: null,
@@ -346,7 +346,7 @@ describe('FamilyService (HU-11)', () => {
 
       const result = await service.requestLink(FAMILY_ID, { patientEmail: 'Carlos@StopBet.cl' });
 
-      expect(result).toEqual({ status: 'pending' });
+      expect(result).toEqual({ status: 'pending', alreadyInReview: false });
       expect(userRepo.findOne.mock.calls[1][0].where.role).toBe('patient');
       expect(linkRepo.save).toHaveBeenCalledWith(
         expect.objectContaining({ patientUserId: 'pac-1', status: 'pending' }),
@@ -370,7 +370,7 @@ describe('FamilyService (HU-11)', () => {
 
       expect(linkRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'link-1' }),
-        { status: 'pending' },
+        expect.objectContaining({ status: 'pending' }),
       );
       expect(linkRepo.save).not.toHaveBeenCalled();
     });
@@ -384,6 +384,7 @@ describe('FamilyService (HU-11)', () => {
 
       expect(await service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' })).toEqual({
         status: 'pending',
+        alreadyInReview: false,
       });
       expect(notifRepo.save).not.toHaveBeenCalled();
     });
@@ -403,6 +404,53 @@ describe('FamilyService (HU-11)', () => {
       });
 
       expect(linkRepo.save).toHaveBeenCalledWith(expect.objectContaining({ patientUserId: null }));
+    });
+
+    // HDU 22 CA6 — la comparación es contra lo que el familiar declaró, no contra los pacientes:
+    // da lo mismo si la declaración anterior coincidió con alguien.
+    it.each([
+      ['coincidió con un paciente', 'pac-1'],
+      ['no coincidió con nadie', null],
+    ])('CA6: reenviar la misma declaración pendiente avisa que está en revisión (%s)', async (_caso, patientUserId) => {
+      linkRepo.find.mockResolvedValue([
+        { status: 'pending', patientUserId, declaredPatientRut: '22.222.222-2', declaredPatientEmail: null },
+      ]);
+
+      const result = await service.requestLink(FAMILY_ID, { patientRut: '22222222-2' });
+
+      expect(result).toEqual({ status: 'pending', alreadyInReview: true });
+      expect(linkRepo.save).not.toHaveBeenCalled();
+      expect(notifRepo.save).not.toHaveBeenCalled();
+      expect(userRepo.find).not.toHaveBeenCalled(); // ni siquiera busca pacientes
+    });
+
+    it('CA6: el correo repetido se reconoce aunque cambien las mayúsculas', async () => {
+      linkRepo.find.mockResolvedValue([
+        { status: 'pending', patientUserId: null, declaredPatientRut: null, declaredPatientEmail: 'carlos@stopbet.cl' },
+      ]);
+
+      expect(await service.requestLink(FAMILY_ID, { patientEmail: ' Carlos@StopBet.cl ' })).toEqual({
+        status: 'pending',
+        alreadyInReview: true,
+      });
+    });
+
+    it('CA6: una declaración rechazada no cuenta como en revisión', async () => {
+      linkRepo.find.mockResolvedValue([
+        { status: 'rejected', patientUserId: 'pac-1', declaredPatientRut: null, declaredPatientEmail: 'carlos@stopbet.cl' },
+      ]);
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser)
+        .mockResolvedValueOnce({ id: 'pac-1', sedeId: SEDE_UUID });
+      linkRepo.findOne.mockResolvedValue({ id: 'link-1', status: 'rejected' });
+
+      const result = await service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' });
+
+      expect(result.alreadyInReview).toBe(false);
+      expect(linkRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'link-1' }),
+        expect.objectContaining({ status: 'pending', declaredPatientEmail: 'carlos@stopbet.cl' }),
+      );
     });
 
     it('con un vínculo activo responde 409 sin registrar nada', async () => {
@@ -461,7 +509,7 @@ describe('FamilyService (HU-11)', () => {
         expect.objectContaining({
           familyUserId: 'fam-new',
           patientUserId: 'pat-1',
-          declaredPatientRut: null,
+          declaredPatientRut: baseDto.patientRut,
           status: 'pending',
         }),
       );
@@ -486,7 +534,7 @@ describe('FamilyService (HU-11)', () => {
 
       expect(result).toEqual({ userId: 'fam-new', status: 'pending' });
       expect(linkRepo.save).toHaveBeenCalledWith(
-        expect.objectContaining({ patientUserId: 'pat-1', declaredPatientEmail: null }),
+        expect.objectContaining({ patientUserId: 'pat-1', declaredPatientEmail: 'carlos@stopbet.cl' }),
       );
     });
 
@@ -648,11 +696,11 @@ describe('FamilyService (HU-11)', () => {
     it('CA2: confirma el vínculo y notifica al familiar y al paciente', async () => {
       linkRepo.findOne.mockResolvedValue(linkRow());
 
-      await service.confirmLink('link-1', psychologist());
+      await service.confirmLink('link-1', psychologist(), 'in_person');
 
       expect(linkRepo.update).toHaveBeenCalledWith(
         { id: 'link-1', status: 'pending' },
-        expect.objectContaining({ status: 'active', reviewedBy: 'psych-1' }),
+        expect.objectContaining({ status: 'active', reviewedBy: 'psych-1', verification: 'in_person' }),
       );
       expect(notifRepo.save).toHaveBeenCalledWith([
         expect.objectContaining({ userId: 'fam-1', type: 'success' }),
@@ -664,30 +712,43 @@ describe('FamilyService (HU-11)', () => {
       linkRepo.findOne.mockResolvedValue(linkRow());
       linkRepo.update.mockResolvedValue({ affected: 0 });
 
-      await expect(service.confirmLink('link-1', psychologist())).rejects.toThrow(ConflictException);
+      await expect(service.confirmLink('link-1', psychologist(), 'in_person')).rejects.toThrow(ConflictException);
       expect(notifRepo.save).not.toHaveBeenCalled();
       expect(reviewRepo.save).not.toHaveBeenCalled();
     });
 
     // CA6 — cada decisión deja su fila; reviewedBy en family_links solo guarda la última.
     it.each([
-      ['confirmLink', 'pending', 'confirmed'],
-      ['rejectLink', 'pending', 'rejected'],
-      ['revokeLink', 'active', 'revoked'],
-    ] as const)('CA6: %s registra autor y veredicto en el historial', async (method, status, verdict) => {
+      ['confirm', 'pending', 'confirmed', 'patient_consulted'],
+      ['reject', 'pending', 'rejected', null],
+      ['revoke', 'active', 'revoked', null],
+    ] as const)('CA6: %s registra autor, veredicto y verificación en el historial', async (action, status, verdict, verification) => {
       linkRepo.findOne.mockResolvedValue(linkRow({ status }));
 
-      await service[method]('link-1', psychologist());
+      if (action === 'confirm') await service.confirmLink('link-1', psychologist(), 'patient_consulted');
+      if (action === 'reject') await service.rejectLink('link-1', psychologist());
+      if (action === 'revoke') await service.revokeLink('link-1', psychologist());
 
-      expect(reviewRepo.save).toHaveBeenCalledWith({ linkId: 'link-1', verdict, reviewedBy: 'psych-1' });
+      expect(reviewRepo.save).toHaveBeenCalledWith({ linkId: 'link-1', verdict, reviewedBy: 'psych-1', verification });
       expect(dataSource.transaction).toHaveBeenCalled();
+    });
+
+    // CA4 — la lista de vinculados dice cómo se verificó; en pendientes todavía no hay nada que decir.
+    it('CA4: la lista de vinculados muestra cómo se verificó el vínculo', async () => {
+      linkRepo.find.mockResolvedValue([
+        { ...linkRow({ status: 'active', verification: 'in_person' }), familyUser: { firstName: 'Marta', lastName: 'Soto', email: 'm@x.cl' }, createdAt: new Date() },
+      ]);
+
+      const [item] = await service.listActiveLinks(psychologist());
+
+      expect(item.verification).toBe('in_person');
     });
 
     it('un psicólogo de otra sede no puede confirmar', async () => {
       linkRepo.findOne.mockResolvedValue(linkRow());
       psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'otro', sedeId: 'sede-concepcion' }]);
 
-      await expect(service.confirmLink('link-1', psychologist())).rejects.toThrow(
+      await expect(service.confirmLink('link-1', psychologist(), 'in_person')).rejects.toThrow(
         'No puedes revisar vínculos de una sede que no atiendes',
       );
       expect(linkRepo.update).not.toHaveBeenCalled();
@@ -735,7 +796,7 @@ describe('FamilyService (HU-11)', () => {
     it('404 si el vínculo no existe', async () => {
       linkRepo.findOne.mockResolvedValue(null);
 
-      await expect(service.confirmLink('no-existe', psychologist())).rejects.toThrow(
+      await expect(service.confirmLink('no-existe', psychologist(), 'in_person')).rejects.toThrow(
         'Vínculo no encontrado',
       );
     });

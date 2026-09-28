@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { WIcon } from '../../components/WIcon'
@@ -8,6 +9,7 @@ import { SettingsPage } from './SettingsPage'
 import { useBrandInShell } from '../../hooks/useBrandInShell'
 import { Notice, Shell } from './Shell'
 import { SessionCard } from './SessionCard'
+import { RedeclareCard, RedeclareResult, type RedeclareOutcome } from './RedeclareCard'
 import { SessionCalendar } from './SessionCalendar'
 import { useIsWide } from './useIsWide'
 
@@ -28,6 +30,13 @@ export function FamiliarPortal({ user, onLogout }: { user: AuthUser; onLogout: (
 function SessionsHome({ user, onLogout }: { user: AuthUser; onLogout: () => void }) {
   const queryClient = useQueryClient()
   const isWide = useIsWide()
+  const [redeclared, setRedeclared] = useState<RedeclareOutcome | null>(null)
+
+  // El estado del vínculo cambia (rechazado → pendiente): se vuelve a pedir la vista entera.
+  const onRedeclared = (outcome: RedeclareOutcome) => {
+    setRedeclared(outcome)
+    queryClient.invalidateQueries({ queryKey: SESSIONS_KEY })
+  }
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: SESSIONS_KEY,
@@ -88,10 +97,17 @@ function SessionsHome({ user, onLogout }: { user: AuthUser; onLogout: () => void
   if (data.linkStatus === 'pending') {
     return (
       <Shell user={user} onLogout={onLogout}>
+        {redeclared && <RedeclareResult outcome={redeclared} />}
         <Notice icon="clock" title="Tu cuenta está pendiente de vinculación">
           Un profesional del equipo clínico debe aprobar tu vínculo con el paciente. Cuando lo haga
           verás aquí las sesiones grupales de su sede.
         </Notice>
+        <RedeclareCard
+          collapsible
+          title="Corregir los datos del paciente"
+          intro="¿Te equivocaste al indicar el RUT o el correo de tu familiar?"
+          onDone={onRedeclared}
+        />
       </Shell>
     )
   }
@@ -100,9 +116,14 @@ function SessionsHome({ user, onLogout }: { user: AuthUser; onLogout: () => void
     return (
       <Shell user={user} onLogout={onLogout}>
         <Notice icon="circle-alert" title="Todavía no estás vinculado a un paciente">
-          Pídele al equipo clínico que registre el vínculo con tu correo. Sin esa
-          vinculación no podemos mostrarte las sesiones.
+          Indica abajo a qué paciente acompañas. Cuando el equipo clínico confirme el vínculo,
+          verás aquí las sesiones grupales de su sede.
         </Notice>
+        <RedeclareCard
+          title="Indica a tu paciente"
+          intro="Escribe el RUT o el correo con que tu familiar entra a la app StopBet."
+          onDone={onRedeclared}
+        />
       </Shell>
     )
   }
@@ -113,8 +134,14 @@ function SessionsHome({ user, onLogout }: { user: AuthUser; onLogout: () => void
       <Shell user={user} onLogout={onLogout}>
         <Notice icon="circle-alert" title="Tu solicitud de vinculación no fue aprobada">
           El equipo clínico revisó tu solicitud y no pudo confirmar el vínculo con el paciente
-          declarado. Si crees que esto es un error, contacta directamente al equipo clínico de tu sede.
+          declarado. Si te equivocaste de datos, puedes volver a declararlo abajo; si crees que es un
+          error, contacta directamente al equipo clínico de tu sede.
         </Notice>
+        <RedeclareCard
+          title="Volver a declarar a tu paciente"
+          intro="Revisa bien el RUT o el correo de tu familiar antes de enviarlo."
+          onDone={onRedeclared}
+        />
       </Shell>
     )
   }

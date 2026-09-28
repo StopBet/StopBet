@@ -4,11 +4,10 @@ import { WIcon } from '../components/WIcon'
 import { api, type ApiError } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { cleanRut, formatRut, isValidRut } from '../utils/rut'
+import { PatientIdToggle, type PatientIdBy } from '../components/PatientIdToggle'
 import isotipo from '../assets/isotipo-blanco.png'
 
 type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'email' | 'password' | 'rut' | 'patientRut' | 'patientEmail', string>>
-
-type PatientIdBy = 'rut' | 'email'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -61,42 +60,6 @@ const inputStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = { display: 'block', fontWeight: 600, fontSize: 13, color: 'var(--fg1)', marginBottom: 7 }
 const errorTextStyle: React.CSSProperties = { fontSize: 12.5, color: 'var(--danger-text)', marginTop: 6 }
-
-function PatientIdToggle({ value, onChange }: { value: PatientIdBy; onChange: (v: PatientIdBy) => void }) {
-  const options: { id: PatientIdBy; label: string }[] = [
-    { id: 'rut', label: 'Por RUT' },
-    { id: 'email', label: 'Por correo' },
-  ]
-  return (
-    <div
-      role="radiogroup"
-      aria-label="Cómo identificar al paciente"
-      style={{ display: 'flex', gap: 4, padding: 4, borderRadius: 9999, background: 'var(--surface-alt)', marginBottom: 14 }}
-    >
-      {options.map(o => {
-        const selected = o.id === value
-        return (
-          <button
-            key={o.id}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            onClick={() => onChange(o.id)}
-            style={{
-              flex: 1, height: 38, borderRadius: 9999, cursor: 'pointer',
-              border: 'none', fontFamily: 'var(--sb-font-body)', fontSize: 13.5, fontWeight: 600,
-              background: selected ? 'var(--surface)' : 'transparent',
-              color: selected ? 'var(--primary-text)' : 'var(--fg2)',
-              boxShadow: selected ? 'var(--shadow-soft)' : 'none',
-            }}
-          >
-            {o.label}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
 
 function Field({
   label, error, children, optional,

@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import { FamilyLinkVerification } from './family-link.entity';
 
 export type FamilyLinkVerdict = 'confirmed' | 'rejected' | 'revoked';
 
@@ -22,6 +23,10 @@ export class FamilyLinkReview {
 
   @Column()
   reviewedBy: string;
+
+  // Solo en las confirmaciones (HDU 23 CA4).
+  @Column({ type: 'varchar', nullable: true })
+  verification: FamilyLinkVerification | null;
 
   @CreateDateColumn({ type: 'timestamptz' })
   reviewedAt: Date;

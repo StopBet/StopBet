@@ -14,6 +14,7 @@ import { FamilyService } from './family.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
+import { ConfirmFamilyLinkDto } from './dto/confirm-family-link.dto';
 import { RegisterFamilyDto } from './dto/register-family.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -49,7 +50,12 @@ export class FamilyController {
   // el límite evita que se use para recorrer la base.
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @ApiOperation({ summary: 'Declarar (otra vez) al paciente, por RUT o correo, desde una cuenta ya creada' })
-  @ApiResponse({ status: 201, description: '{ status: "pending" } — misma respuesta exista o no el paciente' })
+  @ApiResponse({
+    status: 201,
+    description:
+      '{ status: "pending", alreadyInReview } — misma respuesta exista o no el paciente; ' +
+      'alreadyInReview es true si esa misma declaración ya estaba pendiente (HDU 22 CA6)',
+  })
   @ApiResponse({ status: 409, description: 'El familiar ya tiene un vínculo activo' })
   requestLink(@CurrentUser() user: AuthUser, @Body() dto: CreateFamilyLinkDto) {
     return this.familyService.requestLink(user.id, dto);
@@ -86,8 +92,12 @@ export class FamilyController {
   @ApiOperation({ summary: 'HDU 23 CA2 — Confirmar el vínculo declarado por el familiar' })
   @ApiResponse({ status: 200, description: 'Vínculo confirmado — notifica a ambas partes' })
   @ApiResponse({ status: 409, description: 'El vínculo ya fue procesado' })
-  confirmLink(@Param('id') id: string, @CurrentUser() user: AuthUser) {
-    return this.familyService.confirmLink(id, user);
+  confirmLink(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ConfirmFamilyLinkDto,
+  ) {
+    return this.familyService.confirmLink(id, user, dto.verification);
   }
 
   @Patch('links/:id/reject')

@@ -15,6 +15,10 @@ import { encryptedColumnTransformer } from '../../common/crypto/encrypted-column
 // aparte de rejected para no perder en el historial que alguna vez estuvo vigente.
 export type FamilyLinkStatus = 'pending' | 'active' | 'rejected' | 'revoked';
 
+// HDU 23 CA4 — cómo verificó el psicólogo que el familiar corresponde al paciente.
+export const FAMILY_LINK_VERIFICATIONS = ['patient_consulted', 'in_person'] as const;
+export type FamilyLinkVerification = (typeof FAMILY_LINK_VERIFICATIONS)[number];
+
 @Unique(['familyUserId', 'patientUserId'])
 @Entity('family_links')
 export class FamilyLink {
@@ -37,14 +41,14 @@ export class FamilyLink {
   @JoinColumn({ name: 'patientUserId' })
   patientUser: User | null;
 
-  // RUT que el familiar declaró al registrarse, cifrado igual que User.rut. Solo se
-  // completa cuando no hubo paciente que vincular (patientUserId nulo) — sirve para que
-  // el coordinador revise el intento sin guardar el RUT en texto plano.
+  // Lo que el familiar declaró (RUT y/o correo), cifrado igual que User.rut: identifica a una
+  // persona que quizá ni siquiera es paciente. Se guarda haya coincidido o no, porque sirve
+  // para dos cosas: que coordinación revise los intentos sin paciente, y reconocer una
+  // solicitud repetida (HDU 22 CA6) comparando contra lo declarado y no contra los pacientes,
+  // así el aviso de "ya está en revisión" no delata si el paciente existe.
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   declaredPatientRut: string | null;
 
-  // Lo mismo cuando el familiar identificó al paciente por correo. Cifrado por la misma razón:
-  // es un dato que identifica a una persona que quizá ni siquiera es paciente.
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   declaredPatientEmail: string | null;
 
@@ -59,6 +63,10 @@ export class FamilyLink {
 
   @Column({ type: 'timestamptz', nullable: true })
   reviewedAt: Date | null;
+
+  // Cómo se verificó la última confirmación (HDU 23 CA4). Queda también en family_link_reviews.
+  @Column({ type: 'varchar', nullable: true })
+  verification: FamilyLinkVerification | null;
 
   @CreateDateColumn()
   createdAt: Date;

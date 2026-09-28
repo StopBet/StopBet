@@ -8,7 +8,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, IsNull, MoreThanOrEqual, Not, QueryFailedError, Raw, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { AccountStatus, AuthUser, cleanRut, RegisterFamilyResponse } from '@stopbet/shared-types';
-import { FamilyLink, FamilyLinkStatus } from './entities/family-link.entity';
+import { FamilyLink, FamilyLinkStatus, FamilyLinkVerification } from './entities/family-link.entity';
 import { FamilyLinkReview, FamilyLinkVerdict } from './entities/family-link-review.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
@@ -124,6 +124,28 @@ export interface FamilyLinkListItem {
   patientName: string;
   sedeId: string | null;
   createdAt: string;
+  // HDU 23 CA4 — solo en los vínculos activos: cómo se verificó la confirmación.
+  verification: FamilyLinkVerification | null;
+}
+
+export interface RequestLinkResponse {
+  status: 'pending';
+  // HDU 22 CA6 — el familiar ya había enviado esta misma declaración y sigue en revisión.
+  alreadyInReview: boolean;
+}
+
+function sameEmail(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+// Compara contra lo que el propio familiar declaró antes, nunca contra los pacientes: así el
+// aviso de "ya está en revisión" sale igual haya coincidido o no la declaración anterior.
+function isSameDeclaration(link: FamilyLink, dto: CreateFamilyLinkDto): boolean {
+  const sameRut =
+    !!dto.patientRut && !!link.declaredPatientRut && cleanRut(dto.patientRut) === cleanRut(link.declaredPatientRut);
+  const sameMail =
+    !!dto.patientEmail && !!link.declaredPatientEmail && sameEmail(dto.patientEmail, link.declaredPatientEmail);
+  return sameRut || sameMail;
 }
 
 @Injectable()
@@ -249,16 +271,14 @@ export class FamilyService {
     origin: 'registered' | 'requested',
   ): Promise<void> {
     const linkRepo = manager.getRepository(FamilyLink);
+    const declared = {
+      declaredPatientRut: dto.patientRut ?? null,
+      declaredPatientEmail: dto.patientEmail?.trim() ?? null,
+    };
 
     if (!patient) {
       await linkRepo.save(
-        linkRepo.create({
-          familyUserId: familyUser.id,
-          patientUserId: null,
-          declaredPatientRut: dto.patientRut ?? null,
-          declaredPatientEmail: dto.patientEmail?.trim() ?? null,
-          status: 'pending',
-        }),
+        linkRepo.create({ familyUserId: familyUser.id, patientUserId: null, ...declared, status: 'pending' }),
       );
       await this.notifyCoordinators(manager, familyUser);
       return;
@@ -273,18 +293,12 @@ export class FamilyService {
     if (existing) {
       const reopened = await linkRepo.update(
         { id: existing.id, status: In(['rejected', 'revoked']) },
-        { status: 'pending' },
+        { status: 'pending', ...declared },
       );
       if (!reopened.affected) return;
     } else {
       await linkRepo.save(
-        linkRepo.create({
-          familyUserId: familyUser.id,
-          patientUserId: patient.id,
-          declaredPatientRut: null,
-          declaredPatientEmail: null,
-          status: 'pending',
-        }),
+        linkRepo.create({ familyUserId: familyUser.id, patientUserId: patient.id, ...declared, status: 'pending' }),
       );
     }
     await this.notifyPsychologistsOfSede(manager, patient.sedeId, familyUser, origin);
@@ -357,10 +371,14 @@ export class FamilyService {
   // de RUT al registrarse, o le rechazaron la solicitud. Responde lo mismo exista o no el
   // paciente: antes devolvía 404 ante un correo desconocido, y con eso cualquier familiar podía
   // averiguar quién se atiende en AJUTER.
-  async requestLink(familyUserId: string, dto: CreateFamilyLinkDto): Promise<{ status: 'pending' }> {
-    const current = await this.currentLinkFor(familyUserId);
-    if (current?.status === 'active') {
+  async requestLink(familyUserId: string, dto: CreateFamilyLinkDto): Promise<RequestLinkResponse> {
+    const links = await this.linksOf(familyUserId);
+    if (links.some((l) => l.status === 'active')) {
       throw new ConflictException('Ya tienes un vínculo activo con un paciente');
+    }
+    // HDU 22 CA6 — la misma declaración todavía pendiente: no se duplica y se le avisa.
+    if (links.some((l) => l.status === 'pending' && isSameDeclaration(l, dto))) {
+      return { status: 'pending', alreadyInReview: true };
     }
 
     const familyUser = await this.userRepo.findOne({ where: { id: familyUserId } });
@@ -376,18 +394,22 @@ export class FamilyService {
       // única, y el vínculo ya quedó pendiente por el primero.
       if (!isUniqueViolation(err)) throw err;
     }
-    return { status: 'pending' };
+    return { status: 'pending', alreadyInReview: false };
   }
 
   // Un familiar puede tener más de un vínculo (uno rechazado por RUT equivocado y otro activo,
   // por ejemplo). Un findOne sin orden dejaba a Postgres elegir, y el portal podía mostrar
   // "rechazado" a quien sí tiene acceso. Manda el que da más acceso y, entre iguales, el último.
-  private async currentLinkFor(familyUserId: string): Promise<FamilyLink | null> {
-    const links = await this.linkRepo.find({
+  private linksOf(familyUserId: string): Promise<FamilyLink[]> {
+    return this.linkRepo.find({
       where: { familyUserId },
       relations: ['patientUser'],
       order: { createdAt: 'DESC' },
     });
+  }
+
+  private async currentLinkFor(familyUserId: string): Promise<FamilyLink | null> {
+    const links = await this.linksOf(familyUserId);
     if (links.length === 0) return null;
     return links.reduce((best, l) => (LINK_PRIORITY[l.status] > LINK_PRIORITY[best.status] ? l : best));
   }
@@ -446,6 +468,7 @@ export class FamilyService {
         patientName: `${link.patientUser.firstName} ${link.patientUser.lastName}`.trim(),
         sedeId: link.patientUser.sedeId,
         createdAt: link.createdAt.toISOString(),
+        verification: link.status === 'active' ? link.verification : null,
       });
     }
     return result;
@@ -464,7 +487,11 @@ export class FamilyService {
   // CA2 — confirma el vínculo, habilita las funcionalidades del familiar y notifica a
   // ambas partes. `getSessionsForFamily`/`getLinkStatus` ya reaccionan solos al cambio de
   // estado: no hace falta tocar nada más para "habilitar" el acceso.
-  async confirmLink(linkId: string, reviewer: AuthUser): Promise<void> {
+  async confirmLink(
+    linkId: string,
+    reviewer: AuthUser,
+    verification: FamilyLinkVerification,
+  ): Promise<void> {
     const link = await this.linkRepo.findOne({
       where: { id: linkId },
       relations: ['familyUser', 'patientUser'],
@@ -477,7 +504,7 @@ export class FamilyService {
     // Update condicional: dos confirmaciones simultáneas no deben notificar dos veces
     // (mismo patrón que RegistrationService.approve).
     await this.dataSource.transaction(async (manager) => {
-      await this.applyVerdict(manager, linkId, 'pending', 'confirmed', reviewer, 'El vínculo ya fue procesado');
+      await this.applyVerdict(manager, linkId, 'pending', 'confirmed', reviewer, 'El vínculo ya fue procesado', verification);
       const notifRepo = manager.getRepository(Notification);
       await notifRepo.save([
         notifRepo.create({
@@ -559,6 +586,7 @@ export class FamilyService {
     verdict: FamilyLinkVerdict,
     reviewer: AuthUser,
     conflictMessage: string,
+    verification: FamilyLinkVerification | null = null,
   ): Promise<void> {
     const to: Record<FamilyLinkVerdict, FamilyLinkStatus> = {
       confirmed: 'active',
@@ -567,12 +595,17 @@ export class FamilyService {
     };
     const result = await manager.getRepository(FamilyLink).update(
       { id: linkId, status: from },
-      { status: to[verdict], reviewedBy: reviewer.id, reviewedAt: new Date() },
+      {
+        status: to[verdict],
+        reviewedBy: reviewer.id,
+        reviewedAt: new Date(),
+        ...(verdict === 'confirmed' ? { verification } : {}),
+      },
     );
     if (!result.affected) throw new ConflictException(conflictMessage);
 
     const reviewRepo = manager.getRepository(FamilyLinkReview);
-    await reviewRepo.save(reviewRepo.create({ linkId, verdict, reviewedBy: reviewer.id }));
+    await reviewRepo.save(reviewRepo.create({ linkId, verdict, reviewedBy: reviewer.id, verification }));
   }
 
   // ── Mensualidad ───────────────────────────────────────────────────────────

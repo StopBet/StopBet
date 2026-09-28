@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
-import { api, type ApiError, type FamilyLinkListItem } from '../services/api'
+import { api, type ApiError, type FamilyLinkListItem, type FamilyLinkVerification } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { useDialog } from '../hooks/useDialog'
 
@@ -12,6 +12,11 @@ function fecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+const VERIFICATION_LABEL: Record<FamilyLinkVerification, string> = {
+  patient_consulted: 'Paciente consultado',
+  in_person: 'Verificado en persona',
+}
+
 function errorMessage(err: unknown, fallback: string): string {
   const apiErr = err as ApiError
   return (apiErr?.body?.message as string | undefined) ?? fallback
@@ -20,6 +25,7 @@ function errorMessage(err: unknown, fallback: string): string {
 /* ── Modal genérico de confirmación ─────────────────────────────────── */
 function ActionModal({
   titleId, title, description, confirmLabel, confirmTone = 'primary', isPending, error, onClose, onConfirm,
+  confirmDisabled = false,
 }: {
   titleId: string
   title: string
@@ -30,6 +36,7 @@ function ActionModal({
   error: string | null
   onClose: () => void
   onConfirm: () => void
+  confirmDisabled?: boolean
 }) {
   const dialogRef = useDialog<HTMLDivElement>(onClose)
   return (
@@ -56,13 +63,13 @@ function ActionModal({
           </button>
           <button
             onClick={onConfirm}
-            disabled={isPending}
+            disabled={isPending || confirmDisabled}
             style={{
               height: 46, padding: '0 26px', borderRadius: 9999, border: confirmTone === 'danger' ? '1.5px solid var(--danger)' : 'none',
               background: confirmTone === 'danger' ? 'var(--surface)' : 'var(--primary)',
               color: confirmTone === 'danger' ? 'var(--danger-text)' : 'var(--fg-on-primary)',
               fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5,
-              cursor: isPending ? 'not-allowed' : 'pointer', opacity: isPending ? 0.7 : 1,
+              cursor: isPending || confirmDisabled ? 'not-allowed' : 'pointer', opacity: isPending || confirmDisabled ? 0.55 : 1,
             }}
           >
             {isPending ? 'Procesando…' : confirmLabel}
@@ -87,6 +94,7 @@ function LinkRow({
         <div style={{ fontSize: 12.5, color: 'var(--fg2)' }}>
           Paciente: <strong style={{ color: 'var(--fg1)' }}>{link.patientName}</strong> · {fecha(link.createdAt)}
         </div>
+        {link.verification && <VerificationChip verification={link.verification} />}
         <div style={{ display: 'flex', gap: 8 }}>{actions}</div>
       </div>
     )
@@ -97,12 +105,64 @@ function LinkRow({
         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{link.familyName}</div>
         <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{link.familyEmail}</div>
       </td>
-      <td style={{ padding: '14px 14px', fontSize: 13.5, color: 'var(--fg1)' }}>{link.patientName}</td>
+      <td style={{ padding: '14px 14px', fontSize: 13.5, color: 'var(--fg1)' }}>
+        {link.patientName}
+        {link.verification && <div style={{ marginTop: 6 }}><VerificationChip verification={link.verification} /></div>}
+      </td>
       <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg2)' }}>{fecha(link.createdAt)}</td>
       <td style={{ padding: '14px 14px' }}>
         <div style={{ display: 'flex', gap: 8 }}>{actions}</div>
       </td>
     </tr>
+  )
+}
+
+function VerificationChip({ verification }: { verification: FamilyLinkVerification }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--sage-50)', color: 'var(--secondary-text)', borderRadius: 9999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
+      <WIcon name={verification === 'in_person' ? 'users' : 'message-circle'} size={13} />
+      {VERIFICATION_LABEL[verification]}
+    </span>
+  )
+}
+
+// HDU 23 CA4 — antes de confirmar, el psicólogo dice cómo verificó el vínculo.
+function VerificationChoice({ value, onChange }: { value: FamilyLinkVerification | null; onChange: (v: FamilyLinkVerification) => void }) {
+  const options: { id: FamilyLinkVerification; title: string; hint: string }[] = [
+    { id: 'patient_consulted', title: 'Consulté al paciente', hint: 'El paciente confirmó que esta persona es su familiar.' },
+    { id: 'in_person', title: 'Lo verifiqué en persona', hint: 'Conozco al familiar o lo verifiqué presencialmente en la sede.' },
+  ]
+  return (
+    <fieldset style={{ border: 'none', margin: '18px 0 0', padding: 0 }}>
+      <legend style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg1)', marginBottom: 10, padding: 0 }}>¿Cómo verificaste el vínculo?</legend>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {options.map(o => {
+          const selected = value === o.id
+          return (
+            <label
+              key={o.id}
+              style={{
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                border: `1.5px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
+                background: selected ? 'color-mix(in srgb, var(--primary) 6%, var(--surface))' : 'var(--surface)',
+              }}
+            >
+              <input
+                type="radio"
+                name="sb-verificacion-vinculo"
+                checked={selected}
+                onChange={() => onChange(o.id)}
+                style={{ marginTop: 3, accentColor: 'var(--primary)' }}
+              />
+              <span>
+                <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--fg1)' }}>{o.title}</span>
+                <span style={{ display: 'block', fontSize: 12.5, color: 'var(--fg2)', marginTop: 2 }}>{o.hint}</span>
+              </span>
+            </label>
+          )
+        })}
+      </div>
+    </fieldset>
   )
 }
 
@@ -126,6 +186,7 @@ export function FamiliaresPage() {
   const [rejectTarget, setRejectTarget] = useState<FamilyLinkListItem | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<FamilyLinkListItem | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
+  const [verification, setVerification] = useState<FamilyLinkVerification | null>(null)
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: PENDING_KEY })
@@ -133,8 +194,9 @@ export function FamiliaresPage() {
   }
 
   const confirmMutation = useMutation({
-    mutationFn: (id: string) => api.confirmFamilyLink(id),
-    onSuccess: () => { invalidateAll(); setConfirmTarget(null); setModalError(null) },
+    mutationFn: ({ id, verification }: { id: string; verification: FamilyLinkVerification }) =>
+      api.confirmFamilyLink(id, verification),
+    onSuccess: () => { invalidateAll(); setConfirmTarget(null); setModalError(null); setVerification(null) },
     onError: (err) => setModalError(errorMessage(err, 'No pudimos confirmar el vínculo.')),
   })
   const rejectMutation = useMutation({
@@ -248,12 +310,16 @@ export function FamiliaresPage() {
         <ActionModal
           titleId="sb-confirmar-vinculo"
           title="Confirmar vínculo"
-          description={<>Vas a confirmar que <strong>{confirmTarget.familyName}</strong> es familiar de <strong>{confirmTarget.patientName}</strong>. Se le habilitará el acceso a las sesiones grupales y se notificará a ambos.</>}
+          description={<>
+            Vas a confirmar que <strong>{confirmTarget.familyName}</strong> es familiar de <strong>{confirmTarget.patientName}</strong>. Se le habilitará el acceso a las sesiones grupales y se notificará a ambos.
+            <VerificationChoice value={verification} onChange={setVerification} />
+          </>}
           confirmLabel="Confirmar vínculo"
+          confirmDisabled={!verification}
           isPending={confirmMutation.isPending}
           error={modalError}
-          onClose={() => { setConfirmTarget(null); setModalError(null) }}
-          onConfirm={() => confirmMutation.mutate(confirmTarget.id)}
+          onClose={() => { setConfirmTarget(null); setModalError(null); setVerification(null) }}
+          onConfirm={() => { if (verification) confirmMutation.mutate({ id: confirmTarget.id, verification }) }}
         />
       )}
 
