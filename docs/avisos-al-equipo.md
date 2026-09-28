@@ -23,8 +23,10 @@ está.
 ## 2026-09-28 - Los vínculos de familiares ya se aprueban, en «Familiares» (PR #133)
 
 **A quién le pega:** a quien pruebe el portal del familiar o el shell clínico. **No hay que
-instalar nada**: `synchronize` agrega solas las columnas `reviewedBy`/`reviewedAt` a
-`family_links`.
+instalar nada**: `synchronize` crea la tabla `family_link_reviews` y las columnas nuevas de
+`family_links`. Sí cambió `packages/shared-types` (un destino nuevo de notificación): si corres
+`tsc` o `jest` del backend sin pasar por `pnpm run backend`, recompílalo antes con
+`pnpm --filter @stopbet/shared-types build`.
 
 **Qué cambió:**
 - El sidebar clínico tiene una sección nueva, **Familiares**: ahí se confirman, rechazan y
@@ -33,6 +35,9 @@ instalar nada**: `synchronize` agrega solas las columnas `reviewedBy`/`reviewedA
   seguido te sale **429**, no es un bug: espera un minuto.
 - Un familiar sin vínculo activo recibe **403** al confirmar asistencia (antes podía aunque
   lo hubieran revocado).
+- El registro del familiar identifica al paciente **por RUT o por correo** (selector en
+  «Datos del paciente»). `POST /family/link` ahora pide `patientRut` y/o `patientEmail` y
+  responde siempre `{ status: 'pending' }`: ya no da 404 ante un correo desconocido.
 
 ## 2026-09-25 - La insignia nueva avisa por push, aunque la app esté cerrada (PR #129)
 

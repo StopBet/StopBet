@@ -28,8 +28,8 @@ export class FamilyLink {
   @JoinColumn({ name: 'familyUserId' })
   familyUser: User;
 
-  // Nulo cuando el familiar declaró un RUT que no corresponde a ningún paciente (HDU 22,
-  // CA2): el intento queda registrado igual, sin inventar un paciente para vincular.
+  // Nulo cuando el familiar declaró un RUT o correo que no corresponde a ningún paciente
+  // (HDU 22, CA2): el intento queda registrado igual, sin inventar un paciente para vincular.
   @Column({ nullable: true })
   patientUserId: string | null;
 
@@ -43,13 +43,17 @@ export class FamilyLink {
   @Column({ nullable: true, transformer: encryptedColumnTransformer })
   declaredPatientRut: string | null;
 
+  // Lo mismo cuando el familiar identificó al paciente por correo. Cifrado por la misma razón:
+  // es un dato que identifica a una persona que quizá ni siquiera es paciente.
+  @Column({ nullable: true, transformer: encryptedColumnTransformer })
+  declaredPatientEmail: string | null;
+
   // pending: solicitado pero el psicólogo no ha aprobado aún (CA 11.6)
   @Column({ type: 'varchar', default: 'pending' })
   status: FamilyLinkStatus;
 
-  // Auditoría clínica (HDU 23, CA6): quién y cuándo tomó la última decisión sobre este
-  // vínculo (confirmar, rechazar o revocar). Se sobreescribe en cada acción — el veredicto
-  // vigente es el de `status`, no hace falta un historial de versiones acá.
+  // Quién y cuándo tomó la última decisión (confirmar, rechazar o revocar). Se sobreescribe
+  // en cada acción: la auditoría completa de HDU 23 CA6 está en family_link_reviews.
   @Column({ nullable: true })
   reviewedBy: string | null;
 

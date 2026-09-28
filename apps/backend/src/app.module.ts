@@ -47,6 +47,7 @@ import { ClinicalRecord } from './clinical-records/entities/clinical-record.enti
 import { ClinicalRecordVersion } from './clinical-records/entities/clinical-record-version.entity';
 import { ClinicalNote } from './clinical-records/entities/clinical-note.entity';
 import { FamilyLink } from './family/entities/family-link.entity';
+import { FamilyLinkReview } from './family/entities/family-link-review.entity';
 import { FamilySession } from './family/entities/family-session.entity';
 import { SessionAttendance } from './family/entities/session-attendance.entity';
 import { CommunityMute } from './notifications/entities/community-mute.entity';
@@ -98,7 +99,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
           SponsorAssignment, PanicAlert,
           RefreshToken,
           DeviceToken,
-          FamilyLink, FamilySession, SessionAttendance,
+          FamilyLink, FamilyLinkReview, FamilySession, SessionAttendance,
           CommunityMute,
           PsychologistSede, PatientAssignment,
           ClinicalRecord, ClinicalRecordVersion, ClinicalNote,

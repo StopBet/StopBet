@@ -5,6 +5,7 @@ import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
+import { FamilyLinkReview } from './entities/family-link-review.entity';
 
 const FAMILY_ID = 'fam-1';
 const SEDE = 'sede-santiago';
@@ -25,6 +26,7 @@ describe('FamilyService (HU-11)', () => {
   let notifRepo: { create: jest.Mock; save: jest.Mock };
   let sedeRepo: { findOne: jest.Mock };
   let psychSedeRepo: { find: jest.Mock };
+  let reviewRepo: { create: jest.Mock; save: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let invoiceRepo: { find: jest.Mock; findOne: jest.Mock };
 
@@ -58,6 +60,7 @@ describe('FamilyService (HU-11)', () => {
     notifRepo = { create: jest.fn((v) => v), save: jest.fn().mockResolvedValue(undefined) };
     sedeRepo = { findOne: jest.fn() };
     psychSedeRepo = { find: jest.fn().mockResolvedValue([]) };
+    reviewRepo = { create: jest.fn((v) => v), save: jest.fn((v) => Promise.resolve(v)) };
 
     const manager = {
       getRepository: jest.fn((entity: unknown) => {
@@ -66,6 +69,7 @@ describe('FamilyService (HU-11)', () => {
         if (entity === Notification) return notifRepo;
         if (entity === Sede) return sedeRepo;
         if (entity === PsychologistSede) return psychSedeRepo;
+        if (entity === FamilyLinkReview) return reviewRepo;
         throw new Error('Entidad sin mock en el spec');
       }),
     };
@@ -302,30 +306,113 @@ describe('FamilyService (HU-11)', () => {
 
   // ── Vínculo ───────────────────────────────────────────────────────────────
 
-  it('rechaza vincular con un correo que no es de un paciente', async () => {
-    userRepo.findOne.mockResolvedValue(null);
+  describe('requestLink', () => {
+    const familyUser = { id: FAMILY_ID, firstName: 'Marta', lastName: 'Soto', email: 'marta@stopbet.cl' };
 
-    await expect(
-      service.requestLink(FAMILY_ID, { patientEmail: 'nadie@stopbet.cl' }),
-    ).rejects.toThrow('No existe un paciente con ese correo');
-  });
+    beforeEach(() => {
+      linkRepo.find.mockResolvedValue([]); // currentLinkFor: sin vínculos
+    });
 
-  it('el vínculo nace en pending, nunca activo', async () => {
-    userRepo.findOne.mockResolvedValue({ id: 'pac-1' });
-    linkRepo.findOne.mockResolvedValue(null);
+    // Antes respondía 404 "No existe un paciente con ese correo": servía para averiguar quién
+    // se atiende en AJUTER.
+    it('un correo que no es de ningún paciente recibe la misma respuesta y alerta solo a coordinación', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser) // la cuenta del familiar
+        .mockResolvedValueOnce(null); // paciente por correo: ninguno
+      userRepo.find.mockResolvedValueOnce([{ id: 'coord-1', role: 'coordinator' }]);
 
-    const link = await service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' });
+      const result = await service.requestLink(FAMILY_ID, { patientEmail: 'nadie@stopbet.cl' });
 
-    expect(link.status).toBe('pending');
-  });
+      expect(result).toEqual({ status: 'pending' });
+      expect(linkRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          patientUserId: null,
+          declaredPatientEmail: 'nadie@stopbet.cl',
+          status: 'pending',
+        }),
+      );
+      expect(notifRepo.save).toHaveBeenCalledWith([
+        expect.objectContaining({ userId: 'coord-1', type: 'warning' }),
+      ]);
+    });
 
-  it('no permite vincular dos veces al mismo paciente', async () => {
-    userRepo.findOne.mockResolvedValue({ id: 'pac-1' });
-    linkRepo.findOne.mockResolvedValue({ id: 'link-1' });
+    it('con el correo de un paciente crea el vínculo pendiente y avisa a su sede con destino Familiares', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser)
+        .mockResolvedValueOnce({ id: 'pac-1', sedeId: SEDE_UUID });
+      linkRepo.findOne.mockResolvedValue(null);
+      userRepo.find.mockResolvedValueOnce([{ id: 'psych-1', sedeId: null }]);
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: SEDE_UUID }]);
 
-    await expect(
-      service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' }),
-    ).rejects.toThrow('Ya existe un vínculo con ese paciente');
+      const result = await service.requestLink(FAMILY_ID, { patientEmail: 'Carlos@StopBet.cl' });
+
+      expect(result).toEqual({ status: 'pending' });
+      expect(userRepo.findOne.mock.calls[1][0].where.role).toBe('patient');
+      expect(linkRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ patientUserId: 'pac-1', status: 'pending' }),
+      );
+      expect(notifRepo.save).toHaveBeenCalledWith([
+        expect.objectContaining({
+          userId: 'psych-1',
+          target: 'family-links',
+          body: expect.stringContaining('pidió vincularse'),
+        }),
+      ]);
+    });
+
+    it('volver a declarar a un paciente que lo rechazó reabre el mismo vínculo', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser)
+        .mockResolvedValueOnce({ id: 'pac-1', sedeId: SEDE_UUID });
+      linkRepo.findOne.mockResolvedValue({ id: 'link-1', status: 'rejected' });
+
+      await service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' });
+
+      expect(linkRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'link-1' }),
+        { status: 'pending' },
+      );
+      expect(linkRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('si ese vínculo ya estaba pendiente no avisa de nuevo', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser)
+        .mockResolvedValueOnce({ id: 'pac-1', sedeId: SEDE_UUID });
+      linkRepo.findOne.mockResolvedValue({ id: 'link-1', status: 'pending' });
+      linkRepo.update.mockResolvedValue({ affected: 0 });
+
+      expect(await service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' })).toEqual({
+        status: 'pending',
+      });
+      expect(notifRepo.save).not.toHaveBeenCalled();
+    });
+
+    // Con los dos datos es más difícil acertar a ciegas: tienen que ser del mismo paciente.
+    it('RUT y correo de pacientes distintos cuentan como paciente no encontrado', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser)
+        .mockResolvedValueOnce({ id: 'pac-otro', sedeId: SEDE_UUID }); // por correo
+      userRepo.find
+        .mockResolvedValueOnce([{ id: 'pac-1', rut: '22.222.222-2', sedeId: SEDE_UUID }]) // por RUT
+        .mockResolvedValueOnce([{ id: 'coord-1', role: 'coordinator' }]);
+
+      await service.requestLink(FAMILY_ID, {
+        patientRut: '22.222.222-2',
+        patientEmail: 'otro@stopbet.cl',
+      });
+
+      expect(linkRepo.save).toHaveBeenCalledWith(expect.objectContaining({ patientUserId: null }));
+    });
+
+    it('con un vínculo activo responde 409 sin registrar nada', async () => {
+      linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: SEDE } }]);
+
+      await expect(
+        service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' }),
+      ).rejects.toThrow(ConflictException);
+      expect(linkRepo.save).not.toHaveBeenCalled();
+    });
   });
 
   // ── registerFamily — HDU 22 ─────────────────────────────────────────────────
@@ -379,8 +466,28 @@ describe('FamilyService (HU-11)', () => {
         }),
       );
       expect(notifRepo.save).toHaveBeenCalledWith([
-        expect.objectContaining({ userId: 'psych-1', type: 'info' }),
+        expect.objectContaining({ userId: 'psych-1', type: 'info', target: 'family-links' }),
       ]);
+    });
+
+    it('CA1: también identifica al paciente por correo en vez de RUT', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(null) // correo del familiar libre
+        .mockResolvedValueOnce({ id: 'pat-1', sedeId: SEDE_UUID }); // paciente por correo
+      userRepo.find
+        .mockResolvedValueOnce([]) // cuentas existentes
+        .mockResolvedValueOnce([]); // psicólogos activos
+
+      const result = await service.registerFamily({
+        ...baseDto,
+        patientRut: undefined,
+        patientEmail: 'carlos@stopbet.cl',
+      });
+
+      expect(result).toEqual({ userId: 'fam-new', status: 'pending' });
+      expect(linkRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ patientUserId: 'pat-1', declaredPatientEmail: null }),
+      );
     });
 
     // Avisa exactamente a quienes después verán el pendiente en /family/pending: antes, con un
@@ -559,6 +666,21 @@ describe('FamilyService (HU-11)', () => {
 
       await expect(service.confirmLink('link-1', psychologist())).rejects.toThrow(ConflictException);
       expect(notifRepo.save).not.toHaveBeenCalled();
+      expect(reviewRepo.save).not.toHaveBeenCalled();
+    });
+
+    // CA6 — cada decisión deja su fila; reviewedBy en family_links solo guarda la última.
+    it.each([
+      ['confirmLink', 'pending', 'confirmed'],
+      ['rejectLink', 'pending', 'rejected'],
+      ['revokeLink', 'active', 'revoked'],
+    ] as const)('CA6: %s registra autor y veredicto en el historial', async (method, status, verdict) => {
+      linkRepo.findOne.mockResolvedValue(linkRow({ status }));
+
+      await service[method]('link-1', psychologist());
+
+      expect(reviewRepo.save).toHaveBeenCalledWith({ linkId: 'link-1', verdict, reviewedBy: 'psych-1' });
+      expect(dataSource.transaction).toHaveBeenCalled();
     });
 
     it('un psicólogo de otra sede no puede confirmar', async () => {

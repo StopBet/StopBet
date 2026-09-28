@@ -338,7 +338,10 @@ export interface RegisterFamilyPayload {
   email: string
   password: string
   phone?: string
-  patientRut: string
+  // El paciente se identifica con uno de los dos (el backend acepta ambos, pero el formulario
+  // manda solo el que eligió el familiar).
+  patientRut?: string
+  patientEmail?: string
 }
 
 // Misma forma exista o no el paciente declarado (CA2 de HDU 22): la respuesta

@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { FamilyService } from './family.service';
 import { FamilyController } from './family.controller';
 import { FamilyLink } from './entities/family-link.entity';
+import { FamilyLinkReview } from './entities/family-link-review.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
 import { User } from '../users/entities/user.entity';
@@ -15,6 +16,7 @@ import { Invoice } from '../billing/entities/invoice.entity';
   imports: [
     TypeOrmModule.forFeature([
       FamilyLink,
+      FamilyLinkReview,
       FamilySession,
       SessionAttendance,
       User,

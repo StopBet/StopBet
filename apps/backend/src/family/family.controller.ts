@@ -34,7 +34,7 @@ export class FamilyController {
   // CA3 obliga a responder 409 ante un RUT ya registrado, y eso deja sondear si un RUT existe
   // en el sistema. No se puede cerrar sin romper CA3; sí encarecerlo, igual que /auth/login.
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
-  @ApiOperation({ summary: 'Registra la cuenta de un familiar declarando el RUT del paciente' })
+  @ApiOperation({ summary: 'Registra la cuenta de un familiar declarando al paciente por RUT o correo' })
   @ApiResponse({ status: 201, description: 'RegisterFamilyResponse — misma respuesta exista o no el paciente' })
   @ApiResponse({ status: 409, description: 'Ya existe una cuenta con ese correo o RUT' })
   register(@Body() dto: RegisterFamilyDto) {
@@ -45,8 +45,12 @@ export class FamilyController {
 
   @Post('link')
   @Roles('family')
-  @ApiOperation({ summary: 'Solicitar vinculación con un paciente' })
-  @ApiResponse({ status: 201, description: 'Vínculo creado en estado pending' })
+  // Misma respuesta exista o no el paciente, pero cada intento igual prueba un RUT o correo:
+  // el límite evita que se use para recorrer la base.
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
+  @ApiOperation({ summary: 'Declarar (otra vez) al paciente, por RUT o correo, desde una cuenta ya creada' })
+  @ApiResponse({ status: 201, description: '{ status: "pending" } — misma respuesta exista o no el paciente' })
+  @ApiResponse({ status: 409, description: 'El familiar ya tiene un vínculo activo' })
   requestLink(@CurrentUser() user: AuthUser, @Body() dto: CreateFamilyLinkDto) {
     return this.familyService.requestLink(user.id, dto);
   }
