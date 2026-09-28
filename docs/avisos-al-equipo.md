@@ -20,6 +20,20 @@ está.
 
 ---
 
+## 2026-09-28 - Los vínculos de familiares ya se aprueban, en «Familiares» (HdU 22 y 23)
+
+**A quién le pega:** a quien pruebe el portal del familiar o el shell clínico. **No hay que
+instalar nada**: `synchronize` agrega solas las columnas `reviewedBy`/`reviewedAt` a
+`family_links`.
+
+**Qué cambió:**
+- El sidebar clínico tiene una sección nueva, **Familiares**: ahí se confirman, rechazan y
+  revocan los vínculos. El familiar pendiente del `seed:family` ya se puede aprobar a mano.
+- `POST /family/register` acepta **5 registros por minuto** por IP. Si al probar el registro
+  seguido te sale **429**, no es un bug: espera un minuto.
+- Un familiar sin vínculo activo recibe **403** al confirmar asistencia (antes podía aunque
+  lo hubieran revocado).
+
 ## 2026-09-25 - La insignia nueva avisa por push, aunque la app esté cerrada (PR #129)
 
 **A quién le pega:** a quien pruebe Logros o toque `achievements`. **No hay que recompilar

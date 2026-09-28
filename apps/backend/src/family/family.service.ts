@@ -38,6 +38,13 @@ function isDuplicateEmail(err: unknown): boolean {
 // 'unlinked' no es un estado de FamilyLink: es la ausencia de vínculo (ninguna fila).
 export type FamilyLinkState = FamilyLinkStatus | 'unlinked';
 
+const LINK_PRIORITY: Record<FamilyLinkStatus, number> = {
+  active: 3,
+  pending: 2,
+  revoked: 1,
+  rejected: 0,
+};
+
 export type FamilySessionView = FamilySession & { userAttends: boolean | null };
 
 export interface FamilySessionsView {
@@ -228,23 +235,27 @@ export class FamilyService {
     const sedeId = await resolveSedeId(manager.getRepository(Sede), rawSedeId);
     if (!sedeId) return;
 
-    const links = await manager.getRepository(PsychologistSede).find({ where: { sedeId } });
-    const psychIds = new Set(links.map((l) => l.psychologistId));
-
-    // Respaldo legado: psicólogos sin fila en psychologist_sedes, con la sede en
-    // User.sedeId (nombre o UUID — ver la trampa documentada en sedes-of-user.ts).
-    if (psychIds.size === 0) {
-      const psychologists = await manager.getRepository(User).find({ where: { role: 'psychologist' } });
-      for (const p of psychologists) {
-        const pSedeId = await resolveSedeId(manager.getRepository(Sede), p.sedeId);
-        if (pSedeId === sedeId) psychIds.add(p.id);
-      }
+    // Misma regla con la que listLinksByStatus decide quién ve la solicitud
+    // (sedeIdsOfPsychologist). Antes el respaldo legado solo corría si NINGÚN psicólogo de la
+    // sede tenía fila en psychologist_sedes: con sedes mixtas, uno veía el pendiente sin aviso.
+    const psychologists = await manager.getRepository(User).find({
+      where: { role: 'psychologist', accountStatus: 'active' },
+    });
+    const psychIds: string[] = [];
+    for (const p of psychologists) {
+      const sedes = await sedeIdsOfPsychologist(
+        manager.getRepository(PsychologistSede),
+        manager.getRepository(Sede),
+        p.id,
+        p.sedeId,
+      );
+      if (sedes.includes(sedeId)) psychIds.push(p.id);
     }
-    if (psychIds.size === 0) return;
+    if (psychIds.length === 0) return;
 
     const notifRepo = manager.getRepository(Notification);
     await notifRepo.save(
-      [...psychIds].map((userId) =>
+      psychIds.map((userId) =>
         notifRepo.create({
           userId,
           type: 'info',
@@ -291,9 +302,22 @@ export class FamilyService {
     return this.linkRepo.save(link);
   }
 
+  // Un familiar puede tener más de un vínculo (uno rechazado por RUT equivocado y otro activo,
+  // por ejemplo). Un findOne sin orden dejaba a Postgres elegir, y el portal podía mostrar
+  // "rechazado" a quien sí tiene acceso. Manda el que da más acceso y, entre iguales, el último.
+  private async currentLinkFor(familyUserId: string): Promise<FamilyLink | null> {
+    const links = await this.linkRepo.find({
+      where: { familyUserId },
+      relations: ['patientUser'],
+      order: { createdAt: 'DESC' },
+    });
+    if (links.length === 0) return null;
+    return links.reduce((best, l) => (LINK_PRIORITY[l.status] > LINK_PRIORITY[best.status] ? l : best));
+  }
+
   // CA 11.6 — estado del vínculo del familiar
   async getLinkStatus(familyUserId: string): Promise<{ status: FamilyLinkState }> {
-    const link = await this.linkRepo.findOne({ where: { familyUserId } });
+    const link = await this.currentLinkFor(familyUserId);
     if (!link) return { status: 'unlinked' };
     return { status: link.status };
   }
@@ -458,13 +482,10 @@ export class FamilyService {
   // Solo lectura: el cobro todavía no tiene pasarela (ASUNCIONES-PENDIENTES, puntos 4 y 6),
   // así que el familiar ve qué hay que pagar pero nada de acá marca una cuota como pagada.
   async getBillingForFamily(familyUserId: string): Promise<FamilyBillingView> {
-    const link = await this.linkRepo.findOne({
-      where: { familyUserId },
-      relations: ['patientUser'],
-    });
+    const link = await this.currentLinkFor(familyUserId);
 
     if (!link) return EMPTY_BILLING('unlinked');
-    if (link.status !== 'active') return EMPTY_BILLING(link.status);
+    if (link.status !== 'active' || !link.patientUser) return EMPTY_BILLING(link.status);
 
     const patientId = link.patientUserId;
     const [overdue, next] = await Promise.all([
@@ -502,13 +523,10 @@ export class FamilyService {
   // CA 11.1 + 11.5 + 11.6 — sesiones de la sede del paciente vinculado, ordenadas por proximidad.
   // Sin vínculo no es un error: es el estado que la vista de familiar tiene que pintar (11.6).
   async getSessionsForFamily(familyUserId: string): Promise<FamilySessionsView> {
-    const link = await this.linkRepo.findOne({
-      where: { familyUserId },
-      relations: ['patientUser'],
-    });
+    const link = await this.currentLinkFor(familyUserId);
 
     if (!link) return EMPTY_VIEW('unlinked');
-    if (link.status !== 'active') return EMPTY_VIEW(link.status);
+    if (link.status !== 'active' || !link.patientUser) return EMPTY_VIEW(link.status);
 
     const { sedeId } = link.patientUser;
     if (!sedeId) return EMPTY_VIEW('active');
@@ -544,8 +562,22 @@ export class FamilyService {
     sessionId: string,
     dto: ConfirmAttendanceDto,
   ): Promise<SessionAttendance> {
+    // Sin este chequeo un familiar pendiente, rechazado o revocado seguía confirmando asistencia
+    // a cualquier sesión: revocar (HDU 23 CA5) no le retiraba el acceso del todo.
+    const link = await this.currentLinkFor(familyUserId);
+    if (!link || link.status !== 'active' || !link.patientUser) {
+      throw new ForbiddenException('Tu vínculo con el paciente no está activo');
+    }
+
     const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
-    if (!session) throw new NotFoundException('Sesión no encontrada');
+    // Misma respuesta que una sesión inexistente: no confirma que exista en otra sede.
+    const [sessionSede, patientSede] = await Promise.all([
+      resolveSedeId(this.sedeRepo, session?.sedeId),
+      resolveSedeId(this.sedeRepo, link.patientUser.sedeId),
+    ]);
+    if (!session || !sessionSede || sessionSede !== patientSede) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
 
     const existing = await this.attendanceRepo.findOne({ where: { sessionId, familyUserId } });
     if (existing) {

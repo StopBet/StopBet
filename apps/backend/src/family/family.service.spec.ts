@@ -1,4 +1,4 @@
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, ForbiddenException } from '@nestjs/common';
 import { FamilyService } from './family.service';
 import { FamilyLink } from './entities/family-link.entity';
 import { User } from '../users/entities/user.entity';
@@ -89,7 +89,7 @@ describe('FamilyService (HU-11)', () => {
   // ── CA 11.6 ───────────────────────────────────────────────────────────────
 
   it('CA 11.6: sin vínculo devuelve unlinked, no un error', async () => {
-    linkRepo.findOne.mockResolvedValue(null);
+    linkRepo.find.mockResolvedValue([]);
 
     const view = await service.getSessionsForFamily(FAMILY_ID);
 
@@ -99,7 +99,7 @@ describe('FamilyService (HU-11)', () => {
   });
 
   it('CA 11.6: vínculo pendiente devuelve pending sin listar sesiones', async () => {
-    linkRepo.findOne.mockResolvedValue({ status: 'pending', patientUser: { sedeId: SEDE } });
+    linkRepo.find.mockResolvedValue([{ status: 'pending', patientUser: { sedeId: SEDE } }]);
 
     const view = await service.getSessionsForFamily(FAMILY_ID);
 
@@ -110,7 +110,7 @@ describe('FamilyService (HU-11)', () => {
   // ── CA 11.1 y 11.5 ────────────────────────────────────────────────────────
 
   it('CA 11.1: pide las sesiones de la sede del paciente vinculado', async () => {
-    linkRepo.findOne.mockResolvedValue({ status: 'active', patientUser: { sedeId: SEDE } });
+    linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: SEDE } }]);
 
     await service.getSessionsForFamily(FAMILY_ID);
 
@@ -119,7 +119,7 @@ describe('FamilyService (HU-11)', () => {
   });
 
   it('CA 11.1: marca userAttends según lo ya respondido y null si no respondió', async () => {
-    linkRepo.findOne.mockResolvedValue({ status: 'active', patientUser: { sedeId: SEDE } });
+    linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: SEDE } }]);
     sessionRepo.find.mockResolvedValue([
       { id: 's1', sessionDate: daysFromNow(2) },
       { id: 's2', sessionDate: daysFromNow(5) },
@@ -136,7 +136,7 @@ describe('FamilyService (HU-11)', () => {
   });
 
   it('CA 11.5: hasUpcoming es false si todo cae fuera de las 4 semanas', async () => {
-    linkRepo.findOne.mockResolvedValue({ status: 'active', patientUser: { sedeId: SEDE } });
+    linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: SEDE } }]);
     sessionRepo.find.mockResolvedValue([{ id: 's1', sessionDate: daysFromNow(45) }]);
 
     const view = await service.getSessionsForFamily(FAMILY_ID);
@@ -146,7 +146,7 @@ describe('FamilyService (HU-11)', () => {
   });
 
   it('CA 11.5: hasUpcoming es true con una sesión dentro de las 4 semanas', async () => {
-    linkRepo.findOne.mockResolvedValue({ status: 'active', patientUser: { sedeId: SEDE } });
+    linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: SEDE } }]);
     sessionRepo.find.mockResolvedValue([
       { id: 's1', sessionDate: daysFromNow(3) },
       { id: 's2', sessionDate: daysFromNow(60) },
@@ -155,24 +155,92 @@ describe('FamilyService (HU-11)', () => {
     expect((await service.getSessionsForFamily(FAMILY_ID)).hasUpcoming).toBe(true);
   });
 
-  // ── CA 11.4 ───────────────────────────────────────────────────────────────
+  // Postgres no garantiza orden sin ORDER BY: con un vínculo rechazado y otro activo, el portal
+  // podía mostrar "rechazado" a quien sí tiene acceso.
+  it('con varios vínculos manda el activo aunque haya uno rechazado más reciente', async () => {
+    linkRepo.find.mockResolvedValue([
+      { status: 'rejected', patientUser: null },
+      { status: 'active', patientUser: { sedeId: SEDE } },
+    ]);
 
-  it('CA 11.4: responder dos veces actualiza la respuesta en vez de duplicarla', async () => {
-    sessionRepo.findOne.mockResolvedValue({ id: 's1' });
-    attendanceRepo.findOne.mockResolvedValue({ id: 'a1', sessionId: 's1', confirmed: true });
-
-    const saved = await service.confirmAttendance(FAMILY_ID, 's1', { confirmed: false });
-
-    expect(attendanceRepo.create).not.toHaveBeenCalled();
-    expect(saved.confirmed).toBe(false);
+    expect(await service.getLinkStatus(FAMILY_ID)).toEqual({ status: 'active' });
   });
 
-  it('CA 11.4: falla si la sesión no existe', async () => {
-    sessionRepo.findOne.mockResolvedValue(null);
+  it('entre vínculos sin acceso manda el más reciente', async () => {
+    linkRepo.find.mockResolvedValue([
+      { status: 'revoked', patientUser: { sedeId: SEDE } },
+      { status: 'rejected', patientUser: null },
+    ]);
 
-    await expect(service.confirmAttendance(FAMILY_ID, 'nope', { confirmed: true })).rejects.toThrow(
-      'Sesión no encontrada',
-    );
+    expect(await service.getLinkStatus(FAMILY_ID)).toEqual({ status: 'revoked' });
+    expect(linkRepo.find.mock.calls[0][0].order).toEqual({ createdAt: 'DESC' });
+  });
+
+  // ── CA 11.4 ───────────────────────────────────────────────────────────────
+
+  describe('confirmAttendance', () => {
+    const activeLink = { status: 'active', patientUser: { sedeId: SEDE_UUID } };
+
+    it('CA 11.4: responder dos veces actualiza la respuesta en vez de duplicarla', async () => {
+      linkRepo.find.mockResolvedValue([activeLink]);
+      sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: SEDE_UUID });
+      attendanceRepo.findOne.mockResolvedValue({ id: 'a1', sessionId: 's1', confirmed: true });
+
+      const saved = await service.confirmAttendance(FAMILY_ID, 's1', { confirmed: false });
+
+      expect(attendanceRepo.create).not.toHaveBeenCalled();
+      expect(saved.confirmed).toBe(false);
+    });
+
+    it('CA 11.4: falla si la sesión no existe', async () => {
+      linkRepo.find.mockResolvedValue([activeLink]);
+      sessionRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.confirmAttendance(FAMILY_ID, 'nope', { confirmed: true })).rejects.toThrow(
+        'Sesión no encontrada',
+      );
+    });
+
+    // HDU 23 CA5: revocar retira el acceso de inmediato, también para responder asistencia.
+    it.each(['pending', 'rejected', 'revoked'])('rechaza con 403 si el vínculo está %s', async (status) => {
+      linkRepo.find.mockResolvedValue([{ ...activeLink, status }]);
+      sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: SEDE_UUID });
+
+      await expect(service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true })).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(attendanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 403 si no tiene vínculo', async () => {
+      linkRepo.find.mockResolvedValue([]);
+
+      await expect(service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true })).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
+    it('una sesión de otra sede responde igual que una inexistente', async () => {
+      linkRepo.find.mockResolvedValue([activeLink]);
+      sessionRepo.findOne.mockResolvedValue({ id: 's9', sedeId: '99999999-9999-9999-9999-999999999999' });
+
+      await expect(service.confirmAttendance(FAMILY_ID, 's9', { confirmed: true })).rejects.toThrow(
+        'Sesión no encontrada',
+      );
+      expect(attendanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    // users.sedeId puede traer el nombre ('Santiago') y la sesión el UUID de la misma sede.
+    it('acepta la sesión si la sede del paciente viene por nombre y la de la sesión por UUID', async () => {
+      linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: 'Santiago' } }]);
+      sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: SEDE_UUID });
+      sedeRepo.findOne.mockResolvedValue({ id: SEDE_UUID });
+      attendanceRepo.findOne.mockResolvedValue(null);
+
+      const saved = await service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true });
+
+      expect(saved).toMatchObject({ sessionId: 's1', familyUserId: FAMILY_ID, confirmed: true });
+    });
   });
 
   // Regresión: la relación familyUser trae passwordHash y el RUT ya descifrado
@@ -295,7 +363,8 @@ describe('FamilyService (HU-11)', () => {
       userRepo.findOne.mockResolvedValue(null);
       userRepo.find
         .mockResolvedValueOnce([]) // cuentas existentes (dedupe de RUT)
-        .mockResolvedValueOnce([{ id: 'pat-1', rut: '22.222.222-2', sedeId: SEDE_UUID }]); // pacientes
+        .mockResolvedValueOnce([{ id: 'pat-1', rut: '22.222.222-2', sedeId: SEDE_UUID }]) // pacientes
+        .mockResolvedValueOnce([{ id: 'psych-1', sedeId: null }]); // psicólogos activos
       psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
 
       const result = await service.registerFamily(baseDto);
@@ -312,6 +381,31 @@ describe('FamilyService (HU-11)', () => {
       expect(notifRepo.save).toHaveBeenCalledWith([
         expect.objectContaining({ userId: 'psych-1', type: 'info' }),
       ]);
+    });
+
+    // Avisa exactamente a quienes después verán el pendiente en /family/pending: antes, con un
+    // psicólogo en psychologist_sedes y otro solo con sede legada, el segundo no recibía aviso.
+    it('CA1: en una sede mixta avisa también al psicólogo con sede legada, y a nadie de otra sede', async () => {
+      userRepo.findOne.mockResolvedValue(null);
+      userRepo.find
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ id: 'pat-1', rut: '22.222.222-2', sedeId: SEDE_UUID }])
+        .mockResolvedValueOnce([
+          { id: 'psych-1', sedeId: null },
+          { id: 'psych-legado', sedeId: 'Santiago' },
+          { id: 'psych-otro', sedeId: null },
+        ]);
+      psychSedeRepo.find.mockImplementation(({ where }: { where: { psychologistId: string } }) => {
+        if (where.psychologistId === 'psych-1') return Promise.resolve([{ sedeId: SEDE_UUID }]);
+        if (where.psychologistId === 'psych-otro') return Promise.resolve([{ sedeId: 'sede-concepcion' }]);
+        return Promise.resolve([]);
+      });
+      sedeRepo.findOne.mockResolvedValue({ id: SEDE_UUID });
+
+      await service.registerFamily(baseDto);
+
+      const notified = notifRepo.save.mock.calls[0][0].map((n: { userId: string }) => n.userId);
+      expect(notified).toEqual(['psych-1', 'psych-legado']);
     });
 
     // CA2 — ni la respuesta ni ningún psicólogo se enteran de que el RUT no coincidió: solo
@@ -528,7 +622,7 @@ describe('FamilyService (HU-11)', () => {
   // ── Mensualidad ───────────────────────────────────────────────────────────
 
   it('mensualidad: sin vínculo activo no expone cuotas del paciente', async () => {
-    linkRepo.findOne.mockResolvedValue({ status: 'pending', patientUserId: 'pat-1', patientUser: {} });
+    linkRepo.find.mockResolvedValue([{ status: 'pending', patientUserId: 'pat-1', patientUser: {} }]);
 
     const view = await service.getBillingForFamily(FAMILY_ID);
 
@@ -538,11 +632,13 @@ describe('FamilyService (HU-11)', () => {
   });
 
   it('mensualidad: suma las cuotas vencidas y trae la próxima pendiente', async () => {
-    linkRepo.findOne.mockResolvedValue({
-      status: 'active',
-      patientUserId: 'pat-1',
-      patientUser: { firstName: 'Lucía', accountStatus: 'suspended' },
-    });
+    linkRepo.find.mockResolvedValue([
+      {
+        status: 'active',
+        patientUserId: 'pat-1',
+        patientUser: { firstName: 'Lucía', accountStatus: 'suspended' },
+      },
+    ]);
     invoiceRepo.find.mockResolvedValue([
       { month: '2026-06', amountCLP: 30000, dueDate: '2026-06-30' },
       { month: '2026-07', amountCLP: 30000, dueDate: '2026-07-31' },

@@ -153,8 +153,9 @@ export function RegistroFamiliarPage() {
               Solicitud enviada
             </h2>
             <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>
-              Revisamos tu solicitud y te avisaremos por correo cuando el equipo clínico confirme
-              el vínculo con el paciente.
+              El equipo clínico va a revisar tu solicitud. Inicia sesión con tu correo y
+              contraseña para ver en qué estado está: cuando confirmen el vínculo, ahí mismo
+              verás las sesiones grupales.
             </p>
             <Link
               to="/"

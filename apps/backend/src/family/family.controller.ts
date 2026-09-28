@@ -9,6 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { FamilyService } from './family.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
@@ -30,6 +31,9 @@ export class FamilyController {
   // Público: quien se registra todavía no tiene cuenta (HDU 22).
   @Public()
   @Post('register')
+  // CA3 obliga a responder 409 ante un RUT ya registrado, y eso deja sondear si un RUT existe
+  // en el sistema. No se puede cerrar sin romper CA3; sí encarecerlo, igual que /auth/login.
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @ApiOperation({ summary: 'Registra la cuenta de un familiar declarando el RUT del paciente' })
   @ApiResponse({ status: 201, description: 'RegisterFamilyResponse — misma respuesta exista o no el paciente' })
   @ApiResponse({ status: 409, description: 'Ya existe una cuenta con ese correo o RUT' })
