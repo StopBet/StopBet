@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-27 - Los endpoints de compañero de viaje estaban caídos en producción (PR pendiente)
+## 2026-09-27 - Los endpoints de compañero de viaje estaban caídos en producción (PR #132)
 
 **A quién le pega:** a quien haya probado asignar o designar compañeros de viaje desde que se
 mergeó el #119 y le haya dado error. No era tu entorno.
