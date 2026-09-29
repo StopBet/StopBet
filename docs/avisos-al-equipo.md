@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-29 - Hay una sección nueva en el menú: Compañeros de viaje (PR pendiente)
+## 2026-09-29 - Hay una sección nueva en el menú: Compañeros de viaje (PR #135)
 
 **A quién le pega:** a **Alex** (`DashboardApp.tsx` y `Sidebar.tsx`) y a quien pruebe asignar
 compañeros de viaje.
