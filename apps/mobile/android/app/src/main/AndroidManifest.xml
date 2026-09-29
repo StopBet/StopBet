@@ -4,6 +4,13 @@
     <!-- CA7.4: desde Android 13 la notificacion requiere permiso explicito del
          usuario. Sin esto el recordatorio de las 20:00 no se muestra nunca. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- SPIKE 2 (CA2): el VpnService del bloqueo corre como servicio en primer plano. Desde
+         Android 14 el tipo es obligatorio; systemExempted es el que Android reserva a las
+         apps de VPN, y sin su permiso el servicio se cae al arrancar. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
+    <!-- Para volver a levantar el bloqueo tras reiniciar el teléfono (blocking/BootReceiver). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
       android:name=".MainApplication"
@@ -27,5 +34,23 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <service
+        android:name=".blocking.BlockingVpnService"
+        android:permission="android.permission.BIND_VPN_SERVICE"
+        android:foregroundServiceType="systemExempted"
+        android:exported="false">
+        <intent-filter>
+          <action android:name="android.net.VpnService" />
+        </intent-filter>
+      </service>
+
+      <receiver
+        android:name=".blocking.BootReceiver"
+        android:exported="true">
+        <intent-filter>
+          <action android:name="android.intent.action.BOOT_COMPLETED" />
+        </intent-filter>
+      </receiver>
     </application>
 </manifest>

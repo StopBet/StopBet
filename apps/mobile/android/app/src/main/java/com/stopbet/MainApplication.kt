@@ -16,6 +16,7 @@ import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.modules.network.OkHttpClientProvider
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
+import com.stopbet.blocking.BlockingPackage
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Proxy
@@ -95,6 +96,7 @@ class MainApplication : Application(), ReactApplication {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
               // Packages that cannot be autolinked yet can be added manually here
+              add(BlockingPackage())
             }
 
         override fun getJSMainModuleName(): String = "index"
