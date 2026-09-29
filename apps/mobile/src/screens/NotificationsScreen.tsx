@@ -102,6 +102,10 @@ export function NotificationsScreen({ navigation }: Props) {
       case 'payment':
         navigation.navigate('MainTabs', { screen: 'Profile' });
         break;
+      // La solicitud se responde en la tarjeta del Inicio (HDU 23 CA4).
+      case 'family-request':
+        navigation.navigate('MainTabs', { screen: 'Home' });
+        break;
       default:
         break;
     }

@@ -186,6 +186,26 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 | `GET /billing/patients/:patientId/status` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación — nuevo 16-09, para el reporte PDF |
 | `GET /family/billing` | `family` (solo con vínculo `active`) | ✅ Protegido — nuevo 22-09, solo lectura: cuotas del paciente vinculado para la pantalla de pago del portal |
 
+## `family` — `/family`  _(HdU11, 22 y 23; actualizado 29-09-2026)_
+
+| Método + Path | Rol objetivo | Estado actual |
+|---|---|---|
+| `POST /family/register` | **público** | 🔓 Público — quien se registra todavía no tiene cuenta. **5 por minuto**: el 409 por RUT repetido que exige HDU 22 CA3 permite sondear si un RUT existe, y el límite lo encarece. Misma respuesta exista o no el paciente declarado |
+| `POST /family/link` | `family` | ✅ Protegido — 5 por minuto. Responde igual exista o no el paciente (antes daba 404 y servía para averiguar quién es paciente) |
+| `GET /family/link-status` | `family` | ✅ Protegido — solo el vínculo propio |
+| `GET /family/sessions` | `family` | ✅ Protegido — solo con vínculo `active`, sesiones de la sede del paciente |
+| `POST /family/sessions/:id/attendance` | `family` | ✅ Protegido — exige vínculo `active` y que la sesión sea de la sede del paciente (otra sede responde igual que una inexistente) |
+| `GET /family/billing` | `family` | ✅ Protegido — solo con vínculo `active`, solo lectura |
+| `GET /family/pending`, `GET /family/active` | `psychologist`, `coordinator` | ✅ Protegido — un psicólogo solo ve los de sus sedes; la coordinación, todos. Los intentos con un paciente inexistente no aparecen nunca |
+| `PATCH /family/links/:id/confirm` \| `reject` \| `revoke` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede (403 fuera de ella). Confirmar exige cómo se verificó y respeta el «no» del paciente |
+| `GET /family/patient-requests` | `patient` | ✅ Protegido — solo las solicitudes pendientes dirigidas a él |
+| `PATCH /family/patient-requests/:id` | `patient` | ✅ Protegido — solo las propias y pendientes (404 si no) |
+| `GET /family/sede/sessions` | `psychologist`, `coordinator` | ✅ Protegido — la sede sale del token |
+| `GET /family/sessions/:id/attendance` | `psychologist`, `coordinator` | ⚠️ Protegido por rol, **sin chequeo de sede**: ver *Lo que sigue pendiente*, punto 5 |
+| `POST /family/sessions` | `psychologist`, `coordinator` | ⚠️ Protegido por rol, **sin chequeo de sede**: ver punto 5 |
+
+---
+
 ## `subscriptions` — `/subscriptions`
 
 | Método + Path | Rol objetivo | Estado actual |
@@ -234,6 +254,11 @@ Todo con tests: `test/auth-global.e2e-spec.ts` (15 casos), `test/roles.e2e-spec.
 4. **Moderación para la coordinación:** `GET /community/moderation/flagged` le responde 403 a
    la coordinación, y la página de Solicitudes lo pide igual. No es un hueco (falla cerrado),
    pero ensucia la consola.
+5. **Sesiones de familiares sin chequeo de sede** (código de la HU-11): `GET
+   /family/sessions/:id/attendance` le muestra a un psicólogo quién confirmó asistencia a una
+   sesión de **cualquier** sede si conoce su id, y `POST /family/sessions` le deja crear sesiones
+   en una sede que no atiende. Hay que aplicarles la misma regla que a `/family/pending`
+   (`sedeIdsOfPsychologist`). Expone nombres de familiares, no datos clínicos.
 
 ## HTTPS (parte de S.6)
 

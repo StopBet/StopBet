@@ -15,6 +15,7 @@ import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
 import { ConfirmFamilyLinkDto } from './dto/confirm-family-link.dto';
+import { AnswerFamilyRequestDto } from './dto/answer-family-request.dto';
 import { RegisterFamilyDto } from './dto/register-family.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -116,6 +117,29 @@ export class FamilyController {
   @ApiResponse({ status: 409, description: 'El vínculo no está activo' })
   revokeLink(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.familyService.revokeLink(id, user);
+  }
+
+  // ── Consulta al paciente (HDU 23 CA4) ───────────────────────────────────────
+
+  @Get('patient-requests')
+  @Roles('patient')
+  @ApiOperation({ summary: 'HDU 23 CA4 — Solicitudes de vínculo que el paciente tiene que responder' })
+  @ApiResponse({ status: 200, description: 'PatientFamilyRequest[] — solo las pendientes' })
+  listPatientRequests(@CurrentUser() user: AuthUser) {
+    return this.familyService.listRequestsForPatient(user.id);
+  }
+
+  @Patch('patient-requests/:id')
+  @Roles('patient')
+  @ApiOperation({ summary: 'HDU 23 CA4 — El paciente confirma o niega que la persona es su familiar' })
+  @ApiResponse({ status: 200, description: 'Respuesta registrada; avisa a los psicólogos de su sede' })
+  @ApiResponse({ status: 404, description: 'No es su solicitud o ya fue resuelta por el equipo clínico' })
+  answerPatientRequest(
+    @Param('id') id: string,
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AnswerFamilyRequestDto,
+  ) {
+    return this.familyService.answerRequest(user.id, id, dto.accept);
   }
 
   // ── Mensualidad ───────────────────────────────────────────────────────────

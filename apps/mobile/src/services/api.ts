@@ -12,6 +12,7 @@ import type {
   Notification,
   PaginatedResponse,
   PanicAlertDto,
+  PatientFamilyRequest,
   PaymentMethod,
   ReactionEmoji,
   ReactionSummary,
@@ -262,6 +263,17 @@ export const api = {
     request<void>(`/notifications/${notificationId}/read`, {
       userId,
       method: 'PATCH',
+    }),
+
+  // ── Solicitudes de vínculo familiar (HDU 23 CA4) ──────────────────────
+  getFamilyRequests: (userId: string) =>
+    request<PatientFamilyRequest[]>('/family/patient-requests', { userId }),
+
+  answerFamilyRequest: (userId: string, requestId: string, accept: boolean) =>
+    request<void>(`/family/patient-requests/${requestId}`, {
+      userId,
+      method: 'PATCH',
+      body: JSON.stringify({ accept }),
     }),
 
   // ── Sedes ────────────────────────────────────────────────────────────

@@ -21,6 +21,7 @@ import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
 import { NotificationBell } from '../components/NotificationBell';
 import { NotificationCard } from '../components/NotificationCard';
+import { FamilyRequestCards } from '../components/FamilyRequestCard';
 import { BlockingInviteCard } from '../components/BlockingInviteCard';
 import { Icon } from '../components/Icon';
 import type { Palette } from '../constants/colors';
@@ -351,6 +352,8 @@ export function HomeScreen({ navigation }: Props) {
               ))}
             </View>
           )}
+
+          <FamilyRequestCards />
 
           {askReminder && (
             <View style={styles.reminderCard}>
