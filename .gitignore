@@ -106,3 +106,6 @@ package-lock.json
 p.json
 patients.json
 scripts/check_community.py
+
+# Graphify (skill local opcional, no se versiona)
+graphify-out/
