@@ -20,6 +20,26 @@ está.
 
 ---
 
+## 2026-09-27 - Los endpoints de compañero de viaje estaban caídos en producción (PR #132)
+
+**A quién le pega:** a quien haya probado asignar o designar compañeros de viaje desde que se
+mergeó el #119 y le haya dado error. No era tu entorno.
+
+**Qué hacer después de pullear:** nada. La tabla la crea `synchronize` al arrancar.
+
+**Qué pasaba:** `SponsorDesignation` estaba registrada en su módulo pero **no en el array
+`entities` de `app.module.ts`**, que es lo que TypeORM usa para crear el esquema. La tabla nunca
+existió, ni en local ni en Railway, así que los seis endpoints de `/sponsors` y
+`POST /panic/assign` respondían 500. Los 374 tests unitarios pasaban igual porque mockean los
+repositorios.
+
+**Segundo fallo, del mismo tamaño:** los DTO validaban con `@IsUUID()`, que aplica el criterio de
+la RFC. Los ids escritos a mano del seed no lo cumplen — **24 de las 25 cuentas de desarrollo**
+daban 400. Ahora usan `IsDbUuid`, que ya existía en `registration/` por esto mismo.
+
+**Si vas a escribir un endpoint que reciba un id de una cuenta del seed, usa `IsDbUuid` y
+`ParseDbUuidPipe` (nuevo, en `common/pipes/`), no `@IsUUID()` ni `ParseUUIDPipe`.** Es el error
+más fácil de repetir y no se nota hasta que alguien prueba con datos de desarrollo.
 ## 2026-09-25 - La insignia nueva avisa por push, aunque la app esté cerrada (PR #129)
 
 **A quién le pega:** a quien pruebe Logros o toque `achievements`. **No hay que recompilar
