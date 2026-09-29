@@ -31,6 +31,8 @@ import {
 import { AuthContext, useCurrentUser, useUserId } from '../context/AuthContext';
 import { Touchable } from '../components/Touchable';
 import { useDialog } from '../context/DialogContext';
+import { BlockingPocCard } from '../components/BlockingPocCard';
+import { BlockingProfileSection } from '../components/BlockingProfileSection';
 
 
 // Vive en el navegador de pestañas, pero también navega al stack de arriba
@@ -244,6 +246,8 @@ export function ProfileScreen({ navigation }: Props) {
           </View>
         </View>
 
+        <BlockingProfileSection />
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle} accessibilityRole="header">Notificaciones</Text>
           <View style={styles.menuCard}>
@@ -335,6 +339,10 @@ export function ProfileScreen({ navigation }: Props) {
               <Icon name="flask-conical" size={14} color={c.fg2} />
               <Text style={styles.devTitle}>Herramientas de prueba</Text>
             </View>
+            <BlockingPocCard />
+
+            <View style={styles.devDivider} />
+
             <View style={styles.devRow}>
               <View style={styles.devText}>
                 <Text style={styles.devLabel}>Simular sin conexión</Text>
