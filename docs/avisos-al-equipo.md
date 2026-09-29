@@ -20,6 +20,28 @@ está.
 
 ---
 
+## 2026-09-29 - Bloqueo de apuestas: no marcar StopBet como «VPN siempre activa» (PR pendiente)
+
+**A quién le pega:** a **todos los que prueban o muestran el bloqueo de apuestas** en un teléfono
+o emulador.
+
+**Qué hacer después de pullear:** **recompilar el nativo** (`pnpm run android:device`, o en
+emulador `npx react-native run-android --extra-params "-PreactNativeArchitectures=x86_64"`):
+cambió el módulo y su spec de codegen.
+
+**Qué cambió:** en Ajustes › VPN, **no actives «VPN siempre activa» ni «Bloquear conexiones sin
+VPN» para StopBet**. Con las dos puestas, apagar el bloqueo desde Herramientas de prueba dejaba el
+teléfono **sin internet en todo** (Chrome: `DNS_PROBE_FINISHED_NO_INTERNET`), y parecía que el
+bloqueo había roto la red. Ahora, en Android 10 o más nuevo, el interruptor no apaga: avisa y abre
+Ajustes › VPN para quitar esa opción. En Android 7-9 no se puede detectar y sigue pasando.
+
+**Si ya te pasó:** Ajustes › Red e Internet › VPN › ⚙️ de StopBet › apaga «VPN siempre activa».
+En emulador, por consola: `adb shell settings put secure always_on_vpn_lockdown 0`,
+`adb shell settings delete secure always_on_vpn_app` y reinicia el emulador (Android solo lo relee
+al arrancar).
+
+---
+
 ## 2026-09-29 - La app tiene el primer módulo nativo propio: bloqueo de apuestas (PR pendiente)
 
 **A quién le pega:** a **todos los que corren la app móvil**.

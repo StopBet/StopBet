@@ -38,6 +38,7 @@ usando la API `VpnService` como filtro de DNS local. El paciente puede desactiva
 | **El paciente puede apagarlo en dos toques** | Es una barrera contra el impulso, no un candado. Hay que decirlo al definir qué se promete |
 | **El DNS cifrado se lo salta** | Chrome con "DNS seguro" y un proveedor elegido a mano, o el DNS privado de Android en modo estricto _(por medir — CA2)_ |
 | **Una sola VPN activa a la vez** | Si el paciente usa otra VPN, una desactiva a la otra |
+| **«VPN siempre activa» con «Bloquear conexiones sin VPN»** | Si el paciente activa las dos en Ajustes, apagar el bloqueo desde la app deja **todo el teléfono sin internet**, y solo con la primera Android lo vuelve a encender solo. Desde Android 10 la app lo detecta (`isAlwaysOn()` / `isLockdownEnabled()`) y manda a Ajustes › VPN en vez de apagar; en Android 7-9 no hay API para saberlo _(verificado en emulador, 29-09)_ |
 | **Filtrar DNS no impide abrir aplicaciones** | Una app de apuestas instalada se abre igual; lo que se corta es su conexión, si resuelve por el DNS del sistema. Decisión del CA4 (§7) |
 | **Google Play exige declaración, video y aviso propio** | Trámite obligatorio al publicar, más un texto que AJUTER debe validar (§4) |
 | **Las listas envejecen solas** | Los operadores cambian de dominio. `rab0na-2417.com` —con un cero— está en la nómina oficial |
