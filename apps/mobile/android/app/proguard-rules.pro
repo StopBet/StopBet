@@ -37,3 +37,9 @@
 -keepclassmembers class * {
     @com.facebook.react.bridge.ReactMethod <methods>;
 }
+
+# Bloqueo de apuestas (SPIKE 2 / HdU08): el TurboModule se busca por nombre desde C++ y el
+# servicio y el receptor los instancia el sistema. R8 solo corre en release, así que si los
+# renombra el problema no aparece en desarrollo: se ve recién en el APK que usan los pacientes.
+-keep class com.stopbet.blocking.** { *; }
+-keep class com.stopbet.specs.** { *; }

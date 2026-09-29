@@ -20,6 +20,31 @@ está.
 
 ---
 
+## 2026-09-29 - La app tiene el primer módulo nativo propio: bloqueo de apuestas (PR pendiente)
+
+**A quién le pega:** a **todos los que corren la app móvil**.
+
+**Qué hacer después de pullear:** **recompilar el nativo**, no basta con recargar Metro:
+`pnpm run android:device`. El PR agrega un TurboModule con codegen (`codegenConfig` en
+`apps/mobile/package.json`), un servicio y un receptor en el `AndroidManifest.xml` y un paquete
+en `MainApplication.kt`. Con un APK viejo y el JS nuevo, la sección de Perfil simplemente no
+aparece y la invitación de Inicio tampoco: no es un bug, es el APK desactualizado.
+
+**Qué cambió de forma visible:**
+- En **Inicio** aparece una tarjeta *Protección contra sitios de apuestas* con **Activar
+  protección / Ahora no**. Al activar, Android pide confirmar una *Solicitud de conexión* VPN y
+  aparece el ícono VPN en la barra de estado. **Mientras está activa, los sitios de apuestas no
+  cargan en ningún navegador del teléfono** (`DNS_PROBE_FINISHED_NXDOMAIN`): si pruebas algo y
+  no carga, mira primero si el ícono VPN está encendido.
+- En **Perfil** hay una sección *Protección contra apuestas* **sin interruptor**: se apaga desde
+  Ajustes › VPN de Android (el botón lleva ahí). Es a propósito.
+- Solo Android y solo el rol paciente. El equipo clínico no lo ve.
+
+**OJO ALEX y quien toque `HomeScreen.tsx` / `ProfileScreen.tsx`:** son dos líneas aditivas
+(`<BlockingInviteCard />` y `<BlockingProfileSection />`); el resto vive en componentes propios.
+
+---
+
 ## 2026-09-29 - Hay una sección nueva en el menú: Compañeros de viaje (PR #135)
 
 **A quién le pega:** a **Alex** (`DashboardApp.tsx` y `Sidebar.tsx`) y a quien pruebe asignar

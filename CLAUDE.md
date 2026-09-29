@@ -23,6 +23,10 @@ Plataforma clínica para tratamiento de ludopatía. Datos de pacientes son **sen
   - `apps/backend/src/main.ts` sube `keepAliveTimeout` a 310 s y `headersTimeout` a 320 s: el tope tiene que superar el tiempo que el **cliente** guarda la conexión, no solo el del proxy.
   - `apps/mobile/src/services/reintentoEscritura.ts` reintenta pánico y check-in ante fallo de red. Ahí un **`409` en el reintento no es un error: es la confirmación de que la primera sí llegó**.
   - En Comunidad el reintento sería peor que la falla —el mensaje quedaba dos veces en el foro delante del grupo; pasó en producción, dos posts idénticos separados por 110 s—, así que va por **idempotencia real**: `community_posts` y `post_replies` tienen `clientRequestId` con índice único, la app lo conserva al reintentar y el backend devuelve el registro original sin volver a notificar. La clave va atada al texto: si el paciente corrige lo que escribió, es otro mensaje y lleva clave nueva. Es nullable a propósito, para que un APK viejo y los posts que crea el backend (pánico, insignia) sigan funcionando.
+- **Bloqueo de apuestas** (SPIKE 2 → HdU08, 29-09): primer **módulo nativo propio** del proyecto, `VpnService` que filtra **solo DNS** en el teléfono (`android/.../com/stopbet/blocking/`, TurboModule con codegen: `codegenConfig` en `apps/mobile/package.json`, spec en `src/specs/NativeBlocking.ts`). Diseño y evidencia en `docs/planning/spike2-bloqueo-android.md`.
+  - **Se activa una vez y se apaga solo desde Ajustes › VPN de Android**, a propósito: Perfil muestra el estado sin interruptor. La invitación de Inicio (`BlockingInviteCard`) es también el **aviso destacado que exige Google Play**: no la reduzcas a un botón. `useBlockingAutoStart` lo vuelve a levantar al abrir la app si el sistema lo mató, pero **nunca si el paciente lo apagó** (`enabled=false` tras `onRevoke()`); `BootReceiver` hace lo mismo al reiniciar el teléfono.
+  - La lista (54 dominios: nómina de Subtel + 12 de control) está **fija en `DomainList.kt`**; servirla desde el backend es HdU15. **No se reporta nada al backend todavía**: el texto del aviso dice que la navegación no sale del teléfono, y hay que cambiarlo (y pedir consentimiento) antes de mandar eventos al psicólogo.
+  - ⚠️ El release corre con **R8/ProGuard** y el debug no: `proguard-rules.pro` conserva `com.stopbet.blocking.**`. Probar siempre con un APK de release antes de dar algo nativo por bueno.
 - **Mobile** (React Native CLI 0.86): compila y corre en Android físico y en emulador. Flujo y *gotchas* del monorepo en `apps/mobile/README.md`. El check-in se encola en `AsyncStorage` si no hay red y se reintenta al reconectar; el asistente muestra una tarjeta de crisis (pánico / compañero de viaje / `*4141`) ante riesgo alto, y un mensaje de respaldo dentro del hilo si el envío falla.
   - **Rendimiento (22-09, `docs/auditoria-rendimiento-mobile-2026-09-22.md`): 15 de 17 hallazgos aplicados.** El bundle de producción pasó de **3,29 MB a 1,78 MB**. Lo que hay que respetar al escribir código:
     - **Los íconos se importan de a uno** (`lucide-react-native/dist/esm/icons/<nombre>.mjs`), nunca desde el índice: Metro no hace tree shaking y el índice mete los 1.714 íconos del paquete. Tipos en `src/types/lucide-icons.d.ts`.
@@ -185,7 +189,7 @@ no alcanza contraste AA sobre blanco.
 ### Mobile (React Native CLI)
 - Navegación con React Navigation v7.
 - Estado global con Zustand.
-- Módulo nativo VPNService en `android/` para filtrado DNS on-device.
+- Módulo nativo VPNService en `android/app/src/main/java/com/stopbet/blocking/` para filtrado DNS on-device (ver "Bloqueo de apuestas" en Estado actual).
 - FCM via `@react-native-firebase/messaging` para notificaciones JITAI.
 - Prioridad Android en el MVP.
 

@@ -21,6 +21,7 @@ import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
 import { NotificationBell } from '../components/NotificationBell';
 import { NotificationCard } from '../components/NotificationCard';
+import { BlockingInviteCard } from '../components/BlockingInviteCard';
 import { Icon } from '../components/Icon';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
@@ -381,6 +382,8 @@ export function HomeScreen({ navigation }: Props) {
               </View>
             </View>
           )}
+
+          <BlockingInviteCard />
 
           {offline && (
             <View style={styles.offlineBanner}>
