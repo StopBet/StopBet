@@ -134,8 +134,8 @@ function PatientResponseChip({ link }: { link: FamilyLinkListItem }) {
   const tone = link.patientResponse === 'accepted'
     ? { bg: 'var(--sage-50)', fg: 'var(--secondary-text)', icon: 'circle-check', text: 'El paciente confirmó en la app' }
     : link.patientResponse === 'denied'
-      ? { bg: 'var(--red-50)', fg: 'var(--danger-text)', icon: 'circle-alert', text: 'El paciente dijo que no es su familiar' }
-      : { bg: 'var(--surface-alt)', fg: 'var(--fg2)', icon: 'clock', text: 'Esperando respuesta del paciente' }
+      ? { bg: 'var(--red-50)', fg: 'var(--danger-text)', icon: 'circle-alert', text: 'El paciente dijo que no' }
+      : { bg: 'var(--surface-alt)', fg: 'var(--fg2)', icon: 'clock', text: 'Sin respuesta del paciente' }
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: tone.bg, color: tone.fg, borderRadius: 9999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
       <WIcon name={tone.icon} size={13} />
@@ -296,8 +296,11 @@ export function FamiliaresPage() {
             ))}
           </div>
         ) : (
-          <table style={{ width: '100%', maxWidth: 960, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 280 }} /><col style={{ width: 120 }} /><col style={{ width: 220 }} /></colgroup>
+          // Con la tipografía de AJUTER, más ancha, los dos botones no cabían y "Rechazar" se cortaba:
+          // bajo este ancho mínimo la tabla se desplaza en vez de apretar la columna del familiar.
+          <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', minWidth: 860, maxWidth: 1000, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup><col /><col style={{ width: 250 }} /><col style={{ width: 110 }} /><col style={{ width: 260 }} /></colgroup>
             <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente declarado" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
             <tbody>
               {pending.map((l) => (
@@ -308,6 +311,7 @@ export function FamiliaresPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -332,8 +336,8 @@ export function FamiliaresPage() {
             ))}
           </div>
         ) : (
-          <table style={{ width: '100%', maxWidth: 720, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 200 }} /><col style={{ width: 120 }} /><col style={{ width: 140 }} /></colgroup>
+          <table style={{ width: '100%', maxWidth: 780, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup><col /><col style={{ width: 250 }} /><col style={{ width: 120 }} /><col style={{ width: 140 }} /></colgroup>
             <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
             <tbody>
               {active.map((l) => (
