@@ -27,6 +27,7 @@ describe('FamilyService (HU-11)', () => {
   let sedeRepo: { findOne: jest.Mock };
   let psychSedeRepo: { find: jest.Mock };
   let reviewRepo: { create: jest.Mock; save: jest.Mock };
+  let push: { enviarAUsuarios: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let invoiceRepo: { find: jest.Mock; findOne: jest.Mock };
 
@@ -61,6 +62,7 @@ describe('FamilyService (HU-11)', () => {
     sedeRepo = { findOne: jest.fn() };
     psychSedeRepo = { find: jest.fn().mockResolvedValue([]) };
     reviewRepo = { create: jest.fn((v) => v), save: jest.fn((v) => Promise.resolve(v)) };
+    push = { enviarAUsuarios: jest.fn().mockResolvedValue(1) };
 
     const manager = {
       getRepository: jest.fn((entity: unknown) => {
@@ -87,6 +89,7 @@ describe('FamilyService (HU-11)', () => {
       psychSedeRepo as any,
       invoiceRepo as any,
       dataSource as any,
+      push as any,
     );
   });
 
@@ -360,6 +363,50 @@ describe('FamilyService (HU-11)', () => {
       ]);
     });
 
+    // HDU 23 CA4 — se le pregunta al paciente: en la app con el nombre, por push sin él.
+    it('CA4: al declarar a un paciente existente se le consulta en la app y por un push discreto', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser)
+        .mockResolvedValueOnce({ id: 'pac-1', sedeId: SEDE_UUID });
+      linkRepo.findOne.mockResolvedValue(null);
+
+      await service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' });
+
+      expect(notifRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'pac-1',
+          target: 'family-request',
+          body: expect.stringContaining('Marta Soto'),
+        }),
+      );
+      const [ids, title, body] = push.enviarAUsuarios.mock.calls[0];
+      expect(ids).toEqual(['pac-1']);
+      expect(`${title} ${body}`).not.toContain('Marta');
+      expect(`${title} ${body}`).not.toContain('familiar');
+    });
+
+    it('CA4: si el paciente no existe no hay nadie a quien consultar', async () => {
+      userRepo.findOne.mockResolvedValueOnce(familyUser).mockResolvedValueOnce(null);
+      userRepo.find.mockResolvedValueOnce([{ id: 'coord-1', role: 'coordinator' }]);
+
+      await service.requestLink(FAMILY_ID, { patientEmail: 'nadie@stopbet.cl' });
+
+      expect(push.enviarAUsuarios).not.toHaveBeenCalled();
+    });
+
+    it('CA4: un push que falla no rompe la solicitud', async () => {
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser)
+        .mockResolvedValueOnce({ id: 'pac-1', sedeId: SEDE_UUID });
+      linkRepo.findOne.mockResolvedValue(null);
+      push.enviarAUsuarios.mockRejectedValue(new Error('firebase caído'));
+
+      await expect(service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' })).resolves.toEqual({
+        status: 'pending',
+        alreadyInReview: false,
+      });
+    });
+
     it('volver a declarar a un paciente que lo rechazó reabre el mismo vínculo', async () => {
       userRepo.findOne
         .mockResolvedValueOnce(familyUser)
@@ -370,7 +417,8 @@ describe('FamilyService (HU-11)', () => {
 
       expect(linkRepo.update).toHaveBeenCalledWith(
         expect.objectContaining({ id: 'link-1' }),
-        expect.objectContaining({ status: 'pending' }),
+        // La respuesta anterior del paciente era sobre otra solicitud: se le vuelve a preguntar.
+        expect.objectContaining({ status: 'pending', patientResponse: null }),
       );
       expect(linkRepo.save).not.toHaveBeenCalled();
     });
@@ -699,7 +747,7 @@ describe('FamilyService (HU-11)', () => {
       await service.confirmLink('link-1', psychologist(), 'in_person');
 
       expect(linkRepo.update).toHaveBeenCalledWith(
-        { id: 'link-1', status: 'pending' },
+        expect.objectContaining({ id: 'link-1', status: 'pending' }),
         expect.objectContaining({ status: 'active', reviewedBy: 'psych-1', verification: 'in_person' }),
       );
       expect(notifRepo.save).toHaveBeenCalledWith([
@@ -723,7 +771,7 @@ describe('FamilyService (HU-11)', () => {
       ['reject', 'pending', 'rejected', null],
       ['revoke', 'active', 'revoked', null],
     ] as const)('CA6: %s registra autor, veredicto y verificación en el historial', async (action, status, verdict, verification) => {
-      linkRepo.findOne.mockResolvedValue(linkRow({ status }));
+      linkRepo.findOne.mockResolvedValue(linkRow({ status, patientResponse: 'accepted' }));
 
       if (action === 'confirm') await service.confirmLink('link-1', psychologist(), 'patient_consulted');
       if (action === 'reject') await service.rejectLink('link-1', psychologist());
@@ -731,6 +779,46 @@ describe('FamilyService (HU-11)', () => {
 
       expect(reviewRepo.save).toHaveBeenCalledWith({ linkId: 'link-1', verdict, reviewedBy: 'psych-1', verification });
       expect(dataSource.transaction).toHaveBeenCalled();
+    });
+
+    // CA4 — el "no" del paciente desde la app manda sobre cualquier verificación.
+    it.each(['in_person', 'patient_consulted'] as const)(
+      'CA4: si el paciente negó el vínculo, no se puede confirmar ni con %s',
+      async (verification) => {
+        linkRepo.findOne.mockResolvedValue(linkRow({ patientResponse: 'denied' }));
+
+        await expect(service.confirmLink('link-1', psychologist(), verification)).rejects.toThrow(
+          'solo puedes rechazar la solicitud',
+        );
+        expect(linkRepo.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('CA4: "paciente consultado" exige que el paciente haya dicho que sí en la app', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow({ patientResponse: null }));
+
+      await expect(service.confirmLink('link-1', psychologist(), 'patient_consulted')).rejects.toThrow(
+        'todavía no confirma el vínculo desde la app',
+      );
+      expect(linkRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('CA4: sin respuesta del paciente se puede confirmar verificando en persona', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow({ patientResponse: null }));
+
+      await service.confirmLink('link-1', psychologist(), 'in_person');
+
+      expect(reviewRepo.save).toHaveBeenCalledWith(expect.objectContaining({ verification: 'in_person' }));
+    });
+
+    // Si el paciente cambia a "no" entre que el psicólogo cargó la lista y confirma, el update
+    // condicional no toca nada.
+    it('CA4: la confirmación exige en el mismo update que el paciente siga diciendo que sí', async () => {
+      linkRepo.findOne.mockResolvedValue(linkRow({ patientResponse: 'accepted' }));
+
+      await service.confirmLink('link-1', psychologist(), 'patient_consulted');
+
+      expect(linkRepo.update.mock.calls[0][0]).toEqual({ id: 'link-1', status: 'pending', patientResponse: 'accepted' });
     });
 
     // CA4 — la lista de vinculados dice cómo se verificó; en pendientes todavía no hay nada que decir.
@@ -799,6 +887,69 @@ describe('FamilyService (HU-11)', () => {
       await expect(service.confirmLink('no-existe', psychologist(), 'in_person')).rejects.toThrow(
         'Vínculo no encontrado',
       );
+    });
+  });
+
+  // ── Consulta al paciente — HDU 23 CA4 ─────────────────────────────────────
+
+  describe('listRequestsForPatient / answerRequest', () => {
+    const pendingLink = (over: Record<string, unknown> = {}) => ({
+      id: 'link-1',
+      familyUser: { firstName: 'Marta', lastName: 'Soto', email: 'marta@correo.cl', passwordHash: 'x', rut: '1-9' },
+      patientUser: { id: 'pac-1', firstName: 'Carlos', lastName: 'Demo', sedeId: SEDE_UUID },
+      patientResponse: null,
+      createdAt: new Date('2026-09-28'),
+      ...over,
+    });
+
+    it('lista solo las pendientes del propio paciente, sin datos sensibles del familiar', async () => {
+      linkRepo.find.mockResolvedValue([pendingLink()]);
+
+      const [req] = await service.listRequestsForPatient('pac-1');
+
+      expect(linkRepo.find.mock.calls[0][0].where).toEqual({ patientUserId: 'pac-1', status: 'pending' });
+      expect(Object.keys(req)).toEqual(['id', 'familyName', 'familyEmail', 'createdAt', 'patientResponse']);
+      expect(req.familyName).toBe('Marta Soto');
+    });
+
+    it('registra la respuesta y avisa a los psicólogos de la sede', async () => {
+      linkRepo.findOne.mockResolvedValue(pendingLink());
+      userRepo.find.mockResolvedValueOnce([{ id: 'psych-1', sedeId: null }]);
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: SEDE_UUID }]);
+
+      await service.answerRequest('pac-1', 'link-1', false);
+
+      expect(linkRepo.findOne.mock.calls[0][0].where).toEqual({ id: 'link-1', patientUserId: 'pac-1', status: 'pending' });
+      expect(linkRepo.update).toHaveBeenCalledWith(
+        { id: 'link-1', status: 'pending' },
+        expect.objectContaining({ patientResponse: 'denied' }),
+      );
+      expect(notifRepo.save).toHaveBeenCalledWith([
+        expect.objectContaining({ userId: 'psych-1', target: 'family-links', body: expect.stringContaining('no es su familiar') }),
+      ]);
+    });
+
+    it('404 si la solicitud no es suya o ya la resolvió el equipo clínico', async () => {
+      linkRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.answerRequest('pac-1', 'link-1', true)).rejects.toThrow('Solicitud no encontrada');
+    });
+
+    it('responder lo mismo dos veces no vuelve a avisar', async () => {
+      linkRepo.findOne.mockResolvedValue(pendingLink({ patientResponse: 'accepted' }));
+
+      await service.answerRequest('pac-1', 'link-1', true);
+
+      expect(linkRepo.update).not.toHaveBeenCalled();
+      expect(notifRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('404 si el psicólogo decidió justo antes de que el paciente respondiera', async () => {
+      linkRepo.findOne.mockResolvedValue(pendingLink());
+      linkRepo.update.mockResolvedValue({ affected: 0 });
+
+      await expect(service.answerRequest('pac-1', 'link-1', true)).rejects.toThrow('Solicitud no encontrada');
+      expect(notifRepo.save).not.toHaveBeenCalled();
     });
   });
 

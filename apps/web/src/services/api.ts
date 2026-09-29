@@ -209,6 +209,9 @@ export interface FamilyLinkListItem {
   createdAt: string
   // HDU 23 CA4 — solo en los vinculados: cómo se verificó la confirmación.
   verification: FamilyLinkVerification | null
+  // HDU 23 CA4 — lo que respondió el paciente desde la app (null: todavía no responde).
+  patientResponse: 'accepted' | 'denied' | null
+  patientRespondedAt: string | null
 }
 
 export type FamilyLinkVerification = 'patient_consulted' | 'in_person'

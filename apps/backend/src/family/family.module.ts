@@ -11,6 +11,7 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { Invoice } from '../billing/entities/invoice.entity';
+import { PushModule } from '../push/push.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { Invoice } from '../billing/entities/invoice.entity';
       PsychologistSede,
       Invoice,
     ]),
+    PushModule,
   ],
   controllers: [FamilyController],
   providers: [FamilyService],
