@@ -1,5 +1,5 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, ImageSourcePropType, StyleSheet, Text, View } from 'react-native';
 import { EmotionType } from '@stopbet/shared-types';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
@@ -7,12 +7,12 @@ import { Fonts } from '../constants/typography';
 import { Icon } from './Icon';
 import { Touchable } from './Touchable';
 
-const EMOTIONS: { type: EmotionType; emoji: string; label: string }[] = [
-  { type: 'tired',   emoji: '😴', label: 'Cansado' },
-  { type: 'anxious', emoji: '😟', label: 'Ansioso' },
-  { type: 'angry',   emoji: '😤', label: 'Enojado' },
-  { type: 'lonely',  emoji: '😞', label: 'Solo'    },
-  { type: 'good',    emoji: '😊', label: 'Bien'    },
+const EMOTIONS: { type: EmotionType; image: ImageSourcePropType; label: string }[] = [
+  { type: 'tired',   image: require('../assets/mascota/tortuga-cansado.png'), label: 'Cansado' },
+  { type: 'anxious', image: require('../assets/mascota/tortuga-ansioso.png'), label: 'Ansioso' },
+  { type: 'angry',   image: require('../assets/mascota/tortuga-enojado.png'), label: 'Enojado' },
+  { type: 'lonely',  image: require('../assets/mascota/tortuga-solo.png'),    label: 'Solo'    },
+  { type: 'good',    image: require('../assets/mascota/tortuga-bien.png'),    label: 'Bien'    },
 ];
 
 interface Props {
@@ -51,7 +51,7 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
               activeOpacity={0.8}
               disabled={done}
               onPress={() => onPick(o.type)}
-              // sin label TalkBack leería el nombre del emoji antes que la emoción
+              // sin label TalkBack no anunciaría la emoción de la tarjeta
               accessibilityRole="button"
               accessibilityLabel={o.label}
               accessibilityState={{ selected: isSelected, disabled: done }}
@@ -61,7 +61,7 @@ export function EmotionCheckin({ done, selected, onPick }: Props) {
                 dimmed && styles.emotionCardDimmed,
               ]}
             >
-              <Text style={styles.emoji}>{o.emoji}</Text>
+              <Image source={o.image} style={styles.mascot} resizeMode="contain" />
               <Text style={[styles.label, isSelected && styles.labelSelected]}>
                 {o.label}
               </Text>
@@ -143,9 +143,9 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   emotionCardDimmed: {
     opacity: 0.5,
   },
-  emoji: {
-    fontFamily: Fonts.body,
-    fontSize: 26,
+  mascot: {
+    width: 48,
+    height: 48,
   },
   label: {
     fontFamily: Fonts.body,
