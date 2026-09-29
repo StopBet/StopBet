@@ -1,12 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsUUID } from 'class-validator';
+import { IsDbUuid } from '../../registration/dto/is-db-uuid.validator';
 
 export class AssignSponsorDto {
   @ApiProperty({ description: 'UUID del paciente' })
-  @IsUUID()
+  @IsDbUuid()
   patientId: string;
 
   @ApiProperty({ description: 'UUID del padrino (rol sponsor)' })
-  @IsUUID()
+  @IsDbUuid()
   sponsorId: string;
 }

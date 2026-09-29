@@ -4,7 +4,6 @@ import {
   Get,
   HttpCode,
   Param,
-  ParseUUIDPipe,
   Post,
   Query,
   UseGuards,
@@ -18,6 +17,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthUser } from '@stopbet/shared-types';
+import { ParseDbUuidPipe } from '../common/pipes/parse-db-uuid.pipe';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -66,7 +66,7 @@ export class SponsorDesignationController {
   @ApiResponse({ status: 403, description: 'El paciente no es de tu sede' })
   @ApiResponse({ status: 404, description: 'El paciente no existe' })
   listAvailable(
-    @Query('patientId', ParseUUIDPipe) patientId: string,
+    @Query('patientId', ParseDbUuidPipe) patientId: string,
     @CurrentUser() actor: AuthUser,
   ) {
     return this.service.listAvailable(patientId, actor);
@@ -80,7 +80,7 @@ export class SponsorDesignationController {
   @ApiResponse({ status: 200, description: 'SponsorCandidate | null' })
   @ApiResponse({ status: 403, description: 'El paciente no es de tu sede' })
   getCurrent(
-    @Query('patientId', ParseUUIDPipe) patientId: string,
+    @Query('patientId', ParseDbUuidPipe) patientId: string,
     @CurrentUser() actor: AuthUser,
   ) {
     return this.service.getCurrent(patientId, actor);
@@ -111,7 +111,7 @@ export class SponsorDesignationController {
     description: 'Tiene pacientes a cargo: hay que reasignarlos primero',
   })
   revoke(
-    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @Param('patientId', ParseDbUuidPipe) patientId: string,
     @CurrentUser() actor: AuthUser,
   ) {
     return this.service.revoke(patientId, actor);
