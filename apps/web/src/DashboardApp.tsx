@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Sidebar } from './components/Sidebar'
 import { TopBar } from './components/TopBar'
+import { NotificationBell } from './components/NotificationBell'
 import { WIcon } from './components/WIcon'
 import { useIsNarrow } from './hooks/useIsNarrow'
 import { MisPacientesPage } from './pages/MisPacientesPage'
@@ -14,6 +15,7 @@ import { SolicitudesPage } from './pages/SolicitudesPage'
 import { ConfiguracionPage } from './pages/ConfiguracionPage'
 import { SesionesFamiliaresPage } from './pages/SesionesFamiliaresPage'
 import { EquipoPage } from './pages/EquipoPage'
+import { FamiliaresPage } from './pages/FamiliaresPage'
 import { api } from './services/api'
 import { needsAttention } from './utils/alertStatus'
 import type { AuthUser } from './services/api'
@@ -21,7 +23,7 @@ import type { RegistrationRequest } from './data/mockData'
 import { useBrandInShell } from './hooks/useBrandInShell'
 
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface Toast { message: string; tone?: 'success' | 'error' }
 
@@ -30,6 +32,7 @@ const PAGE_TITLES: Record<NavId, string> = {
   patients:  'Mis pacientes',
   alerts:    'Alertas de pánico',
   requests:  'Solicitudes de ingreso',
+  familyLinks: 'Familiares',
   familySessions: 'Sesiones de familiares',
   equipo:    'Equipo',
   reports:   'Reportes',
@@ -42,6 +45,7 @@ const NAV_PATHS: Record<NavId, string> = {
   patients:  '/pacientes',
   alerts:    '/alertas',
   requests:  '/solicitudes',
+  familyLinks: '/familiares',
   familySessions: '/sesiones-familiares',
   equipo:    '/equipo',
   reports:   '/reportes',
@@ -108,6 +112,13 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
   const { data: sedes = [] } = useQuery({
     queryKey: ['sedes'],
     queryFn: api.getSedes,
+  })
+
+  // Para el badge de la barra lateral. FamiliaresPage vuelve a pedir esta misma lista al
+  // montarse, pero comparte queryKey y cache con TanStack Query — no duplica la llamada.
+  const { data: pendingFamilyLinks = [] } = useQuery({
+    queryKey: ['family', 'links', 'pending'],
+    queryFn: api.getPendingFamilyLinks,
   })
 
   // Misma clave que Resumen y Alertas: comparte la caché y el refresco en tiempo real.
@@ -204,6 +215,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
               onLogout={onLogout}
               reqCount={requests.length}
               alertCount={activeAlertCount}
+              familyLinkCount={pendingFamilyLinks.length}
               user={user}
             />
           </div>
@@ -212,21 +224,24 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
         {isNarrow && (
-          <button
-            onClick={() => setMenuOpen(true)}
-            aria-label="Abrir menú"
-            style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              background: 'var(--chrome-bg)', color: 'var(--fg-on-primary)', border: 'none',
-              // Este botón hace de cabecera de la página, no de control secundario:
-              // con 15px el título se leía más chico que el contenido de abajo.
-              padding: '14px 16px', fontSize: 20, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'var(--font-heading)', textAlign: 'left', letterSpacing: -0.2,
-            }}
-          >
-            <WIcon name="menu" size={24} />
-            {PAGE_TITLES[nav]}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--chrome-bg)', paddingRight: 12 }}>
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Abrir menú"
+              style={{
+                flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12,
+                background: 'transparent', color: 'var(--fg-on-primary)', border: 'none',
+                // Este botón hace de cabecera de la página, no de control secundario:
+                // con 15px el título se leía más chico que el contenido de abajo.
+                padding: '14px 16px', fontSize: 20, fontWeight: 700, cursor: 'pointer',
+                fontFamily: 'var(--font-heading)', textAlign: 'left', letterSpacing: -0.2,
+              }}
+            >
+              <WIcon name="menu" size={24} />
+              {PAGE_TITLES[nav]}
+            </button>
+            <NotificationBell variant="chrome" />
+          </div>
         )}
         {/* La TopBar ya no cabe en angosto: el botón de arriba lleva el título */}
         {!isNarrow && <TopBar title={PAGE_TITLES[nav]} />}
@@ -238,6 +253,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
             <Route path="/" element={<OverviewPage user={user} />} />
             <Route path="/alertas" element={<AlertasPage />} />
             <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} />} />
+            <Route path="/familiares" element={<FamiliaresPage />} />
             <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
             <Route path="/equipo" element={<EquipoPage user={user} />} />
             <Route path="/finanzas" element={<FinanzasPage />} />

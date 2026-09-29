@@ -4,9 +4,10 @@ import { WIcon } from '../components/WIcon'
 import { api, type ApiError } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { cleanRut, formatRut, isValidRut } from '../utils/rut'
+import { PatientIdToggle, type PatientIdBy } from '../components/PatientIdToggle'
 import isotipo from '../assets/isotipo-blanco.png'
 
-type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'email' | 'password' | 'rut' | 'patientRut', string>>
+type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'email' | 'password' | 'rut' | 'patientRut' | 'patientEmail', string>>
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -16,7 +17,9 @@ function validate(fields: {
   email: string
   password: string
   rut: string
+  patientIdBy: PatientIdBy
   patientRut: string
+  patientEmail: string
 }): FieldErrors {
   const errors: FieldErrors = {}
   if (!fields.firstName.trim()) errors.firstName = 'El nombre es obligatorio'
@@ -27,8 +30,13 @@ function validate(fields: {
   else if (fields.password.length < 8) errors.password = 'Debe tener al menos 8 caracteres'
   if (!fields.rut.trim()) errors.rut = 'Tu RUT es obligatorio'
   else if (!isValidRut(fields.rut)) errors.rut = 'El RUT ingresado no es válido'
-  if (!fields.patientRut.trim()) errors.patientRut = 'El RUT del paciente es obligatorio'
-  else if (!isValidRut(fields.patientRut)) errors.patientRut = 'El RUT ingresado no es válido'
+  if (fields.patientIdBy === 'rut') {
+    if (!fields.patientRut.trim()) errors.patientRut = 'El RUT del paciente es obligatorio'
+    else if (!isValidRut(fields.patientRut)) errors.patientRut = 'El RUT ingresado no es válido'
+  } else {
+    if (!fields.patientEmail.trim()) errors.patientEmail = 'El correo del paciente es obligatorio'
+    else if (!EMAIL_RE.test(fields.patientEmail.trim())) errors.patientEmail = 'El correo no es válido'
+  }
   return errors
 }
 
@@ -76,7 +84,9 @@ export function RegistroFamiliarPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [phone, setPhone] = useState('')
   const [rut, setRut] = useState('')
+  const [patientIdBy, setPatientIdBy] = useState<PatientIdBy>('rut')
   const [patientRut, setPatientRut] = useState('')
+  const [patientEmail, setPatientEmail] = useState('')
 
   const [errors, setErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
@@ -88,7 +98,7 @@ export function RegistroFamiliarPage() {
     setFormError(null)
 
     // CA4 — se bloquea el envío y se resaltan los campos, sin perder lo ya escrito.
-    const fieldErrors = validate({ firstName, lastName, email, password, rut, patientRut })
+    const fieldErrors = validate({ firstName, lastName, email, password, rut, patientIdBy, patientRut, patientEmail })
     setErrors(fieldErrors)
     if (Object.keys(fieldErrors).length > 0) return
 
@@ -101,7 +111,9 @@ export function RegistroFamiliarPage() {
         password,
         phone: phone.trim() || undefined,
         rut: cleanRut(rut),
-        patientRut: cleanRut(patientRut),
+        ...(patientIdBy === 'rut'
+          ? { patientRut: cleanRut(patientRut) }
+          : { patientEmail: patientEmail.trim() }),
       })
       // CA1 + CA2 — misma confirmación exista o no el paciente: no se distingue acá.
       setDone(true)
@@ -153,8 +165,9 @@ export function RegistroFamiliarPage() {
               Solicitud enviada
             </h2>
             <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>
-              Revisamos tu solicitud y te avisaremos por correo cuando el equipo clínico confirme
-              el vínculo con el paciente.
+              El equipo clínico va a revisar tu solicitud. Inicia sesión con tu correo y
+              contraseña para ver en qué estado está: cuando confirmen el vínculo, ahí mismo
+              verás las sesiones grupales.
             </p>
             <Link
               to="/"
@@ -267,20 +280,38 @@ export function RegistroFamiliarPage() {
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--fg1)', marginBottom: 12, fontFamily: 'var(--sb-font-heading)' }}>
                   Datos del paciente
                 </div>
-                <Field label="RUT del paciente al que estás vinculado" error={errors.patientRut}>
-                  <div style={fieldBoxStyle(!!errors.patientRut)}>
-                    <input
-                      style={inputStyle}
-                      value={patientRut}
-                      onChange={e => setPatientRut(e.target.value)}
-                      onBlur={() => setPatientRut(r => (r.trim() ? formatRut(r) : r))}
-                      placeholder="12.345.678-9"
-                    />
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--fg2)', marginTop: 6, lineHeight: 1.5 }}>
-                    Se lo pediremos a tu familiar o lo encuentras en su ficha de ingreso.
-                  </div>
-                </Field>
+                <PatientIdToggle value={patientIdBy} onChange={setPatientIdBy} />
+                {patientIdBy === 'rut' ? (
+                  <Field label="RUT del paciente al que estás vinculado" error={errors.patientRut}>
+                    <div style={fieldBoxStyle(!!errors.patientRut)}>
+                      <input
+                        style={inputStyle}
+                        value={patientRut}
+                        onChange={e => setPatientRut(e.target.value)}
+                        onBlur={() => setPatientRut(r => (r.trim() ? formatRut(r) : r))}
+                        placeholder="12.345.678-9"
+                      />
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--fg2)', marginTop: 6, lineHeight: 1.5 }}>
+                      Pídeselo a tu familiar o búscalo en su ficha de ingreso.
+                    </div>
+                  </Field>
+                ) : (
+                  <Field label="Correo del paciente al que estás vinculado" error={errors.patientEmail}>
+                    <div style={fieldBoxStyle(!!errors.patientEmail)}>
+                      <input
+                        type="email"
+                        style={inputStyle}
+                        value={patientEmail}
+                        onChange={e => setPatientEmail(e.target.value)}
+                        placeholder="familiar@correo.cl"
+                      />
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--fg2)', marginTop: 6, lineHeight: 1.5 }}>
+                      El correo con que tu familiar entra a la app StopBet.
+                    </div>
+                  </Field>
+                )}
               </div>
 
               <button

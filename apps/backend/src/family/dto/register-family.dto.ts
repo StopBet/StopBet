@@ -1,8 +1,10 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEmail, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { IsRut } from '../../registration/dto/is-rut.validator';
+import { CreateFamilyLinkDto } from './create-family-link.dto';
 
-export class RegisterFamilyDto {
+// El paciente se identifica con los campos heredados: patientRut y/o patientEmail.
+export class RegisterFamilyDto extends CreateFamilyLinkDto {
   @ApiProperty({ description: 'Nombre(s) del familiar' })
   @IsString() @IsNotEmpty()
   firstName: string;
@@ -27,9 +29,4 @@ export class RegisterFamilyDto {
   @ApiPropertyOptional({ description: 'Teléfono (sin prefijo +56)' })
   @IsOptional() @IsString()
   phone?: string;
-
-  @ApiProperty({ description: 'RUT chileno del paciente al que el familiar dice estar vinculado' })
-  @IsString() @IsNotEmpty()
-  @IsRut()
-  patientRut: string;
 }

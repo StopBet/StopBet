@@ -22,6 +22,7 @@ const NOTIFICATION_TARGETS: NotificationTarget[] = [
   'achievements',
   'panic',
   'payment',
+  'family-links',
 ];
 
 @Entity('notifications')

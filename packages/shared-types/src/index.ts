@@ -42,7 +42,8 @@ export interface CheckIn {
 export type NotificationType = 'warning' | 'info' | 'success' | 'danger';
 
 /**
- * A dónde lleva tocar una notificación en la app del paciente.
+ * A dónde lleva tocar una notificación: una pantalla de la app del paciente o, en el caso de
+ * `family-links`, la sección Familiares del panel clínico web.
  *
  * El `type` solo dice de qué color se pinta; deducir el destino a partir de él sería
  * adivinar (un `info` puede ser una respuesta del foro o una sesión de la sede). Por eso el
@@ -53,7 +54,8 @@ export type NotificationTarget =
   | 'community'
   | 'achievements'
   | 'panic'
-  | 'payment';
+  | 'payment'
+  | 'family-links';
 
 export interface Notification {
   id: string;

@@ -1,3 +1,5 @@
+import { NotificationBell } from './NotificationBell'
+
 interface TopBarProps {
   title: string
 }
@@ -11,12 +13,12 @@ export function TopBar({ title }: TopBarProps) {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '0 32px', position: 'sticky', top: 0, zIndex: 5,
     }}>
-      {/* El título de la sección es el h1 de la página. La campana ("3" fijo) y el
-          avatar ("MG" fijo) mostraban datos inventados en todas las pantallas; el usuario
-          ya aparece en la barra lateral. La campana vuelve cuando haya notificaciones reales. */}
+      {/* El título de la sección es el h1 de la página. El avatar no vuelve: el usuario ya
+          aparece en la barra lateral. */}
       <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>
         {title}
       </h1>
+      <NotificationBell variant="surface" />
     </header>
   )
 }

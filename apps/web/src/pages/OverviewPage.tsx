@@ -161,7 +161,11 @@ export function OverviewPage({ user }: OverviewPageProps) {
     <div style={{ padding: isNarrow ? '16px 14px 32px' : '22px 26px 40px' }}>
       <div style={{
         display: 'grid', gap: isNarrow ? 12 : 16, marginBottom: isNarrow ? 12 : 18,
-        gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(4, minmax(0, 1fr))',
+        // auto-fit en vez de un número fijo de columnas: en una laptop más chica (entre los
+        // 860px de "angosto" y los ~1300px que 4 tarjetas completas necesitan) minmax(0,1fr)
+        // no alcanzaba a evitar que la cuarta tarjeta se cortara contra el borde. Con auto-fit
+        // el navegador decide solo cuántas entran sin desbordar, para cualquier ancho.
+        gridTemplateColumns: isNarrow ? '1fr 1fr' : 'repeat(auto-fit, minmax(220px, 1fr))',
       }}>
         <MetricCard icon="triangle-alert" label="Alertas activas" value={alertasActivas.length}
           sub="esperando respuesta o escaladas" tone="red" important={alertasActivas.length > 0} />

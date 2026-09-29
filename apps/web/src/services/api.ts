@@ -195,7 +195,30 @@ export interface LoginResponse {
 }
 
 // Shape real de GET /family/link-status (family.service.ts:79)
-export type FamilyLinkState = 'active' | 'pending' | 'unlinked'
+export type FamilyLinkState = 'active' | 'pending' | 'rejected' | 'revoked' | 'unlinked'
+
+// Shape real de GET /family/pending y /family/active (HDU 23)
+export interface FamilyLinkListItem {
+  id: string
+  familyUserId: string
+  familyName: string
+  familyEmail: string
+  patientUserId: string
+  patientName: string
+  sedeId: string | null
+  createdAt: string
+  // HDU 23 CA4 — solo en los vinculados: cómo se verificó la confirmación.
+  verification: FamilyLinkVerification | null
+}
+
+export type FamilyLinkVerification = 'patient_consulted' | 'in_person'
+
+// HDU 22 CA6 — misma respuesta exista o no el paciente; `alreadyInReview` solo dice si el
+// familiar ya había enviado esa misma declaración y sigue pendiente.
+export interface RequestFamilyLinkResponse {
+  status: 'pending'
+  alreadyInReview: boolean
+}
 
 export interface PatientListItem {
   id: string
@@ -317,6 +340,20 @@ export interface CreatePsychologistResponse {
   credentialsEmailSent: boolean
 }
 
+// ── Notificaciones ───────────────────────────────────────────────────────────
+
+// Espeja Notification de shared-types. `target` es a dónde lleva tocarla; casi todos los
+// valores son pantallas de la app del paciente, y la web solo entiende 'family-links'.
+export interface AppNotification {
+  id: string
+  type: 'warning' | 'info' | 'success' | 'danger'
+  title: string
+  body: string
+  read: boolean
+  target?: string | null
+  createdAt: string
+}
+
 // ── Registro público del familiar (HDU 22) ──────────────────────────────────
 
 export interface RegisterFamilyPayload {
@@ -326,7 +363,10 @@ export interface RegisterFamilyPayload {
   email: string
   password: string
   phone?: string
-  patientRut: string
+  // El paciente se identifica con uno de los dos (el backend acepta ambos, pero el formulario
+  // manda solo el que eligió el familiar).
+  patientRut?: string
+  patientEmail?: string
 }
 
 // Misma forma exista o no el paciente declarado (CA2 de HDU 22): la respuesta
@@ -416,6 +456,11 @@ export interface ClinicalRecordVersion {
 // ── Llamadas ──────────────────────────────────────────────────────────────────
 
 export const api = {
+  // ── Notificaciones (de quien tiene la sesión: el backend las acota por el token) ──
+  getNotifications: () => get<AppNotification[]>('/notifications'),
+  markNotificationRead: (id: string) => patch<void>(`/notifications/${id}/read`),
+  markAllNotificationsRead: () => patch<void>('/notifications/read-all'),
+
   // /auth/login no filtra por rol: sirve para psicólogo, coordinador y familiar
   login: (email: string, password: string) =>
     post<LoginResponse>('/auth/login', undefined, { email, password }),
@@ -527,6 +572,27 @@ export const api = {
   // necesita el cuerpo del error 409 (correo/RUT duplicado) que failed() descarta.
   registerFamily: (payload: RegisterFamilyPayload) =>
     postPublicWithError<RegisterFamilyResponse>('/family/register', payload),
+
+  // ── Revisión del vínculo por el psicólogo (HDU 23) ───────────────────────────
+  // Vía WithAuth: los errores (403 fuera de sede, 409 ya procesado) traen un mensaje
+  // específico del backend que sí vale la pena mostrar, a diferencia del toast genérico
+  // de aprobar/rechazar solicitudes.
+
+  getPendingFamilyLinks: () => get<FamilyLinkListItem[]>('/family/pending'),
+  getActiveFamilyLinks: () => get<FamilyLinkListItem[]>('/family/active'),
+
+  confirmFamilyLink: (linkId: string, verification: FamilyLinkVerification) =>
+    patchWithAuth<void>(`/family/links/${linkId}/confirm`, { verification }),
+
+  // Desde el portal: el familiar vuelve a declarar a su paciente (RUT mal escrito, rechazo).
+  requestFamilyLink: (payload: { patientRut?: string; patientEmail?: string }) =>
+    post<RequestFamilyLinkResponse>('/family/link', undefined, payload),
+
+  rejectFamilyLink: (linkId: string) =>
+    patchWithAuth<void>(`/family/links/${linkId}/reject`, {}),
+
+  revokeFamilyLink: (linkId: string) =>
+    patchWithAuth<void>(`/family/links/${linkId}/revoke`, {}),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────

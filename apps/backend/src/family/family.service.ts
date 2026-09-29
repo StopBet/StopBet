@@ -1,21 +1,22 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, MoreThanOrEqual, QueryFailedError, Repository } from 'typeorm';
+import { DataSource, EntityManager, In, IsNull, MoreThanOrEqual, Not, QueryFailedError, Raw, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { cleanRut, RegisterFamilyResponse } from '@stopbet/shared-types';
-import { AccountStatus } from '@stopbet/shared-types';
-import { FamilyLink } from './entities/family-link.entity';
+import { AccountStatus, AuthUser, cleanRut, RegisterFamilyResponse } from '@stopbet/shared-types';
+import { FamilyLink, FamilyLinkStatus, FamilyLinkVerification } from './entities/family-link.entity';
+import { FamilyLinkReview, FamilyLinkVerdict } from './entities/family-link-review.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
-import { resolveSedeId } from '../psychologists/sedes-of-user';
+import { resolveSedeId, sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
 import { Invoice } from '../billing/entities/invoice.entity';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
@@ -28,14 +29,22 @@ const PG_UNIQUE_VIOLATION = '23505';
 
 // Ver la nota equivalente en registration.service.ts: el findOne previo no es atómico y la
 // restricción única de la BD es la única garantía real bajo concurrencia.
-function isDuplicateEmail(err: unknown): boolean {
+function isUniqueViolation(err: unknown): boolean {
   return (
     err instanceof QueryFailedError &&
     (err.driverError as { code?: string })?.code === PG_UNIQUE_VIOLATION
   );
 }
 
-export type FamilyLinkState = 'active' | 'pending' | 'unlinked';
+// 'unlinked' no es un estado de FamilyLink: es la ausencia de vínculo (ninguna fila).
+export type FamilyLinkState = FamilyLinkStatus | 'unlinked';
+
+const LINK_PRIORITY: Record<FamilyLinkStatus, number> = {
+  active: 3,
+  pending: 2,
+  revoked: 1,
+  rejected: 0,
+};
 
 export type FamilySessionView = FamilySession & { userAttends: boolean | null };
 
@@ -105,6 +114,40 @@ const EMPTY_VIEW = (linkStatus: FamilyLinkState): FamilySessionsView => ({
   hasUpcoming: false,
 });
 
+// HDU 23 — lo que ve el psicólogo en "Familiares pendientes"/"Familiares vinculados".
+export interface FamilyLinkListItem {
+  id: string;
+  familyUserId: string;
+  familyName: string;
+  familyEmail: string;
+  patientUserId: string;
+  patientName: string;
+  sedeId: string | null;
+  createdAt: string;
+  // HDU 23 CA4 — solo en los vínculos activos: cómo se verificó la confirmación.
+  verification: FamilyLinkVerification | null;
+}
+
+export interface RequestLinkResponse {
+  status: 'pending';
+  // HDU 22 CA6 — el familiar ya había enviado esta misma declaración y sigue en revisión.
+  alreadyInReview: boolean;
+}
+
+function sameEmail(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+// Compara contra lo que el propio familiar declaró antes, nunca contra los pacientes: así el
+// aviso de "ya está en revisión" sale igual haya coincidido o no la declaración anterior.
+function isSameDeclaration(link: FamilyLink, dto: CreateFamilyLinkDto): boolean {
+  const sameRut =
+    !!dto.patientRut && !!link.declaredPatientRut && cleanRut(dto.patientRut) === cleanRut(link.declaredPatientRut);
+  const sameMail =
+    !!dto.patientEmail && !!link.declaredPatientEmail && sameEmail(dto.patientEmail, link.declaredPatientEmail);
+  return sameRut || sameMail;
+}
+
 @Injectable()
 export class FamilyService {
   constructor(
@@ -153,12 +196,7 @@ export class FamilyService {
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_ROUNDS);
 
-    const cleanPatientRut = cleanRut(dto.patientRut);
-    const patients = await this.userRepo.find({
-      where: { role: 'patient' },
-      select: ['id', 'rut', 'sedeId'],
-    });
-    const patient = patients.find((p) => p.rut && cleanRut(p.rut) === cleanPatientRut) ?? null;
+    const patient = await this.findDeclaredPatient(dto);
 
     const familyUser = await this.dataSource.transaction(async (manager) => {
       let created: User;
@@ -176,30 +214,13 @@ export class FamilyService {
           }),
         );
       } catch (err) {
-        if (isDuplicateEmail(err)) {
+        if (isUniqueViolation(err)) {
           throw new ConflictException('Ya existe una cuenta con esos datos');
         }
         throw err;
       }
 
-      const linkRepo = manager.getRepository(FamilyLink);
-      await linkRepo.save(
-        linkRepo.create({
-          familyUserId: created.id,
-          patientUserId: patient?.id ?? null,
-          declaredPatientRut: patient ? null : dto.patientRut,
-          status: 'pending',
-        }),
-      );
-
-      if (patient) {
-        await this.notifyPsychologistsOfSede(manager, patient.sedeId, created);
-      } else {
-        // CA2 — el RUT no corresponde a ningún paciente: no se genera solicitud visible
-        // para ningún psicólogo, pero el intento queda registrado (arriba) y alertado.
-        await this.notifyCoordinators(manager, created);
-      }
-
+      await this.declareLink(manager, created, dto, patient, 'registered');
       return created;
     });
 
@@ -207,36 +228,123 @@ export class FamilyService {
     return { userId: familyUser.id, status: 'pending' };
   }
 
+  // Con RUT y correo a la vez, los dos tienen que apuntar al mismo paciente; si no, cuenta
+  // como que no hubo coincidencia.
+  private async findDeclaredPatient(dto: CreateFamilyLinkDto): Promise<User | null> {
+    const byRut = dto.patientRut ? await this.findPatientByRut(dto.patientRut) : undefined;
+    const byEmail = dto.patientEmail ? await this.findPatientByEmail(dto.patientEmail) : undefined;
+    if (byRut !== undefined && byEmail !== undefined) {
+      return byRut && byEmail && byRut.id === byEmail.id ? byRut : null;
+    }
+    return byRut ?? byEmail ?? null;
+  }
+
+  private async findPatientByRut(rut: string): Promise<User | null> {
+    const target = cleanRut(rut);
+    const patients = await this.userRepo.find({
+      where: { role: 'patient' },
+      select: ['id', 'rut', 'sedeId'],
+    });
+    return patients.find((p) => p.rut && cleanRut(p.rut) === target) ?? null;
+  }
+
+  // El correo se guarda tal como se escribió al crear la cuenta, y "Carlos@…" y "carlos@…" son
+  // la misma casilla: se compara sin mayúsculas.
+  private findPatientByEmail(email: string): Promise<User | null> {
+    return this.userRepo.findOne({
+      where: {
+        role: 'patient',
+        email: Raw((alias) => `LOWER(${alias}) = LOWER(:email)`, { email: email.trim() }),
+      },
+      select: ['id', 'sedeId'],
+    });
+  }
+
+  // Registra la declaración del familiar y avisa a quien corresponde: si el paciente existe, a
+  // los psicólogos de su sede; si no, solo a coordinación (HDU 22, CA2). Quien declaró no se
+  // entera de cuál de los dos casos fue.
+  private async declareLink(
+    manager: EntityManager,
+    familyUser: User,
+    dto: CreateFamilyLinkDto,
+    patient: User | null,
+    origin: 'registered' | 'requested',
+  ): Promise<void> {
+    const linkRepo = manager.getRepository(FamilyLink);
+    const declared = {
+      declaredPatientRut: dto.patientRut ?? null,
+      declaredPatientEmail: dto.patientEmail?.trim() ?? null,
+    };
+
+    if (!patient) {
+      await linkRepo.save(
+        linkRepo.create({ familyUserId: familyUser.id, patientUserId: null, ...declared, status: 'pending' }),
+      );
+      await this.notifyCoordinators(manager, familyUser);
+      return;
+    }
+
+    // La restricción única (familiar, paciente) impide una segunda fila: volver a declarar a un
+    // paciente rechazado o revocado reabre la misma. Lo decidido antes sigue en
+    // family_link_reviews. Si ya estaba pendiente o activo, no hay nada nuevo que revisar.
+    const existing = await linkRepo.findOne({
+      where: { familyUserId: familyUser.id, patientUserId: patient.id },
+    });
+    if (existing) {
+      const reopened = await linkRepo.update(
+        { id: existing.id, status: In(['rejected', 'revoked']) },
+        { status: 'pending', ...declared },
+      );
+      if (!reopened.affected) return;
+    } else {
+      await linkRepo.save(
+        linkRepo.create({ familyUserId: familyUser.id, patientUserId: patient.id, ...declared, status: 'pending' }),
+      );
+    }
+    await this.notifyPsychologistsOfSede(manager, patient.sedeId, familyUser, origin);
+  }
+
   private async notifyPsychologistsOfSede(
     manager: EntityManager,
     rawSedeId: string | null,
     familyUser: User,
+    origin: 'registered' | 'requested',
   ): Promise<void> {
     const sedeId = await resolveSedeId(manager.getRepository(Sede), rawSedeId);
     if (!sedeId) return;
 
-    const links = await manager.getRepository(PsychologistSede).find({ where: { sedeId } });
-    const psychIds = new Set(links.map((l) => l.psychologistId));
-
-    // Respaldo legado: psicólogos sin fila en psychologist_sedes, con la sede en
-    // User.sedeId (nombre o UUID — ver la trampa documentada en sedes-of-user.ts).
-    if (psychIds.size === 0) {
-      const psychologists = await manager.getRepository(User).find({ where: { role: 'psychologist' } });
-      for (const p of psychologists) {
-        const pSedeId = await resolveSedeId(manager.getRepository(Sede), p.sedeId);
-        if (pSedeId === sedeId) psychIds.add(p.id);
-      }
+    // Misma regla con la que listLinksByStatus decide quién ve la solicitud
+    // (sedeIdsOfPsychologist). Antes el respaldo legado solo corría si NINGÚN psicólogo de la
+    // sede tenía fila en psychologist_sedes: con sedes mixtas, uno veía el pendiente sin aviso.
+    const psychologists = await manager.getRepository(User).find({
+      where: { role: 'psychologist', accountStatus: 'active' },
+    });
+    const psychIds: string[] = [];
+    for (const p of psychologists) {
+      const sedes = await sedeIdsOfPsychologist(
+        manager.getRepository(PsychologistSede),
+        manager.getRepository(Sede),
+        p.id,
+        p.sedeId,
+      );
+      if (sedes.includes(sedeId)) psychIds.push(p.id);
     }
-    if (psychIds.size === 0) return;
+    if (psychIds.length === 0) return;
 
+    const name = `${familyUser.firstName} ${familyUser.lastName}`;
+    const body =
+      origin === 'registered'
+        ? `${name} se registró como familiar de un paciente de tu sede. Revísalo en Familiares pendientes.`
+        : `${name} pidió vincularse como familiar de un paciente de tu sede. Revísalo en Familiares pendientes.`;
     const notifRepo = manager.getRepository(Notification);
     await notifRepo.save(
-      [...psychIds].map((userId) =>
+      psychIds.map((userId) =>
         notifRepo.create({
           userId,
           type: 'info',
           title: 'Nuevo familiar por vincular',
-          body: `${familyUser.firstName} ${familyUser.lastName} se registró como familiar de un paciente de tu sede. Revísalo en Familiares pendientes.`,
+          body,
+          target: 'family-links',
         }),
       ),
     );
@@ -252,37 +360,252 @@ export class FamilyService {
         notifRepo.create({
           userId: c.id,
           type: 'warning',
-          title: 'Familiar registrado con un RUT que no está en el sistema',
-          body: `${familyUser.firstName} ${familyUser.lastName} (${familyUser.email}) declaró el RUT de un paciente que no corresponde a ninguna cuenta.`,
+          title: 'Familiar con un paciente que no está en el sistema',
+          body: `${familyUser.firstName} ${familyUser.lastName} (${familyUser.email}) declaró un paciente que no corresponde a ninguna cuenta.`,
         }),
       ),
     );
   }
 
-  async requestLink(familyUserId: string, dto: CreateFamilyLinkDto): Promise<FamilyLink> {
-    const patient = await this.userRepo.findOne({
-      where: { email: dto.patientEmail, role: 'patient' },
-    });
-    if (!patient) throw new NotFoundException('No existe un paciente con ese correo');
+  // Para un familiar que ya tiene cuenta y quiere declarar (otra vez) a su paciente: se equivocó
+  // de RUT al registrarse, o le rechazaron la solicitud. Responde lo mismo exista o no el
+  // paciente: antes devolvía 404 ante un correo desconocido, y con eso cualquier familiar podía
+  // averiguar quién se atiende en AJUTER.
+  async requestLink(familyUserId: string, dto: CreateFamilyLinkDto): Promise<RequestLinkResponse> {
+    const links = await this.linksOf(familyUserId);
+    if (links.some((l) => l.status === 'active')) {
+      throw new ConflictException('Ya tienes un vínculo activo con un paciente');
+    }
+    // HDU 22 CA6 — la misma declaración todavía pendiente: no se duplica y se le avisa.
+    if (links.some((l) => l.status === 'pending' && isSameDeclaration(l, dto))) {
+      return { status: 'pending', alreadyInReview: true };
+    }
 
-    const existing = await this.linkRepo.findOne({
-      where: { familyUserId, patientUserId: patient.id },
-    });
-    if (existing) throw new ConflictException('Ya existe un vínculo con ese paciente');
+    const familyUser = await this.userRepo.findOne({ where: { id: familyUserId } });
+    if (!familyUser) throw new NotFoundException('Cuenta no encontrada');
 
-    const link = this.linkRepo.create({
-      familyUserId,
-      patientUserId: patient.id,
-      status: 'pending',
+    const patient = await this.findDeclaredPatient(dto);
+    try {
+      await this.dataSource.transaction((manager) =>
+        this.declareLink(manager, familyUser, dto, patient, 'requested'),
+      );
+    } catch (err) {
+      // Dos pedidos simultáneos por el mismo paciente: el segundo choca con la restricción
+      // única, y el vínculo ya quedó pendiente por el primero.
+      if (!isUniqueViolation(err)) throw err;
+    }
+    return { status: 'pending', alreadyInReview: false };
+  }
+
+  // Un familiar puede tener más de un vínculo (uno rechazado por RUT equivocado y otro activo,
+  // por ejemplo). Un findOne sin orden dejaba a Postgres elegir, y el portal podía mostrar
+  // "rechazado" a quien sí tiene acceso. Manda el que da más acceso y, entre iguales, el último.
+  private linksOf(familyUserId: string): Promise<FamilyLink[]> {
+    return this.linkRepo.find({
+      where: { familyUserId },
+      relations: ['patientUser'],
+      order: { createdAt: 'DESC' },
     });
-    return this.linkRepo.save(link);
+  }
+
+  private async currentLinkFor(familyUserId: string): Promise<FamilyLink | null> {
+    const links = await this.linksOf(familyUserId);
+    if (links.length === 0) return null;
+    return links.reduce((best, l) => (LINK_PRIORITY[l.status] > LINK_PRIORITY[best.status] ? l : best));
   }
 
   // CA 11.6 — estado del vínculo del familiar
   async getLinkStatus(familyUserId: string): Promise<{ status: FamilyLinkState }> {
-    const link = await this.linkRepo.findOne({ where: { familyUserId } });
+    const link = await this.currentLinkFor(familyUserId);
     if (!link) return { status: 'unlinked' };
     return { status: link.status };
+  }
+
+  // ── Revisión del vínculo por el psicólogo (HDU 23) ─────────────────────────
+
+  // El coordinador revisa cualquier sede; un psicólogo, solo las suyas. Mismo criterio
+  // que RegistrationService.reviewableSedeIds — ver la nota ahí sobre por qué.
+  private async reviewableSedeIds(reviewer: AuthUser): Promise<string[] | null> {
+    if (reviewer.role === 'coordinator') return null;
+    return sedeIdsOfPsychologist(this.psychSedeRepo, this.sedeRepo, reviewer.id, reviewer.sedeId);
+  }
+
+  private async assertCoversSede(reviewer: AuthUser, rawSedeId: string | null): Promise<void> {
+    const sedeIds = await this.reviewableSedeIds(reviewer);
+    if (sedeIds === null) return;
+    const resolved = await resolveSedeId(this.sedeRepo, rawSedeId);
+    if (!resolved || !sedeIds.includes(resolved)) {
+      throw new ForbiddenException('No puedes revisar vínculos de una sede que no atiendes');
+    }
+  }
+
+  private async listLinksByStatus(
+    status: FamilyLinkStatus,
+    reviewer: AuthUser,
+  ): Promise<FamilyLinkListItem[]> {
+    const links = await this.linkRepo.find({
+      // patientUserId nulo = RUT que no correspondía a ningún paciente (HDU 22, CA2): esos
+      // nunca son visibles para un psicólogo, solo quedaron alertados a coordinación.
+      where: { status, patientUserId: Not(IsNull()) },
+      relations: ['familyUser', 'patientUser'],
+      order: { createdAt: 'DESC' },
+    });
+
+    const sedeIds = await this.reviewableSedeIds(reviewer);
+    const result: FamilyLinkListItem[] = [];
+    for (const link of links) {
+      if (!link.patientUser) continue; // ya excluidos por el where; guarda de tipos
+      if (sedeIds !== null) {
+        const resolved = await resolveSedeId(this.sedeRepo, link.patientUser.sedeId);
+        if (!resolved || !sedeIds.includes(resolved)) continue;
+      }
+      result.push({
+        id: link.id,
+        familyUserId: link.familyUserId,
+        familyName: `${link.familyUser.firstName} ${link.familyUser.lastName}`.trim(),
+        familyEmail: link.familyUser.email,
+        patientUserId: link.patientUser.id,
+        patientName: `${link.patientUser.firstName} ${link.patientUser.lastName}`.trim(),
+        sedeId: link.patientUser.sedeId,
+        createdAt: link.createdAt.toISOString(),
+        verification: link.status === 'active' ? link.verification : null,
+      });
+    }
+    return result;
+  }
+
+  // CA1 — familiares pendientes de la sede del psicólogo.
+  listPendingLinks(reviewer: AuthUser): Promise<FamilyLinkListItem[]> {
+    return this.listLinksByStatus('pending', reviewer);
+  }
+
+  // Para poder revocar (CA5) hace falta saber a quién: los vínculos activos de la sede.
+  listActiveLinks(reviewer: AuthUser): Promise<FamilyLinkListItem[]> {
+    return this.listLinksByStatus('active', reviewer);
+  }
+
+  // CA2 — confirma el vínculo, habilita las funcionalidades del familiar y notifica a
+  // ambas partes. `getSessionsForFamily`/`getLinkStatus` ya reaccionan solos al cambio de
+  // estado: no hace falta tocar nada más para "habilitar" el acceso.
+  async confirmLink(
+    linkId: string,
+    reviewer: AuthUser,
+    verification: FamilyLinkVerification,
+  ): Promise<void> {
+    const link = await this.linkRepo.findOne({
+      where: { id: linkId },
+      relations: ['familyUser', 'patientUser'],
+    });
+    if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
+
+    const patient = link.patientUser;
+    await this.assertCoversSede(reviewer, patient.sedeId);
+
+    // Update condicional: dos confirmaciones simultáneas no deben notificar dos veces
+    // (mismo patrón que RegistrationService.approve).
+    await this.dataSource.transaction(async (manager) => {
+      await this.applyVerdict(manager, linkId, 'pending', 'confirmed', reviewer, 'El vínculo ya fue procesado', verification);
+      const notifRepo = manager.getRepository(Notification);
+      await notifRepo.save([
+        notifRepo.create({
+          userId: link.familyUserId,
+          type: 'success',
+          title: '¡Tu vínculo fue confirmado!',
+          body: `Ya puedes ver las sesiones grupales y el estado de ${patient.firstName}.`,
+        }),
+        notifRepo.create({
+          userId: patient.id,
+          type: 'info',
+          title: 'Un familiar fue vinculado a tu cuenta',
+          body: `${link.familyUser.firstName} ${link.familyUser.lastName} ahora puede ver tus sesiones grupales.`,
+        }),
+      ]);
+    });
+  }
+
+  // CA3 — rechaza el vínculo: la cuenta del familiar queda sin vincular, solo se notifica
+  // a él (el paciente nunca supo del intento, y así se mantiene).
+  async rejectLink(linkId: string, reviewer: AuthUser): Promise<void> {
+    const link = await this.linkRepo.findOne({ where: { id: linkId }, relations: ['patientUser'] });
+    if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
+
+    await this.assertCoversSede(reviewer, link.patientUser.sedeId);
+
+    await this.dataSource.transaction(async (manager) => {
+      await this.applyVerdict(manager, linkId, 'pending', 'rejected', reviewer, 'El vínculo ya fue procesado');
+      const notifRepo = manager.getRepository(Notification);
+      await notifRepo.save(
+        notifRepo.create({
+          userId: link.familyUserId,
+          type: 'warning',
+          title: 'Tu solicitud de vinculación no fue aprobada',
+          body: 'El equipo clínico revisó tu solicitud y no pudo confirmar el vínculo declarado.',
+        }),
+      );
+    });
+  }
+
+  // CA5 — revoca un vínculo activo: retira el acceso a sesiones de inmediato (mismo
+  // mecanismo de confirmLink, en reversa) y notifica a ambas partes.
+  async revokeLink(linkId: string, reviewer: AuthUser): Promise<void> {
+    const link = await this.linkRepo.findOne({
+      where: { id: linkId },
+      relations: ['familyUser', 'patientUser'],
+    });
+    if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
+
+    const patient = link.patientUser;
+    await this.assertCoversSede(reviewer, patient.sedeId);
+
+    await this.dataSource.transaction(async (manager) => {
+      await this.applyVerdict(manager, linkId, 'active', 'revoked', reviewer, 'El vínculo no está activo');
+      const notifRepo = manager.getRepository(Notification);
+      await notifRepo.save([
+        notifRepo.create({
+          userId: link.familyUserId,
+          type: 'warning',
+          title: 'Tu acceso como familiar fue revocado',
+          body: 'El equipo clínico retiró tu vínculo. Ya no puedes ver las sesiones ni el estado del paciente.',
+        }),
+        notifRepo.create({
+          userId: patient.id,
+          type: 'info',
+          title: 'Se retiró el acceso de un familiar',
+          body: `${link.familyUser.firstName} ${link.familyUser.lastName} ya no puede ver tus sesiones grupales.`,
+        }),
+      ]);
+    });
+  }
+
+  // CA6 — el cambio de estado y su fila de auditoría van en la misma transacción: una decisión
+  // no puede quedar aplicada sin registro, ni registrada sin aplicarse.
+  private async applyVerdict(
+    manager: EntityManager,
+    linkId: string,
+    from: FamilyLinkStatus,
+    verdict: FamilyLinkVerdict,
+    reviewer: AuthUser,
+    conflictMessage: string,
+    verification: FamilyLinkVerification | null = null,
+  ): Promise<void> {
+    const to: Record<FamilyLinkVerdict, FamilyLinkStatus> = {
+      confirmed: 'active',
+      rejected: 'rejected',
+      revoked: 'revoked',
+    };
+    const result = await manager.getRepository(FamilyLink).update(
+      { id: linkId, status: from },
+      {
+        status: to[verdict],
+        reviewedBy: reviewer.id,
+        reviewedAt: new Date(),
+        ...(verdict === 'confirmed' ? { verification } : {}),
+      },
+    );
+    if (!result.affected) throw new ConflictException(conflictMessage);
+
+    const reviewRepo = manager.getRepository(FamilyLinkReview);
+    await reviewRepo.save(reviewRepo.create({ linkId, verdict, reviewedBy: reviewer.id, verification }));
   }
 
   // ── Mensualidad ───────────────────────────────────────────────────────────
@@ -290,13 +613,10 @@ export class FamilyService {
   // Solo lectura: el cobro todavía no tiene pasarela (ASUNCIONES-PENDIENTES, puntos 4 y 6),
   // así que el familiar ve qué hay que pagar pero nada de acá marca una cuota como pagada.
   async getBillingForFamily(familyUserId: string): Promise<FamilyBillingView> {
-    const link = await this.linkRepo.findOne({
-      where: { familyUserId },
-      relations: ['patientUser'],
-    });
+    const link = await this.currentLinkFor(familyUserId);
 
     if (!link) return EMPTY_BILLING('unlinked');
-    if (link.status !== 'active') return EMPTY_BILLING(link.status);
+    if (link.status !== 'active' || !link.patientUser) return EMPTY_BILLING(link.status);
 
     const patientId = link.patientUserId;
     const [overdue, next] = await Promise.all([
@@ -334,13 +654,10 @@ export class FamilyService {
   // CA 11.1 + 11.5 + 11.6 — sesiones de la sede del paciente vinculado, ordenadas por proximidad.
   // Sin vínculo no es un error: es el estado que la vista de familiar tiene que pintar (11.6).
   async getSessionsForFamily(familyUserId: string): Promise<FamilySessionsView> {
-    const link = await this.linkRepo.findOne({
-      where: { familyUserId },
-      relations: ['patientUser'],
-    });
+    const link = await this.currentLinkFor(familyUserId);
 
     if (!link) return EMPTY_VIEW('unlinked');
-    if (link.status !== 'active') return EMPTY_VIEW(link.status);
+    if (link.status !== 'active' || !link.patientUser) return EMPTY_VIEW(link.status);
 
     const { sedeId } = link.patientUser;
     if (!sedeId) return EMPTY_VIEW('active');
@@ -376,8 +693,22 @@ export class FamilyService {
     sessionId: string,
     dto: ConfirmAttendanceDto,
   ): Promise<SessionAttendance> {
+    // Sin este chequeo un familiar pendiente, rechazado o revocado seguía confirmando asistencia
+    // a cualquier sesión: revocar (HDU 23 CA5) no le retiraba el acceso del todo.
+    const link = await this.currentLinkFor(familyUserId);
+    if (!link || link.status !== 'active' || !link.patientUser) {
+      throw new ForbiddenException('Tu vínculo con el paciente no está activo');
+    }
+
     const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
-    if (!session) throw new NotFoundException('Sesión no encontrada');
+    // Misma respuesta que una sesión inexistente: no confirma que exista en otra sede.
+    const [sessionSede, patientSede] = await Promise.all([
+      resolveSedeId(this.sedeRepo, session?.sedeId),
+      resolveSedeId(this.sedeRepo, link.patientUser.sedeId),
+    ]);
+    if (!session || !sessionSede || sessionSede !== patientSede) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
 
     const existing = await this.attendanceRepo.findOne({ where: { sessionId, familyUserId } });
     if (existing) {
