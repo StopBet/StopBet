@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-29 - Bloqueo de apuestas: no marcar StopBet como «VPN siempre activa» (PR pendiente)
+## 2026-09-29 - Bloqueo de apuestas: no marcar StopBet como «VPN siempre activa» (PR #140)
 
 **A quién le pega:** a **todos los que prueban o muestran el bloqueo de apuestas** en un teléfono
 o emulador.
