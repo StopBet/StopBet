@@ -206,8 +206,9 @@ export class FamilyController {
   @Get('sessions/:id/attendance')
   @Roles('psychologist', 'coordinator')
   @ApiOperation({ summary: 'CA 11.4 — Ver asistencias de una sesión (psicólogo)' })
-  getAttendances(@Param('id') sessionId: string) {
-    return this.familyService.getAttendancesForSession(sessionId);
+  @ApiResponse({ status: 404, description: 'La sesión no existe o es de una sede que no atiende' })
+  getAttendances(@Param('id') sessionId: string, @CurrentUser() user: AuthUser) {
+    return this.familyService.getAttendancesForSession(sessionId, user);
   }
 
   // Psicólogo/coordinador crea una sesión
@@ -215,7 +216,8 @@ export class FamilyController {
   @Roles('psychologist', 'coordinator')
   @ApiOperation({ summary: 'Crear sesión grupal de familiares' })
   @ApiResponse({ status: 201, description: 'Sesión creada' })
-  createSession(@Body() dto: CreateFamilySessionDto) {
-    return this.familyService.createSession(dto);
+  @ApiResponse({ status: 403, description: 'La sede no es una de las que atiende el psicólogo' })
+  createSession(@Body() dto: CreateFamilySessionDto, @CurrentUser() user: AuthUser) {
+    return this.familyService.createSession(dto, user);
   }
 }

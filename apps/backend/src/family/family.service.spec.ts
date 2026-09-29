@@ -250,9 +250,19 @@ describe('FamilyService (HU-11)', () => {
     });
   });
 
+  const coordinator = {
+    id: 'coord-1', email: 'c@stopbet.cl', role: 'coordinator' as const, firstName: 'Sofía', lastName: 'Reyes', sedeId: null,
+  };
+  const psychOf = (sedeUuid: string) => {
+    psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: sedeUuid }]);
+    return { id: 'psych-1', email: 'p@stopbet.cl', role: 'psychologist' as const, firstName: 'Miguel', lastName: 'Lara', sedeId: null };
+  };
+  const OTRA_SEDE = '99999999-9999-9999-9999-999999999999';
+
   // Regresión: la relación familyUser trae passwordHash y el RUT ya descifrado
   // por el transformer, y esta respuesta va al dashboard del psicólogo.
   it('CA 11.4: la lista de asistencias no expone datos sensibles del familiar', async () => {
+    sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: SEDE_UUID });
     attendanceRepo.find.mockResolvedValue([
       {
         id: 'a1',
@@ -270,7 +280,7 @@ describe('FamilyService (HU-11)', () => {
       },
     ]);
 
-    const [view] = await service.getAttendancesForSession('s1');
+    const [view] = await service.getAttendancesForSession('s1', coordinator);
 
     expect(view.familyUserName).toBe('Patricia Gómez');
     expect(Object.keys(view)).toEqual([
@@ -283,6 +293,38 @@ describe('FamilyService (HU-11)', () => {
     ]);
     expect(JSON.stringify(view)).not.toContain('secreto');
     expect(JSON.stringify(view)).not.toContain('12.345.678-9');
+  });
+
+  // Antes cualquier psicólogo veía quién asiste a una sesión de otra sede con solo su id.
+  it('un psicólogo no ve las asistencias de una sesión de otra sede: responde como inexistente', async () => {
+    sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: OTRA_SEDE });
+
+    await expect(service.getAttendancesForSession('s1', psychOf(SEDE_UUID))).rejects.toThrow('Sesión no encontrada');
+    expect(attendanceRepo.find).not.toHaveBeenCalled();
+  });
+
+  it('un psicólogo ve las asistencias de las sesiones de su sede', async () => {
+    sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: SEDE_UUID });
+
+    await expect(service.getAttendancesForSession('s1', psychOf(SEDE_UUID))).resolves.toEqual([]);
+  });
+
+  it('un psicólogo no puede crear sesiones en una sede que no atiende', async () => {
+    const dto = { title: 'Grupo', sessionDate: '2026-10-01T19:00:00Z', location: 'Sala 2', sedeId: OTRA_SEDE };
+
+    await expect(service.createSession(dto, psychOf(SEDE_UUID))).rejects.toThrow(
+      'No puedes crear sesiones en una sede que no atiendes',
+    );
+    expect(sessionRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('crea la sesión en su propia sede, y la coordinación en cualquiera', async () => {
+    const dto = { title: 'Grupo', sessionDate: '2026-10-01T19:00:00Z', location: 'Sala 2', sedeId: SEDE_UUID };
+
+    await service.createSession(dto, psychOf(SEDE_UUID));
+    await service.createSession({ ...dto, sedeId: OTRA_SEDE }, coordinator);
+
+    expect(sessionRepo.save).toHaveBeenCalledTimes(2);
   });
 
   it('CA 11.4: la vista del psicólogo cuenta confirmaciones y rechazos por sesión', async () => {
