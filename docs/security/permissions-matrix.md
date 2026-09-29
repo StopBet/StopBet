@@ -201,8 +201,8 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 | `GET /family/patient-requests` | `patient` | ✅ Protegido — solo las solicitudes pendientes dirigidas a él |
 | `PATCH /family/patient-requests/:id` | `patient` | ✅ Protegido — solo las propias y pendientes (404 si no) |
 | `GET /family/sede/sessions` | `psychologist`, `coordinator` | ✅ Protegido — la sede sale del token |
-| `GET /family/sessions/:id/attendance` | `psychologist`, `coordinator` | ⚠️ Protegido por rol, **sin chequeo de sede**: ver *Lo que sigue pendiente*, punto 5 |
-| `POST /family/sessions` | `psychologist`, `coordinator` | ⚠️ Protegido por rol, **sin chequeo de sede**: ver punto 5 |
+| `GET /family/sessions/:id/attendance` | `psychologist`, `coordinator` | ✅ Protegido — solo sesiones de sus sedes; una ajena responde 404, igual que una inexistente (cerrado el 29-09) |
+| `POST /family/sessions` | `psychologist`, `coordinator` | ✅ Protegido — solo en sus sedes, 403 fuera de ellas (cerrado el 29-09) |
 
 ---
 
@@ -232,6 +232,10 @@ Todo con tests: `test/auth-global.e2e-spec.ts` (15 casos), `test/roles.e2e-spec.
 
 ## Lo que sigue pendiente
 
+> _Cerrado el 29-09-2026_: `GET /family/sessions/:id/attendance` y `POST /family/sessions` no
+> revisaban la sede del psicólogo (código de la HU-11): se veía quién asiste a una sesión de
+> cualquier sede con solo su id. Ahora usan la misma regla que `/family/pending`.
+
 1. **Restringir por rol los endpoints «✅ Autenticado».** El token ya no se puede falsificar,
    pero cualquier rol autenticado puede llamarlos. Ejemplo que queda: un psicólogo puede crear
    una alerta de pánico a su propio nombre (`POST /panic/alerts`), y un familiar puede pedir
@@ -254,11 +258,6 @@ Todo con tests: `test/auth-global.e2e-spec.ts` (15 casos), `test/roles.e2e-spec.
 4. **Moderación para la coordinación:** `GET /community/moderation/flagged` le responde 403 a
    la coordinación, y la página de Solicitudes lo pide igual. No es un hueco (falla cerrado),
    pero ensucia la consola.
-5. **Sesiones de familiares sin chequeo de sede** (código de la HU-11): `GET
-   /family/sessions/:id/attendance` le muestra a un psicólogo quién confirmó asistencia a una
-   sesión de **cualquier** sede si conoce su id, y `POST /family/sessions` le deja crear sesiones
-   en una sede que no atiende. Hay que aplicarles la misma regla que a `/family/pending`
-   (`sedeIdsOfPsychologist`). Expone nombres de familiares, no datos clínicos.
 
 ## HTTPS (parte de S.6)
 

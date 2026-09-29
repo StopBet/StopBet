@@ -477,13 +477,19 @@ export class FamilyService {
     return sedeIdsOfPsychologist(this.psychSedeRepo, this.sedeRepo, reviewer.id, reviewer.sedeId);
   }
 
-  private async assertCoversSede(reviewer: AuthUser, rawSedeId: string | null): Promise<void> {
+  private async coversSede(reviewer: AuthUser, rawSedeId: string | null): Promise<boolean> {
     const sedeIds = await this.reviewableSedeIds(reviewer);
-    if (sedeIds === null) return;
+    if (sedeIds === null) return true;
     const resolved = await resolveSedeId(this.sedeRepo, rawSedeId);
-    if (!resolved || !sedeIds.includes(resolved)) {
-      throw new ForbiddenException('No puedes revisar vínculos de una sede que no atiendes');
-    }
+    return !!resolved && sedeIds.includes(resolved);
+  }
+
+  private async assertCoversSede(
+    reviewer: AuthUser,
+    rawSedeId: string | null,
+    message = 'No puedes revisar vínculos de una sede que no atiendes',
+  ): Promise<void> {
+    if (!(await this.coversSede(reviewer, rawSedeId))) throw new ForbiddenException(message);
   }
 
   private async listLinksByStatus(
@@ -769,7 +775,10 @@ export class FamilyService {
 
   // ── Sesiones ──────────────────────────────────────────────────────────────
 
-  async createSession(dto: CreateFamilySessionDto): Promise<FamilySession> {
+  // Misma regla de sede que la revisión de vínculos: antes cualquier psicólogo creaba sesiones
+  // en una sede que no atiende, y las veían los familiares de esa sede.
+  async createSession(dto: CreateFamilySessionDto, reviewer: AuthUser): Promise<FamilySession> {
+    await this.assertCoversSede(reviewer, dto.sedeId, 'No puedes crear sesiones en una sede que no atiendes');
     const session = this.sessionRepo.create({
       ...dto,
       sessionDate: new Date(dto.sessionDate),
@@ -850,7 +859,14 @@ export class FamilyService {
   // Para que el psicólogo vea asistencias en su dashboard (CA 11.4 segunda mitad).
   // Se arma la respuesta a mano: devolver la relación `familyUser` completa expone
   // passwordHash y el RUT ya descifrado por el transformer.
-  async getAttendancesForSession(sessionId: string): Promise<SessionAttendanceView[]> {
+  // Antes respondía para cualquier sesión: un psicólogo veía quién asiste a las sesiones de otra
+  // sede con solo conocer su id. Una sesión ajena responde igual que una inexistente.
+  async getAttendancesForSession(sessionId: string, reviewer: AuthUser): Promise<SessionAttendanceView[]> {
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    if (!session || !(await this.coversSede(reviewer, session.sedeId))) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+
     const attendances = await this.attendanceRepo.find({
       where: { sessionId },
       relations: ['familyUser'],
