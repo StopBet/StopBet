@@ -22,3 +22,18 @@ export interface SponsorDesignationDto {
   isActive: boolean;
   revokedAt: string | null;
 }
+
+/**
+ * CA21.3: un compañero de viaje con cuántas personas acompaña hoy.
+ *
+ * La carga viaja junto al listado a propósito: si la pantalla no la supiera, el psicólogo
+ * se enteraría de que no puede revocar recién al apretar el botón y recibir un 409.
+ */
+export interface SponsorWithLoad {
+  id: string;
+  firstName: string;
+  lastName: string;
+  designatedByName: string;
+  designatedAt: string;
+  assignedPatients: number;
+}

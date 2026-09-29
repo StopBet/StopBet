@@ -34,6 +34,58 @@ corres el backend o Metro sin `pnpm run backend`, recompila `shared-types` antes
   «El paciente lo confirmó en la app» queda deshabilitada mientras no responda.
 - Notificaciones: nuevo destino `family-request` (el Inicio).
 
+---
+
+## 2026-09-29 - La app tiene el primer módulo nativo propio: bloqueo de apuestas (PR pendiente)
+
+**A quién le pega:** a **todos los que corren la app móvil**.
+
+**Qué hacer después de pullear:** **recompilar el nativo**, no basta con recargar Metro:
+`pnpm run android:device`. El PR agrega un TurboModule con codegen (`codegenConfig` en
+`apps/mobile/package.json`), un servicio y un receptor en el `AndroidManifest.xml` y un paquete
+en `MainApplication.kt`. Con un APK viejo y el JS nuevo, la sección de Perfil simplemente no
+aparece y la invitación de Inicio tampoco: no es un bug, es el APK desactualizado.
+
+**Qué cambió de forma visible:**
+- En **Inicio** aparece una tarjeta *Protección contra sitios de apuestas* con **Activar
+  protección / Ahora no**. Al activar, Android pide confirmar una *Solicitud de conexión* VPN y
+  aparece el ícono VPN en la barra de estado. **Mientras está activa, los sitios de apuestas no
+  cargan en ningún navegador del teléfono** (`DNS_PROBE_FINISHED_NXDOMAIN`): si pruebas algo y
+  no carga, mira primero si el ícono VPN está encendido.
+- En **Perfil** hay una sección *Protección contra apuestas* **sin interruptor**: se apaga desde
+  Ajustes › VPN de Android (el botón lleva ahí). Es a propósito.
+- Solo Android y solo el rol paciente. El equipo clínico no lo ve.
+
+**OJO ALEX y quien toque `HomeScreen.tsx` / `ProfileScreen.tsx`:** son dos líneas aditivas
+(`<BlockingInviteCard />` y `<BlockingProfileSection />`); el resto vive en componentes propios.
+
+---
+
+## 2026-09-29 - Hay una sección nueva en el menú: Compañeros de viaje (PR #135)
+
+**A quién le pega:** a **Alex** (`DashboardApp.tsx` y `Sidebar.tsx`) y a quien pruebe asignar
+compañeros de viaje.
+
+**Qué hacer después de pullear:** nada que correr.
+
+**Qué cambió:** HdU21 existía solo como API — se podía designar con `curl`, pero no había
+pantalla. Ahora hay una sección propia en el menú lateral, entre «Mis pacientes» y «Alertas de
+pánico», con la lista de quiénes son compañeros de viaje hoy, a quién se puede designar, y la
+revocación.
+
+**Por qué importa más de lo que parece:** la lista de asignables de la ficha clínica (HdU20) sale
+de las designaciones. Sin esta pantalla, en una base de datos nueva ese desplegable salía vacío
+**para siempre**: no había ninguna forma de designar a nadie desde el producto.
+
+**Endpoint nuevo:** `GET /sponsors/designated`. Devuelve también a cuántas personas acompaña cada
+uno, para poder avisar antes de revocar en vez de dejar que el usuario choque con un 409.
+
+**OJO ALEX:** toqué `apps/web/src/DashboardApp.tsx` (import, el tipo `NavId`, dos entradas de los
+mapas y la ruta) y `apps/web/src/components/Sidebar.tsx` (el tipo `NavId` y una entrada del menú).
+Todo aditivo. Si agregas otra sección, ojo que **el tipo `NavId` está duplicado en los dos
+archivos** y hay que tocarlo en ambos o el type-check falla.
+
+---
 ## 2026-09-28 - Los vínculos de familiares ya se aprueban, en «Familiares» (PR #133)
 
 **A quién le pega:** a quien pruebe el portal del familiar o el shell clínico. **No hay que
@@ -57,6 +109,26 @@ instalar nada**: `synchronize` crea la tabla `family_link_reviews` y las columna
   sin eso responde 400. En la web, el diálogo de confirmar pide elegir cómo se verificó.
 - Aparece una **campana de notificaciones** en la barra superior del panel y en el portal del familiar.
 
+## 2026-09-27 - Los endpoints de compañero de viaje estaban caídos en producción (PR #132)
+
+**A quién le pega:** a quien haya probado asignar o designar compañeros de viaje desde que se
+mergeó el #119 y le haya dado error. No era tu entorno.
+
+**Qué hacer después de pullear:** nada. La tabla la crea `synchronize` al arrancar.
+
+**Qué pasaba:** `SponsorDesignation` estaba registrada en su módulo pero **no en el array
+`entities` de `app.module.ts`**, que es lo que TypeORM usa para crear el esquema. La tabla nunca
+existió, ni en local ni en Railway, así que los seis endpoints de `/sponsors` y
+`POST /panic/assign` respondían 500. Los 374 tests unitarios pasaban igual porque mockean los
+repositorios.
+
+**Segundo fallo, del mismo tamaño:** los DTO validaban con `@IsUUID()`, que aplica el criterio de
+la RFC. Los ids escritos a mano del seed no lo cumplen — **24 de las 25 cuentas de desarrollo**
+daban 400. Ahora usan `IsDbUuid`, que ya existía en `registration/` por esto mismo.
+
+**Si vas a escribir un endpoint que reciba un id de una cuenta del seed, usa `IsDbUuid` y
+`ParseDbUuidPipe` (nuevo, en `common/pipes/`), no `@IsUUID()` ni `ParseUUIDPipe`.** Es el error
+más fácil de repetir y no se nota hasta que alguien prueba con datos de desarrollo.
 ## 2026-09-25 - La insignia nueva avisa por push, aunque la app esté cerrada (PR #129)
 
 **A quién le pega:** a quien pruebe Logros o toque `achievements`. **No hay que recompilar

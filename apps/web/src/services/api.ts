@@ -746,3 +746,28 @@ export const getAvailableSponsors = (patientId: string) =>
 /** CA20.1 y CA20.3: vincula y avisa a ambos; si ya había uno, lo reemplaza. */
 export const assignSponsor = (patientId: string, sponsorId: string) =>
   post<void>('/sponsors/assign', undefined, { patientId, sponsorId })
+
+// ── HdU21: designación de compañeros de viaje ──
+
+export interface SponsorWithLoad {
+  id: string
+  firstName: string
+  lastName: string
+  designatedByName: string
+  designatedAt: string
+  assignedPatients: number
+}
+
+/** Quiénes son hoy compañeros de viaje en la sede, con cuánta gente acompañan. */
+export const getDesignatedSponsors = () => get<SponsorWithLoad[]>('/sponsors/designated')
+
+/** CA21.2: pacientes activos de la sede que aún no tienen el rol. */
+export const getSponsorCandidates = () => get<SponsorCandidate[]>('/sponsors/candidates')
+
+/** CA21.1: otorga el rol y avisa al designado. */
+export const designateSponsor = (patientId: string) =>
+  post<void>('/sponsors/designate', undefined, { patientId })
+
+/** CA21.3: revoca el rol. Da 409 si todavía tiene pacientes a cargo. */
+export const revokeSponsor = (patientId: string) =>
+  post<void>(`/sponsors/${patientId}/revoke`, undefined, {})

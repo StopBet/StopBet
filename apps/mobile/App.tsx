@@ -12,6 +12,7 @@ import { podarCachésDeOtrasCuentas } from './src/services/offlineStore';
 import { ToastProvider } from './src/context/ToastContext';
 import { DialogProvider } from './src/context/DialogContext';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { useBlockingAutoStart } from './src/hooks/useBlocking';
 
 // Auth screens
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
@@ -68,6 +69,8 @@ function AuthNavigator() {
 }
 
 function AppNavigator() {
+  // Solo en la app del paciente: el equipo clínico no tiene bloqueo que mantener.
+  useBlockingAutoStart();
   return (
     <AppStack.Navigator screenOptions={{
       headerShown: false,

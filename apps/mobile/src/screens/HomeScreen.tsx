@@ -22,6 +22,7 @@ import { QuickAccess } from '../components/QuickAccess';
 import { NotificationBell } from '../components/NotificationBell';
 import { NotificationCard } from '../components/NotificationCard';
 import { FamilyRequestCards } from '../components/FamilyRequestCard';
+import { BlockingInviteCard } from '../components/BlockingInviteCard';
 import { Icon } from '../components/Icon';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
@@ -31,6 +32,7 @@ import {
   flushPending,
   isNetworkError,
   onReconnect,
+  readPending,
   savePending,
 } from '../services/checkInQueue';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
@@ -130,6 +132,11 @@ export function HomeScreen({ navigation }: Props) {
       if (checkIn) {
         setTodayEmotion(checkIn.emotion);
         setCheckInDone(true);
+      } else if (!(await readPending())) {
+        // Sin esto, borrar el check-in de hoy (el Reset de Perfil) dejaba la tarjeta
+        // marcada hasta reiniciar la app. Uno en cola sin conexión sigue contando.
+        setTodayEmotion(null);
+        setCheckInDone(false);
       }
       // Antes solo se asignaba si venía algo, así que con la lista vacía quedaban
       // 4 notificaciones de demo hardcodeadas - una de ellas afirmaba que la
@@ -378,6 +385,8 @@ export function HomeScreen({ navigation }: Props) {
               </View>
             </View>
           )}
+
+          <BlockingInviteCard />
 
           {offline && (
             <View style={styles.offlineBanner}>

@@ -38,6 +38,7 @@ import { AiSession } from './ai-assistant/entities/ai-session.entity';
 import { AiMessage } from './ai-assistant/entities/ai-message.entity';
 import { AiSessionSummary } from './ai-assistant/entities/ai-session-summary.entity';
 import { SponsorAssignment } from './panic/entities/sponsor-assignment.entity';
+import { SponsorDesignation } from './panic/entities/sponsor-designation.entity';
 import { PanicAlert } from './panic/entities/panic-alert.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { DeviceToken } from './push/entities/device-token.entity';
@@ -96,7 +97,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
           CommunityPost, PostReply, PostReaction, PostReport, AttendanceConfirmation,
           Invoice,
           AiSession, AiMessage, AiSessionSummary,
-          SponsorAssignment, PanicAlert,
+          SponsorAssignment, SponsorDesignation, PanicAlert,
           RefreshToken,
           DeviceToken,
           FamilyLink, FamilyLinkReview, FamilySession, SessionAttendance,
