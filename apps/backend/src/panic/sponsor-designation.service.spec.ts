@@ -170,6 +170,77 @@ describe('SponsorDesignationService', () => {
     });
   });
 
+  // ── Listado de designados (sostiene el CA21.3) ───────────────────────────
+
+  describe('listDesignated', () => {
+    const designacion = (patientId: string) => ({
+      patientId,
+      designatedBy: 'psi-1',
+      designatedAt: new Date('2026-09-21T12:00:00Z'),
+      isActive: true,
+    });
+
+    it('devuelve vacío sin consultar usuarios cuando no hay nadie', async () => {
+      designationRepo.find.mockResolvedValue([]);
+
+      await expect(service.listDesignated(PSICOLOGO)).resolves.toEqual([]);
+      expect(userRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('dice a cuánta gente acompaña cada uno', async () => {
+      designationRepo.find.mockResolvedValue([designacion('p1')]);
+      userRepo.find.mockResolvedValue([pacienteActivo(), PSICOLOGO]);
+      assignmentRepo.count.mockResolvedValue(3);
+
+      const [s] = await service.listDesignated(PSICOLOGO);
+
+      expect(s.assignedPatients).toBe(3);
+      expect(assignmentRepo.count).toHaveBeenCalledWith({
+        where: { sponsorId: 'p1', isActive: true },
+      });
+    });
+
+    it('muestra quién designó, para la auditoría', async () => {
+      designationRepo.find.mockResolvedValue([designacion('p1')]);
+      userRepo.find.mockResolvedValue([pacienteActivo(), PSICOLOGO]);
+
+      const [s] = await service.listDesignated(PSICOLOGO);
+
+      expect(s.designatedByName).toBe('Ana Soto');
+    });
+
+    it('no deja ver designados de otra sede', async () => {
+      designationRepo.find.mockResolvedValue([designacion('p1')]);
+      userRepo.find.mockResolvedValue([
+        pacienteActivo({ sedeId: 'sede-2' }),
+        PSICOLOGO,
+      ]);
+
+      await expect(service.listDesignated(PSICOLOGO)).resolves.toEqual([]);
+    });
+
+    it('el coordinador ve los de todas las sedes', async () => {
+      designationRepo.find.mockResolvedValue([designacion('p1')]);
+      userRepo.find.mockResolvedValue([
+        pacienteActivo({ sedeId: 'sede-9' }),
+        PSICOLOGO,
+      ]);
+
+      const result = await service.listDesignated(COORDINADOR);
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('sobrevive a que el psicólogo que designó ya no exista', async () => {
+      designationRepo.find.mockResolvedValue([designacion('p1')]);
+      userRepo.find.mockResolvedValue([pacienteActivo()]);
+
+      const [s] = await service.listDesignated(PSICOLOGO);
+
+      expect(s.designatedByName).toBe('Cuenta eliminada');
+    });
+  });
+
   // ── CA21.1 ───────────────────────────────────────────────────────────────
 
   describe('designate (CA21.1)', () => {

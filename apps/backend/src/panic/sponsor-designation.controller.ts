@@ -34,6 +34,15 @@ import { SponsorDesignationService } from './sponsor-designation.service';
 export class SponsorDesignationController {
   constructor(private readonly service: SponsorDesignationService) {}
 
+  @Get('designated')
+  @ApiOperation({
+    summary: 'Compañeros de viaje activos de la sede, con su carga actual',
+  })
+  @ApiResponse({ status: 200, description: 'SponsorWithLoad[]' })
+  listDesignated(@CurrentUser() actor: AuthUser) {
+    return this.service.listDesignated(actor);
+  }
+
   @Get('candidates')
   @ApiOperation({
     summary: 'CA21.2: pacientes activos de la sede que aún no son padrinos',
