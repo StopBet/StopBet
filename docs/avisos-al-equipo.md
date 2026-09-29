@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-29 - El paciente confirma a su familiar desde la app (HDU 23 CA4)
+## 2026-09-29 - El paciente confirma a su familiar desde la app (PR #139)
 
 **A quién le pega:** a quien toque el Inicio de la app (**Alex**) y a quien pruebe el flujo de
 familiares. **Al mergear sale un APK nuevo** (cambia `apps/mobile` y `shared-types`); si
