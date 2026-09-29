@@ -40,14 +40,41 @@ class BlockingVpnService : VpnService() {
     private const val TUN_ADDRESS = "192.0.2.1"
     private const val FAKE_DNS = "192.0.2.53"
     private const val FALLBACK_DNS = "8.8.8.8"
+
+    @Volatile private var running: BlockingVpnService? = null
+
+    /**
+     * El paciente marcó StopBet como "VPN siempre activa" en Ajustes. Apagarla desde la app no
+     * sirve: Android vuelve a arrancar el servicio al instante. Antes de Android 10 no hay cómo
+     * saberlo y se asume que no.
+     */
+    fun isAlwaysOn(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && running?.isAlwaysOn == true
+
+    /**
+     * Además de siempre activa, "Bloquear conexiones sin VPN": con el servicio apagado Android
+     * corta todo el tráfico del teléfono, no solo los sitios de apuestas.
+     */
+    fun isLockdown(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && running?.isLockdownEnabled == true
   }
 
   private var tun: ParcelFileDescriptor? = null
   private var reader: Thread? = null
   private var pool: ExecutorService? = null
 
+  override fun onCreate() {
+    super.onCreate()
+    running = this
+  }
+
   override fun onStartCommand(intent: android.content.Intent?, flags: Int, startId: Int): Int {
     if (intent?.action == ACTION_STOP) {
+      // La app ya lo rechaza en BlockingModule.stop(); esto cubre cualquier otro emisor del intent.
+      if (isAlwaysOn()) {
+        Log.w(TAG, "STOP ignorado: StopBet es la VPN siempre activa (lockdown=${isLockdown()})")
+        return START_STICKY
+      }
       shutdown()
       BlockingState.setEnabled(this, false)
       BlockingState.setActive(this, false, "detenida desde la app")
@@ -77,6 +104,7 @@ class BlockingVpnService : VpnService() {
 
   override fun onDestroy() {
     shutdown()
+    if (running === this) running = null
     super.onDestroy()
   }
 
