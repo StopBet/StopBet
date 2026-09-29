@@ -28,6 +28,14 @@ export interface Spec extends TurboModule {
      * configurado Android cifra las consultas hacia él y no pasan por el filtro.
      */
     privateDnsServer: string;
+    /**
+     * El paciente marcó StopBet como "VPN siempre activa" en Ajustes. Mientras lo esté, `stop()`
+     * rechaza con `ALWAYS_ON`: Android la volvería a encender sola. Siempre false antes de
+     * Android 10 o con el servicio detenido.
+     */
+    alwaysOn: boolean;
+    /** Siempre activa más "Bloquear conexiones sin VPN": apagarla dejaría el teléfono sin internet. */
+    lockdown: boolean;
   }>;
 }
 

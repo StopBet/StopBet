@@ -44,7 +44,18 @@ export function BlockingPocCard() {
   }
   const blocking = NativeBlocking;
 
+  // Con "siempre activa" apagarla desde acá no sirve (Android la vuelve a encender) y con
+  // "bloquear conexiones sin VPN" además deja el teléfono sin internet: se manda a Ajustes.
+  const sendToVpnSettings = () => {
+    showToast('Quita "VPN siempre activa" de StopBet en Ajustes › VPN para apagarlo', 'error');
+    blocking.openVpnSettings();
+  };
+
   const toggle = async (on: boolean) => {
+    if (!on && status?.alwaysOn) {
+      sendToVpnSettings();
+      return;
+    }
     setBusy(true);
     try {
       if (on) {
@@ -57,7 +68,11 @@ export function BlockingPocCard() {
       } else {
         await blocking.stop();
       }
-    } catch {
+    } catch (err) {
+      if ((err as { code?: string }).code === 'ALWAYS_ON') {
+        sendToVpnSettings();
+        return;
+      }
       showToast('No se pudo cambiar el bloqueo', 'error');
     } finally {
       setBusy(false);
@@ -100,6 +115,16 @@ export function BlockingPocCard() {
           </Text>
         </View>
       )}
+      {!!status?.alwaysOn && (
+        <View style={styles.badge}>
+          <Icon name="triangle-alert" size={12} color={c.dangerText} />
+          <Text style={styles.badgeText}>
+            {status.lockdown
+              ? 'VPN siempre activa con bloqueo sin VPN: apagarlo cortaría internet. Se apaga desde Ajustes › VPN'
+              : 'VPN siempre activa: Android lo vuelve a encender. Se apaga desde Ajustes › VPN'}
+          </Text>
+        </View>
+      )}
       {revokedAt && (
         <View style={styles.badge}>
           <Icon name="triangle-alert" size={12} color={c.dangerText} />
@@ -126,5 +151,5 @@ const makeStyles = (c: Palette) =>
       paddingHorizontal: 10,
       paddingVertical: 6,
     },
-    badgeText: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.dangerText },
+    badgeText: { flexShrink: 1, fontFamily: Fonts.bodyBold, fontSize: 12, color: c.dangerText },
   });

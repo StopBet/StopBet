@@ -60,6 +60,11 @@ class BlockingModule(private val context: ReactApplicationContext) : NativeBlock
   }
 
   override fun stop(promise: Promise) {
+    if (BlockingVpnService.isAlwaysOn()) {
+      return promise.reject(
+          "ALWAYS_ON",
+          "StopBet es la VPN siempre activa: se apaga desde Ajustes › VPN")
+    }
     val intent = Intent(context, BlockingVpnService::class.java).setAction(BlockingVpnService.ACTION_STOP)
     context.startService(intent)
     promise.resolve(null)
@@ -91,6 +96,8 @@ class BlockingModule(private val context: ReactApplicationContext) : NativeBlock
           putArray("recentBlocked", recent)
           putDouble("lastRevokedAt", BlockingState.lastRevokedAt(context).toDouble())
           putString("privateDnsServer", privateDnsServer())
+          putBoolean("alwaysOn", BlockingVpnService.isAlwaysOn())
+          putBoolean("lockdown", BlockingVpnService.isLockdown())
         })
   }
 
