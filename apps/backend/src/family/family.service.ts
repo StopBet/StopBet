@@ -5,9 +5,27 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, EntityManager, In, IsNull, MoreThanOrEqual, Not, QueryFailedError, Raw, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  FindOptionsWhere,
+  In,
+  IsNull,
+  MoreThanOrEqual,
+  Not,
+  QueryFailedError,
+  Raw,
+  Repository,
+} from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { AccountStatus, AuthUser, cleanRut, RegisterFamilyResponse } from '@stopbet/shared-types';
+import {
+  AccountStatus,
+  AuthUser,
+  cleanRut,
+  FamilyLinkPatientResponse,
+  PatientFamilyRequest,
+  RegisterFamilyResponse,
+} from '@stopbet/shared-types';
 import { FamilyLink, FamilyLinkStatus, FamilyLinkVerification } from './entities/family-link.entity';
 import { FamilyLinkReview, FamilyLinkVerdict } from './entities/family-link-review.entity';
 import { FamilySession } from './entities/family-session.entity';
@@ -18,6 +36,7 @@ import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { resolveSedeId, sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
 import { Invoice } from '../billing/entities/invoice.entity';
+import { PushService } from '../push/push.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
@@ -126,6 +145,9 @@ export interface FamilyLinkListItem {
   createdAt: string;
   // HDU 23 CA4 — solo en los vínculos activos: cómo se verificó la confirmación.
   verification: FamilyLinkVerification | null;
+  // HDU 23 CA4 — lo que respondió el paciente desde la app (nulo: todavía no responde).
+  patientResponse: FamilyLinkPatientResponse | null;
+  patientRespondedAt: string | null;
 }
 
 export interface RequestLinkResponse {
@@ -169,6 +191,7 @@ export class FamilyService {
     private readonly invoiceRepo: Repository<Invoice>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly push: PushService,
   ) {}
 
   // ── Vínculo familiar ↔ paciente ───────────────────────────────────────────
@@ -198,7 +221,7 @@ export class FamilyService {
 
     const patient = await this.findDeclaredPatient(dto);
 
-    const familyUser = await this.dataSource.transaction(async (manager) => {
+    const { familyUser, patientToConsult } = await this.dataSource.transaction(async (manager) => {
       let created: User;
       try {
         created = await manager.getRepository(User).save(
@@ -220,9 +243,10 @@ export class FamilyService {
         throw err;
       }
 
-      await this.declareLink(manager, created, dto, patient, 'registered');
-      return created;
+      const toConsult = await this.declareLink(manager, created, dto, patient, 'registered');
+      return { familyUser: created, patientToConsult: toConsult };
     });
+    this.pushFamilyRequest(patientToConsult);
 
     // CA2 — misma respuesta exista o no el paciente: no delata si hubo coincidencia.
     return { userId: familyUser.id, status: 'pending' };
@@ -269,7 +293,7 @@ export class FamilyService {
     dto: CreateFamilyLinkDto,
     patient: User | null,
     origin: 'registered' | 'requested',
-  ): Promise<void> {
+  ): Promise<string | null> {
     const linkRepo = manager.getRepository(FamilyLink);
     const declared = {
       declaredPatientRut: dto.patientRut ?? null,
@@ -281,7 +305,7 @@ export class FamilyService {
         linkRepo.create({ familyUserId: familyUser.id, patientUserId: null, ...declared, status: 'pending' }),
       );
       await this.notifyCoordinators(manager, familyUser);
-      return;
+      return null;
     }
 
     // La restricción única (familiar, paciente) impide una segunda fila: volver a declarar a un
@@ -291,24 +315,57 @@ export class FamilyService {
       where: { familyUserId: familyUser.id, patientUserId: patient.id },
     });
     if (existing) {
+      // La respuesta anterior del paciente era sobre otra solicitud: se le vuelve a preguntar.
       const reopened = await linkRepo.update(
         { id: existing.id, status: In(['rejected', 'revoked']) },
-        { status: 'pending', ...declared },
+        { status: 'pending', ...declared, patientResponse: null, patientRespondedAt: null },
       );
-      if (!reopened.affected) return;
+      if (!reopened.affected) return null;
     } else {
       await linkRepo.save(
         linkRepo.create({ familyUserId: familyUser.id, patientUserId: patient.id, ...declared, status: 'pending' }),
       );
     }
-    await this.notifyPsychologistsOfSede(manager, patient.sedeId, familyUser, origin);
+    const name = `${familyUser.firstName} ${familyUser.lastName}`;
+    await this.notifyPsychologistsOfSede(
+      manager,
+      patient.sedeId,
+      'Nuevo familiar por vincular',
+      origin === 'registered'
+        ? `${name} se registró como familiar de un paciente de tu sede. Revísalo en Familiares pendientes.`
+        : `${name} pidió vincularse como familiar de un paciente de tu sede. Revísalo en Familiares pendientes.`,
+    );
+
+    // HDU 23 CA4 — se le pregunta al paciente. En la app sí va el nombre: para verla hay que
+    // desbloquear el teléfono y entrar con su cuenta. El push, en cambio, no lo lleva.
+    const notifRepo = manager.getRepository(Notification);
+    await notifRepo.save(
+      notifRepo.create({
+        userId: patient.id,
+        type: 'info',
+        title: 'Solicitud de vínculo familiar',
+        body: `${name} dice ser tu familiar y pidió acompañarte en StopBet. Responde en el Inicio.`,
+        target: 'family-request',
+      }),
+    );
+    return patient.id;
+  }
+
+  // Después del commit, y sin esperar: si Firebase falla, la solicitud ya quedó registrada y la
+  // tarjeta del Inicio igual la muestra. La pantalla de bloqueo la ve cualquiera, así que el
+  // push no nombra al familiar ni dice de qué se trata.
+  private pushFamilyRequest(patientId: string | null): void {
+    if (!patientId) return;
+    void this.push
+      .enviarAUsuarios([patientId], 'Tienes una solicitud por responder', 'Ábrela en StopBet para responder.')
+      .catch(() => undefined);
   }
 
   private async notifyPsychologistsOfSede(
     manager: EntityManager,
     rawSedeId: string | null,
-    familyUser: User,
-    origin: 'registered' | 'requested',
+    title: string,
+    body: string,
   ): Promise<void> {
     const sedeId = await resolveSedeId(manager.getRepository(Sede), rawSedeId);
     if (!sedeId) return;
@@ -331,21 +388,10 @@ export class FamilyService {
     }
     if (psychIds.length === 0) return;
 
-    const name = `${familyUser.firstName} ${familyUser.lastName}`;
-    const body =
-      origin === 'registered'
-        ? `${name} se registró como familiar de un paciente de tu sede. Revísalo en Familiares pendientes.`
-        : `${name} pidió vincularse como familiar de un paciente de tu sede. Revísalo en Familiares pendientes.`;
     const notifRepo = manager.getRepository(Notification);
     await notifRepo.save(
       psychIds.map((userId) =>
-        notifRepo.create({
-          userId,
-          type: 'info',
-          title: 'Nuevo familiar por vincular',
-          body,
-          target: 'family-links',
-        }),
+        notifRepo.create({ userId, type: 'info', title, body, target: 'family-links' }),
       ),
     );
   }
@@ -386,9 +432,10 @@ export class FamilyService {
 
     const patient = await this.findDeclaredPatient(dto);
     try {
-      await this.dataSource.transaction((manager) =>
+      const toConsult = await this.dataSource.transaction((manager) =>
         this.declareLink(manager, familyUser, dto, patient, 'requested'),
       );
+      this.pushFamilyRequest(toConsult);
     } catch (err) {
       // Dos pedidos simultáneos por el mismo paciente: el segundo choca con la restricción
       // única, y el vínculo ya quedó pendiente por el primero.
@@ -469,6 +516,8 @@ export class FamilyService {
         sedeId: link.patientUser.sedeId,
         createdAt: link.createdAt.toISOString(),
         verification: link.status === 'active' ? link.verification : null,
+        patientResponse: link.patientResponse,
+        patientRespondedAt: link.patientRespondedAt?.toISOString() ?? null,
       });
     }
     return result;
@@ -501,10 +550,37 @@ export class FamilyService {
     const patient = link.patientUser;
     await this.assertCoversSede(reviewer, patient.sedeId);
 
-    // Update condicional: dos confirmaciones simultáneas no deben notificar dos veces
-    // (mismo patrón que RegistrationService.approve).
+    // HDU 23 CA4 — el "no" del paciente manda: es un adulto decidiendo quién ve su información.
+    // Y "paciente consultado" ya no es palabra del psicólogo: solo vale si respondió que sí.
+    if (link.patientResponse === 'denied') {
+      throw new ConflictException(
+        'El paciente indicó desde la app que esta persona no es su familiar: solo puedes rechazar la solicitud',
+      );
+    }
+    if (verification === 'patient_consulted' && link.patientResponse !== 'accepted') {
+      throw new ConflictException(
+        'El paciente todavía no confirma el vínculo desde la app. Si lo verificaste en persona, elige esa opción',
+      );
+    }
+
+    // Update condicional: dos confirmaciones simultáneas no deben notificar dos veces (mismo
+    // patrón que RegistrationService.approve), y el paciente puede cambiar su respuesta entre
+    // que el psicólogo carga la lista y confirma.
+    const patientGuard =
+      verification === 'patient_consulted'
+        ? { patientResponse: 'accepted' as const }
+        : { patientResponse: Raw((a) => `(${a} IS NULL OR ${a} <> 'denied')`) };
     await this.dataSource.transaction(async (manager) => {
-      await this.applyVerdict(manager, linkId, 'pending', 'confirmed', reviewer, 'El vínculo ya fue procesado', verification);
+      await this.applyVerdict(
+        manager,
+        linkId,
+        'pending',
+        'confirmed',
+        reviewer,
+        'El vínculo ya fue procesado o el paciente cambió su respuesta. Vuelve a cargar la página',
+        verification,
+        patientGuard,
+      );
       const notifRepo = manager.getRepository(Notification);
       await notifRepo.save([
         notifRepo.create({
@@ -523,8 +599,8 @@ export class FamilyService {
     });
   }
 
-  // CA3 — rechaza el vínculo: la cuenta del familiar queda sin vincular, solo se notifica
-  // a él (el paciente nunca supo del intento, y así se mantiene).
+  // CA3 — rechaza el vínculo: la cuenta del familiar queda sin vincular y solo se le notifica a
+  // él. Al paciente no: ya respondió en la app, o el psicólogo lo resolvió sin él.
   async rejectLink(linkId: string, reviewer: AuthUser): Promise<void> {
     const link = await this.linkRepo.findOne({ where: { id: linkId }, relations: ['patientUser'] });
     if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
@@ -587,6 +663,7 @@ export class FamilyService {
     reviewer: AuthUser,
     conflictMessage: string,
     verification: FamilyLinkVerification | null = null,
+    extraWhere: FindOptionsWhere<FamilyLink> = {},
   ): Promise<void> {
     const to: Record<FamilyLinkVerdict, FamilyLinkStatus> = {
       confirmed: 'active',
@@ -594,7 +671,7 @@ export class FamilyService {
       revoked: 'revoked',
     };
     const result = await manager.getRepository(FamilyLink).update(
-      { id: linkId, status: from },
+      { id: linkId, status: from, ...extraWhere },
       {
         status: to[verdict],
         reviewedBy: reviewer.id,
@@ -606,6 +683,56 @@ export class FamilyService {
 
     const reviewRepo = manager.getRepository(FamilyLinkReview);
     await reviewRepo.save(reviewRepo.create({ linkId, verdict, reviewedBy: reviewer.id, verification }));
+  }
+
+  // ── Consulta al paciente (HDU 23 CA4) ───────────────────────────────────────
+
+  async listRequestsForPatient(patientId: string): Promise<PatientFamilyRequest[]> {
+    const links = await this.linkRepo.find({
+      where: { patientUserId: patientId, status: 'pending' },
+      relations: ['familyUser'],
+      order: { createdAt: 'DESC' },
+    });
+    return links.map((l) => ({
+      id: l.id,
+      familyName: `${l.familyUser.firstName} ${l.familyUser.lastName}`.trim(),
+      familyEmail: l.familyUser.email,
+      createdAt: l.createdAt.toISOString(),
+      patientResponse: l.patientResponse,
+    }));
+  }
+
+  // El paciente puede cambiar de opinión mientras la solicitud siga pendiente; una vez que el
+  // psicólogo decide, ya no. Al familiar nunca se le dice qué respondió: podría generar un
+  // conflicto en la familia, y la decisión que ve es la del equipo clínico.
+  async answerRequest(patientId: string, linkId: string, accept: boolean): Promise<void> {
+    const link = await this.linkRepo.findOne({
+      where: { id: linkId, patientUserId: patientId, status: 'pending' },
+      relations: ['familyUser', 'patientUser'],
+    });
+    if (!link || !link.patientUser) throw new NotFoundException('Solicitud no encontrada');
+
+    const response: FamilyLinkPatientResponse = accept ? 'accepted' : 'denied';
+    if (link.patientResponse === response) return;
+
+    const patientSedeId = link.patientUser.sedeId;
+    const patientName = `${link.patientUser.firstName} ${link.patientUser.lastName}`;
+    const familyName = `${link.familyUser.firstName} ${link.familyUser.lastName}`;
+    await this.dataSource.transaction(async (manager) => {
+      const result = await manager
+        .getRepository(FamilyLink)
+        .update({ id: linkId, status: 'pending' }, { patientResponse: response, patientRespondedAt: new Date() });
+      if (!result.affected) throw new NotFoundException('Solicitud no encontrada');
+
+      await this.notifyPsychologistsOfSede(
+        manager,
+        patientSedeId,
+        'Respuesta del paciente',
+        accept
+          ? `${patientName} confirmó desde la app que ${familyName} es su familiar. Ya puedes confirmar el vínculo.`
+          : `${patientName} indicó desde la app que ${familyName} no es su familiar. Revisa la solicitud en Familiares pendientes.`,
+      );
+    });
   }
 
   // ── Mensualidad ───────────────────────────────────────────────────────────

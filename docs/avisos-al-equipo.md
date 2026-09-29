@@ -20,6 +20,20 @@ está.
 
 ---
 
+## 2026-09-29 - El paciente confirma a su familiar desde la app (HDU 23 CA4)
+
+**A quién le pega:** a quien toque el Inicio de la app (**Alex**) y a quien pruebe el flujo de
+familiares. **Al mergear sale un APK nuevo** (cambia `apps/mobile` y `shared-types`); si
+corres el backend o Metro sin `pnpm run backend`, recompila `shared-types` antes.
+
+**Qué cambió:**
+- El Inicio del paciente muestra una tarjeta **«Solicitud de vínculo familiar»** cuando alguien
+  dice ser su familiar. No es un bug que aparezca sola: viene de `GET /family/patient-requests`.
+  Con los datos de `seed:family`, el paciente del familiar pendiente la va a ver.
+- En *Familiares* (web), **«Confirmar» desaparece** si el paciente dijo que no, y la opción
+  «El paciente lo confirmó en la app» queda deshabilitada mientras no responda.
+- Notificaciones: nuevo destino `family-request` (el Inicio).
+
 ## 2026-09-28 - Los vínculos de familiares ya se aprueban, en «Familiares» (PR #133)
 
 **A quién le pega:** a quien pruebe el portal del familiar o el shell clínico. **No hay que

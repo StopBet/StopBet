@@ -13,7 +13,7 @@ function fecha(iso: string): string {
 }
 
 const VERIFICATION_LABEL: Record<FamilyLinkVerification, string> = {
-  patient_consulted: 'Paciente consultado',
+  patient_consulted: 'Confirmado por el paciente',
   in_person: 'Verificado en persona',
 }
 
@@ -82,8 +82,8 @@ function ActionModal({
 
 /* ── Fila / tarjeta de un vínculo ────────────────────────────────────── */
 function LinkRow({
-  link, isNarrow, actions,
-}: { link: FamilyLinkListItem; isNarrow: boolean; actions: React.ReactNode }) {
+  link, isNarrow, actions, showPatientResponse = false,
+}: { link: FamilyLinkListItem; isNarrow: boolean; actions: React.ReactNode; showPatientResponse?: boolean }) {
   if (isNarrow) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
@@ -95,6 +95,7 @@ function LinkRow({
           Paciente: <strong style={{ color: 'var(--fg1)' }}>{link.patientName}</strong> · {fecha(link.createdAt)}
         </div>
         {link.verification && <VerificationChip verification={link.verification} />}
+        {showPatientResponse && <PatientResponseChip link={link} />}
         <div style={{ display: 'flex', gap: 8 }}>{actions}</div>
       </div>
     )
@@ -108,6 +109,7 @@ function LinkRow({
       <td style={{ padding: '14px 14px', fontSize: 13.5, color: 'var(--fg1)' }}>
         {link.patientName}
         {link.verification && <div style={{ marginTop: 6 }}><VerificationChip verification={link.verification} /></div>}
+        {showPatientResponse && <div style={{ marginTop: 6 }}><PatientResponseChip link={link} /></div>}
       </td>
       <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg2)' }}>{fecha(link.createdAt)}</td>
       <td style={{ padding: '14px 14px' }}>
@@ -126,11 +128,41 @@ function VerificationChip({ verification }: { verification: FamilyLinkVerificati
   )
 }
 
-// HDU 23 CA4 — antes de confirmar, el psicólogo dice cómo verificó el vínculo.
-function VerificationChoice({ value, onChange }: { value: FamilyLinkVerification | null; onChange: (v: FamilyLinkVerification) => void }) {
-  const options: { id: FamilyLinkVerification; title: string; hint: string }[] = [
-    { id: 'patient_consulted', title: 'Consulté al paciente', hint: 'El paciente confirmó que esta persona es su familiar.' },
-    { id: 'in_person', title: 'Lo verifiqué en persona', hint: 'Conozco al familiar o lo verifiqué presencialmente en la sede.' },
+// HDU 23 CA4 — al familiar se le pregunta al paciente desde la app. Mientras no responde, el
+// psicólogo solo puede confirmar verificándolo en persona; si dijo que no, solo rechazar.
+function PatientResponseChip({ link }: { link: FamilyLinkListItem }) {
+  const tone = link.patientResponse === 'accepted'
+    ? { bg: 'var(--sage-50)', fg: 'var(--secondary-text)', icon: 'circle-check', text: 'El paciente confirmó en la app' }
+    : link.patientResponse === 'denied'
+      ? { bg: 'var(--red-50)', fg: 'var(--danger-text)', icon: 'circle-alert', text: 'El paciente dijo que no es su familiar' }
+      : { bg: 'var(--surface-alt)', fg: 'var(--fg2)', icon: 'clock', text: 'Esperando respuesta del paciente' }
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: tone.bg, color: tone.fg, borderRadius: 9999, padding: '3px 10px', fontSize: 12, fontWeight: 600 }}>
+      <WIcon name={tone.icon} size={13} />
+      {tone.text}
+    </span>
+  )
+}
+
+function VerificationChoice({
+  value, onChange, patientResponse, respondedAt,
+}: {
+  value: FamilyLinkVerification | null
+  onChange: (v: FamilyLinkVerification) => void
+  patientResponse: FamilyLinkListItem['patientResponse']
+  respondedAt: string | null
+}) {
+  const patientSaidYes = patientResponse === 'accepted'
+  const options: { id: FamilyLinkVerification; title: string; hint: string; disabled: boolean }[] = [
+    {
+      id: 'patient_consulted',
+      title: 'El paciente lo confirmó en la app',
+      hint: patientSaidYes && respondedAt
+        ? `Respondió que sí el ${fecha(respondedAt)}.`
+        : 'Disponible cuando el paciente responda que sí desde su app.',
+      disabled: !patientSaidYes,
+    },
+    { id: 'in_person', title: 'Lo verifiqué en persona', hint: 'Conozco al familiar o lo verifiqué presencialmente en la sede.', disabled: false },
   ]
   return (
     <fieldset style={{ border: 'none', margin: '18px 0 0', padding: 0 }}>
@@ -142,7 +174,8 @@ function VerificationChoice({ value, onChange }: { value: FamilyLinkVerification
             <label
               key={o.id}
               style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', borderRadius: 12,
+                cursor: o.disabled ? 'not-allowed' : 'pointer', opacity: o.disabled ? 0.6 : 1,
                 border: `1.5px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
                 background: selected ? 'color-mix(in srgb, var(--primary) 6%, var(--surface))' : 'var(--surface)',
               }}
@@ -151,6 +184,7 @@ function VerificationChoice({ value, onChange }: { value: FamilyLinkVerification
                 type="radio"
                 name="sb-verificacion-vinculo"
                 checked={selected}
+                disabled={o.disabled}
                 onChange={() => onChange(o.id)}
                 style={{ marginTop: 3, accentColor: 'var(--primary)' }}
               />
@@ -187,6 +221,12 @@ export function FamiliaresPage() {
   const [revokeTarget, setRevokeTarget] = useState<FamilyLinkListItem | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
   const [verification, setVerification] = useState<FamilyLinkVerification | null>(null)
+
+  // Si el paciente ya dijo que sí en la app, esa es la verificación más fuerte: viene marcada.
+  const openConfirm = (l: FamilyLinkListItem) => {
+    setVerification(l.patientResponse === 'accepted' ? 'patient_consulted' : null)
+    setConfirmTarget(l)
+  }
 
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: PENDING_KEY })
@@ -249,20 +289,20 @@ export function FamiliaresPage() {
         ) : isNarrow ? (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {pending.map((l) => (
-              <LinkRow key={l.id} link={l} isNarrow actions={<>
-                <button onClick={() => setConfirmTarget(l)} style={{ ...pillBtn('primary'), flex: 1 }}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>
+              <LinkRow key={l.id} link={l} isNarrow showPatientResponse actions={<>
+                {l.patientResponse !== 'denied' && <button onClick={() => openConfirm(l)} style={{ ...pillBtn('primary'), flex: 1 }}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>}
                 <button onClick={() => setRejectTarget(l)} style={{ ...pillBtn('danger'), flex: 1 }}><WIcon name="x" size={14} /> Rechazar</button>
               </>} />
             ))}
           </div>
         ) : (
-          <table style={{ width: '100%', maxWidth: 880, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 200 }} /><col style={{ width: 120 }} /><col style={{ width: 220 }} /></colgroup>
+          <table style={{ width: '100%', maxWidth: 960, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup><col /><col style={{ width: 280 }} /><col style={{ width: 120 }} /><col style={{ width: 220 }} /></colgroup>
             <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente declarado" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
             <tbody>
               {pending.map((l) => (
-                <LinkRow key={l.id} link={l} isNarrow={false} actions={<>
-                  <button onClick={() => setConfirmTarget(l)} style={pillBtn('primary')}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>
+                <LinkRow key={l.id} link={l} isNarrow={false} showPatientResponse actions={<>
+                  {l.patientResponse !== 'denied' && <button onClick={() => openConfirm(l)} style={pillBtn('primary')}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>}
                   <button onClick={() => setRejectTarget(l)} style={pillBtn('danger')}><WIcon name="x" size={14} /> Rechazar</button>
                 </>} />
               ))}
@@ -312,7 +352,12 @@ export function FamiliaresPage() {
           title="Confirmar vínculo"
           description={<>
             Vas a confirmar que <strong>{confirmTarget.familyName}</strong> es familiar de <strong>{confirmTarget.patientName}</strong>. Se le habilitará el acceso a las sesiones grupales y se notificará a ambos.
-            <VerificationChoice value={verification} onChange={setVerification} />
+            <VerificationChoice
+              value={verification}
+              onChange={setVerification}
+              patientResponse={confirmTarget.patientResponse}
+              respondedAt={confirmTarget.patientRespondedAt}
+            />
           </>}
           confirmLabel="Confirmar vínculo"
           confirmDisabled={!verification}

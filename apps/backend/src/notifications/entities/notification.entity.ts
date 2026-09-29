@@ -23,6 +23,7 @@ const NOTIFICATION_TARGETS: NotificationTarget[] = [
   'panic',
   'payment',
   'family-links',
+  'family-request',
 ];
 
 @Entity('notifications')

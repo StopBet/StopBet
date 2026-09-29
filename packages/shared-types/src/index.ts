@@ -55,7 +55,8 @@ export type NotificationTarget =
   | 'achievements'
   | 'panic'
   | 'payment'
-  | 'family-links';
+  | 'family-links'
+  | 'family-request';
 
 export interface Notification {
   id: string;
@@ -116,6 +117,19 @@ export interface SubmitRegistrationResponse {
 export interface RegisterFamilyResponse {
   userId: string;
   status: 'pending';
+}
+
+// HDU 23 CA4 — lo que respondió el paciente, desde la app, a "X dice ser tu familiar".
+export type FamilyLinkPatientResponse = 'accepted' | 'denied';
+
+// Una solicitud de vínculo que el paciente tiene que responder. Solo lo mínimo para que
+// reconozca a la persona: nombre y correo del familiar.
+export interface PatientFamilyRequest {
+  id: string;
+  familyName: string;
+  familyEmail: string;
+  createdAt: string;
+  patientResponse: FamilyLinkPatientResponse | null;
 }
 
 // ── Suscripción / pago mensual ────────────────────────────────────────────

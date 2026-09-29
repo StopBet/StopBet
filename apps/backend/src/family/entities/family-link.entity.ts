@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
   Unique,
 } from 'typeorm';
+import { FamilyLinkPatientResponse } from '@stopbet/shared-types';
 import { User } from '../../users/entities/user.entity';
 import { encryptedColumnTransformer } from '../../common/crypto/encrypted-column.transformer';
 
@@ -67,6 +68,14 @@ export class FamilyLink {
   // Cómo se verificó la última confirmación (HDU 23 CA4). Queda también en family_link_reviews.
   @Column({ type: 'varchar', nullable: true })
   verification: FamilyLinkVerification | null;
+
+  // HDU 23 CA4 — lo que respondió el paciente desde la app. Nulo mientras no responde; puede
+  // cambiarlo mientras la solicitud siga pendiente. Un "denied" impide confirmar el vínculo.
+  @Column({ type: 'varchar', nullable: true })
+  patientResponse: FamilyLinkPatientResponse | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  patientRespondedAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;
