@@ -11,6 +11,7 @@ import {
   AuthUser,
   SponsorCandidate,
   SponsorDesignationDto,
+  SponsorWithLoad,
 } from '@stopbet/shared-types';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
@@ -81,6 +82,49 @@ export class SponsorDesignationService {
       lastName: u.lastName,
       sedeId: u.sedeId,
     }));
+  }
+
+  /**
+   * Quiénes son hoy compañeros de viaje en la sede, y a cuánta gente acompañan.
+   *
+   * No lo pide ningún criterio por su cuenta, pero sin este listado el CA21.3 no tiene
+   * dónde ocurrir: revocar exige antes poder ver a quién.
+   */
+  async listDesignated(actor: AuthUser): Promise<SponsorWithLoad[]> {
+    const designations = await this.designationRepo.find({
+      where: { isActive: true },
+      order: { designatedAt: 'DESC' },
+    });
+    if (designations.length === 0) return [];
+
+    const ids = designations.map((d) => d.patientId);
+    const autores = designations.map((d) => d.designatedBy);
+    const personas = await this.userRepo.find({
+      where: { id: In([...new Set([...ids, ...autores])]) },
+    });
+    const porId = new Map(personas.map((u) => [u.id, u]));
+
+    const resultado: SponsorWithLoad[] = [];
+    for (const d of designations) {
+      const sponsor = porId.get(d.patientId);
+      // Un designado de otra sede no se muestra, igual que en el resto del módulo.
+      if (!sponsor || (actor.sedeId && sponsor.sedeId !== actor.sedeId)) continue;
+
+      const autor = porId.get(d.designatedBy);
+      resultado.push({
+        id: sponsor.id,
+        firstName: sponsor.firstName,
+        lastName: sponsor.lastName,
+        designatedByName: autor
+          ? `${autor.firstName} ${autor.lastName}`
+          : 'Cuenta eliminada',
+        designatedAt: d.designatedAt.toISOString(),
+        assignedPatients: await this.assignmentRepo.count({
+          where: { sponsorId: sponsor.id, isActive: true },
+        }),
+      });
+    }
+    return resultado;
   }
 
   /**

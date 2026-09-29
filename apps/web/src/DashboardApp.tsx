@@ -8,6 +8,7 @@ import { WIcon } from './components/WIcon'
 import { useIsNarrow } from './hooks/useIsNarrow'
 import { MisPacientesPage } from './pages/MisPacientesPage'
 import { FichaClinicaPage } from './pages/FichaClinicaPage'
+import { CompanerosViajePage } from './pages/CompanerosViajePage'
 import { OverviewPage } from './pages/OverviewPage'
 import { AlertasPage } from './pages/AlertasPage'
 import { FinanzasPage } from './pages/FinanzasPage'
@@ -23,13 +24,14 @@ import type { RegistrationRequest } from './data/mockData'
 import { useBrandInShell } from './hooks/useBrandInShell'
 
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'companeros' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface Toast { message: string; tone?: 'success' | 'error' }
 
 const PAGE_TITLES: Record<NavId, string> = {
   overview:  'Resumen clínico',
   patients:  'Mis pacientes',
+  companeros: 'Compañeros de viaje',
   alerts:    'Alertas de pánico',
   requests:  'Solicitudes de ingreso',
   familyLinks: 'Familiares',
@@ -43,6 +45,7 @@ const PAGE_TITLES: Record<NavId, string> = {
 const NAV_PATHS: Record<NavId, string> = {
   overview:  '/',
   patients:  '/pacientes',
+  companeros: '/companeros-de-viaje',
   alerts:    '/alertas',
   requests:  '/solicitudes',
   familyLinks: '/familiares',
@@ -260,6 +263,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
             <Route path="/configuracion" element={<ConfiguracionPage user={user} />} />
             <Route path="/pacientes" element={<MisPacientesPage user={user} />} />
             <Route path="/pacientes/:patientId/ficha" element={<FichaClinicaPage />} />
+            <Route path="/companeros-de-viaje" element={<CompanerosViajePage />} />
             <Route path="/reportes" element={<PlaceholderPage title={PAGE_TITLES.reports} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

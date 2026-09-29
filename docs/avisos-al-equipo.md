@@ -20,6 +20,31 @@ está.
 
 ---
 
+## 2026-09-29 - Hay una sección nueva en el menú: Compañeros de viaje (PR #135)
+
+**A quién le pega:** a **Alex** (`DashboardApp.tsx` y `Sidebar.tsx`) y a quien pruebe asignar
+compañeros de viaje.
+
+**Qué hacer después de pullear:** nada que correr.
+
+**Qué cambió:** HdU21 existía solo como API — se podía designar con `curl`, pero no había
+pantalla. Ahora hay una sección propia en el menú lateral, entre «Mis pacientes» y «Alertas de
+pánico», con la lista de quiénes son compañeros de viaje hoy, a quién se puede designar, y la
+revocación.
+
+**Por qué importa más de lo que parece:** la lista de asignables de la ficha clínica (HdU20) sale
+de las designaciones. Sin esta pantalla, en una base de datos nueva ese desplegable salía vacío
+**para siempre**: no había ninguna forma de designar a nadie desde el producto.
+
+**Endpoint nuevo:** `GET /sponsors/designated`. Devuelve también a cuántas personas acompaña cada
+uno, para poder avisar antes de revocar en vez de dejar que el usuario choque con un 409.
+
+**OJO ALEX:** toqué `apps/web/src/DashboardApp.tsx` (import, el tipo `NavId`, dos entradas de los
+mapas y la ruta) y `apps/web/src/components/Sidebar.tsx` (el tipo `NavId` y una entrada del menú).
+Todo aditivo. Si agregas otra sección, ojo que **el tipo `NavId` está duplicado en los dos
+archivos** y hay que tocarlo en ambos o el type-check falla.
+
+---
 ## 2026-09-28 - Los vínculos de familiares ya se aprueban, en «Familiares» (PR #133)
 
 **A quién le pega:** a quien pruebe el portal del familiar o el shell clínico. **No hay que

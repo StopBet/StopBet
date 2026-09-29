@@ -4,7 +4,7 @@ import logoAjuter from '../assets/logo-ajuter.png'
 import logoAjuterBlanco from '../assets/logo-ajuter-blanco.png'
 import type { AuthUser } from '../services/api'
 
-type NavId = 'overview' | 'patients' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'companeros' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface SidebarProps {
   active: NavId
@@ -21,6 +21,7 @@ interface SidebarProps {
 const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string; soon?: boolean }> = [
   { id: 'overview',  icon: 'house',          label: 'Resumen' },
   { id: 'patients',  icon: 'users',          label: 'Mis pacientes' },
+  { id: 'companeros', icon: 'heart-handshake', label: 'Compañeros de viaje' },
   { id: 'alerts',    icon: 'triangle-alert', label: 'Alertas de pánico' },
   { id: 'requests',  icon: 'inbox',          label: 'Solicitudes' },
   { id: 'familyLinks', icon: 'user-round',   label: 'Familiares' },
