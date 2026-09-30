@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-09-30 - Comunidad › Chats ahora es una lista, con mensajes directos (PR pendiente)
+## 2026-09-30 - Comunidad › Chats ahora es una lista, con mensajes directos (PR #142)
 
 **A quién le pega:** a **Alex** y a quien toque Comunidad en mobile o la moderación (web y app
 del equipo clínico).
