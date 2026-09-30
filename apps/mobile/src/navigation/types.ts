@@ -36,7 +36,7 @@ export type AuthStackParamList = {
  */
 export type MainTabsParamList = {
   Home: undefined;
-  Community: { initialTab?: 'announcements' | 'forum'; draft?: string } | undefined;
+  Community: { initialTab?: 'announcements' | 'chats' } | undefined;
   Achievements: undefined;
   Profile: undefined;
 };
@@ -68,4 +68,12 @@ export type AppStackParamList = {
   Assistant: undefined;
   Panic: undefined;
   SuspendedAccount: undefined;
+  // Las conversaciones van en el stack y no dentro de la pestaña Comunidad: abrir el teclado
+  // sobre el pager lo rearma en la primera página y remonta la pantalla (ver `StaffThread`).
+  /** El chat de toda la sede. `draft` llega precargado desde el pánico. */
+  GroupChat: { draft?: string } | undefined;
+  /** Una conversación uno a uno. `name` es para pintar el encabezado antes de que cargue. */
+  DirectChat: { userId: string; name: string };
+  /** El buscador del botón «+»: a quién escribirle. */
+  NewDirectMessage: undefined;
 };

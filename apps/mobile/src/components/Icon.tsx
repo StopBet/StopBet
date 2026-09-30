@@ -70,6 +70,10 @@ import Ellipsis from 'lucide-react-native/dist/esm/icons/ellipsis.mjs';
 import LogOut from 'lucide-react-native/dist/esm/icons/log-out.mjs';
 import Trash2 from 'lucide-react-native/dist/esm/icons/trash-2.mjs';
 import Flag from 'lucide-react-native/dist/esm/icons/flag.mjs';
+import EllipsisVertical from 'lucide-react-native/dist/esm/icons/ellipsis-vertical.mjs';
+import Plus from 'lucide-react-native/dist/esm/icons/plus.mjs';
+import Pin from 'lucide-react-native/dist/esm/icons/pin.mjs';
+import Ban from 'lucide-react-native/dist/esm/icons/ban.mjs';
 import type { LucideProps } from 'lucide-react-native';
 import { useColors } from '../context/ThemeContext';
 
@@ -143,6 +147,10 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'log-out': LogOut,
   'trash-2': Trash2,
   'flag': Flag,
+  'ellipsis-vertical': EllipsisVertical,
+  'plus': Plus,
+  'pin': Pin,
+  'ban': Ban,
 };
 
 export type IconName = keyof typeof ICON_MAP;

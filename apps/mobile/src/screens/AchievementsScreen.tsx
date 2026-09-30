@@ -222,7 +222,7 @@ export function AchievementsScreen({ navigation }: Props) {
       // CA5.2: el anuncio lo publica el backend al compartir. Antes se llegaba al foro
       // con el texto ya escrito en el composer y el paciente tenía que enviarlo él
       // mismo, así que veía su logro dos veces: el anuncio publicado y el borrador.
-      navigation.navigate('Community', { initialTab: 'forum' });
+      navigation.navigate('GroupChat');
     } catch {
       showToast('No pudimos compartir tu insignia. Inténtalo de nuevo.', 'error');
     }
@@ -495,7 +495,7 @@ export function AchievementsScreen({ navigation }: Props) {
         onShare={handleShare}
         onVerEnComunidad={() => {
           setShareMilestone(null);
-          navigation.navigate('Community', { initialTab: 'forum' });
+          navigation.navigate('GroupChat');
         }}
         onClose={() => setShareMilestone(null)}
       />

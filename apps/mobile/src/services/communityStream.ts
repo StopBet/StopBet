@@ -1,5 +1,5 @@
 import EventSource from 'react-native-sse';
-import type { CommunityStreamEvent } from '@stopbet/shared-types';
+import type { CommunityStreamEvent, DirectStreamEvent } from '@stopbet/shared-types';
 import { BASE_URL, refrescarSesión } from './api';
 import { session } from './session';
 import { logInfo } from '../utils/log';
@@ -18,6 +18,21 @@ export function abrirStreamDeComunidad(
   sede: string,
   onEvento: (evento: CommunityStreamEvent) => void,
 ): () => void {
+  return abrirStream(`/community/stream?sede=${encodeURIComponent(sede)}`, onEvento);
+}
+
+/**
+ * Los mensajes directos propios, en vivo: los que llegan y los que uno manda desde otro
+ * teléfono. El servidor filtra por la sesión, así que no hace falta decir de quién.
+ */
+export function abrirStreamDeMensajes(onEvento: (evento: DirectStreamEvent) => void): () => void {
+  return abrirStream('/messages/stream', onEvento);
+}
+
+function abrirStream<E extends { kind: string }>(
+  ruta: string,
+  onEvento: (evento: E) => void,
+): () => void {
   let fuente: EventSource | null = null;
   let cerrado = false;
   let reintento: ReturnType<typeof setTimeout> | null = null;
@@ -33,7 +48,7 @@ export function abrirStreamDeComunidad(
     }
 
     fuente = new EventSource(
-      `${BASE_URL}/community/stream?sede=${encodeURIComponent(sede)}`,
+      `${BASE_URL}${ruta}`,
       {
         headers: { Authorization: `Bearer ${token}` },
         // La reconexión la maneja este módulo: la de la librería no sabe pedir un token
@@ -49,7 +64,7 @@ export function abrirStreamDeComunidad(
     fuente.addEventListener('message', (evento) => {
       if (!evento.data) return;
       try {
-        const datos = JSON.parse(evento.data) as CommunityStreamEvent;
+        const datos = JSON.parse(evento.data) as E;
         // El latido solo mantiene viva la conexión.
         if (datos.kind === 'ping') return;
         onEvento(datos);
@@ -68,7 +83,7 @@ export function abrirStreamDeComunidad(
 
   const programarReintento = () => {
     if (cerrado || reintento) return;
-    logInfo(`[Comunidad] stream caído, reintento en ${Math.round(esperaMs / 1000)}s`);
+    logInfo(`[Stream ${ruta.split('?')[0]}] caído, reintento en ${Math.round(esperaMs / 1000)}s`);
     reintento = setTimeout(() => {
       reintento = null;
       conectar();

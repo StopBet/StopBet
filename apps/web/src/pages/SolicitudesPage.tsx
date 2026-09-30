@@ -146,6 +146,21 @@ function RejectModal({ req, onClose, onConfirm }: { req: RegistrationRequest; on
 }
 
 /* ── Delete Post Confirm Modal ───────────────────────── */
+// Un mensaje directo reportado entra a esta misma cola, pero no es del chat de la sede: es de
+// una conversación privada. Sin la marca se moderaba como si lo hubiera leído todo el grupo.
+function esPrivado(post: FlaggedPost): boolean {
+  return post.type === 'direct_message'
+}
+
+function PrivadoChip() {
+  return (
+    <span title="Reportado desde una conversación privada. Solo se ve este mensaje, no la conversación."
+      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '2px 8px', fontSize: 11.5, fontWeight: 700 }}>
+      <WIcon name="lock" size={11} /> Mensaje privado
+    </span>
+  )
+}
+
 function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedPost; onClose: () => void; onConfirm: () => void; loading: boolean }) {
   const dialogRef = useDialog<HTMLDivElement>(onClose)
   return (
@@ -154,8 +169,12 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-eliminar-titulo" tabIndex={-1} style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 460, maxWidth: '95vw', animation: 'sb-modal-in 0.28s var(--ease-calm)', zIndex: 1, padding: 28 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <div>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger-text)' }} id="sb-eliminar-titulo">Eliminar publicación</h2>
-            <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>Esta acción es permanente y no se puede deshacer.</p>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--danger-text)' }} id="sb-eliminar-titulo">{esPrivado(post) ? 'Eliminar mensaje privado' : 'Eliminar publicación'}</h2>
+            <p style={{ margin: '5px 0 0', fontSize: 13, color: 'var(--fg2)' }}>
+              {esPrivado(post)
+                ? 'Se borra de la conversación para las dos personas. Es permanente.'
+                : 'Esta acción es permanente y no se puede deshacer.'}
+            </p>
           </div>
           <button onClick={onClose} aria-label="Cerrar" style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <WIcon name="x" size={16} />
@@ -180,7 +199,7 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
             Cancelar
           </button>
           <button onClick={onConfirm} disabled={loading} style={{ height: 44, padding: '0 24px', borderRadius: 9999, border: 'none', background: 'var(--danger)', color: 'var(--fg-on-primary)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.7 : 1 }}>
-            <WIcon name="trash-2" size={15} color="var(--fg-on-primary)" /> {loading ? 'Eliminando…' : 'Eliminar publicación'}
+            <WIcon name="trash-2" size={15} color="var(--fg-on-primary)" /> {loading ? 'Eliminando…' : esPrivado(post) ? 'Eliminar mensaje' : 'Eliminar publicación'}
           </button>
         </div>
       </div>
@@ -266,6 +285,7 @@ function FlaggedPostsSection() {
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{p.authorName ?? 'Usuario'}</div>
                       <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{relTime(p.createdAt)}</div>
+                      {esPrivado(p) && <PrivadoChip />}
                     </div>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--red-50)', color: 'var(--danger-text)', borderRadius: 8, padding: '4px 10px', fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
                       <WIcon name="flag" size={12} /> {p.reportCount}
@@ -311,6 +331,7 @@ function FlaggedPostsSection() {
                       <div style={{ width: 36, height: 36, borderRadius: '50%', flexShrink: 0, background: 'var(--red-50)', color: 'var(--danger-text)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13 }}>{initialsOf(p.authorName)}</div>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)' }}>{p.authorName ?? 'Usuario'}</div>
+                        {esPrivado(p) && <PrivadoChip />}
                         <div style={{ fontSize: 12.5, color: 'var(--fg2)', marginTop: 3, lineHeight: 1.5 }}>
                           {p.body ?? '-'}
                         </div>
