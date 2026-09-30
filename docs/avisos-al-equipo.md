@@ -20,6 +20,31 @@ está.
 
 ---
 
+## 2026-09-30 - Comunidad › Chats ahora es una lista, con mensajes directos (PR pendiente)
+
+**A quién le pega:** a **Alex** y a quien toque Comunidad en mobile o la moderación (web y app
+del equipo clínico).
+
+**Qué hacer después de pullear:** recompilar `shared-types` si corres el backend o Metro sin
+`pnpm run backend` (`pnpm --filter @stopbet/shared-types build`). No hay que recompilar el APK
+ni instalar nada: las tablas nuevas (`direct_conversations`, `direct_messages`,
+`direct_message_reports`, `user_blocks`) las crea `synchronize`.
+
+**Qué cambió:**
+- La pestaña **«Chat» de Comunidad se llama «Chats»** y ya no es el chat de la sede: es una
+  lista estilo WhatsApp con el grupo fijado arriba y las conversaciones uno a uno debajo. El
+  grupo se abre en su propia pantalla del stack, **`GroupChat`**.
+- **`navigate('Community', { initialTab: 'forum' })` ya no existe.** Para llevar al chat de la
+  sede usa `navigate('GroupChat')` (con `{ draft }` si viene texto precargado, como desde el
+  pánico). Logros, Pánico y Notificaciones ya se cambiaron.
+- La cola de moderación (**Solicitudes** en la web, **Reportadas** en la app del equipo
+  clínico) puede traer mensajes **privados** reportados, con `type: 'direct_message'` y la marca
+  «Mensaje privado». Se descartan y se borran con los mismos endpoints de siempre.
+- El menú, el reporte, el composer y el encabezado del chat salieron a
+  `components/ChatSheets.tsx`: si tocas el chat grupal, están ahí.
+
+---
+
 ## 2026-09-29 - Bloqueo de apuestas: no marcar StopBet como «VPN siempre activa» (PR #140)
 
 **A quién le pega:** a **todos los que prueban o muestran el bloqueo de apuestas** en un teléfono
