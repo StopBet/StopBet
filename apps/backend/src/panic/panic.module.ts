@@ -9,6 +9,8 @@ import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { SponsorDesignation } from './entities/sponsor-designation.entity';
 import { PanicAlert } from './entities/panic-alert.entity';
 import { User } from '../users/entities/user.entity';
+import { Sede } from '../sedes/entities/sede.entity';
+import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { CommunityModule } from '../community/community.module';
 
@@ -20,6 +22,8 @@ import { CommunityModule } from '../community/community.module';
       PanicAlert,
       User,
       Notification,
+      Sede,
+      PsychologistSede,
     ]),
     CommunityModule,
   ],
