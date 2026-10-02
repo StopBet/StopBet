@@ -29,9 +29,9 @@ Entras siempre con **tu correo y una contraseña**. La primera contraseña te ll
 correo si el equipo te creó la cuenta; si no llegó, revisa la carpeta de spam —pasa
 seguido— y si no está, pídela al equipo, que puede entregártela en mano.
 
-**Si olvidaste tu contraseña:** en la app hay un enlace «¿Olvidaste tu contraseña?» que
-abre un correo a soporte. En el panel web todavía no existe ese enlace, así que ahí también
-hay que escribir a soporte o pedirla al equipo. No hay recuperación automática.
+**Si olvidaste tu contraseña:** tanto la app como el panel web tienen un «¿Olvidaste tu
+contraseña?» que te deja escribir a soporte. **No hay recuperación automática**: no te va a
+llegar un enlace para cambiarla solo. Alguien del equipo te genera una nueva.
 
 **Si tu cuenta está suspendida** (por ejemplo, por mensualidades impagas), no vas a poder
 entrar en ninguna parte y la app te lo va a decir en pantalla. No es una falla: se
@@ -69,12 +69,22 @@ hacia el lado, como en cualquier app de mensajería.
   propósito. Puedes activar un **recordatorio diario a las 20:00** para que no se te pase.
 - **El asistente**, al que entras desde los accesos rápidos.
 - **La próxima sesión de tu sede**, si hay alguna programada.
+- **La protección contra apuestas**, si todavía no la has activado. Ver
+  [1.5](#15-la-protección-contra-apuestas).
+- **Una solicitud de vínculo familiar**, si alguien dice ser tu familiar y pidió acceso al
+  portal. La tarjeta te pregunta si es efectivamente tu familiar, y **no se va hasta que el
+  equipo decide**. Puedes cambiar tu respuesta mientras siga pendiente. A esa persona
+  **nunca se le dice qué respondiste**.
 - Las **alertas importantes**, si hay alguna. El resto de tus avisos no se queda acá: se
   guardan en la campana del encabezado, con un contador de los que no has leído.
 
-**Comunidad.** El espacio de tu sede. Está pensado para que se parezca a lo que ya
-conoces: **es un chat**, con burbujas, la hora de cada mensaje y separadores de día
-(«Hoy», «Ayer», la fecha).
+**Comunidad.** El espacio de tu sede, con dos pestañas: **Chats** y **Anuncios**.
+
+*Chats* es una lista, como la pantalla principal de WhatsApp: arriba y fijo **el grupo de
+tu sede**, y debajo **tus conversaciones uno a uno**, con el último mensaje de cada una.
+
+**El grupo de tu sede** se abre tocándolo y funciona como un chat normal: burbujas, la hora
+de cada mensaje y separadores de día («Hoy», «Ayer», la fecha).
 
 - **Escribes en la barra de abajo**, como en WhatsApp.
 - **Para responder a alguien**, mantén el dedo apretado sobre su mensaje (o toca el «···»)
@@ -91,8 +101,26 @@ conoces: **es un chat**, con burbujas, la hora de cada mensaje y separadores de 
 - Los mensajes **llegan solos**, sin refrescar. Si mandas uno y aparece con un relojito,
   significa que se está enviando; si el envío falla queda con «No se envió · toca para
   reintentar» y **tu texto no se pierde**.
-- Hay una segunda pestaña, **Anuncios**, donde el equipo publica cosas para toda la sede.
-  Ahí no se conversa.
+
+**Los mensajes privados** son conversaciones de a dos, aparte del grupo. Para empezar una,
+el botón de mensaje nuevo: *«Nuevo mensaje: buscar a alguien de tu sede»*.
+
+- **Solo aparecen personas de tu sede** y con la cuenta activa. No se puede escribir a
+  alguien de otra sede, ni al equipo clínico: para ellos está el grupo y tu sesión.
+- **Al buscar no importan las tildes ni las mayúsculas**: escribiendo «Jose» encuentras a
+  José.
+- Dentro de la conversación, manteniendo el dedo sobre un mensaje tienes *Responder*,
+  *Reportar mensaje* y, si es tuyo, *Eliminar*. **Eliminar lo borra para las dos personas**,
+  no solo de tu pantalla.
+- **Puedes bloquear a alguien.** El bloqueo corta en las dos direcciones —ni esa persona te
+  escribe ni tú a ella— y además desaparece de tu lista al buscar. Se deshace con
+  *Desbloquear* en la misma conversación.
+- **Denunciar un mensaje privado funciona igual que en el grupo**: llega a tu equipo
+  clínico, marcado como mensaje privado, con el motivo y sin decir quién denunció.
+- El aviso de un mensaje nuevo **dice quién te escribió, nunca lo que escribió**.
+
+*Anuncios* es la segunda pestaña: lo que el equipo publica para toda la sede. Ahí no se
+conversa.
 
 **Logros.** Tu colección de insignias, una por cada hito de días sin apostar (1, 3, 7, 14,
 21, 30, 45, 60, 75 y 90 días).
@@ -110,6 +138,7 @@ conoces: **es un chat**, con burbujas, la hora de cada mensaje y separadores de 
 **Perfil.** Tu cuenta y tus preferencias:
 
 - **Apariencia**: tema claro u oscuro.
+- **El estado de la protección contra apuestas** (ver [1.5](#15-la-protección-contra-apuestas)).
 - **Recordatorio diario de las 20:00**: lo enciendes o apagas acá.
 - **Silenciar notificaciones de comunidad**: si el chat de tu sede es muy activo, con esto
   dejas de recibir avisos de mensajes nuevos. **No te saca de la comunidad** y **no apaga
@@ -151,6 +180,35 @@ Dos cosas que conviene que sepas:
 - Si el asistente no está disponible, te responde un mensaje de respaldo dentro de la misma
   conversación en vez de quedarse en blanco.
 
+### 1.5 La protección contra apuestas
+
+La app puede **bloquear los sitios de apuestas en tu teléfono**. Cuando está activa, esas
+páginas simplemente no cargan, en cualquier navegador.
+
+**Cómo se activa.** En el Inicio aparece una invitación que te explica qué hace y qué
+permisos pide; desde ahí la activas. Android te va a pedir permiso para crear una conexión
+VPN: es el mecanismo que usa el bloqueo y es normal que lo pregunte.
+
+**Lo que conviene entender antes:**
+
+- **Tu navegación no sale de tu teléfono.** El bloqueo decide ahí mismo, con una lista de
+  sitios que viene dentro de la app. **No se le informa a nadie** qué páginas visitas, ni a
+  tu psicólogo/a ni al servidor de StopBet.
+- **En Perfil ves el estado, pero no hay un interruptor para apagarlo.** Eso es
+  deliberado: para desactivarlo hay que ir a los **Ajustes de Android**, en *Red e
+  Internet › VPN*. La idea es que apagarlo sea una decisión tomada con calma y no un toque
+  en un momento de impulso.
+- **Se vuelve a levantar solo** si el sistema lo cierra, o al reiniciar el teléfono. Pero
+  **si tú lo apagaste, se queda apagado**: la app no te lo vuelve a encender por su cuenta.
+- La lista cubre los sitios de apuestas que operan en Chile. No es infalible: puede quedar
+  algo fuera, y en ese caso avísale a tu equipo.
+
+> ⚠️ **No marques StopBet como «VPN siempre activa»** en los ajustes de Android. Con esa
+> opción puesta la protección no se puede apagar desde la app, y si además activas «Bloquear
+> conexiones sin VPN» el teléfono puede quedarse **sin internet en todo**, lo que parece una
+> falla de la app y no lo es. Si ya te pasó: *Ajustes › Red e Internet › VPN › ⚙️ de
+> StopBet* y apaga «VPN siempre activa».
+
 ---
 
 ## 2. Psicólogo/a
@@ -190,12 +248,31 @@ detonantes, salud y red de apoyo, y objetivos del tratamiento. Además:
   exista la entrevista de ingreso.
 - **El paciente no ve su ficha.** Es material que escribes sobre él.
 
+**Compañeros de viaje.** Quiénes son compañeros de viaje hoy, a quién puedes designar y la
+revocación. Acá se arma el acompañamiento: **un paciente sin compañero de viaje asignado no
+tiene a quién avisarle** cuando aprieta el botón SOS, así que su alerta pasa directo al
+asistente.
+
 **Alertas de pánico.** El historial de episodios de tus pacientes, con su estado. Ojo con
 uno: *escalada* significa que **la alerta sigue activa** y pasó al asistente porque nadie
 respondió — no es una alerta resuelta.
 
 **Solicitudes.** Los pacientes que postularon desde la app. Acá los apruebas o los
-rechazas; hasta que no apruebes, esa persona no puede entrar.
+rechazas; hasta que no apruebes, esa persona no puede entrar. También te llegan acá los
+**mensajes reportados** de la comunidad (ver [2.3](#23-moderación-de-la-comunidad)).
+
+**Familiares.** Los familiares que pidieron vincularse a un paciente de tu sede: acá
+**confirmas, rechazas o revocas** el vínculo. Es lo que le abre el portal a un familiar, así
+que mientras no decidas, esa persona no ve nada. Al confirmar tienes que declarar **cómo lo
+verificaste**, y eso tiene reglas:
+
+- Si le preguntaste al paciente **desde la app** y dijo que sí, puedes usar *«el paciente lo
+  confirmó»*.
+- Si el paciente **todavía no responde**, la única opción es *«lo verifiqué en persona»*.
+- Si el paciente dijo **que no**, no se puede confirmar: solo rechazar.
+
+Cada decisión queda registrada con tu nombre, la fecha y el veredicto, y **ese registro no
+se edita ni se borra** — igual que el historial de la ficha clínica.
 
 **Sesiones de familiares.** Las sesiones grupales de tu sede y quién confirmó asistencia.
 También las creas desde acá.
@@ -211,6 +288,10 @@ y lo avisa en pantalla.
 **Configuración.** Apariencia: tema claro/oscuro y colores (StopBet o AJUTER). Si trabajas
 en AJUTER, tu panel arranca con los colores de AJUTER.
 
+Arriba, en la barra del panel, hay una **campana de notificaciones** con los avisos que te
+corresponden —por ejemplo, un familiar nuevo esperando revisión—. Tocar ese aviso te lleva a
+la página que toca.
+
 ### 2.2 La app en tu teléfono
 
 La misma app del paciente te reconoce por tu cuenta y te muestra **otra cosa**: tres
@@ -224,8 +305,10 @@ Es **de solo lectura**, salvo dos cosas que sí puedes hacer:
   chips, pero no los puedes tocar.
 - **Publicar anuncios** para toda la sede, y **borrar publicaciones reportadas**.
 
-Dos ausencias que son decisiones, no fallas: **tu barra no tiene botón SOS** (crearía una
-alerta de pánico a tu nombre) y no tienes check-in ni asistente, porque son del paciente.
+Tres ausencias que son decisiones, no fallas: **tu barra no tiene botón SOS** (crearía una
+alerta de pánico a tu nombre), no tienes check-in ni asistente porque son del paciente, y
+**no participas de los mensajes privados** — esos son entre pacientes y compañeros de viaje.
+Lo tuyo es el grupo de la sede y la sesión.
 
 ### 2.3 Moderación de la comunidad
 
@@ -233,9 +316,17 @@ Cuando un paciente denuncia un mensaje, te llega a la cola de moderación **con 
 que escribió**, pero **sin quién lo denunció**. Es deliberado: si el denunciante quedara
 expuesto, nadie denunciaría.
 
-Desde ahí puedes **borrar la publicación** o **descartar la denuncia**. El mensaje
-denunciado le desaparece de inmediato a quien lo denunció, así que no queda expuesto a lo
-que le hizo daño mientras tú decides.
+La encuentras en *Solicitudes* en el panel web, y en *Reportadas* en la app. Desde ahí
+puedes **borrar el mensaje** o **descartar la denuncia**. El mensaje denunciado le desaparece
+de inmediato a quien lo denunció, así que no queda expuesto a lo que le hizo daño mientras
+tú decides.
+
+La cola trae **dos cosas distintas** y conviene no confundirlas:
+
+- Mensajes del **grupo de la sede**, que ve toda la comunidad.
+- Mensajes **privados**, de una conversación de a dos, marcados **«Mensaje privado»**. Te
+  llegan solo si alguien los denunció: el resto de las conversaciones privadas no pasa por
+  la moderación ni es visible para el equipo.
 
 ---
 
@@ -255,9 +346,14 @@ En la práctica, mientras eso no exista:
 - **El paciente no queda sin salida si no respondes.** La app lo lleva directo al asistente
   y a la línea \*4141, y su psicólogo/a ve el episodio en su panel igual.
 
-Lo que ya está listo por dentro y es lo que va a usar tu pantalla cuando exista: que un
-psicólogo/a o la coordinación te designe como compañero de viaje de un paciente, la lista
-de alertas que esperan tu respuesta, y el registro de que respondiste.
+Lo que ya está listo, y es lo que va a usar tu pantalla cuando exista: el equipo clínico ya
+te designa como compañero de viaje de un paciente desde su propia sección del panel, la
+lista de alertas que esperan tu respuesta existe, y el registro de que respondiste también.
+Lo único que falta es la puerta de entrada para ti.
+
+Lo mismo vale para los **mensajes privados** de la comunidad: están pensados para que
+pacientes y compañeros de viaje se escriban de a dos, y tu rol está habilitado para usarlos.
+Pero mientras no puedas entrar, en la práctica los usan solo los pacientes entre ellos.
 
 ---
 
@@ -267,18 +363,28 @@ Tu herramienta es el **portal web**. Funciona igual en el computador y en el tel
 
 ### 4.1 Registrarte y vincularte
 
-Entras a la página de registro de familiares y llenas tus datos **más el RUT del paciente**
-al que acompañas. Eso deja tu cuenta creada y una **solicitud de vínculo pendiente**.
+Entras a la página de registro de familiares y llenas tus datos, **más el RUT o el correo
+del paciente** al que acompañas — con cualquiera de los dos basta. Eso deja tu cuenta creada
+y una **solicitud de vínculo pendiente**.
 
-Por seguridad, **la página no te dice si ese RUT existe o no** en el sistema: confirmarlo
-sería decirle a cualquiera quién está en tratamiento.
+Por seguridad, **la página no te dice si esos datos corresponden a alguien** en el sistema:
+confirmarlo sería decirle a cualquiera quién está en tratamiento. Así que la respuesta es la
+misma exista el paciente o no.
 
 Cuando entres al portal con tu cuenta, si el vínculo todavía no está aprobado vas a ver el
-aviso **«Tu cuenta está pendiente de vinculación»**. Es normal al principio.
+aviso **«Tu cuenta está pendiente de vinculación»**.
 
-> ⚠️ **En esta versión la aprobación del vínculo todavía no está disponible**, así que ese
-> aviso no se va a ir solo por ahora. Es la parte que el equipo está construyendo en este
-> momento. Si te urge, habla directamente con el equipo de tratamiento.
+**Qué pasa mientras esperas.** Si el paciente que declaraste existe, **se le pregunta a él
+desde su app** si efectivamente eres su familiar, y su respuesta pesa en la decisión. Tu
+equipo clínico revisa y confirma, rechaza o te pide verificar de otra forma. Dos cosas:
+
+- **A ti no se te dice qué respondió el paciente.** Solo verás el resultado de la revisión.
+- Si te rechazaron o escribiste mal el RUT, **puedes volver a declarar al paciente** desde el
+  portal, sin crear otra cuenta. Si esa misma solicitud ya está en revisión, el portal te lo
+  dice en vez de duplicarla.
+
+**Si intentas registrarte muchas veces seguidas** te va a salir un error de «demasiados
+intentos». No es una falla: es un límite de seguridad. Espera un minuto.
 
 ### 4.2 Qué ves cuando el vínculo está activo
 
@@ -286,11 +392,15 @@ aviso **«Tu cuenta está pendiente de vinculación»**. Es normal al principio.
 - **Confirmar tu asistencia** a una sesión. Algunas son obligatorias y se indican como
   tales.
 - **Tu estado de pagos**, si te corresponde.
+- **Una campana de notificaciones** en el encabezado, con tus avisos.
 - **Ajustes** de tu cuenta.
 
+**Confirmar asistencia necesita el vínculo activo.** Si te lo revocaron, el portal deja de
+permitirlo: no es un error de la página.
+
 **Lo que no ves, y no es una falla:** nada del tratamiento de tu familiar. No ves sus
-check-ins, ni sus alertas, ni su ficha clínica, ni lo que escribe en la comunidad. Esa
-información es de él y de su equipo clínico.
+check-ins, ni sus alertas, ni su ficha clínica, ni lo que escribe en la comunidad, ni sus
+mensajes privados. Esa información es de él y de su equipo clínico.
 
 ---
 
@@ -302,7 +412,10 @@ el alcance de lo que muestra cada página:
 - **Los pacientes: todos los de la institución**, no solo los de un profesional. Es la
   diferencia principal, y es lo que te permite mirar la operación completa.
 - **Solicitudes de ingreso**: las apruebas o rechazas igual que un psicólogo/a.
-- **Designar compañeros de viaje** a los pacientes.
+- **Compañeros de viaje**: la sección propia del menú para designar y revocar. Vale la pena
+  revisarla seguido: un paciente sin compañero de viaje no tiene a quién avisarle al apretar
+  el botón SOS.
+- **Familiares**: confirmar, rechazar o revocar los vínculos de los familiares.
 - **Equipo**: crear cuentas de psicólogo/a y ver a quién tiene asignado cada uno.
 - **Sesiones de familiares** de las sedes.
 
@@ -340,6 +453,21 @@ en el foro.
 **El correo con mi contraseña no llegó.** Revisa spam. Si no está, pídela al equipo: te la
 pueden entregar en mano.
 
+**Busqué a alguien para escribirle en privado y no aparece.** Puede ser por tres razones:
+no es de tu sede, su cuenta no está activa, o alguno de los dos bloqueó al otro. El equipo
+clínico tampoco aparece: con ellos se habla en el grupo o en sesión.
+
+**Bloqueé a alguien, ¿se da cuenta?** No se le avisa. Simplemente dejan de poder escribirse.
+
+**Activé la protección contra apuestas y ahora no tengo internet en nada.** Eso pasa si en
+los ajustes de Android quedó marcado «Bloquear conexiones sin VPN» junto con «VPN siempre
+activa». Ver el aviso en [1.5](#15-la-protección-contra-apuestas): se arregla apagando esa
+opción en *Ajustes › Red e Internet › VPN*.
+
+**Soy familiar y sigo «pendiente de vinculación».** Tu equipo clínico todavía no revisó la
+solicitud, o está esperando que el paciente responda desde su app. Si pasa mucho tiempo,
+habla directamente con el equipo.
+
 ---
 
 ## Qué no hace esta versión
@@ -347,13 +475,14 @@ pueden entregar en mano.
 Está acá para que nadie pierda tiempo buscando algo que todavía no existe:
 
 - **El compañero de viaje no tiene pantalla.** Ver el [capítulo 3](#3-compañero-de-viaje-padrino).
-- **El vínculo del familiar no se puede aprobar todavía**, así que una cuenta de familiar
-  nueva se queda en «pendiente de vinculación». En construcción ahora mismo.
 - **No hay recuperación automática de contraseña.** Se pide a soporte o al equipo.
 - **Finanzas y Reportes del panel web** no están conectados: Finanzas muestra datos de
   ejemplo y lo avisa en pantalla.
-- **El bloqueo de sitios de apuestas en el teléfono todavía no existe.** Está en
-  investigación.
+- **El bloqueo de apuestas no le informa nada a tu psicólogo/a.** Bloquea en el teléfono y
+  ahí se queda: no hay reportes de qué intentaste visitar. Si eso cambiara alguna vez, se te
+  va a pedir permiso antes.
+- **La lista de sitios bloqueados viene dentro de la app** y se actualiza al actualizar la
+  app, no sola.
 - **La app es solo Android.** No hay versión para iPhone.
 - **El asistente no es una persona** y no está supervisado en tiempo real. Ante una
   urgencia real: el botón SOS, tu equipo de tratamiento, o el **\*4141**.
