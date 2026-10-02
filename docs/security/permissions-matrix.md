@@ -121,6 +121,31 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 > paciente el borrado de sus propias publicaciones. La identidad ya no es falsificable
 > —viene del token—, que era el problema real.
 
+## `direct-messages` — `/messages`
+
+Nuevo el 30-09 (mensajes directos de Comunidad). Todo el controlador lleva
+`@Roles('patient', 'sponsor')`: el equipo clínico **no** entra, ni siquiera a leer. Lo único de
+una conversación privada que le llega es un mensaje reportado, por la cola de moderación de
+`community` (con `type: 'direct_message'`).
+
+| Método + Path | Rol objetivo | Estado actual |
+|---|---|---|
+| `GET /messages/stream` | `patient`, `sponsor` (solo lo suyo) | ✅ Protegido — SSE filtrado por el usuario del token |
+| `GET /messages/conversations` | `patient`, `sponsor` (solo las suyas) | ✅ Protegido |
+| `GET /messages/contacts` | `patient`, `sponsor` (de su sede) | ✅ Protegido — solo cuentas activas de la misma sede, sin bloqueos |
+| `GET /messages/with/:userId` | `patient`, `sponsor` | ✅ Protegido — 404 si el otro no es de su sede y no hay conversación previa |
+| `POST /messages/with/:userId` | `patient`, `sponsor` | ✅ Protegido — misma sede y sin bloqueo en ninguna dirección (403) |
+| `POST /messages/with/:userId/read` | `patient`, `sponsor` | ✅ Protegido |
+| `POST /messages/:id/report` | `patient`, `sponsor` (quien lo recibió) | ✅ Protegido — 404 si no es de una conversación propia |
+| `DELETE /messages/:id` | `patient`, `sponsor` (el autor) | ✅ Protegido — 403 si no es propio |
+| `POST /messages/blocks/:userId` | `patient`, `sponsor` | ✅ Protegido |
+| `DELETE /messages/blocks/:userId` | `patient`, `sponsor` | ✅ Protegido |
+
+> La moderación de mensajes directos reusa `GET /community/moderation/flagged`,
+> `POST /community/moderation/posts/:id/dismiss` y `DELETE /community/posts/:id`: si el id no es
+> de una publicación del foro, prueban con un mensaje directo. El borrado por moderación exige
+> que el mensaje **tenga un reporte**; sin reporte da 403.
+
 ## `ai-assistant` — `/ai`
 
 | Método + Path | Rol objetivo | Estado actual |

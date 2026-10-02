@@ -8,6 +8,10 @@ import type {
   BillingStatus,
   CheckIn,
   CommunityPost,
+  DirectContact,
+  DirectConversationSummary,
+  DirectMessage,
+  DirectThread,
   EmotionType,
   Notification,
   PaginatedResponse,
@@ -523,6 +527,41 @@ export const api = {
       userId,
       method: 'DELETE',
     }),
+
+  // ── Mensajes directos ────────────────────────────────────────────────
+  // El backend saca de la sesión quién pregunta: estos no llevan `x-user-id`.
+
+  getDirectConversations: () => request<DirectConversationSummary[]>('/messages/conversations'),
+
+  findDirectContacts: (q: string) =>
+    request<DirectContact[]>(`/messages/contacts${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`),
+
+  getDirectThread: (otherId: string, page = 1, limit = 30) =>
+    request<DirectThread>(`/messages/with/${otherId}?page=${page}&limit=${limit}`),
+
+  sendDirectMessage: (otherId: string, body: string, clientRequestId: string, replyToId?: string) =>
+    request<DirectMessage>(`/messages/with/${otherId}`, {
+      method: 'POST',
+      body: JSON.stringify({ body, clientRequestId, replyToId }),
+    }),
+
+  markDirectRead: (otherId: string) =>
+    request<{ read: true }>(`/messages/with/${otherId}/read`, { method: 'POST' }),
+
+  reportDirectMessage: (messageId: string, reason: string) =>
+    request<{ reported: true }>(`/messages/${messageId}/report`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    }),
+
+  deleteDirectMessage: (messageId: string) =>
+    request<{ deleted: true }>(`/messages/${messageId}`, { method: 'DELETE' }),
+
+  blockUser: (otherId: string) =>
+    request<{ blocked: true }>(`/messages/blocks/${otherId}`, { method: 'POST' }),
+
+  unblockUser: (otherId: string) =>
+    request<{ blocked: false }>(`/messages/blocks/${otherId}`, { method: 'DELETE' }),
 
   registrarTokenPush: (userId: string, token: string) =>
     request<{ registrado: boolean }>('/push/tokens', {

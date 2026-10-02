@@ -163,10 +163,13 @@ export function StaffCommunityScreen() {
 
   const eliminar = (post: FlaggedPost) => {
     showDialog({
-      title: 'Eliminar esta publicación',
+      title: post.type === 'direct_message' ? 'Eliminar este mensaje privado' : 'Eliminar esta publicación',
       message:
-        'Desaparece del chat para toda la sede y no se puede recuperar. ' +
-        'Quien la escribió no recibe aviso.',
+        post.type === 'direct_message'
+          ? 'Se borra de la conversación para las dos personas y no se puede recuperar. ' +
+            'Quien lo escribió no recibe aviso.'
+          : 'Desaparece del chat para toda la sede y no se puede recuperar. ' +
+            'Quien la escribió no recibe aviso.',
       actions: [
         {
           label: 'Eliminar',
@@ -425,6 +428,14 @@ const Reportada = React.memo(function Reportada({
         <Text style={styles.reportadaFecha}>{timeAgo(post.createdAt)}</Text>
       </View>
       <Text style={styles.reportadaAutor}>{post.authorName ?? 'Autor desconocido'}</Text>
+      {/* Un mensaje directo reportado llega a esta misma cola, pero no lo leyó la sede: es de
+          una conversación privada, y de ella solo se ve este mensaje. */}
+      {post.type === 'direct_message' ? (
+        <View style={styles.privado}>
+          <Icon name="lock" size={12} color={c.primaryText} />
+          <Text style={styles.privadoTexto}>Mensaje privado · solo se ve este mensaje</Text>
+        </View>
+      ) : null}
       <Text style={styles.reportadaCuerpo}>{post.body ?? '(sin texto)'}</Text>
       <View style={styles.reportadaAcciones}>
         <Touchable
@@ -444,6 +455,11 @@ const Reportada = React.memo(function Reportada({
 
 const makeStyles = (c: Palette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: c.bg },
+  privado: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    backgroundColor: c.infoSurface, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4,
+  },
+  privadoTexto: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.primaryText },
   centro: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28 },
   sinSede: { fontFamily: Fonts.body, fontSize: 14, color: c.fg2, textAlign: 'center', lineHeight: 21 },
 

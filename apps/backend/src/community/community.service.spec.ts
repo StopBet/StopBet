@@ -74,6 +74,7 @@ describe('CommunityService — escrituras idempotentes', () => {
       sedeRepo as any,
       noopRepo() as any,
       pushService as any,
+      noopRepo() as any,
     );
   });
 
@@ -314,7 +315,7 @@ describe('CommunityService — descartar reportes', () => {
     const noop = () => ({}) as any;
     service = new CommunityService(
       postRepo as any, noop(), noop(), reportRepo as any, noop(), userRepo as any, noop(), noop(),
-      noop(), noop(), noop(),
+      noop(), noop(), noop(), noop(),
     );
   });
 

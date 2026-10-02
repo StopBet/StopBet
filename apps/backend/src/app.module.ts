@@ -57,6 +57,11 @@ import { PsychologistSede } from './psychologists/entities/psychologist-sede.ent
 import { PatientAssignment } from './psychologists/entities/patient-assignment.entity';
 import { MailModule } from './mail/mail.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { DirectMessagesModule } from './direct-messages/direct-messages.module';
+import { DirectConversation } from './direct-messages/entities/direct-conversation.entity';
+import { DirectMessage } from './direct-messages/entities/direct-message.entity';
+import { DirectMessageReport } from './direct-messages/entities/direct-message-report.entity';
+import { UserBlock } from './direct-messages/entities/user-block.entity';
 
 @Module({
   imports: [
@@ -104,6 +109,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
           CommunityMute,
           PsychologistSede, PatientAssignment,
           ClinicalRecord, ClinicalRecordVersion, ClinicalNote,
+          DirectConversation, DirectMessage, DirectMessageReport, UserBlock,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',
@@ -122,6 +128,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
     SubscriptionsModule,
     AchievementsModule,
     CommunityModule,
+    DirectMessagesModule,
     BillingModule,
     AiAssistantModule,
     PanicModule,

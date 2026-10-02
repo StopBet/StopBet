@@ -36,6 +36,7 @@ function ChatMessageBase({
   disabled,
   enviando,
   falló,
+  sinAutor = false,
   onReact,
   onResponder,
   onReintentar,
@@ -51,6 +52,11 @@ function ChatMessageBase({
   enviando: boolean;
   /** No salió: se puede tocar para reintentar. */
   falló: boolean;
+  /**
+   * Conversación uno a uno: sin avatar ni nombre sobre las burbujas del otro, como en
+   * WhatsApp. En un chat de dos, repetir quién habla es ruido.
+   */
+  sinAutor?: boolean;
   /** Sin esto los chips de reacción se muestran pero no se pueden tocar (vista del equipo clínico). */
   onReact?: (emoji: ReactionEmoji) => void;
   onResponder: () => void;
@@ -82,7 +88,7 @@ function ChatMessageBase({
       <View style={[styles.bubbleRow, isOwn ? styles.msgRowOwn : styles.msgRowOther]}>
         {/* El avatar solo acompaña al primero de una tanda; en el resto va un hueco
             del mismo ancho para que las burbujas queden alineadas entre sí. */}
-        {!isOwn && (
+        {!isOwn && !sinAutor && (
           showAuthor ? (
             <View style={[styles.avatarSm, { backgroundColor: deEquipo ? c.primary : c.teal400 }]}>
               <Text style={styles.avatarSmLetter}>{initial(post.authorName)}</Text>
@@ -128,7 +134,7 @@ function ChatMessageBase({
                   <Text style={styles.chipEquipoTexto}>{ROLE_LABEL[post.authorRole]}</Text>
                 </View>
               </View>
-            ) : !isOwn && showAuthor ? (
+            ) : !isOwn && showAuthor && !sinAutor ? (
               <Text style={styles.bubbleAuthor}>{post.authorName}</Text>
             ) : null}
 
@@ -252,6 +258,7 @@ export const ChatMessage = React.memo(
     a.disabled === b.disabled &&
     a.enviando === b.enviando &&
     a.falló === b.falló &&
+    a.sinAutor === b.sinAutor &&
     a.díaEncima === b.díaEncima,
 );
 

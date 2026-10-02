@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from './entities/psychologist-sede.entity';
 import { DB_UUID_RE } from '../registration/dto/is-db-uuid.validator';
@@ -31,4 +31,39 @@ export async function sedeIdsOfPsychologist(
 
   const resolved = await resolveSedeId(sedeRepo, legacySedeId);
   return resolved ? [resolved] : [];
+}
+
+// `users.sedeId` guarda el nombre de la sede o su UUID según de dónde venga la cuenta (seed →
+// 'Santiago'; registro → UUID). Comparar por un solo lado parte una sede en dos mitades que no
+// se ven entre sí, y el síntoma es una lista vacía, no un error. Mientras no exista la migración
+// que normalice la columna, se comparan las dos formas.
+export async function formasDeSede(sedeRepo: Repository<Sede>, sede: string): Promise<string[]> {
+  const fila = DB_UUID_RE.test(sede)
+    ? await sedeRepo.findOne({ where: { id: sede } })
+    : await sedeRepo.findOne({ where: { name: sede } });
+  return fila ? [fila.id, fila.name] : [sede];
+}
+
+// Todas las formas (id y nombre) de las sedes que cubre una cuenta: la suya si es paciente o
+// compañero de viaje, todas las de `psychologist_sedes` si es del equipo clínico.
+export async function formasDeSedesDeUsuario(
+  sedeRepo: Repository<Sede>,
+  psychSedeRepo: Repository<PsychologistSede>,
+  user: { id: string; role: string; sedeId: string | null },
+): Promise<Set<string>> {
+  const ids =
+    user.role === 'psychologist' || user.role === 'coordinator'
+      ? await sedeIdsOfPsychologist(psychSedeRepo, sedeRepo, user.id, user.sedeId)
+      : ([await resolveSedeId(sedeRepo, user.sedeId)].filter(Boolean) as string[]);
+
+  const filas = ids.length ? await sedeRepo.find({ where: { id: In(ids) } }) : [];
+  const formas = new Set<string>();
+  // El valor crudo también entra: una sede que no esté en la tabla no debe dejar al usuario
+  // fuera de su propia sede.
+  if (user.sedeId) formas.add(user.sedeId);
+  for (const s of filas) {
+    formas.add(s.id);
+    formas.add(s.name);
+  }
+  return formas;
 }

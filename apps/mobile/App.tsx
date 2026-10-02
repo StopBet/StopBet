@@ -27,6 +27,9 @@ import { PaymentScreen } from './src/screens/PaymentScreen';
 // App screens
 import { AssistantScreen } from './src/screens/AssistantScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { GroupChatScreen } from './src/screens/GroupChatScreen';
+import { DirectChatScreen } from './src/screens/DirectChatScreen';
+import { NewDirectMessageScreen } from './src/screens/NewDirectMessageScreen';
 import { MainTabs } from './src/navigation/MainTabs';
 import { PanicScreen } from './src/screens/PanicScreen';
 import { SuspendedAccountScreen } from './src/screens/SuspendedAccountScreen';
@@ -85,6 +88,10 @@ function AppNavigator() {
       <AppStack.Screen name="Assistant" component={AssistantScreen} />
       <AppStack.Screen name="Panic" component={PanicScreen} options={{ animation: 'slide_from_bottom', animationDuration: 320 }} />
       <AppStack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
+      {/* Las conversaciones de Comunidad: una por pantalla, como en WhatsApp. */}
+      <AppStack.Screen name="GroupChat" component={GroupChatScreen} options={{ animation: 'slide_from_right' }} />
+      <AppStack.Screen name="DirectChat" component={DirectChatScreen} options={{ animation: 'slide_from_right' }} />
+      <AppStack.Screen name="NewDirectMessage" component={NewDirectMessageScreen} options={{ animation: 'slide_from_right' }} />
     </AppStack.Navigator>
   );
 }

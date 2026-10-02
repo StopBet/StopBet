@@ -315,10 +315,7 @@ export function PanicScreen({ navigation }: Props) {
       // Silencioso - navegar igual
     }
     const draft = 'Hola 🚨 no me encuentro muy bien, ¿alguien podría ayudarme conversando?';
-    navigation.navigate('MainTabs', {
-      screen: 'Community',
-      params: { initialTab: 'forum', draft },
-    });
+    navigation.navigate('GroupChat', { draft });
   }, [state, navigation]);
 
   const handleEscalateToAI = useCallback(async () => {

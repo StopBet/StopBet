@@ -20,11 +20,15 @@ import { AttendanceConfirmation } from './entities/attendance-confirmation.entit
 import { User } from '../users/entities/user.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
-import { resolveSedeId, sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
-import { DB_UUID_RE } from '../registration/dto/is-db-uuid.validator';
+import {
+  formasDeSede,
+  formasDeSedesDeUsuario,
+  resolveSedeId,
+} from '../psychologists/sedes-of-user';
 import { Notification } from '../notifications/entities/notification.entity';
 import { CommunityMute } from '../notifications/entities/community-mute.entity';
 import { PushService } from '../push/push.service';
+import { DirectMessagesService } from '../direct-messages/direct-messages.service';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateReplyDto } from './dto/create-reply.dto';
@@ -59,6 +63,7 @@ export class CommunityService {
     @InjectRepository(PsychologistSede)
     private readonly psychSedeRepo: Repository<PsychologistSede>,
     private readonly pushService: PushService,
+    private readonly directMessages: DirectMessagesService,
   ) {}
 
   /**
@@ -80,38 +85,15 @@ export class CommunityService {
     );
   }
 
-  /**
-   * `community_posts.sede` guarda el NOMBRE de la sede, pero `users.sedeId` guarda el nombre
-   * o el UUID según de dónde venga la cuenta (seed → 'Santiago'; registro → UUID). Comparar
-   * por un solo lado parte el foro de una sede en dos mitades que no se ven entre sí, y el
-   * síntoma es una lista vacía, no un error. Mientras no exista la migración que normalice la
-   * columna, acá se aceptan las dos formas - es el `mismaSede()` de la app, en el servidor.
-   */
-  private async formasDeSede(sede: string): Promise<string[]> {
-    const fila = DB_UUID_RE.test(sede)
-      ? await this.sedeRepo.findOne({ where: { id: sede } })
-      : await this.sedeRepo.findOne({ where: { name: sede } });
-    return fila ? [fila.id, fila.name] : [sede];
+  /** Acepta el nombre o el UUID de la sede: ver `formasDeSede` en `sedes-of-user.ts`. */
+  private formasDeSede(sede: string): Promise<string[]> {
+    return formasDeSede(this.sedeRepo, sede);
   }
 
   /** Todas las formas de las sedes que cubre el usuario, para comparar sin falsos negativos. */
   private async sedesDelUsuario(userId: string): Promise<Set<string>> {
     const user = await this.userRepo.findOneOrFail({ where: { id: userId } });
-    const ids =
-      user.role === 'psychologist' || user.role === 'coordinator'
-        ? await sedeIdsOfPsychologist(this.psychSedeRepo, this.sedeRepo, userId, user.sedeId)
-        : ([await resolveSedeId(this.sedeRepo, user.sedeId)].filter(Boolean) as string[]);
-
-    const filas = ids.length ? await this.sedeRepo.find({ where: { id: In(ids) } }) : [];
-    const formas = new Set<string>();
-    // El valor crudo también entra: una sede que no esté en la tabla no debe dejar al usuario
-    // fuera de su propio foro.
-    if (user.sedeId) formas.add(user.sedeId);
-    for (const s of filas) {
-      formas.add(s.id);
-      formas.add(s.name);
-    }
-    return formas;
+    return formasDeSedesDeUsuario(this.sedeRepo, this.psychSedeRepo, user);
   }
 
   /** La sede con la que se guarda lo que escribe el usuario. Sale del token, nunca del cliente. */
@@ -402,12 +384,18 @@ export class CommunityService {
     await this.assertPsychologist(requesterId);
     const where: Record<string, unknown> = { reportCount: MoreThanOrEqual(REPORT_THRESHOLD) };
     if (sede) where['sede'] = sede;
-    const posts = await this.postRepo.find({
-      where,
-      relations: ['author'],
-      order: { reportCount: 'DESC' },
-    });
-    if (!posts.length) return [];
+    const [posts, mensajesDirectos] = await Promise.all([
+      this.postRepo.find({
+        where,
+        relations: ['author'],
+        order: { reportCount: 'DESC' },
+      }),
+      // Los mensajes directos reportados entran a la misma cola, con `type: 'direct_message'`:
+      // así la web y la app del equipo clínico los moderan sin cambiar nada. Es lo único de
+      // una conversación privada que el equipo clínico llega a ver.
+      this.directMessages.findFlagged(sede),
+    ]);
+    if (!posts.length) return mensajesDirectos;
 
     // Los motivos van sin identificar al denunciante: saber quién reportó a quién
     // desincentiva reportar, y para moderar basta con el motivo.
@@ -422,10 +410,11 @@ export class CommunityService {
       reasonsByPost.get(r.postId)!.push(r.reason);
     }
 
-    return posts.map((p) => ({
+    const delForo = posts.map((p) => ({
       ...this.serializePost(p, [], 0, requesterId),
       reportReasons: reasonsByPost.get(p.id) ?? [],
     }));
+    return [...delForo, ...mensajesDirectos].sort((a, b) => b.reportCount - a.reportCount);
   }
 
   // El psicólogo revisó los reportes y la publicación se queda. Sale de la cola para todo
@@ -433,7 +422,11 @@ export class CommunityService {
   async dismissReports(postId: string, requesterId: string) {
     await this.assertPsychologist(requesterId);
     const post = await this.postRepo.findOne({ where: { id: postId } });
-    if (!post) throw new NotFoundException('Publicación no encontrada');
+    if (!post) {
+      const directo = await this.directMessages.dismissReportsAsModerator(postId, requesterId);
+      if (directo) return directo;
+      throw new NotFoundException('Publicación no encontrada');
+    }
     const result = await this.reportRepo.update(
       { postId, dismissedAt: IsNull() },
       { dismissedAt: new Date(), dismissedBy: requesterId },
@@ -445,7 +438,16 @@ export class CommunityService {
   // CA3 (psicólogo modera) + CA5.4 (autor elimina su propia publicación)
   async deletePost(postId: string, requesterId: string) {
     const post = await this.postRepo.findOne({ where: { id: postId } });
-    if (!post) throw new NotFoundException('Publicación no encontrada');
+    if (!post) {
+      // La cola de moderación mezcla foro y mensajes directos, y borra por esta misma ruta.
+      // Para cualquier otro rol sigue siendo un 404, como antes.
+      const requester = await this.userRepo.findOne({ where: { id: requesterId } });
+      if (requester?.role === 'psychologist') {
+        const directo = await this.directMessages.deleteAsModerator(postId);
+        if (directo) return directo;
+      }
+      throw new NotFoundException('Publicación no encontrada');
+    }
     if (post.authorId !== requesterId) {
       await this.assertPsychologist(requesterId);
     }

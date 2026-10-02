@@ -91,7 +91,7 @@ export function NotificationsScreen({ navigation }: Props) {
         navigation.navigate('MainTabs', { screen: 'Home' });
         break;
       case 'community':
-        navigation.navigate('MainTabs', { screen: 'Community', params: { initialTab: 'forum' } });
+        navigation.navigate('GroupChat');
         break;
       case 'achievements':
         navigation.navigate('MainTabs', { screen: 'Achievements' });

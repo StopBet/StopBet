@@ -328,6 +328,56 @@ export type CommunityStreamEvent =
   | { kind: 'post'; post: CommunityPost }
   | { kind: 'ping' };
 
+// ── Mensajes directos ─────────────────────────────────────────────────────
+
+/** Alguien de la sede a quien se le puede escribir, o con quien ya se habla. */
+export interface DirectContact {
+  id: string;
+  name: string;
+  role: UserRole;
+}
+
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  senderName: string;
+  senderRole: UserRole;
+  body: string;
+  replyTo: QuotedMessage | null;
+  createdAt: string;
+}
+
+/** Una fila de la lista de chats: con quién, lo último que se dijo y cuánto falta por leer. */
+export interface DirectConversationSummary {
+  id: string;
+  other: DirectContact;
+  lastMessage: {
+    body: string;
+    senderId: string;
+    createdAt: string;
+  };
+  unreadCount: number;
+  /** Lo bloqueó quien pregunta: la conversación sigue a la vista, pero no se puede escribir. */
+  blockedByMe: boolean;
+}
+
+/** Una conversación abierta: la otra persona y una página de mensajes, del más nuevo al más viejo. */
+export interface DirectThread extends PaginatedResponse<DirectMessage> {
+  other: DirectContact;
+  conversationId: string | null;
+  blockedByMe: boolean;
+}
+
+/**
+ * Lo que viaja por el stream personal de mensajes directos. Cada quien recibe solo lo suyo:
+ * lo que le escribieron y lo que escribió desde otro teléfono.
+ */
+export type DirectStreamEvent =
+  | { kind: 'message'; message: DirectMessage; otherId: string }
+  | { kind: 'deleted'; messageId: string; conversationId: string }
+  | { kind: 'ping' };
+
 // ── Botón de Pánico ───────────────────────────────────────────────────────
 
 export type PanicAlertStatus = 'pending' | 'responded' | 'escalated' | 'cancelled';
