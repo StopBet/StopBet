@@ -381,6 +381,16 @@ export class SponsorDesignationService {
       );
     }
 
+    // Sin esto, «reemplazar» al compañero actual por sí mismo cerraba su asignación, abría
+    // una idéntica y les volvía a avisar a los dos: un registro de auditoría con un cambio
+    // que no ocurrió.
+    const actual = await this.assignmentRepo.findOne({
+      where: { patientId, isActive: true },
+    });
+    if (actual?.sponsorId === sponsorId) {
+      throw new ConflictException('Esa persona ya es su compañero de viaje');
+    }
+
     await this.assignmentRepo.update(
       { patientId, isActive: true },
       { isActive: false },
