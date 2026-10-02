@@ -61,6 +61,8 @@ describe('SponsorDesignationService', () => {
     findOne: jest.Mock;
   };
   let notificationRepo: { save: jest.Mock; create: jest.Mock };
+  let sedeRepo: { findOne: jest.Mock };
+  let psychSedeRepo: { find: jest.Mock };
 
   // El servicio consulta `userRepo.findOne` dos veces por operación: el paciente y,
   // al serializar, el psicólogo que hizo la designación. El mock responde por id.
@@ -104,11 +106,27 @@ describe('SponsorDesignationService', () => {
       create: jest.fn((v) => v),
     };
 
+    // Catálogo de sedes: Santiago se guarda con nombre o UUID según la cuenta.
+    const SEDES = [
+      { id: '81e738b5-ac1d-41a0-8fda-2dd9b4dcd9fb', name: 'Santiago' },
+      { id: '6fdb8359-7649-4716-b1fc-1d22ce2793df', name: 'Viña del Mar' },
+    ];
+    sedeRepo = {
+      findOne: jest.fn(({ where }) =>
+        Promise.resolve(
+          SEDES.find((x) => (where.id ? x.id === where.id : x.name === where.name)) ?? null,
+        ),
+      ),
+    };
+    psychSedeRepo = { find: jest.fn().mockResolvedValue([]) };
+
     service = new SponsorDesignationService(
       designationRepo as any,
       userRepo as any,
       assignmentRepo as any,
       notificationRepo as any,
+      sedeRepo as any,
+      psychSedeRepo as any,
     );
   });
 
@@ -147,7 +165,7 @@ describe('SponsorDesignationService', () => {
     it('acota el listado a la sede del psicólogo', async () => {
       await service.listCandidates(PSICOLOGO);
 
-      expect(userRepo.find.mock.calls[0][0].where.sedeId).toBe('sede-1');
+      expect(JSON.stringify(userRepo.find.mock.calls[0][0].where.sedeId)).toContain('sede-1');
     });
 
     it('no acota por sede al coordinador, que no tiene una propia', async () => {
@@ -478,7 +496,7 @@ describe('SponsorDesignationService', () => {
 
       await service.listAvailable('p1', COORDINADOR);
 
-      expect(userRepo.find.mock.calls[0][0].where.sedeId).toBe('sede-9');
+      expect(JSON.stringify(userRepo.find.mock.calls[0][0].where.sedeId)).toContain('sede-9');
     });
 
     it('no deja consultar los candidatos de un paciente de otra sede', async () => {
@@ -711,6 +729,52 @@ describe('SponsorDesignationService', () => {
 
       await expect(service.assign('p1', 's1')).resolves.toBeUndefined();
       expect(assignmentRepo.save).toHaveBeenCalled();
+    });
+  });
+  // ── Sede escrita como nombre o como UUID, y psicólogos de varias sedes ──
+  // Fallo encontrado en producción: 27 de los 31 pacientes de un psicólogo le daban 403.
+
+  describe('sedes en producción', () => {
+    const PSI_STGO_NOMBRE: AuthUser = { ...PSICOLOGO, sedeId: 'Santiago' };
+
+    it('reconoce como misma sede a «Santiago» y a su UUID', async () => {
+      registrar(pacienteActivo({ sedeId: '81e738b5-ac1d-41a0-8fda-2dd9b4dcd9fb' }));
+
+      await expect(service.getCurrent('p1', PSI_STGO_NOMBRE)).resolves.toBeNull();
+    });
+
+    it('deja a un psicólogo actuar en todas sus sedes, no solo en la del token', async () => {
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: '81e738b5-ac1d-41a0-8fda-2dd9b4dcd9fb' }, { sedeId: '6fdb8359-7649-4716-b1fc-1d22ce2793df' }]);
+      registrar(pacienteActivo({ sedeId: 'Viña del Mar' }));
+
+      await expect(service.getCurrent('p1', PSI_STGO_NOMBRE)).resolves.toBeNull();
+    });
+
+    it('sigue bloqueando una sede que el psicólogo no cubre', async () => {
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: '81e738b5-ac1d-41a0-8fda-2dd9b4dcd9fb' }]);
+      registrar(pacienteActivo({ sedeId: '6fdb8359-7649-4716-b1fc-1d22ce2793df' }));
+
+      await expect(service.getCurrent('p1', PSI_STGO_NOMBRE)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lista candidatos con las dos formas de cada sede', async () => {
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: '81e738b5-ac1d-41a0-8fda-2dd9b4dcd9fb' }]);
+
+      await service.listCandidates(PSI_STGO_NOMBRE);
+
+      const filtro = JSON.stringify(userRepo.find.mock.calls[0][0].where.sedeId);
+      expect(filtro).toContain('81e738b5-ac1d-41a0-8fda-2dd9b4dcd9fb');
+      expect(filtro).toContain('Santiago');
+    });
+
+    it('asigna aunque paciente y compañero tengan la sede escrita distinto', async () => {
+      registrar(
+        pacienteActivo({ sedeId: '81e738b5-ac1d-41a0-8fda-2dd9b4dcd9fb' }),
+        pacienteActivo({ id: 's1', firstName: 'Daniela', lastName: 'Soto', sedeId: 'Santiago' }),
+      );
+      designationRepo.findOne.mockResolvedValue({ id: 'd9', isActive: true });
+
+      await expect(service.assign('p1', 's1', PSI_STGO_NOMBRE)).resolves.toBeUndefined();
     });
   });
 });

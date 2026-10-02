@@ -14,6 +14,9 @@ import {
   SponsorWithLoad,
 } from '@stopbet/shared-types';
 import { User } from '../users/entities/user.entity';
+import { Sede } from '../sedes/entities/sede.entity';
+import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
+import { DB_UUID_RE } from '../registration/dto/is-db-uuid.validator';
 import { Notification } from '../notifications/entities/notification.entity';
 import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { SponsorDesignation } from './entities/sponsor-designation.entity';
@@ -29,19 +32,53 @@ export class SponsorDesignationService {
     private readonly assignmentRepo: Repository<SponsorAssignment>,
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
+    @InjectRepository(Sede)
+    private readonly sedeRepo: Repository<Sede>,
+    @InjectRepository(PsychologistSede)
+    private readonly psychSedeRepo: Repository<PsychologistSede>,
   ) {}
 
   /**
-   * Nadie mira a un paciente de otra sede.
+   * Las dos formas en que puede venir escrita una sede: su UUID y su nombre.
    *
-   * Va en un solo método a propósito: cuando la comprobación estaba escrita a mano en
-   * cada operación, dos de las seis se quedaron sin ella y quedó un endpoint que
-   * devolvía nombres de pacientes de cualquier sede a quien supiera el UUID.
-   *
-   * El coordinador no tiene sede propia (`sedeId: null`) y ve todas: es su rol.
+   * `users.sedeId` guarda el nombre en las cuentas del seed (`'Santiago'`) y el UUID en las
+   * que crea el registro. Comparar el texto tal cual da por distintas a dos personas de la
+   * misma sede: en producción dejaba fuera a 18 de los 31 pacientes de un psicólogo.
    */
-  private mismaSede(patient: User, actor?: AuthUser): void {
-    if (actor?.sedeId && patient.sedeId !== actor.sedeId) {
+  private async formas(raw: string | null | undefined): Promise<string[]> {
+    if (!raw) return [];
+    const sede = DB_UUID_RE.test(raw)
+      ? await this.sedeRepo.findOne({ where: { id: raw } })
+      : await this.sedeRepo.findOne({ where: { name: raw } });
+    return sede ? [sede.id, sede.name] : [raw];
+  }
+
+  /**
+   * Las sedes que cubre quien consulta, en sus dos formas; `null` si no hay límite.
+   *
+   * Un psicólogo puede atender en varias sedes (`psychologist_sedes`) y el token trae una sola:
+   * mirar solo esa dejaba fuera a sus pacientes de las otras. La coordinación ve todas, y la
+   * ruta vieja `POST /panic/assign` llega sin actor, sin control por sede, como antes.
+   */
+  private async sedesDe(actor?: AuthUser): Promise<string[] | null> {
+    if (!actor || actor.role === 'coordinator') return null;
+    const links = await this.psychSedeRepo.find({ where: { psychologistId: actor.id } });
+    const crudas = links.length > 0 ? links.map((l) => l.sedeId) : [actor.sedeId];
+    const todas = new Set<string>();
+    for (const r of crudas) for (const f of await this.formas(r)) todas.add(f);
+    return [...todas];
+  }
+
+  /**
+   * Nadie actúa sobre un paciente de una sede que no cubre.
+   *
+   * Va en un solo método a propósito: cuando la comprobación estaba escrita a mano en cada
+   * operación, dos de las seis se quedaron sin ella.
+   */
+  private async mismaSede(patient: User, actor?: AuthUser): Promise<void> {
+    const mias = await this.sedesDe(actor);
+    if (mias === null) return;
+    if (!patient.sedeId || !mias.includes(patient.sedeId)) {
       throw new ForbiddenException('El paciente no pertenece a tu sede');
     }
   }
@@ -64,7 +101,8 @@ export class SponsorDesignationService {
       role: 'patient',
       accountStatus: 'active',
     };
-    if (actor.sedeId) where.sedeId = actor.sedeId;
+    const mias = await this.sedesDe(actor);
+    if (mias !== null) where.sedeId = In(mias);
 
     // `Not(In([]))` genera SQL que no filtra nada en algunos drivers, así que la
     // condición solo se agrega cuando hay a quién excluir.
@@ -97,6 +135,7 @@ export class SponsorDesignationService {
     });
     if (designations.length === 0) return [];
 
+    const mias = await this.sedesDe(actor);
     const ids = designations.map((d) => d.patientId);
     const autores = designations.map((d) => d.designatedBy);
     const personas = await this.userRepo.find({
@@ -108,7 +147,8 @@ export class SponsorDesignationService {
     for (const d of designations) {
       const sponsor = porId.get(d.patientId);
       // Un designado de otra sede no se muestra, igual que en el resto del módulo.
-      if (!sponsor || (actor.sedeId && sponsor.sedeId !== actor.sedeId)) continue;
+      if (!sponsor) continue;
+      if (mias !== null && !(sponsor.sedeId && mias.includes(sponsor.sedeId))) continue;
 
       const autor = porId.get(d.designatedBy);
       resultado.push({
@@ -147,7 +187,7 @@ export class SponsorDesignationService {
         'La cuenta del paciente no está activa',
       );
     }
-    this.mismaSede(patient, actor);
+    await this.mismaSede(patient, actor);
 
     const existing = await this.designationRepo.findOne({
       where: { patientId, isActive: true },
@@ -204,7 +244,7 @@ export class SponsorDesignationService {
     const patient = await this.userRepo.findOne({ where: { id: patientId } });
     if (!patient) throw new NotFoundException('El paciente no existe');
 
-    this.mismaSede(patient, actor);
+    await this.mismaSede(patient, actor);
 
     const aCargo = await this.assignmentRepo.count({
       where: { sponsorId: patientId, isActive: true },
@@ -238,7 +278,7 @@ export class SponsorDesignationService {
   ): Promise<SponsorCandidate[]> {
     const patient = await this.userRepo.findOne({ where: { id: patientId } });
     if (!patient) throw new NotFoundException('El paciente no existe');
-    this.mismaSede(patient, actor);
+    await this.mismaSede(patient, actor);
 
     const designations = await this.designationRepo.find({
       where: { isActive: true },
@@ -254,7 +294,8 @@ export class SponsorDesignationService {
       id: In(ids),
       accountStatus: 'active',
     };
-    if (patient.sedeId) where.sedeId = patient.sedeId;
+    const formasSede = await this.formas(patient.sedeId);
+    if (formasSede.length > 0) where.sedeId = In(formasSede);
 
     const available = await this.userRepo.find({
       where,
@@ -281,7 +322,7 @@ export class SponsorDesignationService {
   ): Promise<SponsorCandidate | null> {
     const patient = await this.userRepo.findOne({ where: { id: patientId } });
     if (!patient) throw new NotFoundException('El paciente no existe');
-    this.mismaSede(patient, actor);
+    await this.mismaSede(patient, actor);
 
     const assignment = await this.assignmentRepo.findOne({
       where: { patientId, isActive: true },
@@ -314,7 +355,7 @@ export class SponsorDesignationService {
     if (!patient) throw new NotFoundException('El paciente no existe');
     // `actor` es opcional porque `POST /panic/assign` delega acá sin pasarlo — esa ruta
     // nunca tuvo control por sede, solo por rol. Las demás validaciones sí corren.
-    this.mismaSede(patient, actor);
+    await this.mismaSede(patient, actor);
 
     const sponsor = await this.userRepo.findOne({ where: { id: sponsorId } });
     if (!sponsor) throw new NotFoundException('El compañero de viaje no existe');
@@ -334,7 +375,7 @@ export class SponsorDesignationService {
         'La cuenta del compañero de viaje no está activa',
       );
     }
-    if (patient.sedeId !== sponsor.sedeId) {
+    if (!sponsor.sedeId || !(await this.formas(patient.sedeId)).includes(sponsor.sedeId)) {
       throw new BadRequestException(
         'El compañero de viaje debe ser de la misma sede que el paciente',
       );
