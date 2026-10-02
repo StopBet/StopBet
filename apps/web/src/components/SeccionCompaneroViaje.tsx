@@ -42,7 +42,10 @@ export function SeccionCompaneroViaje({ patientId }: { patientId: string }) {
   })
 
   const reemplaza = Boolean(actual)
-  const elegido = candidatos.find((c) => c.id === seleccion)
+  // Al reemplazar no se ofrece a quien ya acompaña al paciente: elegirlo mostraba
+  // «Vas a reemplazar a Jorge Morales por Jorge Morales».
+  const opciones = candidatos.filter((c) => c.id !== actual?.id)
+  const elegido = opciones.find((c) => c.id === seleccion)
 
   return (
     <section style={tarjeta}>
@@ -99,17 +102,18 @@ export function SeccionCompaneroViaje({ patientId }: { patientId: string }) {
             <option value="">
               {cargandoCandidatos ? 'Cargando…' : 'Selecciona…'}
             </option>
-            {candidatos.map((c) => (
+            {opciones.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.firstName} {c.lastName}
               </option>
             ))}
           </select>
 
-          {!cargandoCandidatos && candidatos.length === 0 && (
+          {!cargandoCandidatos && opciones.length === 0 && (
             <p style={{ ...textoSecundario, marginTop: 8 }}>
-              No hay nadie designado como compañero de viaje en esta sede.
-              Primero hay que designar a alguien.
+              {reemplaza
+                ? 'No hay otro compañero de viaje designado en esta sede. Designa a alguien más para poder reemplazarlo.'
+                : 'No hay nadie designado como compañero de viaje en esta sede. Primero hay que designar a alguien.'}
             </p>
           )}
 

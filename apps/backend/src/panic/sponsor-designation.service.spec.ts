@@ -667,6 +667,15 @@ describe('SponsorDesignationService', () => {
       expect(alPadrino.body).toContain('Carlos Rivas');
     });
 
+    it('no reasigna al compañero que el paciente ya tiene', async () => {
+      conPadrinoDesignado();
+      assignmentRepo.findOne.mockResolvedValue({ patientId: 'p1', sponsorId: 's1', isActive: true });
+
+      await expect(service.assign('p1', 's1', PSICOLOGO)).rejects.toThrow(ConflictException);
+      expect(assignmentRepo.update).not.toHaveBeenCalled();
+      expect(notificationRepo.save).not.toHaveBeenCalled();
+    });
+
     it('rechaza a quien no fue designado compañero de viaje', async () => {
       registrar(pacienteActivo(), padrino());
       designationRepo.findOne.mockResolvedValue(null);
