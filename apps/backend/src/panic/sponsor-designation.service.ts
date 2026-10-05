@@ -17,6 +17,7 @@ import { User } from '../users/entities/user.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { DB_UUID_RE } from '../registration/dto/is-db-uuid.validator';
+import { PushService } from '../push/push.service';
 import { Notification } from '../notifications/entities/notification.entity';
 import { SponsorAssignment } from './entities/sponsor-assignment.entity';
 import { SponsorDesignation } from './entities/sponsor-designation.entity';
@@ -36,7 +37,17 @@ export class SponsorDesignationService {
     private readonly sedeRepo: Repository<Sede>,
     @InjectRepository(PsychologistSede)
     private readonly psychSedeRepo: Repository<PsychologistSede>,
+    private readonly push: PushService,
   ) {}
+
+  // El aviso completo queda en la campana; el push solo hace sonar el teléfono. La pantalla
+  // de bloqueo la ve cualquiera, así que no dice de qué se trata ni nombra a nadie. Sin
+  // esperar: si Firebase falla, la designación o la asignación ya quedaron guardadas.
+  private avisarAlTelefono(userIds: string[]): void {
+    void this.push
+      .enviarAUsuarios(userIds, 'Tienes un aviso de tu psicólogo', 'Ábrelo en StopBet.')
+      .catch(() => undefined);
+  }
 
   /**
    * Las dos formas en que puede venir escrita una sede: su UUID y su nombre.
@@ -219,6 +230,7 @@ export class SponsorDesignationService {
           'tu psicólogo.',
       }),
     );
+    this.avisarAlTelefono([patientId]);
 
     return this.serialize(saved, patient);
   }
@@ -416,6 +428,7 @@ export class SponsorDesignationService {
         body: `Tu psicólogo te asignó como compañero de viaje de ${patient.firstName} ${patient.lastName}. Vas a recibir sus alertas de pánico.`,
       }),
     ]);
+    this.avisarAlTelefono([patientId, sponsorId]);
   }
 
   /**

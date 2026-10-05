@@ -63,6 +63,7 @@ describe('SponsorDesignationService', () => {
   let notificationRepo: { save: jest.Mock; create: jest.Mock };
   let sedeRepo: { findOne: jest.Mock };
   let psychSedeRepo: { find: jest.Mock };
+  let push: { enviarAUsuarios: jest.Mock };
 
   // El servicio consulta `userRepo.findOne` dos veces por operación: el paciente y,
   // al serializar, el psicólogo que hizo la designación. El mock responde por id.
@@ -119,6 +120,7 @@ describe('SponsorDesignationService', () => {
       ),
     };
     psychSedeRepo = { find: jest.fn().mockResolvedValue([]) };
+    push = { enviarAUsuarios: jest.fn().mockResolvedValue(1) };
 
     service = new SponsorDesignationService(
       designationRepo as any,
@@ -127,6 +129,7 @@ describe('SponsorDesignationService', () => {
       notificationRepo as any,
       sedeRepo as any,
       psychSedeRepo as any,
+      push as any,
     );
   });
 
@@ -277,6 +280,24 @@ describe('SponsorDesignationService', () => {
       expect(result.designatedAt).toBe('2026-09-21T12:00:00.000Z');
       expect(result.isActive).toBe(true);
       expect(result.revokedAt).toBeNull();
+    });
+
+    it('hace sonar el teléfono del designado sin decir de qué se trata', async () => {
+      registrar(pacienteActivo());
+
+      await service.designate('p1', PSICOLOGO);
+
+      expect(push.enviarAUsuarios).toHaveBeenCalledTimes(1);
+      const [ids, titulo, cuerpo] = push.enviarAUsuarios.mock.calls[0];
+      expect(ids).toEqual(['p1']);
+      expect(`${titulo} ${cuerpo}`).not.toMatch(/compañero|pánico|Carlos/i);
+    });
+
+    it('si el push falla, la designación queda guardada igual', async () => {
+      registrar(pacienteActivo());
+      push.enviarAUsuarios.mockRejectedValue(new Error('Firebase caído'));
+
+      await expect(service.designate('p1', PSICOLOGO)).resolves.toMatchObject({ isActive: true });
     });
 
     it('falla con 404 si el paciente no existe', async () => {
@@ -665,6 +686,14 @@ describe('SponsorDesignationService', () => {
       const alPadrino = avisos.find((a) => a.userId === 's1');
       expect(alPaciente.body).toContain('Daniela Soto');
       expect(alPadrino.body).toContain('Carlos Rivas');
+    });
+
+    it('hace sonar el teléfono de los dos al asignar', async () => {
+      conPadrinoDesignado();
+
+      await service.assign('p1', 's1', PSICOLOGO);
+
+      expect(push.enviarAUsuarios).toHaveBeenCalledWith(['p1', 's1'], expect.any(String), expect.any(String));
     });
 
     it('no reasigna al compañero que el paciente ya tiene', async () => {
