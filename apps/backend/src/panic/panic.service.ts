@@ -19,6 +19,7 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { AssignSponsorDto } from './dto/assign-sponsor.dto';
 import { CommunityService } from '../community/community.service';
 import { SponsorDesignationService } from './sponsor-designation.service';
+import { PushService } from '../push/push.service';
 
 // CA1.3: el padrino tiene 120 s para responder antes de escalar a la IA
 const ESCALATION_MS = 120 * 1000;
@@ -37,6 +38,7 @@ export class PanicService {
     private readonly notificationRepo: Repository<Notification>,
     private readonly communityService: CommunityService,
     private readonly sponsorService: SponsorDesignationService,
+    private readonly push: PushService,
   ) {}
 
   // ── Dashboard (psicólogo) ──────────────────────────────────────────────
@@ -137,6 +139,20 @@ export class PanicService {
         body: `Alerta: El paciente ${patientName} requiere contención inmediata por riesgo de recaída`,
       }),
     );
+
+    // Sin push, el compañero de viaje solo se enteraba de la crisis al abrir la app: la
+    // notificación quedaba guardada pero el teléfono no sonaba. Va por `panic_alerts`, el
+    // canal de prioridad alta, y sin esperar: si Firebase falla, la alerta ya está creada
+    // y escala sola a los 2 minutos. El texto no nombra a nadie porque la pantalla de
+    // bloqueo la ve cualquiera; al abrir StopBet se ve quién es.
+    void this.push
+      .enviarAUsuarios(
+        [assignment.sponsorId],
+        'Alerta de pánico',
+        'Una persona que acompañas necesita contención ahora. Abre StopBet.',
+        'panic_alerts',
+      )
+      .catch(() => undefined);
 
     return this.serializeAlert(alert);
   }
