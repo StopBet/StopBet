@@ -84,6 +84,7 @@ export interface RegistrationRequest {
   initials: string
   name: string
   email: string
+  rut: string | null
   // `sede` es el nombre corto que se muestra; `sedeId` es el UUID real, y es el que se usa
   // para filtrar qué psicólogos pueden atender al solicitante.
   sede: string
@@ -163,17 +164,6 @@ export const RECENT_COBROS: RecentCobro[] = [
   { initials: 'VS', name: 'Valentina Soto',   amount: '$30.000', date: '1 jun 2026'  },
   { initials: 'CF', name: 'Camila Fernández', amount: '$30.000', date: '31 may 2026' },
   { initials: 'CR', name: 'Carlos Rodríguez', amount: '$30.000', date: '30 may 2026' },
-]
-
-export const INITIAL_REQUESTS: RegistrationRequest[] = [
-  {
-    id: 'ana', initials: 'AM', name: 'Ana Martínez', email: 'ana.m@email.com',
-    sede: 'Santiago', sedeId: '', rel: 'hace 2 horas', date: '29/05/2026 14:32', amount: '$30.000',
-  },
-  {
-    id: 'rodrigo', initials: 'RS', name: 'Rodrigo Sepúlveda', email: 'r.sepulveda@email.com',
-    sede: 'Viña del Mar', sedeId: '', rel: 'hace 5 horas', date: '29/05/2026 11:48', amount: '$30.000',
-  },
 ]
 
 export const PADRINOS: Record<string, string[]> = {

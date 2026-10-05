@@ -261,38 +261,6 @@ describe('Psychologists guard (e2e)', () => {
       expect(assignments[0].endedAt).toBeNull();
     });
 
-    // El dashboard web aprueba SIN cuerpo: el campo assignedPsychologistId es nuevo y su
-    // cliente todavía no lo manda. Si el ValidationPipe rechazara ese caso, aprobar desde la
-    // web se rompería sin que ningún otro test lo notara.
-    it('aprobar sin cuerpo asigna a quien revisa, como hace la web hoy', async () => {
-      const submitted = await request(app.getHttpServer())
-        .post('/registration/submit')
-        .send({
-          firstName: 'Paciente',
-          lastName: 'SinCuerpo',
-          rut: '12.345.678-5',
-          email: `e2e-nobody-${Date.now()}-${Math.random().toString(36).slice(2)}@stopbet.cl`,
-          sedeId,
-          institutionId: 'AJUTER',
-        })
-        .expect(201);
-
-      await request(app.getHttpServer())
-        .patch(`/registration/${submitted.body.requestId}/approve`)
-        .set('Authorization', `Bearer ${targetPsychToken}`)
-        .expect(200);
-
-      const assignments = await assignmentRepo.find({
-        where: { patientId: submitted.body.userId },
-      });
-      expect(assignments).toHaveLength(1);
-      expect(assignments[0].psychologistId).toBe(targetPsychId);
-
-      await assignmentRepo.delete({ patientId: submitted.body.userId });
-      await requestRepo.delete({ userId: submitted.body.userId });
-      await userRepo.delete({ id: submitted.body.userId });
-    });
-
     // Un coordinador no atiende pacientes: si aprueba sin decir a quién asignar, el error
     // tiene que explicar qué falta, no decir que el psicólogo "no existe".
     it('un coordinador que aprueba sin indicar psicólogo recibe un error accionable', async () => {

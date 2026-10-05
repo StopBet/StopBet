@@ -244,6 +244,7 @@ export interface PendingRequest {
   firstName: string
   lastName: string
   email: string
+  rut: string | null
   createdAt: string
 }
 
@@ -771,3 +772,17 @@ export const designateSponsor = (patientId: string) =>
 /** CA21.3: revoca el rol. Da 409 si todavía tiene pacientes a cargo. */
 export const revokeSponsor = (patientId: string) =>
   post<void>(`/sponsors/${patientId}/revoke`, undefined, {})
+
+// ── HdU19 v2: rechazadas y reapertura (solo coordinación) ──
+
+export interface RejectedRequest extends PendingRequest {
+  reviewedAt: string | null
+  reviewedByName: string | null
+}
+
+/** CA3: las últimas solicitudes rechazadas, con quién las revisó. */
+export const getRejectedRequests = () => get<RejectedRequest[]>('/registration/rejected')
+
+/** CA3: devuelve la solicitud a pendientes y avisa al paciente. Da 409 si no estaba rechazada. */
+export const reopenRequest = (requestId: string) =>
+  patch<void>(`/registration/${requestId}/reopen`)

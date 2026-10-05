@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -11,11 +11,16 @@ import { Sede } from '../src/sedes/entities/sede.entity';
 import { PsychologistSede } from '../src/psychologists/entities/psychologist-sede.entity';
 import { PatientAssignment } from '../src/psychologists/entities/patient-assignment.entity';
 import { RegistrationRequest } from '../src/registration/entities/registration-request.entity';
+import { RegistrationReview } from '../src/registration/entities/registration-review.entity';
 
 // El endpoint que decide quién entra a la clínica no tenía guard: leía `x-user-id` de una
 // cabecera sin verificar nada. Y no filtraba por sede, así que un psicólogo de una sede
 // aprobaba solicitudes de cualquier otra.
-describe('Registration approve/reject (e2e)', () => {
+//
+// HdU19 v2: ahora decide solo el coordinador. Los psicólogos reciben 403 en todo el módulo,
+// aunque la solicitud sea de su sede; el filtro por sede del servicio queda cubierto por los
+// unitarios.
+describe('Registration approve/reject/reopen (e2e)', () => {
   let app: INestApplication;
   let userRepo: Repository<User>;
   let refreshTokenRepo: Repository<RefreshToken>;
@@ -23,6 +28,7 @@ describe('Registration approve/reject (e2e)', () => {
   let psychSedeRepo: Repository<PsychologistSede>;
   let assignmentRepo: Repository<PatientAssignment>;
   let requestRepo: Repository<RegistrationRequest>;
+  let reviewRepo: Repository<RegistrationReview>;
 
   const TEST_PASSWORD = 'TestE2E2026!';
   const userIds: string[] = [];
@@ -68,6 +74,8 @@ describe('Registration approve/reject (e2e)', () => {
     psychSedeRepo = moduleFixture.get(getRepositoryToken(PsychologistSede));
     assignmentRepo = moduleFixture.get(getRepositoryToken(PatientAssignment));
     requestRepo = moduleFixture.get(getRepositoryToken(RegistrationRequest));
+    // Sin forFeature en el módulo (el servicio usa el manager de la transacción): se pide al DataSource.
+    reviewRepo = moduleFixture.get(DataSource).getRepository(RegistrationReview);
 
     const sedes = await sedeRepo.find({ where: { isActive: true } });
     localSedeId = sedes[0].id;
@@ -97,7 +105,10 @@ describe('Registration approve/reject (e2e)', () => {
 
   afterAll(async () => {
     await assignmentRepo.delete({ patientId });
-    if (requestIds.length) await requestRepo.delete({ id: In(requestIds) });
+    if (requestIds.length) {
+      await reviewRepo.delete({ requestId: In(requestIds) });
+      await requestRepo.delete({ id: In(requestIds) });
+    }
     for (const id of userIds) {
       await psychSedeRepo.delete({ psychologistId: id });
       await refreshTokenRepo.delete({ userId: id });
@@ -117,6 +128,14 @@ describe('Registration approve/reject (e2e)', () => {
   async function makePendingRequest(sedeId: string): Promise<string> {
     const req = await requestRepo.save(
       requestRepo.create({ userId: patientId, sedeId, status: 'pending' }),
+    );
+    requestIds.push(req.id);
+    return req.id;
+  }
+
+  async function makeRejectedRequest(sedeId: string): Promise<string> {
+    const req = await requestRepo.save(
+      requestRepo.create({ userId: patientId, sedeId, status: 'rejected', reviewedAt: new Date() }),
     );
     requestIds.push(req.id);
     return req.id;
@@ -161,20 +180,18 @@ describe('Registration approve/reject (e2e)', () => {
       expect(req.status).toBe('pending');
     });
 
-    it('el psicólogo de la sede aprueba → 200 y queda asignado', async () => {
+    // HdU19 v2: aunque la solicitud sea de su propia sede, aprobar ya no es del psicólogo.
+    it('el psicólogo de la sede aprueba → 403 y la solicitud sigue pendiente', async () => {
       const requestId = await makePendingRequest(localSedeId);
       const token = await loginAs(psychLocalEmail);
       await request(app.getHttpServer())
         .patch(`/registration/${requestId}/approve`)
         .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .expect(403);
 
-      const assignment = await assignmentRepo.findOneOrFail({
-        where: { patientId, psychologistId: psychLocalId, active: true },
-      });
-      expect(assignment.sedeId).toBe(localSedeId);
-
-      await assignmentRepo.delete({ id: assignment.id });
+      const req = await requestRepo.findOneOrFail({ where: { id: requestId } });
+      expect(req.status).toBe('pending');
+      expect(await assignmentRepo.count({ where: { patientId, active: true } })).toBe(0);
     });
 
     it('el coordinador aprueba una sede que no es la suya, indicando psicólogo', async () => {
@@ -185,6 +202,10 @@ describe('Registration approve/reject (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({ assignedPsychologistId: psychLocalId })
         .expect(200);
+
+      const review = await reviewRepo.findOneOrFail({ where: { requestId } });
+      expect(review.verdict).toBe('approved');
+      expect(review.reviewerRole).toBe('coordinator');
 
       await assignmentRepo.delete({ patientId, psychologistId: psychLocalId });
     });
@@ -206,22 +227,91 @@ describe('Registration approve/reject (e2e)', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(403);
     });
-  });
 
-  describe('GET /registration/pending — alcance por sede', () => {
-    it('el psicólogo solo ve las solicitudes de su sede', async () => {
-      const mine = await makePendingRequest(localSedeId);
-      const theirs = await makePendingRequest(remoteSedeId);
-
+    it('un psicólogo de la misma sede → 403 y la solicitud sigue pendiente', async () => {
+      const requestId = await makePendingRequest(localSedeId);
       const token = await loginAs(psychLocalEmail);
-      const res = await request(app.getHttpServer())
-        .get('/registration/pending')
+      await request(app.getHttpServer())
+        .patch(`/registration/${requestId}/reject`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+
+      const req = await requestRepo.findOneOrFail({ where: { id: requestId } });
+      expect(req.status).toBe('pending');
+    });
+
+    it('el coordinador rechaza → 200 y queda la fila de auditoría', async () => {
+      const requestId = await makePendingRequest(localSedeId);
+      const token = await loginAs(coordinatorEmail);
+      await request(app.getHttpServer())
+        .patch(`/registration/${requestId}/reject`)
         .set('Authorization', `Bearer ${token}`)
         .expect(200);
 
-      const ids = res.body.map((r: { id: string }) => r.id);
-      expect(ids).toContain(mine);
-      expect(ids).not.toContain(theirs);
+      const req = await requestRepo.findOneOrFail({ where: { id: requestId } });
+      expect(req.status).toBe('rejected');
+
+      const review = await reviewRepo.findOneOrFail({ where: { requestId } });
+      expect(review.verdict).toBe('rejected');
+      expect(review.reviewerRole).toBe('coordinator');
+    });
+  });
+
+  describe('PATCH /registration/:id/reopen', () => {
+    it('sin token → 401', async () => {
+      const requestId = await makeRejectedRequest(localSedeId);
+      await request(app.getHttpServer())
+        .patch(`/registration/${requestId}/reopen`)
+        .expect(401);
+    });
+
+    it('un psicólogo → 403 y la solicitud sigue rechazada', async () => {
+      const requestId = await makeRejectedRequest(localSedeId);
+      const token = await loginAs(psychLocalEmail);
+      await request(app.getHttpServer())
+        .patch(`/registration/${requestId}/reopen`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+
+      const req = await requestRepo.findOneOrFail({ where: { id: requestId } });
+      expect(req.status).toBe('rejected');
+    });
+
+    it('el coordinador reabre una rechazada → 200, vuelve a pendiente y queda la auditoría', async () => {
+      const requestId = await makeRejectedRequest(localSedeId);
+      const token = await loginAs(coordinatorEmail);
+      await request(app.getHttpServer())
+        .patch(`/registration/${requestId}/reopen`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const req = await requestRepo.findOneOrFail({ where: { id: requestId } });
+      expect(req.status).toBe('pending');
+      expect(req.reviewedBy).toBeNull();
+      expect(req.reviewedAt).toBeNull();
+
+      const review = await reviewRepo.findOneOrFail({ where: { requestId } });
+      expect(review.verdict).toBe('reopened');
+      expect(review.reviewerRole).toBe('coordinator');
+    });
+
+    it('reabrir una pendiente → 409', async () => {
+      const requestId = await makePendingRequest(localSedeId);
+      const token = await loginAs(coordinatorEmail);
+      await request(app.getHttpServer())
+        .patch(`/registration/${requestId}/reopen`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(409);
+    });
+  });
+
+  describe('GET /registration/pending — solo coordinación', () => {
+    it('el psicólogo de la sede → 403', async () => {
+      const token = await loginAs(psychLocalEmail);
+      await request(app.getHttpServer())
+        .get('/registration/pending')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
     });
 
     it('el coordinador ve las de todas las sedes', async () => {
@@ -237,6 +327,35 @@ describe('Registration approve/reject (e2e)', () => {
       const ids = res.body.map((r: { id: string }) => r.id);
       expect(ids).toContain(local);
       expect(ids).toContain(remote);
+    });
+  });
+
+  describe('GET /registration/rejected', () => {
+    // `:requestId` es @Public(): si `rejected` se declarara después, Nest lo capturaría como
+    // un id, el guard no correría y sin token daría 404 en vez de 401.
+    it('sin token → 401, no lo captura la ruta pública :requestId', async () => {
+      await request(app.getHttpServer()).get('/registration/rejected').expect(401);
+    });
+
+    it('un psicólogo → 403', async () => {
+      const token = await loginAs(psychLocalEmail);
+      await request(app.getHttpServer())
+        .get('/registration/rejected')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+    });
+
+    it('el coordinador → 200 e incluye la rechazada', async () => {
+      const rejected = await makeRejectedRequest(localSedeId);
+
+      const token = await loginAs(coordinatorEmail);
+      const res = await request(app.getHttpServer())
+        .get('/registration/rejected')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const ids = res.body.map((r: { id: string }) => r.id);
+      expect(ids).toContain(rejected);
     });
   });
 });

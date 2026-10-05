@@ -4,7 +4,7 @@ import logoAjuter from '../assets/logo-ajuter.png'
 import logoAjuterBlanco from '../assets/logo-ajuter-blanco.png'
 import type { AuthUser } from '../services/api'
 
-type NavId = 'overview' | 'patients' | 'companeros' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'companeros' | 'alerts' | 'requests' | 'moderation' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface SidebarProps {
   active: NavId
@@ -18,12 +18,14 @@ interface SidebarProps {
 
 // `soon`: la sección todavía no existe. Antes llevaban a "Sección en construcción";
 // ahora se ven como lo que viene, sin prometer una pantalla al hacer clic.
-const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string; soon?: boolean }> = [
+// `roles`: HdU19 v2, solo esos roles ven la entrada. Sin `roles` la ven todos.
+const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string; soon?: boolean; roles?: AuthUser['role'][] }> = [
   { id: 'overview',  icon: 'house',          label: 'Resumen' },
   { id: 'patients',  icon: 'users',          label: 'Mis pacientes' },
   { id: 'companeros', icon: 'heart-handshake', label: 'Compañeros de viaje' },
   { id: 'alerts',    icon: 'triangle-alert', label: 'Alertas de pánico' },
-  { id: 'requests',  icon: 'inbox',          label: 'Solicitudes' },
+  { id: 'requests',  icon: 'inbox',          label: 'Solicitudes', roles: ['coordinator'] },
+  { id: 'moderation', icon: 'flag',          label: 'Moderación', roles: ['psychologist'] },
   { id: 'familyLinks', icon: 'user-round',   label: 'Familiares' },
   { id: 'familySessions', icon: 'heart-handshake', label: 'Sesiones de familiares' },
   { id: 'equipo',    icon: 'user-plus',      label: 'Equipo' },
@@ -84,7 +86,7 @@ export function Sidebar({ active, onNav, onLogout, reqCount, alertCount, familyL
 
       {/* Navegación */}
       <nav style={{ display: 'flex', flexDirection: 'column', gap: 3, padding: '0 12px' }}>
-        {NAV_ITEMS.map(it => {
+        {NAV_ITEMS.filter(it => !it.roles || it.roles.includes(user.role)).map(it => {
           const on = active === it.id
           if (it.soon) {
             return (
