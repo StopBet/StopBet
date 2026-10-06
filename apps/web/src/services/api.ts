@@ -245,6 +245,7 @@ export interface PendingRequest {
   lastName: string
   email: string
   rut: string | null
+  phone: string | null
   createdAt: string
 }
 

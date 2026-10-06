@@ -85,12 +85,14 @@ export interface RegistrationRequest {
   name: string
   email: string
   rut: string | null
+  phone: string | null
   // `sede` es el nombre corto que se muestra; `sedeId` es el UUID real, y es el que se usa
   // para filtrar qué psicólogos pueden atender al solicitante.
   sede: string
   sedeId: string
   rel: string
   date: string
+  time: string
   amount: string
 }
 

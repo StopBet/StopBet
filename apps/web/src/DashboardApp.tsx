@@ -146,12 +146,16 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
     name: `${r.firstName} ${r.lastName}`,
     email: r.email,
     rut: r.rut,
+    phone: r.phone,
     sede: shortSedeName(sedeMap[r.sedeId] ?? r.sedeId),
     sedeId: r.sedeId,
     rel: relTime(r.createdAt),
-    date: new Date(r.createdAt).toLocaleString('es-CL', {
+    // Fecha y hora por separado: juntas, el «a. m.» saltaba solo a otra línea de la celda.
+    date: new Date(r.createdAt).toLocaleDateString('es-CL', {
       day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+    }),
+    time: new Date(r.createdAt).toLocaleTimeString('es-CL', {
+      hour: '2-digit', minute: '2-digit', hour12: false,
     }),
     amount: '$30.000',
   }))

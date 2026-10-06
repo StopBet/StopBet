@@ -15,6 +15,22 @@ function initialsOf(name: string | null): string {
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 }
 
+// El registro guarda el móvil como 9 dígitos sin el +56. Lo que no calce se muestra tal cual:
+// hay cuentas antiguas con teléfonos de prueba que no son un móvil chileno.
+function PhoneLine({ phone }: { phone: string | null }) {
+  const style = { fontSize: 12, color: 'var(--fg2)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' } as const
+  if (!phone) return <div style={style}>Sin teléfono</div>
+  const digits = phone.replace(/\D/g, '')
+  if (!/^9\d{8}$/.test(digits)) return <div style={style}>{phone}</div>
+  return (
+    <div style={style}>
+      <a href={`tel:+56${digits}`} style={{ color: 'var(--primary-text)', textDecoration: 'none' }}>
+        +56 {digits[0]} {digits.slice(1, 5)} {digits.slice(5)}
+      </a>
+    </div>
+  )
+}
+
 /* ── Approve Modal ───────────────────────────────────── */
 function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; onClose: () => void; onConfirm: (assignedPsychologistId: string) => void }) {
   const [psico, setPsico] = useState('')
@@ -60,6 +76,7 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
               <div style={{ fontSize: 12.5, color: 'var(--fg2)', display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
                 <span>{req.email}</span>
                 {req.rut && <span>RUT {formatRut(req.rut)}</span>}
+                <PhoneLine phone={req.phone} />
                 <span>Sede: {req.sede}</span>
               </div>
             </div>
@@ -484,6 +501,7 @@ function RejectedSection() {
                     <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.firstName} {r.lastName}</div>
                     <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
                     {r.rut && <div style={{ fontSize: 12, color: 'var(--fg2)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>RUT {formatRut(r.rut)}</div>}
+                    <PhoneLine phone={r.phone} />
                   </div>
                 </div>
                 <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{sedes.find(s => s.id === r.sedeId)?.name ?? r.sedeId}</span>
@@ -569,13 +587,14 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
                       <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
                       <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
                       {r.rut && <div style={{ fontSize: 12, color: 'var(--fg2)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>RUT {formatRut(r.rut)}</div>}
+                      <PhoneLine phone={r.phone} />
                     </div>
                     <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--primary-text)', flexShrink: 0 }}>{r.amount}</span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
-                    <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.date} · {r.rel}</span>
+                    <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.date} {r.time} · {r.rel}</span>
                   </div>
 
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -610,6 +629,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.name}>{r.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
+                        <PhoneLine phone={r.phone} />
                       </div>
                     </div>
                   </td>
@@ -620,7 +640,8 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
                     <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
-                    <div style={{ fontSize: 13, color: 'var(--fg1)' }}>{r.date}</div>
+                    <div style={{ fontSize: 13, color: 'var(--fg1)', fontVariantNumeric: 'tabular-nums' }}>{r.date}</div>
+                    <div style={{ fontSize: 13, color: 'var(--fg1)', fontVariantNumeric: 'tabular-nums' }}>{r.time}</div>
                     <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.rel}</div>
                   </td>
                   <td style={{ padding: '14px 14px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--primary-text)' }}>{r.amount}</td>

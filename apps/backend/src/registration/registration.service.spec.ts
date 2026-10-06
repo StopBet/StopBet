@@ -267,7 +267,7 @@ describe('RegistrationService — approve', () => {
           userId: 'pat-1',
           sedeId: SEDE_ID,
           createdAt: new Date('2026-10-01T12:00:00Z'),
-          user: { firstName: 'Ana', lastName: 'Soto', email: 'ana@stopbet.cl', rut: '12.345.678-5' },
+          user: { firstName: 'Ana', lastName: 'Soto', email: 'ana@stopbet.cl', rut: '12.345.678-5', phone: '912345678' },
         },
       ]);
 
@@ -285,6 +285,7 @@ describe('RegistrationService — approve', () => {
           lastName: 'Soto',
           email: 'ana@stopbet.cl',
           rut: '12.345.678-5',
+          phone: '912345678',
           createdAt: '2026-10-01T12:00:00.000Z',
         },
       ]);
@@ -408,7 +409,7 @@ describe('RegistrationService — approve', () => {
           reviewedBy: 'coord-1',
           reviewedAt: new Date('2026-10-01T10:00:00Z'),
           createdAt: new Date('2026-09-30T12:00:00Z'),
-          user: { firstName: 'Luis', lastName: 'Pérez', email: 'luis@stopbet.cl', rut: null },
+          user: { firstName: 'Luis', lastName: 'Pérez', email: 'luis@stopbet.cl', rut: null, phone: '' },
         },
       ]);
       userRepo.find.mockResolvedValue([{ id: 'coord-1', firstName: 'Miguel', lastName: 'Ángel' }]);
@@ -433,6 +434,7 @@ describe('RegistrationService — approve', () => {
         }),
       );
       expect(result[1].rut).toBeNull();
+      expect(result[1].phone).toBeNull();
     });
 
     it('un revisor sin sedes no ve ninguna y no consulta la tabla', async () => {

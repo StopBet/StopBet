@@ -45,6 +45,7 @@ export interface ReviewableRequest {
   id: string; userId: string; sedeId: string;
   firstName: string; lastName: string; email: string;
   rut: string | null;
+  phone: string | null;
   createdAt: string;
 }
 
@@ -147,6 +148,8 @@ export class RegistrationService {
         lastName: r.user.lastName,
         email: r.user.email,
         rut: r.user.rut,
+        // `||` y no `??`: hay cuentas antiguas que guardaron el teléfono como cadena vacía.
+        phone: r.user.phone || null,
         createdAt: r.createdAt.toISOString(),
       }));
   }
@@ -181,6 +184,7 @@ export class RegistrationService {
         lastName: r.user.lastName,
         email: r.user.email,
         rut: r.user.rut,
+        phone: r.user.phone || null,
         createdAt: r.createdAt.toISOString(),
         reviewedAt: r.reviewedAt ? r.reviewedAt.toISOString() : null,
         reviewedByName: r.reviewedBy ? (names.get(r.reviewedBy) ?? null) : null,
