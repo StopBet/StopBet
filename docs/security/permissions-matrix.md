@@ -223,6 +223,8 @@ una conversación privada que le llega es un mensaje reportado, por la cola de m
 | `GET /family/billing` | `family` | ✅ Protegido — solo con vínculo `active`, solo lectura |
 | `GET /family/pending`, `GET /family/active` | `psychologist`, `coordinator` | ✅ Protegido — un psicólogo solo ve los de sus sedes; la coordinación, todos. Los intentos con un paciente inexistente no aparecen nunca |
 | `PATCH /family/links/:id/confirm` \| `reject` \| `revoke` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede (403 fuera de ella). Confirmar exige cómo se verificó y respeta el «no» del paciente |
+| `GET /family/revoked` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede que pendientes y vinculados (06-10) |
+| `PATCH /family/links/:id/reopen` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede; solo desde `revoked`, y vuelve a `pending` (no restaura el acceso) |
 | `GET /family/patient-requests` | `patient` | ✅ Protegido — solo las solicitudes pendientes dirigidas a él |
 | `PATCH /family/patient-requests/:id` | `patient` | ✅ Protegido — solo las propias y pendientes (404 si no) |
 | `GET /family/sede/sessions` | `psychologist`, `coordinator` | ✅ Protegido — la sede sale del token |
