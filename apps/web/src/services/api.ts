@@ -115,7 +115,13 @@ function failed(method: string, path: string, res: Response): Error & { status: 
 
 async function get<T>(path: string, headers?: Record<string, string>): Promise<T> {
   const res = await request(path, {}, headers)
-  if (!res.ok) throw failed('GET', path, res)
+  if (!res.ok) {
+    // El cuerpo viaja en el error porque algunas pantallas eligen el mensaje según él: la ficha
+    // clínica distingue «no es de tu sede» de «no está asignado a ti» (HdU13 CA5).
+    const err = failed('GET', path, res) as ApiError
+    err.body = await res.json().catch(() => undefined)
+    throw err
+  }
   return res.json() as Promise<T>
 }
 
@@ -244,6 +250,8 @@ export interface PendingRequest {
   firstName: string
   lastName: string
   email: string
+  rut: string | null
+  phone: string | null
   createdAt: string
 }
 
@@ -596,6 +604,11 @@ export const api = {
 
   revokeFamilyLink: (linkId: string) =>
     patchWithAuth<void>(`/family/links/${linkId}/revoke`, {}),
+
+  // Revocados por error: vuelven a Pendientes y se le pregunta de nuevo al paciente.
+  getRevokedFamilyLinks: () => get<FamilyLinkListItem[]>('/family/revoked'),
+  reopenFamilyLink: (linkId: string) =>
+    patchWithAuth<void>(`/family/links/${linkId}/reopen`, {}),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────
@@ -771,3 +784,17 @@ export const designateSponsor = (patientId: string) =>
 /** CA21.3: revoca el rol. Da 409 si todavía tiene pacientes a cargo. */
 export const revokeSponsor = (patientId: string) =>
   post<void>(`/sponsors/${patientId}/revoke`, undefined, {})
+
+// ── HdU19 v2: rechazadas y reapertura (solo coordinación) ──
+
+export interface RejectedRequest extends PendingRequest {
+  reviewedAt: string | null
+  reviewedByName: string | null
+}
+
+/** CA3: las últimas solicitudes rechazadas, con quién las revisó. */
+export const getRejectedRequests = () => get<RejectedRequest[]>('/registration/rejected')
+
+/** CA3: devuelve la solicitud a pendientes y avisa al paciente. Da 409 si no estaba rechazada. */
+export const reopenRequest = (requestId: string) =>
+  patch<void>(`/registration/${requestId}/reopen`)

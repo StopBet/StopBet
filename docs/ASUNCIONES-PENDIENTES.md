@@ -7,6 +7,34 @@
 
 ---
 
+## 2026-10-04 · HdU19: ¿solo el coordinador decide las solicitudes de ingreso?
+
+**Estado: SUPUESTO, esperando la respuesta literal de Miguel Ángel (coordinador de AJUTER),
+prevista para ~2026-10-06.** Lo escribió Matías Lara. Texto completo y plan de reversa en
+[`hdu19-solicitudes-ingreso-v2.md`](hdu19-solicitudes-ingreso-v2.md).
+
+**Qué se asumió:** en reuniones recientes Miguel Ángel dio indicios de que **solo él**, con rol
+`coordinator`, quiere aprobar o rechazar solicitudes de ingreso, **de cualquier sede**. Hasta ahora
+la HdU19 decía que lo hacía «cualquier psicólogo de esa sede». Son indicios, no una instrucción
+literal.
+
+**Por qué se programa igual:** el plazo del Sprint 2 no deja esperar. Volver atrás es acotado y
+está descrito en el documento v2.
+
+**⚠️ Si tu sesión de Claude (o tú) lee `apps/backend/src/registration/` y ve que un psicólogo común
+no puede ver, aprobar ni rechazar solicitudes, o que `assertCoversSede` / el filtro por sede ya no
+se aplica al coordinador: es a propósito.** No lo «arregles» ni devuelvas el acceso a los
+psicólogos sin hablar antes con Matías Lara.
+
+**CA2, cerrado el 2026-10-07 por plazo (modelo individual):** el texto original pedía que el
+paciente quedara en la lista de todos los psicólogos de su sede; el código siempre lo asignó a
+uno solo y cambiarlo obliga a tocar `listPatients`, `PatientAccessGuard` y `clinical-records`.
+Se dejó como está, con un cambio: el coordinador solo puede elegir a un psicólogo que atienda la
+sede del paciente. **Sigue sin preguntarse al cliente** si el equipo de la sede ve a todos los
+pacientes o solo a los asignados; si responde lo primero, hay que hacerlo después.
+
+---
+
 ## 2026-09-15 · Lo que quedó esperando una decisión del PO o de AJUTER
 
 Todo lo de abajo salió de las auditorías UX de mobile y web y del trabajo posterior. **No es
@@ -170,6 +198,22 @@ backend le da una sesión limitada para pagar, o si el cobro se resuelve fuera d
 **6. `POST /billing/pay` no cobra nada.** Marca las facturas como pagadas y reactiva la
 cuenta. La app ya no afirma lo contrario, pero mientras no exista Webpay el cobro se coordina
 fuera del sistema. Los costos están en `presupuesto-stack-2026-09.md`.
+
+**6-bis. Pasarela elegida y sandbox hecho (SPIKE 2, 07-10-2026).** La comparación de pasarelas
+recomienda **Webpay Oneclick (Mall)**, con Flow de respaldo, y el sandbox ya inscribe una tarjeta y
+hace dos cobros, el segundo sin el paciente: [`planning/spike2-pasarela-pago.md`](planning/spike2-pasarela-pago.md).
+`POST /billing/pay` sigue sin cobrar y las pantallas no cambiaron. Lo que esto deja sobre la mesa:
+
+- **Es una decisión del cliente, no nuestra:** la recomendación depende de que **AJUTER se afilie a
+  Transbank**, un trámite comercial cuyo plazo no está publicado. Hay cinco preguntas para Transbank en
+  la §7 del documento (tarifa, débito y prepago, si exige Webpay Plus, documentos de una fundación, IVA).
+- **Sobre el punto 5:** el cobro automático **omite las cuentas suspendidas y no las reactiva**: suspender
+  cierra el acceso y ningún cobro sin sesión debe pasar por encima. Si el cliente quiere que pagar levante
+  una suspensión por mora, hay que decidirlo y definir qué se le cobra a un suspendido.
+- **Sobre el punto 4:** la tarjeta se inscribe a nombre de un paciente. Que pague un familiar sigue sin
+  resolverse.
+- Los **reintentos** ante un rechazo y qué se le avisa al paciente cuando un cobro falla: ninguna
+  pasarela lo decide por nosotros.
 
 ### 🟡 Para el PO — producto y marca
 

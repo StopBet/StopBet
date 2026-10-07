@@ -6,6 +6,7 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { PatientAssignment } from '../psychologists/entities/patient-assignment.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { Sede } from '../sedes/entities/sede.entity';
+import { MailModule } from '../mail/mail.module';
 import { RegistrationController } from './registration.controller';
 import { RegistrationService } from './registration.service';
 
@@ -14,6 +15,7 @@ import { RegistrationService } from './registration.service';
     TypeOrmModule.forFeature([
       RegistrationRequest, User, Notification, PatientAssignment, PsychologistSede, Sede,
     ]),
+    MailModule,
   ],
   controllers: [RegistrationController],
   providers: [RegistrationService],

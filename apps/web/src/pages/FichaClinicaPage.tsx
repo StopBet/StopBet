@@ -224,19 +224,18 @@ export function FichaClinicaPage() {
 
   if (isError) {
     const status = (error as ApiError)?.status
+    const { titulo: tituloError, detalle } = mensajeDeError(status, (error as ApiError)?.body?.reason)
     return (
-      <div style={{ padding: 32, maxWidth: 560 }}>
+      <div style={{ padding: '22px 26px 48px' }}>
         <Volver onClick={() => navigate('/pacientes')} />
-        <div style={{ ...tarjeta, marginTop: 18 }}>
-          <WIcon name="shield" size={26} color="var(--fg2)" />
-          <h2 style={{ ...titulo, fontSize: 20, margin: '12px 0 8px' }}>
-            {status === 403 ? 'No tienes acceso a esta ficha' : 'No se pudo abrir la ficha'}
-          </h2>
-          <p style={{ margin: 0, fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>
-            {status === 403
-              ? 'La ficha clínica solo la ve el equipo que atiende al paciente. Si crees que debería estar asignado a ti, habla con la coordinación.'
-              : 'Revisa tu conexión y vuelve a intentarlo.'}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ ...tarjeta, maxWidth: 480, padding: '28px 28px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <WIcon name="shield" size={30} color="var(--fg2)" />
+            </div>
+            <h2 style={{ ...titulo, fontSize: 20, margin: '12px 0 8px' }}>{tituloError}</h2>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>{detalle}</p>
+          </div>
         </div>
       </div>
     )
@@ -1125,4 +1124,28 @@ const titulo: React.CSSProperties = {
   fontWeight: 700,
   color: 'var(--fg1)',
   margin: 0,
+}
+
+// HdU13 CA5: el backend dice por qué no deja entrar (`reason` en el 403), y lo que el psicólogo
+// tiene que hacer es distinto en cada caso.
+function mensajeDeError(status: number | undefined, reason: unknown): { titulo: string; detalle: string } {
+  if (status !== 403) {
+    return { titulo: 'No se pudo abrir la ficha', detalle: 'Revisa tu conexión y vuelve a intentarlo.' }
+  }
+  if (reason === 'other_sede') {
+    return {
+      titulo: 'Este paciente no es de tu sede',
+      detalle: 'La ficha clínica solo la ve el equipo de la sede que atiende al paciente.',
+    }
+  }
+  if (reason === 'not_assigned') {
+    return {
+      titulo: 'Este paciente no está asignado a ti',
+      detalle: 'Es de tu sede, pero su ficha la ve solo el psicólogo que lo atiende. Si debería estar asignado a ti, habla con la coordinación.',
+    }
+  }
+  return {
+    titulo: 'No tienes acceso a esta ficha',
+    detalle: 'La ficha clínica solo la ve el equipo que atiende al paciente. Si crees que debería estar asignado a ti, habla con la coordinación.',
+  }
 }

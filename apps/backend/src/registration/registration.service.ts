@@ -3,21 +3,37 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, FindOptionsWhere, In, QueryFailedError, Repository } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  FindOptionsWhere,
+  In,
+  QueryFailedError,
+  Repository,
+} from 'typeorm';
 import { RegistrationRequest } from './entities/registration-request.entity';
+import { RegistrationReview, RegistrationVerdict } from './entities/registration-review.entity';
 import { User } from '../users/entities/user.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { PatientAssignment } from '../psychologists/entities/patient-assignment.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
+import { MailMessage, MailService } from '../mail/mail.service';
+import {
+  registrationApprovedEmail,
+  registrationRejectedEmail,
+  registrationReopenedEmail,
+} from '../mail/templates/registration-decision';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { AuthUser, SubmitRegistrationResponse,
   IntakeAnswers,
+  RegistrationStatus,
 } from '@stopbet/shared-types';
 
 const PG_UNIQUE_VIOLATION = '23505';
@@ -30,6 +46,19 @@ function isDuplicateEmail(err: unknown): boolean {
     err instanceof QueryFailedError &&
     (err.driverError as { code?: string })?.code === PG_UNIQUE_VIOLATION
   );
+}
+
+export interface ReviewableRequest {
+  id: string; userId: string; sedeId: string;
+  firstName: string; lastName: string; email: string;
+  rut: string | null;
+  phone: string | null;
+  createdAt: string;
+}
+
+export interface RejectedRequest extends ReviewableRequest {
+  reviewedAt: string | null;
+  reviewedByName: string | null;
 }
 
 @Injectable()
@@ -47,7 +76,25 @@ export class RegistrationService {
     private readonly psychSedeRepo: Repository<PsychologistSede>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
+
+  private readonly logger = new Logger(RegistrationService.name);
+
+  // El correo va después de confirmar la transacción y sin esperarlo: la decisión ya quedó
+  // guardada y avisada en la app, y un Brevo lento (hasta 10 s) no debe trabar al coordinador.
+  // `send` nunca lanza; el catch cubre solo la lectura del paciente.
+  private emailPatient(
+    userId: string,
+    build: (patient: { email: string; firstName: string }) => MailMessage,
+  ): void {
+    void this.userRepo
+      .findOne({ where: { id: userId } })
+      .then((patient) => (patient ? this.mailService.send(build(patient)) : undefined))
+      .catch((err: Error) =>
+        this.logger.warn(`No se pudo preparar el correo de la decisión: ${err.message}`),
+      );
+  }
 
   // El coordinador es un rol administrativo y revisa cualquier sede: si solo viera las suyas,
   // una sede que se queda sin psicólogos no tendría a nadie que pueda aprobar sus solicitudes.
@@ -61,6 +108,8 @@ export class RegistrationService {
     );
   }
 
+  // Con la HdU19 v2 solo el coordinador llega aquí, pero el filtro por sede se mantiene para
+  // revertir sin reescribir si el cliente desmiente la v2 (docs/hdu19-solicitudes-ingreso-v2.md).
   private async assertCoversSede(reviewer: AuthUser, sedeId: string): Promise<void> {
     const sedeIds = await this.reviewableSedeIds(reviewer);
     if (sedeIds === null) return;
@@ -71,38 +120,100 @@ export class RegistrationService {
     }
   }
 
-  async listPending(reviewer: AuthUser): Promise<{
-    id: string; userId: string; sedeId: string;
-    firstName: string; lastName: string; email: string;
-    createdAt: string;
-  }[]> {
-    const where: FindOptionsWhere<RegistrationRequest> = { status: 'pending' };
+  // Con la HdU19 v2 solo el coordinador llega aquí, pero el filtro por sede se mantiene para
+  // revertir sin reescribir si el cliente desmiente la v2 (docs/hdu19-solicitudes-ingreso-v2.md).
+  // `null` = el revisor no atiende ninguna sede: no hay nada que consultar.
+  private async reviewableWhere(
+    reviewer: AuthUser,
+    status: RegistrationStatus,
+  ): Promise<FindOptionsWhere<RegistrationRequest> | null> {
+    const where: FindOptionsWhere<RegistrationRequest> = { status };
 
     const sedeIds = await this.reviewableSedeIds(reviewer);
     if (sedeIds !== null) {
-      if (sedeIds.length === 0) return [];
+      if (sedeIds.length === 0) return null;
       where.sedeId = In(sedeIds);
     }
+    return where;
+  }
+
+  private async recordReview(
+    manager: EntityManager,
+    requestId: string,
+    verdict: RegistrationVerdict,
+    reviewer: AuthUser,
+  ): Promise<void> {
+    const reviewRepo = manager.getRepository(RegistrationReview);
+    await reviewRepo.save(
+      reviewRepo.create({
+        requestId,
+        verdict,
+        reviewedBy: reviewer.id,
+        reviewerRole: reviewer.role,
+      }),
+    );
+  }
+
+  async listPending(reviewer: AuthUser): Promise<ReviewableRequest[]> {
+    const where = await this.reviewableWhere(reviewer, 'pending');
+    if (!where) return [];
 
     const requests = await this.requestRepo.find({
       where,
+      relations: ['user'],
       order: { createdAt: 'DESC' },
     });
-    const result = [];
-    for (const r of requests) {
-      const user = await this.userRepo.findOne({ where: { id: r.userId } });
-      if (!user) continue;
-      result.push({
+    return requests
+      .filter((r) => r.user)
+      .map((r) => ({
         id: r.id,
         userId: r.userId,
         sedeId: r.sedeId,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
+        firstName: r.user.firstName,
+        lastName: r.user.lastName,
+        email: r.user.email,
+        rut: r.user.rut,
+        // `||` y no `??`: hay cuentas antiguas que guardaron el teléfono como cadena vacía.
+        phone: r.user.phone || null,
         createdAt: r.createdAt.toISOString(),
-      });
-    }
-    return result;
+      }));
+  }
+
+  async listRejected(reviewer: AuthUser): Promise<RejectedRequest[]> {
+    const where = await this.reviewableWhere(reviewer, 'rejected');
+    if (!where) return [];
+
+    const requests = await this.requestRepo.find({
+      where,
+      relations: ['user'],
+      order: { reviewedAt: 'DESC' },
+      take: 50,
+    });
+
+    // Una sola consulta para los nombres de quienes revisaron, en vez de una por fila.
+    const reviewerIds = [
+      ...new Set(requests.map((r) => r.reviewedBy).filter((id): id is string => !!id)),
+    ];
+    const reviewers = reviewerIds.length
+      ? await this.userRepo.find({ where: { id: In(reviewerIds) } })
+      : [];
+    const names = new Map(reviewers.map((u) => [u.id, `${u.firstName} ${u.lastName}`]));
+
+    return requests
+      .filter((r) => r.user)
+      .map((r) => ({
+        id: r.id,
+        userId: r.userId,
+        sedeId: r.sedeId,
+        firstName: r.user.firstName,
+        lastName: r.user.lastName,
+        email: r.user.email,
+        rut: r.user.rut,
+        phone: r.user.phone || null,
+        createdAt: r.createdAt.toISOString(),
+        reviewedAt: r.reviewedAt ? r.reviewedAt.toISOString() : null,
+        reviewedByName: r.reviewedBy ? (names.get(r.reviewedBy) ?? null) : null,
+      }));
   }
 
   async submit(dto: SubmitRegistrationDto): Promise<SubmitRegistrationResponse> {
@@ -160,7 +271,7 @@ export class RegistrationService {
     reviewer: AuthUser,
     dto: ApproveRegistrationDto = {},
   ): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+    const decision = await this.dataSource.transaction(async (manager) => {
       const req = await manager
         .getRepository(RegistrationRequest)
         .findOne({ where: { id: requestId } });
@@ -182,6 +293,18 @@ export class RegistrationService {
         );
       }
 
+      // CA2 modelo individual (decisión B, 07-10): el paciente queda con un psicólogo de SU
+      // sede. La lista de la web ya filtra así, pero la API aceptaba cualquier psicólogo activo.
+      const assigneeSedes = await sedeIdsOfPsychologist(
+        this.psychSedeRepo,
+        this.sedeRepo,
+        assignee.id,
+        assignee.sedeId,
+      );
+      if (!assigneeSedes.includes(req.sedeId)) {
+        throw new BadRequestException('El psicólogo asignado no atiende la sede del paciente');
+      }
+
       // Update condicional en vez de comprobar el estado y actualizar por separado: dos
       // aprobaciones simultáneas pasarían las dos ese `if` y crearían asignaciones duplicadas.
       // `affected` es opcional en TypeORM, así que se comprueba con `!` y no con `=== 0`.
@@ -192,6 +315,7 @@ export class RegistrationService {
       if (!result.affected) {
         throw new ConflictException('La solicitud ya fue procesada');
       }
+      await this.recordReview(manager, requestId, 'approved', reviewer);
 
       const assignmentRepo = manager.getRepository(PatientAssignment);
       await assignmentRepo.save(
@@ -217,28 +341,100 @@ export class RegistrationService {
           body: 'Tu registro fue aprobado. Ya puedes activar tu cuenta realizando el pago mensual.',
         }),
       );
+
+      return {
+        userId: req.userId,
+        psychologistName: `${assignee.firstName} ${assignee.lastName}`.trim(),
+      };
     });
+
+    this.emailPatient(decision.userId, (patient) =>
+      registrationApprovedEmail({
+        to: patient.email,
+        firstName: patient.firstName,
+        psychologistName: decision.psychologistName,
+        // TODO(historia de activación de cuenta): aquí va el enlace de un solo uso para que el
+        // paciente cree su contraseña (`activationUrl`). Mientras no exista, el correo avisa
+        // que llegará después en vez de enlazar a una página que no existe.
+      }),
+    );
   }
 
   async reject(requestId: string, reviewer: AuthUser): Promise<void> {
-    const req = await this.requestRepo.findOne({ where: { id: requestId } });
-    if (!req) throw new NotFoundException('Solicitud no encontrada');
+    const userId = await this.dataSource.transaction(async (manager) => {
+      const requestRepo = manager.getRepository(RegistrationRequest);
+      const req = await requestRepo.findOne({ where: { id: requestId } });
+      if (!req) throw new NotFoundException('Solicitud no encontrada');
 
-    await this.assertCoversSede(reviewer, req.sedeId);
+      await this.assertCoversSede(reviewer, req.sedeId);
 
-    await this.requestRepo.update(requestId, {
-      status: 'rejected',
-      reviewedBy: reviewer.id,
-      reviewedAt: new Date(),
+      // Update condicional: antes el update no miraba el estado y se podía «rechazar» una
+      // solicitud ya aprobada, dejando al paciente con asignación y con el rechazo a la vez.
+      const result = await requestRepo.update(
+        { id: requestId, status: 'pending' },
+        { status: 'rejected', reviewedBy: reviewer.id, reviewedAt: new Date() },
+      );
+      if (!result.affected) {
+        throw new ConflictException('La solicitud ya fue procesada');
+      }
+      await this.recordReview(manager, requestId, 'rejected', reviewer);
+
+      const notifRepo = manager.getRepository(Notification);
+      await notifRepo.save(
+        notifRepo.create({
+          userId: req.userId,
+          type: 'warning',
+          title: 'Solicitud no aprobada',
+          body: 'Tu solicitud fue revisada. Comunícate con AJUTER para más información.',
+        }),
+      );
+
+      return req.userId;
     });
 
-    await this.notifRepo.save(
-      this.notifRepo.create({
-        userId: req.userId,
-        type: 'warning',
-        title: 'Solicitud no aprobada',
-        body: 'Tu solicitud fue revisada. Comunícate con AJUTER para más información.',
+    this.emailPatient(userId, (patient) =>
+      registrationRejectedEmail({
+        to: patient.email,
+        firstName: patient.firstName,
+        contact: this.mailService.ajuterContact,
       }),
+    );
+  }
+
+  async reopen(requestId: string, reviewer: AuthUser): Promise<void> {
+    const userId = await this.dataSource.transaction(async (manager) => {
+      const requestRepo = manager.getRepository(RegistrationRequest);
+      const req = await requestRepo.findOne({ where: { id: requestId } });
+      if (!req) throw new NotFoundException('Solicitud no encontrada');
+
+      await this.assertCoversSede(reviewer, req.sedeId);
+
+      // reviewedBy y reviewedAt se limpian porque guardan solo la última decisión; la historia
+      // completa vive en registration_reviews.
+      const result = await requestRepo.update(
+        { id: requestId, status: 'rejected' },
+        { status: 'pending', reviewedBy: null, reviewedAt: null },
+      );
+      if (!result.affected) {
+        throw new ConflictException('Solo se puede reabrir una solicitud rechazada');
+      }
+      await this.recordReview(manager, requestId, 'reopened', reviewer);
+
+      const notifRepo = manager.getRepository(Notification);
+      await notifRepo.save(
+        notifRepo.create({
+          userId: req.userId,
+          type: 'info',
+          title: 'Tu solicitud volvió a revisión',
+          body: 'AJUTER reabrió tu solicitud de ingreso. Te avisaremos cuando haya una respuesta.',
+        }),
+      );
+
+      return req.userId;
+    });
+
+    this.emailPatient(userId, (patient) =>
+      registrationReopenedEmail({ to: patient.email, firstName: patient.firstName }),
     );
   }
 }

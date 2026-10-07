@@ -96,7 +96,8 @@ export function OverviewPage({ user }: OverviewPageProps) {
   // una sección no vuelve a pedir lo mismo.
   const { data: patients = [], isLoading } = useQuery({ queryKey: ['patients'], queryFn: api.getPatients })
   const { data: alertHistory = [] } = useQuery({ queryKey: ['alerts', 'history'], queryFn: api.getAlertHistory, refetchInterval: 30_000 })
-  const { data: pending = [] } = useQuery({ queryKey: ['registration', 'pending'], queryFn: api.getPendingRequests })
+  // HdU19 v2: las solicitudes de ingreso son solo del coordinador; al psicólogo el backend le responde 403.
+  const { data: pending = [] } = useQuery({ queryKey: ['registration', 'pending'], queryFn: api.getPendingRequests, enabled: esCoordinador })
   const { data: sedes = [] } = useQuery({ queryKey: ['sedes'], queryFn: api.getSedes })
   const { data: sesiones = [] } = useQuery({ queryKey: ['family', 'sede-sessions'], queryFn: api.getSedeFamilySessions })
   // La moderación es solo de psicólogos: al coordinador el backend le responde 403.
@@ -174,7 +175,7 @@ export function OverviewPage({ user }: OverviewPageProps) {
         <MetricCard icon="inbox" label="Por revisar" value={porRevisar}
           sub={esCoordinador
             ? `${pending.length} ${pending.length === 1 ? 'solicitud' : 'solicitudes'}`
-            : `${pending.length} ${pending.length === 1 ? 'solicitud' : 'solicitudes'} · ${flagged.length} ${flagged.length === 1 ? 'post' : 'posts'}`} />
+            : `${flagged.length} ${flagged.length === 1 ? 'post reportado' : 'posts reportados'}`} />
         <MetricCard icon="calendar" label="Próxima sesión familiar" value={proxima ? fechaCorta(proxima.sessionDate) : '-'}
           sub={proxima ? `${proxima.confirmedCount} ${proxima.confirmedCount === 1 ? 'confirmación' : 'confirmaciones'}` : 'sin sesiones programadas'} />
       </div>
@@ -220,9 +221,10 @@ export function OverviewPage({ user }: OverviewPageProps) {
         </Block>
 
         <Block icon="inbox" title="Por revisar" count={porRevisar}
-          cta="Ir a Solicitudes" onCta={() => navigate('/solicitudes')}>
+          cta={esCoordinador ? 'Ir a Solicitudes' : 'Ir a Moderación'}
+          onCta={() => navigate(esCoordinador ? '/solicitudes' : '/moderacion')}>
           {porRevisar === 0
-            ? <Empty>No hay solicitudes ni publicaciones reportadas pendientes.</Empty>
+            ? <Empty>{esCoordinador ? 'No hay solicitudes por revisar.' : 'No hay publicaciones reportadas pendientes.'}</Empty>
             : <>
               {pending.slice(0, MAX_ITEMS).map(r => (
                 <Item key={r.id} title={`${r.firstName} ${r.lastName}`} meta={`Solicitud de ingreso · ${sedeName(r.sedeId)} · ${relTime(r.createdAt)}`} />

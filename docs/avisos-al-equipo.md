@@ -40,6 +40,107 @@ eso antes de buscar un bug. Detalle en `docs/planning/evidencia-spike2.md`.
 
 ---
 
+## 2026-10-07 - Un psicólogo sin acceso a un paciente ahora sabe por qué (HdU13 CA5)
+
+**A quién le pega:** a quien pruebe accesos con cuentas de otra sede, y a quien lea un 403 de
+`PatientAccessGuard`.
+
+- **Qué hacer:** si levantas la web sin el backend, recompila los tipos:
+  `pnpm --filter @stopbet/shared-types build` (hay un tipo nuevo, `PatientAccessDenial`).
+- **Qué cambia:** el 403 trae `reason`: `other_sede` («Este paciente no es de tu sede») o
+  `not_assigned` («Este paciente no está asignado a ti»). La ficha clínica muestra ese mensaje.
+  Un id que no es de ningún paciente sigue con el mensaje genérico, a propósito: si no, la URL
+  serviría para averiguar quién es paciente. Afecta a todos los endpoints con el guard, no solo
+  a la ficha.
+
+## 2026-10-07 - Solicitudes de ingreso: el paciente recibe un correo al aprobar, rechazar o reabrir (PR #150)
+
+**A quién le pega:** a quien administre las variables de Railway (José) y a quien pruebe
+solicitudes con correos reales.
+
+- **Qué hacer:** nada que correr. Opcional: definir `AJUTER_CONTACTO` (correo o teléfono de
+  AJUTER) en Railway. Sin ella, el correo de rechazo dice solo «comunícate con AJUTER», porque
+  todavía no hay un contacto confirmado.
+- **Qué cambió:** `approve`, `reject` y `reopen` mandan un correo al paciente (Brevo, mismo
+  diseño que el de credenciales). El envío es opcional y sin esperarlo: si Brevo cae, la
+  decisión queda guardada igual. Con `BREVO_API_KEY` en local, aprobar una solicitud de seed
+  manda un correo real a una dirección que no existe (rebota y gasta cuota): corre con
+  `BREVO_API_KEY=` vacía.
+- **El correo de «aprobada» aún no trae el enlace para crear contraseña** (el paciente que se
+  registra desde la app no tiene contraseña). Deja el lugar marcado con un `TODO` en
+  `RegistrationService.approve`; dice que el enlace llegará después. Falta la historia de
+  activación de cuenta.
+
+## 2026-10-07 - Pagos con Webpay Oneclick en sandbox (SPIKE 2, CA5-CA6, PR #149)
+
+**A quién le pega:** a **todos, una sola vez**, por una dependencia nueva. También a quien toque
+`billing` y a **Matías**, dueño del Spike.
+
+**Qué hacer después de pullear:**
+1. `pnpm install` desde la raíz: se agregó **`transbank-sdk@6.1.1`** al backend (trae `axios`). Sin eso
+   el backend no compila y el error parece de código, no de entorno.
+2. Nada más. Las tablas nuevas `payment_inscriptions` y `payment_charges` las crea `synchronize` al
+   levantar el backend, también en Railway.
+
+**Qué cambió:**
+- Módulo nuevo `payments` (`/payments/oneclick`): inscribir una tarjeta y cobrar la mensualidad con
+  Webpay Oneclick. **Es solo el sandbox del Spike: no cambió ninguna pantalla de la app ni de la web, y
+  `POST /billing/pay` sigue siendo el pago simulado de siempre.** Documento y evidencia en
+  [`docs/planning/spike2-pasarela-pago.md`](planning/spike2-pasarela-pago.md).
+- **No cobra dinero real**: sin variables usa el ambiente de *integración* de Transbank, con credenciales
+  públicas. En producción, sin `TBK_ENVIRONMENT=production` y los tres datos de comercio, queda apagado y
+  responde 503.
+- **El retorno de Transbank ya no cierra la inscripción**: la cierra `POST /payments/oneclick/inscriptions/finish` con la
+  sesión del paciente. Quien integre la pantalla de resultado (app o web) tiene que llamarlo con lo que Transbank deja en la URL;
+  la página de prueba ya lo hace sola. Además, **el cobro automático omite las cuentas suspendidas**.
+- **El cobro automático diario está apagado** (`TBK_AUTO_CHARGE_CRON=true` lo enciende). No lo prendas
+  en Railway: cobraría sobre la base de demo.
+- Para probarlo en local: `ENABLE_DEV_TOOLS=true` y abrir `http://localhost:3000/payments/oneclick/test-page`.
+  La tarjeta de prueba y la clave del banco están escritas en la propia página.
+- `BillingService.pay()` ahora llama a `settleInvoices()`, que antes estaba adentro. **No cambia su
+  comportamiento** (tiene tests nuevos que lo fijan); se extrajo para que el cobro real liquide cuotas por
+  el mismo camino.
+- Variables opcionales nuevas, todas en `apps/backend/.env.example`: `TBK_ENVIRONMENT`,
+  `TBK_ONECLICK_COMMERCE_CODE`, `TBK_ONECLICK_CHILD_COMMERCE_CODE`, `TBK_API_KEY`, `BACKEND_PUBLIC_URL`,
+  `TBK_RESULT_URL`, `TBK_AUTO_CHARGE_CRON`.
+
+---
+
+## 2026-10-06 - Un familiar revocado por error ya tiene vuelta atrás
+
+**A quién le pega:** a quien pruebe el flujo de familiares. **No hay que instalar nada**: no
+hay columnas nuevas.
+
+**Qué cambió:**
+- En *Familiares* aparece una sección **«Familiares revocados»** (solo si hay alguno) con el
+  botón **«Volver a revisar»**. No devuelve el acceso de inmediato: la solicitud vuelve a
+  *Pendientes* y al paciente se le pregunta de nuevo en la app.
+- El portal del familiar revocado ahora tiene el formulario **«Pedir el vínculo de nuevo»**.
+- Endpoints nuevos: `GET /family/revoked` y `PATCH /family/links/:id/reopen`.
+
+---
+
+## 2026-10-04 - Solicitudes de ingreso solo para coordinación; posts reportados en «Moderación» (PR #148)
+
+**A quién le pega:** a **quien pruebe el panel web como psicólogo** y a **Catalina**, porque el
+manual §2.3 dice que la moderación de posts reportados está en *Solicitudes*.
+
+**Qué hacer después de pullear:** nada que correr. La tabla nueva `registration_reviews` la crea
+`synchronize` al levantar el backend.
+
+**Qué cambió:**
+- El **psicólogo ya no ve «Solicitudes»** y recibe **403** al listar, aprobar, rechazar o reabrir solicitudes (`submit` y la consulta de
+  estado siguen públicas). Es a propósito y
+  por un supuesto del cliente que **aún no está confirmado**: no lo «arregles». Detalle y cómo
+  revertir en [`docs/hdu19-solicitudes-ingreso-v2.md`](hdu19-solicitudes-ingreso-v2.md).
+- Al aprobar, el psicólogo asignado **tiene que atender la sede del paciente**: la API responde
+  400 si no. La lista de la web ya filtraba así; el cambio es para quien llame el endpoint a mano.
+- Los **posts reportados** pasaron a una entrada nueva del menú, **«Moderación»**
+  (`/moderacion`), solo para el psicólogo. El coordinador no la ve: el backend no lo deja moderar.
+- El **coordinador puede reabrir** solicitudes rechazadas desde «Rechazadas», en *Solicitudes*.
+
+---
+
 ## 2026-09-30 - Comunidad › Chats ahora es una lista, con mensajes directos (PR #142)
 
 **A quién le pega:** a **Alex** y a quien toque Comunidad en mobile o la moderación (web y app

@@ -211,14 +211,15 @@ describe('Roles guard (e2e)', () => {
         .expect(403);
     });
 
-    it('con rol psychologist → 200', async () => {
+    // HdU19 v2: las solicitudes de ingreso las decide solo coordinación.
+    it('con rol psychologist → 403', async () => {
       const token = await loginAs(
         (await userRepo.findOneOrFail({ where: { id: psychologistId } })).email,
       );
       await request(app.getHttpServer())
         .get('/registration/pending')
         .set('Authorization', `Bearer ${token}`)
-        .expect(200);
+        .expect(403);
     });
   });
 

@@ -72,9 +72,13 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 |---|---|---|
 | `POST /registration/submit` | Público (onboarding del paciente) | 🔓 Público |
 | `GET /registration/:requestId` | Público (el UUID de la solicitud actúa como secreto) | 🔓 Público |
-| `GET /registration/pending` | `psychologist`, `coordinator` | ✅ Protegido |
-| `PATCH /registration/:requestId/approve` | `psychologist`, `coordinator` | ✅ Protegido |
-| `PATCH /registration/:requestId/reject` | `psychologist`, `coordinator` | ✅ Protegido |
+| `GET /registration/pending` | `coordinator` | ✅ Protegido |
+| `GET /registration/rejected` | `coordinator` | ✅ Protegido |
+| `PATCH /registration/:requestId/approve` | `coordinator` | ✅ Protegido |
+| `PATCH /registration/:requestId/reject` | `coordinator` | ✅ Protegido |
+| `PATCH /registration/:requestId/reopen` | `coordinator` | ✅ Protegido |
+
+Con la HdU19 v2 solo coordinación decide sobre las solicitudes de ingreso; es un supuesto sin confirmar, ver [`docs/hdu19-solicitudes-ingreso-v2.md`](../hdu19-solicitudes-ingreso-v2.md).
 
 ## `panic` — `/panic`
 
@@ -211,6 +215,25 @@ una conversación privada que le llega es un mensaje reportado, por la cola de m
 | `GET /billing/patients/:patientId/status` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación — nuevo 16-09, para el reporte PDF |
 | `GET /family/billing` | `family` (solo con vínculo `active`) | ✅ Protegido — nuevo 22-09, solo lectura: cuotas del paciente vinculado para la pantalla de pago del portal |
 
+## `payments` — `/payments/oneclick`  _(SPIKE 2, 07-10-2026)_
+
+Sandbox de Webpay Oneclick. Ver [`docs/planning/spike2-pasarela-pago.md`](../planning/spike2-pasarela-pago.md).
+
+| Método + Path | Rol objetivo | Estado actual |
+|---|---|---|
+| `POST /payments/oneclick/inscriptions` | `patient` | ✅ Protegido |
+| `GET /payments/oneclick/inscriptions/return` y `POST` | Público | 🔓 Público — Transbank devuelve al **navegador** del paciente sin token. **No cierra la inscripción**: solo lee `TBK_TOKEN`, `TBK_ORDEN_COMPRA` y `TBK_ID_SESION` y los reenvía a la página, `@Throttle` de 20 por minuto, y siempre responde con una redirección, nunca con un error |
+| `POST /payments/oneclick/inscriptions/finish` | `patient` (dueño) | ✅ Protegido — cierra la inscripción **solo si es de quien llama**; una ajena responde `error`, igual que una inexistente. Es lo que evita que alguien deje la tarjeta de otra persona atada a su cuenta |
+| `GET /payments/oneclick/inscription` y `DELETE` | `patient` (dueño) | ✅ Protegido — solo la tarjeta propia; devuelve tipo y últimos 4 dígitos, nunca el `tbk_user` |
+| `POST /payments/oneclick/charges` y `GET` | `patient` (dueño) | ✅ Protegido — solo cuotas propias |
+| `POST /payments/oneclick/charges/run-due` | `coordinator` | ✅ Protegido + `ENABLE_DEV_TOOLS` (404 si no está) — cobra la cuota vencida de **todos** los pacientes que tengan una tarjeta inscrita y la cuenta activa (omite las suspendidas) |
+| `GET /payments/oneclick/charges/:id/transbank-status` | `coordinator` | ✅ Protegido + `ENABLE_DEV_TOOLS` |
+| `GET /payments/oneclick/test-page` | Público | 🔓 Público, **solo con `ENABLE_DEV_TOOLS`** (404 si no). Es HTML estático sin datos: no hay nada que filtrar |
+
+**Pendiente antes de producción:** `run-due` hoy es una herramienta de desarrollo. El cobro real lo
+dispara el cron (`TBK_AUTO_CHARGE_CRON`, apagado por defecto), que no es un endpoint. Quién paga
+(`family`) todavía no tiene ruta: ver `ASUNCIONES-PENDIENTES.md`, punto 4.
+
 ## `family` — `/family`  _(HdU11, 22 y 23; actualizado 29-09-2026)_
 
 | Método + Path | Rol objetivo | Estado actual |
@@ -223,6 +246,8 @@ una conversación privada que le llega es un mensaje reportado, por la cola de m
 | `GET /family/billing` | `family` | ✅ Protegido — solo con vínculo `active`, solo lectura |
 | `GET /family/pending`, `GET /family/active` | `psychologist`, `coordinator` | ✅ Protegido — un psicólogo solo ve los de sus sedes; la coordinación, todos. Los intentos con un paciente inexistente no aparecen nunca |
 | `PATCH /family/links/:id/confirm` \| `reject` \| `revoke` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede (403 fuera de ella). Confirmar exige cómo se verificó y respeta el «no» del paciente |
+| `GET /family/revoked` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede que pendientes y vinculados (06-10) |
+| `PATCH /family/links/:id/reopen` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede; solo desde `revoked`, y vuelve a `pending` (no restaura el acceso) |
 | `GET /family/patient-requests` | `patient` | ✅ Protegido — solo las solicitudes pendientes dirigidas a él |
 | `PATCH /family/patient-requests/:id` | `patient` | ✅ Protegido — solo las propias y pendientes (404 si no) |
 | `GET /family/sede/sessions` | `psychologist`, `coordinator` | ✅ Protegido — la sede sale del token |

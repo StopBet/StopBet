@@ -13,6 +13,7 @@ import { OverviewPage } from './pages/OverviewPage'
 import { AlertasPage } from './pages/AlertasPage'
 import { FinanzasPage } from './pages/FinanzasPage'
 import { SolicitudesPage } from './pages/SolicitudesPage'
+import { ModeracionPage } from './pages/ModeracionPage'
 import { ConfiguracionPage } from './pages/ConfiguracionPage'
 import { SesionesFamiliaresPage } from './pages/SesionesFamiliaresPage'
 import { EquipoPage } from './pages/EquipoPage'
@@ -24,7 +25,7 @@ import type { RegistrationRequest } from './data/mockData'
 import { useBrandInShell } from './hooks/useBrandInShell'
 
 
-type NavId = 'overview' | 'patients' | 'companeros' | 'alerts' | 'requests' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
+type NavId = 'overview' | 'patients' | 'companeros' | 'alerts' | 'requests' | 'moderation' | 'familyLinks' | 'familySessions' | 'equipo' | 'reports' | 'finanzas' | 'settings'
 
 interface Toast { message: string; tone?: 'success' | 'error' }
 
@@ -34,6 +35,7 @@ const PAGE_TITLES: Record<NavId, string> = {
   companeros: 'Compañeros de viaje',
   alerts:    'Alertas de pánico',
   requests:  'Solicitudes de ingreso',
+  moderation: 'Moderación de la comunidad',
   familyLinks: 'Familiares',
   familySessions: 'Sesiones de familiares',
   equipo:    'Equipo',
@@ -48,6 +50,7 @@ const NAV_PATHS: Record<NavId, string> = {
   companeros: '/companeros-de-viaje',
   alerts:    '/alertas',
   requests:  '/solicitudes',
+  moderation: '/moderacion',
   familyLinks: '/familiares',
   familySessions: '/sesiones-familiares',
   equipo:    '/equipo',
@@ -110,6 +113,8 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
   const { data: pendingRaw = [] } = useQuery({
     queryKey: ['registration', 'pending'],
     queryFn: api.getPendingRequests,
+    // HdU19 v2: el backend responde 403 al psicólogo; sin esto lo dispararía en cada carga.
+    enabled: user.role === 'coordinator',
   })
 
   const { data: sedes = [] } = useQuery({
@@ -140,12 +145,17 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
     initials: `${r.firstName[0] ?? ''}${r.lastName[0] ?? ''}`.toUpperCase(),
     name: `${r.firstName} ${r.lastName}`,
     email: r.email,
+    rut: r.rut,
+    phone: r.phone,
     sede: shortSedeName(sedeMap[r.sedeId] ?? r.sedeId),
     sedeId: r.sedeId,
     rel: relTime(r.createdAt),
-    date: new Date(r.createdAt).toLocaleString('es-CL', {
+    // Fecha y hora por separado: juntas, el «a. m.» saltaba solo a otra línea de la celda.
+    date: new Date(r.createdAt).toLocaleDateString('es-CL', {
       day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
+    }),
+    time: new Date(r.createdAt).toLocaleTimeString('es-CL', {
+      hour: '2-digit', minute: '2-digit', hour12: false,
     }),
     amount: '$30.000',
   }))
@@ -172,7 +182,8 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
   const handleReject = async (id: string) => {
     try {
       await api.rejectRequest(id)
-      qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
+      // El prefijo refresca también «Rechazadas».
+      qc.invalidateQueries({ queryKey: ['registration'] })
       // Decía "Se notificó al solicitante": el rechazo no envía ningún aviso.
       setToast({ message: 'Solicitud rechazada.', tone: 'error' })
     } catch {
@@ -255,7 +266,8 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
           <Routes>
             <Route path="/" element={<OverviewPage user={user} />} />
             <Route path="/alertas" element={<AlertasPage />} />
-            <Route path="/solicitudes" element={<SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} />} />
+            <Route path="/solicitudes" element={user.role === 'coordinator' ? <SolicitudesPage requests={requests} onApprove={handleApprove} onReject={handleReject} /> : <Navigate to="/" replace />} />
+            <Route path="/moderacion" element={user.role === 'psychologist' ? <ModeracionPage /> : <Navigate to="/" replace />} />
             <Route path="/familiares" element={<FamiliaresPage />} />
             <Route path="/sesiones-familiares" element={<SesionesFamiliaresPage />} />
             <Route path="/equipo" element={<EquipoPage user={user} />} />

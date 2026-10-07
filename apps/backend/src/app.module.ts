@@ -62,6 +62,10 @@ import { DirectConversation } from './direct-messages/entities/direct-conversati
 import { DirectMessage } from './direct-messages/entities/direct-message.entity';
 import { DirectMessageReport } from './direct-messages/entities/direct-message-report.entity';
 import { UserBlock } from './direct-messages/entities/user-block.entity';
+import { RegistrationReview } from './registration/entities/registration-review.entity';
+import { PaymentInscription } from './payments/entities/payment-inscription.entity';
+import { PaymentCharge } from './payments/entities/payment-charge.entity';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -110,6 +114,8 @@ import { UserBlock } from './direct-messages/entities/user-block.entity';
           PsychologistSede, PatientAssignment,
           ClinicalRecord, ClinicalRecordVersion, ClinicalNote,
           DirectConversation, DirectMessage, DirectMessageReport, UserBlock,
+          RegistrationReview,
+          PaymentInscription, PaymentCharge,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',
@@ -130,6 +136,7 @@ import { UserBlock } from './direct-messages/entities/user-block.entity';
     CommunityModule,
     DirectMessagesModule,
     BillingModule,
+    PaymentsModule,
     AiAssistantModule,
     PanicModule,
     AuthModule,

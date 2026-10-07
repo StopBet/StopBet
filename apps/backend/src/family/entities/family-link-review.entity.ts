@@ -1,7 +1,8 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import { FamilyLinkVerification } from './family-link.entity';
 
-export type FamilyLinkVerdict = 'confirmed' | 'rejected' | 'revoked';
+// reopened: un psicólogo devolvió a revisión un vínculo revocado (p. ej. revocado por error).
+export type FamilyLinkVerdict = 'confirmed' | 'rejected' | 'revoked' | 'reopened';
 
 // HDU 23 CA6: autor, fecha y veredicto de cada decisión sobre un vínculo. `family_links`
 // guarda solo la última (reviewedBy/reviewedAt): si un psicólogo confirma y otro revoca

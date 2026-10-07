@@ -73,7 +73,7 @@ importers:
         version: 8.3.0
       langchain:
         specifier: ^0.3.0
-        version: 0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(@langchain/google-genai@0.1.3(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(zod@3.25.76))(@opentelemetry/api@1.9.1)(handlebars@4.7.9)(openai@5.12.2(zod@3.25.76))(typeorm@0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3)))
+        version: 0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(@langchain/google-genai@0.1.3(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(zod@3.25.76))(@opentelemetry/api@1.9.1)(axios@1.20.0)(handlebars@4.7.9)(openai@5.12.2(zod@3.25.76))(typeorm@0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3)))
       nodemailer:
         specifier: ^9.1.1
         version: 9.1.1
@@ -92,6 +92,9 @@ importers:
       rxjs:
         specifier: ^7.8.0
         version: 7.8.2
+      transbank-sdk:
+        specifier: 6.1.1
+        version: 6.1.1
       typeorm:
         specifier: ^0.3.20
         version: 0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3))
@@ -2740,6 +2743,9 @@ packages:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
 
+  axios@1.20.0:
+    resolution: {integrity: sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==}
+
   babel-jest@29.7.0:
     resolution: {integrity: sha512-BrvGY3xZSwEcCzKvKsCi2GgHqDqsYkOP4/by5xCgIwGXQxIEh+8ew3gmrE1y7XRR6LHZIj6yLYnUi/mm2KXKBg==}
     engines: {node: ^14.15.0 || ^16.10.0 || >=18.0.0}
@@ -3616,6 +3622,15 @@ packages:
 
   flow-enums-runtime@0.0.6:
     resolution: {integrity: sha512-3PYnM29RFXwvAN6Pc/scUfkI7RwhQ/xqyLUyPNlXUp9S40zI8nup9tUSrTLSVnWGBN38FNiGWbwZOB6uR4OGdw==}
+
+  follow-redirects@1.16.1:
+    resolution: {integrity: sha512-FNvFGzoMLWmE6Yj9spb/zjd7yiNCHiAW9/Tg9CXrQ8wuu32HtlJOwWO11OJafl5FfY3DxTdQ0vj42zU1kvv5jg==}
+    engines: {node: '>=4.0'}
+    peerDependencies:
+      debug: '*'
+    peerDependenciesMeta:
+      debug:
+        optional: true
 
   for-each@0.3.5:
     resolution: {integrity: sha512-dKx12eRCVIzqCxFGplyFKJMPvLEWgmNtUrpTiJIR5u97zEhRG8ySrtboPHZXx7daLxQVrl643cTzbab2tkQjxg==}
@@ -5133,6 +5148,10 @@ packages:
     resolution: {integrity: sha512-llQsMLSUDUPT44jdrU/O37qlnifitDP+ZwrmmZcoSKyLKvtZxpyV0n2/bD/N4tBAAZ/gJEdZU7KMraoK1+XYAg==}
     engines: {node: '>= 0.10'}
 
+  proxy-from-env@2.1.0:
+    resolution: {integrity: sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA==}
+    engines: {node: '>=10'}
+
   punycode@2.3.1:
     resolution: {integrity: sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==}
     engines: {node: '>=6'}
@@ -5788,6 +5807,10 @@ packages:
 
   tr46@0.0.3:
     resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
+
+  transbank-sdk@6.1.1:
+    resolution: {integrity: sha512-T5YJSBl7LfSPLLqbLY3AVieSBCTNfN1nr3qA/5oLc3tTtwzZarYKL5aXirNFYamOT+W8pY04uzGRupSQArHUDA==}
+    engines: {node: '>=18.0.0'}
 
   tree-kill@1.2.2:
     resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
@@ -9078,7 +9101,6 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   agent-base@7.1.4: {}
 
@@ -9203,6 +9225,16 @@ snapshots:
   available-typed-arrays@1.0.7:
     dependencies:
       possible-typed-array-names: 1.1.0
+
+  axios@1.20.0:
+    dependencies:
+      follow-redirects: 1.16.1
+      form-data: 4.0.6
+      https-proxy-agent: 5.0.1
+      proxy-from-env: 2.1.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
 
   babel-jest@29.7.0(@babel/core@7.29.7):
     dependencies:
@@ -10261,6 +10293,8 @@ snapshots:
 
   flow-enums-runtime@0.0.6: {}
 
+  follow-redirects@1.16.1: {}
+
   for-each@0.3.5:
     dependencies:
       is-callable: 1.2.7
@@ -10626,7 +10660,6 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
-    optional: true
 
   https-proxy-agent@7.0.6:
     dependencies:
@@ -11312,7 +11345,7 @@ snapshots:
 
   kleur@3.0.3: {}
 
-  langchain@0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(@langchain/google-genai@0.1.3(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(zod@3.25.76))(@opentelemetry/api@1.9.1)(handlebars@4.7.9)(openai@5.12.2(zod@3.25.76))(typeorm@0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3))):
+  langchain@0.3.37(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(@langchain/google-genai@0.1.3(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(zod@3.25.76))(@opentelemetry/api@1.9.1)(axios@1.20.0)(handlebars@4.7.9)(openai@5.12.2(zod@3.25.76))(typeorm@0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3))):
     dependencies:
       '@langchain/core': 0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76))
       '@langchain/openai': 0.6.17(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))
@@ -11328,6 +11361,7 @@ snapshots:
       zod: 3.25.76
     optionalDependencies:
       '@langchain/google-genai': 0.1.3(@langchain/core@0.3.80(@opentelemetry/api@1.9.1)(openai@5.12.2(zod@3.25.76)))(zod@3.25.76)
+      axios: 1.20.0
       handlebars: 4.7.9
       typeorm: 0.3.30(pg@8.21.0)(ts-node@10.9.2(@types/node@22.19.20)(typescript@5.9.3))
     transitivePeerDependencies:
@@ -12102,6 +12136,8 @@ snapshots:
       forwarded: 0.2.0
       ipaddr.js: 1.9.1
 
+  proxy-from-env@2.1.0: {}
+
   punycode@2.3.1: {}
 
   pure-rand@6.1.0: {}
@@ -12801,6 +12837,13 @@ snapshots:
       ieee754: 1.2.1
 
   tr46@0.0.3: {}
+
+  transbank-sdk@6.1.1:
+    dependencies:
+      axios: 1.20.0
+    transitivePeerDependencies:
+      - debug
+      - supports-color
 
   tree-kill@1.2.2: {}
 
