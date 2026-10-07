@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { FamilyService } from './family.service';
 import { FamilyLink } from './entities/family-link.entity';
 import { User } from '../users/entities/user.entity';
@@ -26,7 +26,7 @@ describe('FamilyService (HU-11)', () => {
   let notifRepo: { create: jest.Mock; save: jest.Mock };
   let sedeRepo: { findOne: jest.Mock };
   let psychSedeRepo: { find: jest.Mock };
-  let reviewRepo: { create: jest.Mock; save: jest.Mock };
+  let reviewRepo: { create: jest.Mock; save: jest.Mock; find: jest.Mock };
   let push: { enviarAUsuarios: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let invoiceRepo: { find: jest.Mock; findOne: jest.Mock };
@@ -61,7 +61,11 @@ describe('FamilyService (HU-11)', () => {
     notifRepo = { create: jest.fn((v) => v), save: jest.fn().mockResolvedValue(undefined) };
     sedeRepo = { findOne: jest.fn() };
     psychSedeRepo = { find: jest.fn().mockResolvedValue([]) };
-    reviewRepo = { create: jest.fn((v) => v), save: jest.fn((v) => Promise.resolve(v)) };
+    reviewRepo = {
+      create: jest.fn((v) => v),
+      save: jest.fn((v) => Promise.resolve(v)),
+      find: jest.fn().mockResolvedValue([]),
+    };
     push = { enviarAUsuarios: jest.fn().mockResolvedValue(1) };
 
     const manager = {
@@ -90,6 +94,7 @@ describe('FamilyService (HU-11)', () => {
       invoiceRepo as any,
       dataSource as any,
       push as any,
+      reviewRepo as any,
     );
   });
 
@@ -782,6 +787,130 @@ describe('FamilyService (HU-11)', () => {
       expect(linkRepo.find).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ status: 'revoked' }) }),
       );
+    });
+
+    // ── HDU 23 CA6: ver quién decidió ─────────────────────────────────────────
+
+    it('CA6: cada vínculo trae quién lo revisó por última vez y cuándo, con una sola consulta de nombres', async () => {
+      linkRepo.find.mockResolvedValue([
+        linkRow({ id: 'l1', status: 'active', reviewedBy: 'psych-1', reviewedAt: new Date('2026-10-02T14:05:00Z') }),
+        linkRow({ id: 'l2', status: 'active', reviewedBy: 'psych-1', reviewedAt: new Date('2026-10-03T10:00:00Z') }),
+      ]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+      userRepo.find.mockResolvedValue([{ id: 'psych-1', firstName: 'Miguel', lastName: 'Lara' }]);
+
+      const result = await service.listActiveLinks(psychologist());
+
+      expect(result[0]).toMatchObject({ lastReviewedByName: 'Miguel Lara', lastReviewedAt: '2026-10-02T14:05:00.000Z' });
+      expect(result[1].lastReviewedByName).toBe('Miguel Lara');
+      expect(userRepo.find).toHaveBeenCalledTimes(1);
+    });
+
+    it('CA6: un vínculo que nunca se revisó no trae autor ni fecha, y no consulta nombres', async () => {
+      linkRepo.find.mockResolvedValue([linkRow()]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+
+      const [item] = await service.listPendingLinks(psychologist());
+
+      expect(item.lastReviewedAt).toBeNull();
+      expect(item.lastReviewedByName).toBeNull();
+      expect(userRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('CA6: si el autor ya no existe, el nombre queda en null en vez de romper la lista', async () => {
+      linkRepo.find.mockResolvedValue([
+        linkRow({ status: 'rejected', reviewedBy: 'psych-borrado', reviewedAt: new Date('2026-10-02') }),
+      ]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+      userRepo.find.mockResolvedValue([]);
+
+      const [item] = await service.listRejectedLinks(psychologist());
+
+      expect(item.lastReviewedByName).toBeNull();
+      expect(item.lastReviewedAt).not.toBeNull();
+    });
+
+    it('CA6: listRejectedLinks pide los vínculos rechazados y respeta la sede', async () => {
+      linkRepo.find.mockResolvedValue([linkRow({ status: 'rejected' })]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-otro', sedeId: 'sede-concepcion' }]);
+
+      const result = await service.listRejectedLinks(psychologist());
+
+      expect(linkRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ status: 'rejected' }) }),
+      );
+      expect(result).toEqual([]);
+    });
+
+    describe('getLinkHistory (CA6)', () => {
+      const review = (over: Record<string, unknown> = {}) => ({
+        id: 'r1',
+        linkId: 'link-1',
+        verdict: 'confirmed',
+        reviewedBy: 'psych-1',
+        verification: 'in_person',
+        reviewedAt: new Date('2026-10-02T14:05:00Z'),
+        ...over,
+      });
+
+      it('devuelve las decisiones con el nombre de quien las tomó, pidiendo la más nueva primero', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow());
+        psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+        reviewRepo.find.mockResolvedValue([
+          review({ id: 'r2', verdict: 'revoked', verification: null, reviewedBy: 'psych-2', reviewedAt: new Date('2026-10-05T09:00:00Z') }),
+          review(),
+        ]);
+        userRepo.find.mockResolvedValue([
+          { id: 'psych-1', firstName: 'Miguel', lastName: 'Lara' },
+          { id: 'psych-2', firstName: 'Sofia', lastName: 'Ruiz' },
+        ]);
+
+        const result = await service.getLinkHistory('link-1', psychologist());
+
+        expect(reviewRepo.find).toHaveBeenCalledWith({ where: { linkId: 'link-1' }, order: { reviewedAt: 'DESC' } });
+        expect(result).toEqual([
+          { id: 'r2', verdict: 'revoked', reviewedAt: '2026-10-05T09:00:00.000Z', reviewedByName: 'Sofia Ruiz', verification: null },
+          { id: 'r1', verdict: 'confirmed', reviewedAt: '2026-10-02T14:05:00.000Z', reviewedByName: 'Miguel Lara', verification: 'in_person' },
+        ]);
+        expect(userRepo.find).toHaveBeenCalledTimes(1);
+      });
+
+      it('un vínculo que nunca se revisó devuelve una lista vacía', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow());
+        psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+
+        expect(await service.getLinkHistory('link-1', psychologist())).toEqual([]);
+        expect(userRepo.find).not.toHaveBeenCalled();
+      });
+
+      it('404 si el vínculo no existe', async () => {
+        linkRepo.findOne.mockResolvedValue(null);
+
+        await expect(service.getLinkHistory('nada', psychologist())).rejects.toThrow(NotFoundException);
+      });
+
+      it('404 si el vínculo no tiene paciente identificado (nunca es visible para un psicólogo)', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow({ patientUser: null }));
+
+        await expect(service.getLinkHistory('link-1', psychologist())).rejects.toThrow(NotFoundException);
+        expect(reviewRepo.find).not.toHaveBeenCalled();
+      });
+
+      it('403 si el psicólogo no atiende la sede del paciente, sin leer el historial', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow());
+        psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: 'sede-concepcion' }]);
+
+        await expect(service.getLinkHistory('link-1', psychologist())).rejects.toThrow(ForbiddenException);
+        expect(reviewRepo.find).not.toHaveBeenCalled();
+      });
+
+      it('el coordinador puede ver el historial de cualquier sede', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow());
+
+        await service.getLinkHistory('link-1', psychologist({ role: 'coordinator', sedeId: null }));
+
+        expect(reviewRepo.find).toHaveBeenCalled();
+      });
     });
   });
 

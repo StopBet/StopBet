@@ -7,6 +7,7 @@ import type { FlaggedPost, RejectedRequest } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { useDialog } from '../hooks/useDialog'
 import { formatRut } from '../utils/rut'
+import { fechaHora } from '../utils/fecha'
 
 // El backend no envía iniciales para los posts reportados, así que el avatar salía
 // siempre vacío. Se derivan del nombre del autor.
@@ -438,14 +439,6 @@ function ReopenModal({ req, onClose, onConfirm, loading }: { req: RejectedReques
 }
 
 /* ── Rejected Section ────────────────────────────────── */
-// Formato fijo dd/mm/aaaa hh:mm: `toLocaleString('es-CL')` cambia según el motor y puede salir
-// con guiones o en 12 horas.
-function fechaHora(iso: string): string {
-  const d = new Date(iso)
-  const p = (n: number) => String(n).padStart(2, '0')
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
-}
-
 function RejectedSection() {
   const qc = useQueryClient()
   const [reopenTarget, setReopenTarget] = useState<RejectedRequest | null>(null)
