@@ -106,6 +106,14 @@ export class MailService implements OnModuleInit {
   }
 
   /**
+   * Canal de AJUTER (correo o teléfono) que se muestra a los pacientes cuyo ingreso se rechazó.
+   * Es opcional a propósito: no hay un contacto confirmado y el correo no debe inventar uno.
+   */
+  get ajuterContact(): string | undefined {
+    return this.configService.get<string>('AJUTER_CONTACTO')?.trim() || undefined;
+  }
+
+  /**
    * Devuelve si el correo salió. Nunca lanza: quien la llama ya completó una operación que
    * no debe deshacerse porque el servidor de correo esté caído.
    */

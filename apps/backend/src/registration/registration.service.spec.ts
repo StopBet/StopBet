@@ -22,12 +22,20 @@ describe('RegistrationService — approve', () => {
   let sedeRepo: { findOne: jest.Mock };
   let psychSedeRepo: { find: jest.Mock };
   let dataSource: { transaction: jest.Mock };
+  let mailService: { send: jest.Mock; ajuterContact: string | undefined };
 
   const REQUEST_ID = 'req-1';
   const REVIEWER_ID = 'psych-reviewer';
   const SEDE_ID = 'sede-santiago';
   const pendingRequest = { id: REQUEST_ID, userId: 'pat-1', sedeId: SEDE_ID };
-  const activePsychologist = { id: REVIEWER_ID, role: 'psychologist', accountStatus: 'active' };
+  const activePsychologist = {
+    id: REVIEWER_ID,
+    role: 'psychologist',
+    accountStatus: 'active',
+    email: 'psi@ejemplo.cl',
+    firstName: 'Psi',
+    lastName: 'Cólogo',
+  };
 
   const reviewer = (over: Partial<AuthUser> = {}): AuthUser => ({
     id: REVIEWER_ID,
@@ -41,7 +49,7 @@ describe('RegistrationService — approve', () => {
 
   beforeEach(() => {
     requestRepo = { findOne: jest.fn(), update: jest.fn(), find: jest.fn() };
-    userRepo = { findOne: jest.fn(), update: jest.fn(), find: jest.fn() };
+    userRepo = { findOne: jest.fn().mockResolvedValue(null), update: jest.fn(), find: jest.fn() };
     notifRepo = { save: jest.fn(), create: jest.fn((data) => data) };
     assignmentRepo = { save: jest.fn(), create: jest.fn((data) => data) };
     reviewRepo = { save: jest.fn(), create: jest.fn((data) => data) };
@@ -64,6 +72,8 @@ describe('RegistrationService — approve', () => {
       transaction: jest.fn(async (run: (m: unknown) => Promise<unknown>) => run(manager)),
     };
 
+    mailService = { send: jest.fn().mockResolvedValue(true), ajuterContact: undefined };
+
     service = new RegistrationService(
       requestRepo as any,
       userRepo as any,
@@ -71,6 +81,7 @@ describe('RegistrationService — approve', () => {
       sedeRepo as any,
       psychSedeRepo as any,
       dataSource as any,
+      mailService as any,
     );
   });
 
@@ -477,6 +488,93 @@ describe('RegistrationService — approve', () => {
 
       expect(result).toEqual([]);
       expect(requestRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
+  // El correo sale sin esperarlo (no traba al coordinador), así que hay que dejar que la
+  // promesa suelta termine antes de mirar qué se envió.
+  const flush = () => new Promise((resolve) => setImmediate(resolve));
+  const patient = { email: 'pat@ejemplo.cl', firstName: 'Ana' };
+
+  describe('correo al paciente', () => {
+    it('al aprobar avisa con el nombre del psicólogo asignado', async () => {
+      requestRepo.findOne.mockResolvedValue(pendingRequest);
+      requestRepo.update.mockResolvedValue({ affected: 1 });
+      userRepo.findOne
+        .mockResolvedValueOnce({ ...activePsychologist, firstName: 'Camila', lastName: 'Soto' })
+        .mockResolvedValueOnce(patient);
+
+      await service.approve(REQUEST_ID, reviewer());
+      await flush();
+
+      expect(mailService.send).toHaveBeenCalledTimes(1);
+      const mail = mailService.send.mock.calls[0][0];
+      expect(mail.to).toBe('pat@ejemplo.cl');
+      expect(mail.subject).toMatch(/aprobada/);
+      expect(mail.text).toContain('Camila Soto');
+      expect(mail.html).toContain('Camila Soto');
+    });
+
+    it('no envía nada si la aprobación pierde la carrera (409)', async () => {
+      requestRepo.findOne.mockResolvedValue(pendingRequest);
+      userRepo.findOne.mockResolvedValue(activePsychologist);
+      requestRepo.update.mockResolvedValue({ affected: 0 });
+
+      await expect(service.approve(REQUEST_ID, reviewer())).rejects.toThrow(ConflictException);
+      await flush();
+
+      expect(mailService.send).not.toHaveBeenCalled();
+    });
+
+    it('al rechazar avisa e incluye el contacto de AJUTER si está configurado', async () => {
+      mailService.ajuterContact = 'contacto@ajuter.example';
+      requestRepo.findOne.mockResolvedValue(pendingRequest);
+      requestRepo.update.mockResolvedValue({ affected: 1 });
+      userRepo.findOne.mockResolvedValue(patient);
+
+      await service.reject(REQUEST_ID, reviewer({ role: 'coordinator', sedeId: null }));
+      await flush();
+
+      const mail = mailService.send.mock.calls[0][0];
+      expect(mail.to).toBe('pat@ejemplo.cl');
+      expect(mail.text).toContain('contacto@ajuter.example');
+    });
+
+    it('sin contacto configurado no inventa ninguno', async () => {
+      requestRepo.findOne.mockResolvedValue(pendingRequest);
+      requestRepo.update.mockResolvedValue({ affected: 1 });
+      userRepo.findOne.mockResolvedValue(patient);
+
+      await service.reject(REQUEST_ID, reviewer({ role: 'coordinator', sedeId: null }));
+      await flush();
+
+      const mail = mailService.send.mock.calls[0][0];
+      expect(mail.text).toContain('comunícate con AJUTER.');
+      expect(mail.text).not.toContain('@');
+    });
+
+    it('al reabrir avisa que volvió a revisión', async () => {
+      requestRepo.findOne.mockResolvedValue(pendingRequest);
+      requestRepo.update.mockResolvedValue({ affected: 1 });
+      userRepo.findOne.mockResolvedValue(patient);
+
+      await service.reopen(REQUEST_ID, reviewer({ role: 'coordinator', sedeId: null }));
+      await flush();
+
+      expect(mailService.send.mock.calls[0][0].subject).toMatch(/volvió a revisión/);
+    });
+
+    it('si el correo falla, la decisión no se deshace ni lanza', async () => {
+      requestRepo.findOne.mockResolvedValue(pendingRequest);
+      requestRepo.update.mockResolvedValue({ affected: 1 });
+      userRepo.findOne.mockRejectedValue(new Error('BD caída'));
+
+      await expect(
+        service.reject(REQUEST_ID, reviewer({ role: 'coordinator', sedeId: null })),
+      ).resolves.toBeUndefined();
+      await flush();
+
+      expect(mailService.send).not.toHaveBeenCalled();
     });
   });
 });

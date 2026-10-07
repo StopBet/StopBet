@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -22,6 +23,12 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { PatientAssignment } from '../psychologists/entities/patient-assignment.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
+import { MailMessage, MailService } from '../mail/mail.service';
+import {
+  registrationApprovedEmail,
+  registrationRejectedEmail,
+  registrationReopenedEmail,
+} from '../mail/templates/registration-decision';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { AuthUser, SubmitRegistrationResponse,
@@ -69,7 +76,25 @@ export class RegistrationService {
     private readonly psychSedeRepo: Repository<PsychologistSede>,
     @InjectDataSource()
     private readonly dataSource: DataSource,
+    private readonly mailService: MailService,
   ) {}
+
+  private readonly logger = new Logger(RegistrationService.name);
+
+  // El correo va después de confirmar la transacción y sin esperarlo: la decisión ya quedó
+  // guardada y avisada en la app, y un Brevo lento (hasta 10 s) no debe trabar al coordinador.
+  // `send` nunca lanza; el catch cubre solo la lectura del paciente.
+  private emailPatient(
+    userId: string,
+    build: (patient: { email: string; firstName: string }) => MailMessage,
+  ): void {
+    void this.userRepo
+      .findOne({ where: { id: userId } })
+      .then((patient) => (patient ? this.mailService.send(build(patient)) : undefined))
+      .catch((err: Error) =>
+        this.logger.warn(`No se pudo preparar el correo de la decisión: ${err.message}`),
+      );
+  }
 
   // El coordinador es un rol administrativo y revisa cualquier sede: si solo viera las suyas,
   // una sede que se queda sin psicólogos no tendría a nadie que pueda aprobar sus solicitudes.
@@ -246,7 +271,7 @@ export class RegistrationService {
     reviewer: AuthUser,
     dto: ApproveRegistrationDto = {},
   ): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+    const decision = await this.dataSource.transaction(async (manager) => {
       const req = await manager
         .getRepository(RegistrationRequest)
         .findOne({ where: { id: requestId } });
@@ -316,11 +341,27 @@ export class RegistrationService {
           body: 'Tu registro fue aprobado. Ya puedes activar tu cuenta realizando el pago mensual.',
         }),
       );
+
+      return {
+        userId: req.userId,
+        psychologistName: `${assignee.firstName} ${assignee.lastName}`.trim(),
+      };
     });
+
+    this.emailPatient(decision.userId, (patient) =>
+      registrationApprovedEmail({
+        to: patient.email,
+        firstName: patient.firstName,
+        psychologistName: decision.psychologistName,
+        // TODO(historia de activación de cuenta): aquí va el enlace de un solo uso para que el
+        // paciente cree su contraseña (`activationUrl`). Mientras no exista, el correo avisa
+        // que llegará después en vez de enlazar a una página que no existe.
+      }),
+    );
   }
 
   async reject(requestId: string, reviewer: AuthUser): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+    const userId = await this.dataSource.transaction(async (manager) => {
       const requestRepo = manager.getRepository(RegistrationRequest);
       const req = await requestRepo.findOne({ where: { id: requestId } });
       if (!req) throw new NotFoundException('Solicitud no encontrada');
@@ -347,11 +388,21 @@ export class RegistrationService {
           body: 'Tu solicitud fue revisada. Comunícate con AJUTER para más información.',
         }),
       );
+
+      return req.userId;
     });
+
+    this.emailPatient(userId, (patient) =>
+      registrationRejectedEmail({
+        to: patient.email,
+        firstName: patient.firstName,
+        contact: this.mailService.ajuterContact,
+      }),
+    );
   }
 
   async reopen(requestId: string, reviewer: AuthUser): Promise<void> {
-    await this.dataSource.transaction(async (manager) => {
+    const userId = await this.dataSource.transaction(async (manager) => {
       const requestRepo = manager.getRepository(RegistrationRequest);
       const req = await requestRepo.findOne({ where: { id: requestId } });
       if (!req) throw new NotFoundException('Solicitud no encontrada');
@@ -378,7 +429,13 @@ export class RegistrationService {
           body: 'AJUTER reabrió tu solicitud de ingreso. Te avisaremos cuando haya una respuesta.',
         }),
       );
+
+      return req.userId;
     });
+
+    this.emailPatient(userId, (patient) =>
+      registrationReopenedEmail({ to: patient.email, firstName: patient.firstName }),
+    );
   }
 }
 
