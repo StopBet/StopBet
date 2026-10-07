@@ -115,7 +115,13 @@ function failed(method: string, path: string, res: Response): Error & { status: 
 
 async function get<T>(path: string, headers?: Record<string, string>): Promise<T> {
   const res = await request(path, {}, headers)
-  if (!res.ok) throw failed('GET', path, res)
+  if (!res.ok) {
+    // El cuerpo viaja en el error porque algunas pantallas eligen el mensaje según él: la ficha
+    // clínica distingue «no es de tu sede» de «no está asignado a ti» (HdU13 CA5).
+    const err = failed('GET', path, res) as ApiError
+    err.body = await res.json().catch(() => undefined)
+    throw err
+  }
   return res.json() as Promise<T>
 }
 

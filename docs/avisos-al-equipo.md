@@ -20,6 +20,19 @@ está.
 
 ---
 
+## 2026-10-07 - Un psicólogo sin acceso a un paciente ahora sabe por qué (HdU13 CA5)
+
+**A quién le pega:** a quien pruebe accesos con cuentas de otra sede, y a quien lea un 403 de
+`PatientAccessGuard`.
+
+- **Qué hacer:** si levantas la web sin el backend, recompila los tipos:
+  `pnpm --filter @stopbet/shared-types build` (hay un tipo nuevo, `PatientAccessDenial`).
+- **Qué cambia:** el 403 trae `reason`: `other_sede` («Este paciente no es de tu sede») o
+  `not_assigned` («Este paciente no está asignado a ti»). La ficha clínica muestra ese mensaje.
+  Un id que no es de ningún paciente sigue con el mensaje genérico, a propósito: si no, la URL
+  serviría para averiguar quién es paciente. Afecta a todos los endpoints con el guard, no solo
+  a la ficha.
+
 ## 2026-10-07 - Solicitudes de ingreso: el paciente recibe un correo al aprobar, rechazar o reabrir (PR #150)
 
 **A quién le pega:** a quien administre las variables de Railway (José) y a quien pruebe

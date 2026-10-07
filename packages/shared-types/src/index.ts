@@ -421,6 +421,10 @@ export interface AuthUser {
   institutionId?: string | null;
 }
 
+// Por qué un psicólogo no puede abrir a un paciente (HdU13 CA5). Viaja en el 403 de
+// PatientAccessGuard como `reason`; un id que no es de ningún paciente no lo trae.
+export type PatientAccessDenial = 'other_sede' | 'not_assigned';
+
 export interface LoginResponse {
   accessToken: string;
   refreshToken: string;
