@@ -4,9 +4,11 @@
 **Historias que dependen de esto:** HdU09 y HdU12 (pago de la mensualidad), HdU19 (activación de la cuenta tras aprobar la solicitud), HdU23 (el familiar paga las cuotas del paciente)
 **Criterios:** CA5 y CA6 del SPIKE 2 (`docs/Sprint 2.md`).
 
-> **Estado (07-10-2026):** CA5 redactado, con fuentes del mismo día (§2 y §3). El **PoC del CA6 está
-> diseñado** (§4); falta correr el sandbox real y adjuntar la evidencia (§5 y §6, paso 3). Lo marcado
-> _verificado_ tiene fuente en §3; lo marcado _inferencia_ o _no verificado_ **no se afirma todavía**.
+> **Estado (07-10-2026):** CA5 y CA6 **cubiertos**. La comparación (§2 y §3) tiene fuentes del mismo
+> día. El PoC (§4) corre contra el ambiente de **integración** de Transbank y su evidencia está en §5:
+> una tarjeta inscrita y **dos cobros AUTHORIZED**, el segundo disparado por el backend sin el
+> paciente. Lo marcado _verificado_ tiene fuente en §3; lo marcado _inferencia_ o _no verificado_
+> **no se afirma todavía**. Lo que falta para producción está en §7.
 
 **Respuesta corta:** la pasarela recomendada es **Transbank Webpay Oneclick (Mall)**. Es la única de
 las tres que une una comisión más baja, un SDK oficial para Node, un sandbox con credenciales
@@ -155,13 +157,148 @@ Todas consultadas el **07-10-2026**. Las cifras de tarifas cambian: antes de con
 
 ## 4. El PoC del CA6
 
-> **Pendiente de redactar con el código real.** Se completa en el paso 2 de §6: flujo, tablas,
-> endpoints, idempotencia, configuración y seguridad.
+Módulo `apps/backend/src/payments/`. **No toca ninguna pantalla de pacientes ni de familiares**: se
+usa desde una página de prueba que sirve el propio backend.
+
+### 4.1 Flujo
+
+```
+Paciente (sesión)          Backend (StopBet)                     Transbank (integración)
+      │  POST /inscriptions ─────▶│  start(userId, email, URL de retorno) ─▶│
+      │◀── { token, urlWebpay } ──│◀──────────────── token + url_webpay ─────│
+      │  el navegador hace POST con TBK_TOKEN a urlWebpay ─────────────────▶│  formulario + banco
+      │◀──────────── vuelve por GET/POST a /inscriptions/return?TBK_TOKEN ───│
+      │                           │  finish(token) ──────────────────────────▶│  (dentro de 60 s)
+      │                           │◀── tbk_user + tipo y últimos 4 dígitos ───│  se guarda cifrado
+      │◀── 303 a la página con el resultado
+
+COBRO 1 (lo pide el paciente)      POST /charges ──▶ authorize(tbk_user, buyOrder, monto) ──▶ AUTHORIZED
+COBRO 2 (sin el paciente)          run-due / cron ──▶ authorize(...) con la misma tarjeta ───▶ AUTHORIZED
+```
+
+**StopBet nunca ve la tarjeta:** el formulario es de Transbank. Lo único que se guarda es el `tbk_user`
+(un identificador que solo sirve con nuestro código de comercio, **cifrado en reposo** con la misma
+columna que el RUT), el tipo de tarjeta y los **últimos 4 dígitos**.
+
+### 4.2 Piezas
+
+| Pieza | Qué hace |
+|---|---|
+| `oneclick.gateway.ts` | **Único** archivo que importa `transbank-sdk` (6.1.1, versión fija). El SDK devuelve `any`; acá cada respuesta se lee como `unknown` y se valida. Cambiar a Flow es tocar este archivo. Sin configuración de producción se apaga y los endpoints responden 503. |
+| `payment_inscriptions` | La tarjeta del paciente. Índice único parcial: **una sola activa por usuario**. Estados: `pending`, `active`, `failed`, `aborted`, `deleted`. |
+| `payment_charges` | Cada intento de cobro, con la orden de compra padre e hija (únicas, ≤26 caracteres), monto, `triggeredBy` (`user` o `automatic`), estado y el código y la hora que devuelve Transbank. |
+| `oneclick-payments.service.ts` | Inscripción, cobro de una cuota, cobro de las vencidas y el cron. Liquida la cuota con `BillingService.settleInvoices`, la misma ruta que usa el pago simulado, así que reactiva la cuenta y crea la cuota siguiente igual que hoy. |
+| `tbk-return-params.decorator.ts` | Lee **solo** `TBK_TOKEN`, `TBK_ORDEN_COMPRA` y `TBK_ID_SESION` del retorno de Transbank. Con un DTO, el `ValidationPipe` global (`forbidNonWhitelisted`) respondería 400 al navegador ante cualquier campo extra. |
+| `oneclick-test-page.ts` | La página de prueba (`/payments/oneclick/test-page`), con los botones de cada paso y la respuesta JSON a la vista. |
+
+### 4.3 Endpoints
+
+| Endpoint | Acceso | Para qué |
+|---|---|---|
+| `POST /payments/oneclick/inscriptions` | paciente | Inscribir la tarjeta |
+| `GET` y `POST /payments/oneclick/inscriptions/return` | público, 20 por minuto | A donde vuelve Transbank; siempre redirige 303 al resultado |
+| `GET` y `DELETE /payments/oneclick/inscription` | paciente | Ver o eliminar la tarjeta |
+| `POST /payments/oneclick/charges` | paciente | **Cobro 1** |
+| `GET /payments/oneclick/charges` | paciente | Sus cobros |
+| `POST /payments/oneclick/charges/run-due` | coordinación, solo con `ENABLE_DEV_TOOLS` | **Cobro 2**, sin el paciente |
+| `GET /payments/oneclick/charges/:id/transbank-status` | coordinación, solo con `ENABLE_DEV_TOOLS` | Qué dice Transbank de un cobro |
+| `GET /payments/oneclick/test-page` | público, solo con `ENABLE_DEV_TOOLS` | Página de prueba |
+
+### 4.4 Que no se cobre dos veces
+
+El riesgo real de un cobro automático es cobrar dos veces la misma cuota. Tres defensas:
+1. La fila de `payment_charges` se inserta en `processing` **antes** de llamar a Transbank, y un
+   **índice único parcial** sobre `invoiceId` (estados `processing` y `authorized`) hace que el segundo
+   intento falle en la base, no en el código. Un cobro rechazado no bloquea el reintento.
+2. El SDK envuelve todos los errores de `axios` en el mismo tipo. Un **4xx** significa «Transbank dijo que
+   no, no se cobró»; **cualquier otro fallo** (timeout, red) es indeterminado, y entonces se consulta
+   `status(ordenPadre)`. Si tampoco responde, el cobro **queda en `processing`** y bloquea la cuota: es
+   preferible una cuota trabada que revisa una persona a un cobro doble.
+3. Aprobado quiere decir `response_code === 0` **y** `status === 'AUTHORIZED'` en **cada** detalle. El
+   ejemplo del SDK mira un `status` de nivel superior que la respuesta no trae.
+
+### 4.5 Configuración
+
+Todo opcional. Sin ninguna variable usa el ambiente de integración con las credenciales públicas de
+Transbank (no se cobra dinero real).
+
+| Variable | Para qué |
+|---|---|
+| `TBK_ENVIRONMENT` | `integration` (por defecto) o `production`. En `production` sin los tres datos de abajo, **se apaga**: no cae a las credenciales de prueba. |
+| `TBK_ONECLICK_COMMERCE_CODE`, `TBK_ONECLICK_CHILD_COMMERCE_CODE`, `TBK_API_KEY` | Los datos de comercio que entrega Transbank al afiliar a AJUTER. |
+| `BACKEND_PUBLIC_URL`, `TBK_RESULT_URL` | A dónde vuelve el navegador tras Transbank (URL pública del backend, y opcionalmente otra página de resultado). |
+| `TBK_AUTO_CHARGE_CRON` | `true` activa el cobro automático diario a las 09:00 de Chile. **Apagado por defecto**, para no cobrar sobre la base de demo de Railway. |
+| `ENABLE_DEV_TOOLS` | Habilita la página de prueba, el cobro por fecha y la consulta de estado. |
+
+Los logs llevan ids, orden de compra, estado y código. **Nunca** correo, `tbk_user`, `TBK_TOKEN` ni datos de tarjeta.
+
+### 4.6 Tests
+
+- **Unitarios** (`payments/*.spec.ts`, `billing/billing.service.spec.ts`): inscripción ok, rechazada, anulada, repetida y con timeout; cobro autorizado que liquida la cuota; rechazado que no la toca; error de red que consulta el estado; sin doble cobro; el mapeo de las respuestas del SDK.
+- **e2e** (`test/payments.e2e-spec.ts`, 27 casos): Transbank reemplazado por un gateway falso, así que corre en CI. Usa el `ValidationPipe` real de `main.ts`. Cubre permisos, el retorno por GET con parámetros desconocidos y por POST urlencoded, la anulación, **los dos cobros** (paciente y automático), el 409 de la doble cobranza, el rechazo y el 404 de las herramientas de desarrollo.
 
 ## 5. Evidencia del sandbox
 
-> **Pendiente.** Se llena en el paso 3 de §6, con la prueba real contra el ambiente de integración de
-> Transbank: capturas de la inscripción, los dos cobros y la consulta de estado a Transbank.
+Corrida del **07-10-2026 (19:30, hora de Chile)** contra `webpay3gint.transbank.cl` (ambiente de
+integración, credenciales públicas), con el backend local y los datos del seed. Paciente: Carlos Demo.
+Coordinación: Sofía Reyes. El recorrido lo hizo un script de Playwright sobre el **formulario real** de
+Transbank, no una simulación.
+
+### 5.1 Inscripción de la tarjeta
+
+VISA de prueba `4051 8856 0044 6623`, banco de prueba (RUT `11.111.111-1`, clave `123`).
+
+![Formulario de Transbank con la tarjeta de prueba](img/spike2-pago-1-formulario-transbank.png)
+
+Resultado en StopBet: tarjeta `Visa` terminada en `6623`, estado `active`, código de respuesta `0`. El
+`tbk_user` queda cifrado en la columna (no se muestra en ninguna respuesta de la API).
+
+![Tarjeta inscrita](img/spike2-pago-2-tarjeta-inscrita.png)
+
+### 5.2 Los dos cobros
+
+| | Cobro 1 | Cobro 2 |
+|---|---|---|
+| Quién lo dispara | el paciente (`POST /charges`) | el backend, **sin sesión del paciente** (`run-due` como coordinación) |
+| `triggeredBy` | `user` | `automatic` |
+| Cuota | 2026-10 · $30.000 | 2026-11 · $30.000 |
+| Orden de compra | `SBMUYI61LWB3PDJM` | `SBMUYI6BHX6VGXEZ` |
+| Resultado | `AUTHORIZED`, código `0`, autorización `1213` | `AUTHORIZED`, código `0`, autorización `1213` |
+| Hora que informa Transbank | 19:30:43 (Chile) | 19:30:56 (Chile) |
+| Estado de la cuota después | `paid` | `paid` |
+
+![Cobro 1, el paciente paga](img/spike2-pago-3-cobro-1-paciente.png)
+
+![Cobro 2, automático, y la consulta a Transbank](img/spike2-pago-4-cobro-2-automatico.png)
+
+**Confirmación de Transbank, no nuestra.** `GET /charges/:id/transbank-status` le pregunta a Transbank por
+la orden de compra de cada cobro:
+
+```json
+{ "buyOrder": "SBMUYI61LWB3PDJM", "approved": true, "status": "AUTHORIZED", "responseCode": 0,
+  "authorizationCode": "1213", "transactionDate": "2026-10-07T22:30:43.777Z" }
+{ "buyOrder": "SBMUYI6BHX6VGXEZ", "approved": true, "status": "AUTHORIZED", "responseCode": 0,
+  "authorizationCode": "1213", "transactionDate": "2026-10-07T22:30:56.616Z" }
+```
+
+**En la base** (`payment_charges` unido con `invoices`):
+
+```
+ parentBuyOrder   | amountCLP | status     | trigger   | rc | auth | tipo | month   | factura
+ SBMUYI61LWB3PDJM |     30000 | authorized | user      |  0 | 1213 | VN   | 2026-10 | paid
+ SBMUYI6BHX6VGXEZ |     30000 | authorized | automatic |  0 | 1213 | VN   | 2026-11 | paid
+```
+
+El paciente recibió dos avisos «Recibimos tu pago» (2026-10 y 2026-11) con `target: payment`.
+
+### 5.3 Casos negativos
+
+| Caso | Qué se hizo | Resultado |
+|---|---|---|
+| Tarjeta rechazada | Mastercard de prueba `5186 0595 5959 0568` | Transbank la rechaza al inscribir (código `-1`). Inscripción `failed`, el paciente sigue sin tarjeta. |
+| El paciente abandona | «Abandonar y volver» en el formulario de Transbank | Llega `TBK_ORDEN_COMPRA`: no se llama a `finish`. Inscripción `aborted`. |
+| Eliminar la tarjeta | `DELETE /inscription` | Se borra en Transbank y en StopBet; sirve para repetir la demo. |
+| Doble cobro | Cobrar otra vez la cuota ya pagada; correr `run-due` dos veces | 409 y no se llama a Transbank; la segunda corrida no cobra nada. (Probado en el e2e.) |
 
 ---
 
@@ -171,14 +308,14 @@ Todas consultadas el **07-10-2026**. Las cifras de tarifas cambian: antes de con
 Secciones 2 y 3. Tres pasarelas comparadas (Oneclick, Flow, Mercado Pago) en costo, cobro recurrente,
 requisitos de comercio e integración con NestJS, con los descartes justificados.
 
-### Paso 2 — CA6: construir el sandbox ⬜
-Módulo `payments` del backend con Webpay Oneclick Mall (§4).
+### Paso 2 — CA6: construir el sandbox ✅ listo
+Módulo `payments` del backend con Webpay Oneclick Mall (§4), con tests unitarios y e2e.
 
-### Paso 3 — CA6: correr el sandbox y juntar la evidencia ⬜
-Una inscripción de tarjeta y **dos cobros**, el segundo disparado por el backend sin el paciente (§5).
+### Paso 3 — CA6: correr el sandbox y juntar la evidencia ✅ listo
+Una inscripción de tarjeta y **dos cobros**, el segundo disparado por el backend sin el paciente, ambos confirmados por Transbank (§5).
 
-### Paso 4 — Cierre ⬜
-Actualizar `docs/ASUNCIONES-PENDIENTES.md`, `docs/presupuesto-stack-2026-09.md` y `CLAUDE.md`.
+### Paso 4 — Cierre ✅ listo
+Actualizados `docs/ASUNCIONES-PENDIENTES.md`, `docs/presupuesto-stack-2026-09.md`, `docs/avisos-al-equipo.md`, `docs/security/permissions-matrix.md` y `CLAUDE.md`.
 
 ---
 
@@ -205,3 +342,21 @@ horas» que encontré es de otro producto, el Link de Pago [T16]). Hay que pedir
 Si la respuesta de Transbank es mala o lenta, **el respaldo es Flow**, que exige una cuenta corriente de
 empresa y tiene una comisión más alta. La integración está aislada detrás de un adaptador (§4) justo
 para que cambiar de pasarela no toque el resto del backend.
+
+### Lo que apareció al probar contra el sandbox real
+
+Cosas que la documentación de Transbank no avisa y que conviene tener a mano al pasar a producción:
+- **La hora viene en hora de Chile con sufijo `Z`**, no en UTC: leída tal cual, el cobro quedaba 3 horas
+  antes. Se corrige en `chileWallClockToDate` (con test para el cambio de hora). **Hay que volver a
+  verificarlo con el código de comercio de producción**, porque es un comportamiento observado, no documentado.
+- **No hay cómo forzar un rechazo en `authorize`** con las tarjetas de integración: la Mastercard se rechaza
+  ya al inscribir. El rechazo de un cobro se probó solo con tests (unitario y e2e), no contra Transbank.
+- **El `finish` de una inscripción que nunca se completó responde `-96`**, y Transbank documenta que hay que
+  llamarlo dentro de 60 s. Se trata como inscripción fallida, sin error para el navegador.
+- **Las inscripciones abandonadas quedan `pending`** para siempre (en la prueba quedaron 4). No molestan, pero
+  hace falta una tarea que las venza antes de producción.
+- **Un cobro que queda en `processing`** (red cortada y Transbank sin responder el estado) bloquea su cuota a
+  propósito. Falta una tarea de conciliación que lo resuelva consultando a Transbank.
+- **La primera inscripción de una tarjeta real cobra $50 y los devuelve** (según la documentación de Transbank): hay que decírselo al paciente en la pantalla.
+- Detalle del formulario de integración: la fecha de vencimiento hay que teclearla como `1228` (`12/30` no la
+  acepta) y el botón de inscribir sigue deshabilitado hasta marcar «Es mi correo».

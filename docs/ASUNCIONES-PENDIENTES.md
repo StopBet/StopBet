@@ -199,6 +199,21 @@ backend le da una sesión limitada para pagar, o si el cobro se resuelve fuera d
 cuenta. La app ya no afirma lo contrario, pero mientras no exista Webpay el cobro se coordina
 fuera del sistema. Los costos están en `presupuesto-stack-2026-09.md`.
 
+**6-bis. Pasarela elegida y sandbox hecho (SPIKE 2, 07-10-2026).** La comparación de pasarelas
+recomienda **Webpay Oneclick (Mall)**, con Flow de respaldo, y el sandbox ya inscribe una tarjeta y
+hace dos cobros, el segundo sin el paciente: [`planning/spike2-pasarela-pago.md`](planning/spike2-pasarela-pago.md).
+`POST /billing/pay` sigue sin cobrar y las pantallas no cambiaron. Lo que esto deja sobre la mesa:
+
+- **Es una decisión del cliente, no nuestra:** la recomendación depende de que **AJUTER se afilie a
+  Transbank**, un trámite comercial cuyo plazo no está publicado. Hay cinco preguntas para Transbank en
+  la §7 del documento (tarifa, débito y prepago, si exige Webpay Plus, documentos de una fundación, IVA).
+- **Sobre el punto 5:** un cobro automático reactiva al paciente **sin que él inicie sesión**, lo que
+  resuelve parte del problema del suspendido. Falta decidir si el cliente quiere eso.
+- **Sobre el punto 4:** la tarjeta se inscribe a nombre de un paciente. Que pague un familiar sigue sin
+  resolverse.
+- Los **reintentos** ante un rechazo y qué se le avisa al paciente cuando un cobro falla: ninguna
+  pasarela lo decide por nosotros.
+
 ### 🟡 Para el PO — producto y marca
 
 **7. El nombre del cliente está escrito en el código.**

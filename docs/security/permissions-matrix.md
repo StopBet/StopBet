@@ -215,6 +215,24 @@ una conversación privada que le llega es un mensaje reportado, por la cola de m
 | `GET /billing/patients/:patientId/status` | `psychologist` (sus asignados), `coordinator` | ✅ Protegido + asignación — nuevo 16-09, para el reporte PDF |
 | `GET /family/billing` | `family` (solo con vínculo `active`) | ✅ Protegido — nuevo 22-09, solo lectura: cuotas del paciente vinculado para la pantalla de pago del portal |
 
+## `payments` — `/payments/oneclick`  _(SPIKE 2, 07-10-2026)_
+
+Sandbox de Webpay Oneclick. Ver [`docs/planning/spike2-pasarela-pago.md`](../planning/spike2-pasarela-pago.md).
+
+| Método + Path | Rol objetivo | Estado actual |
+|---|---|---|
+| `POST /payments/oneclick/inscriptions` | `patient` | ✅ Protegido |
+| `GET /payments/oneclick/inscriptions/return` y `POST` | Público | 🔓 Público — Transbank devuelve al **navegador** del paciente sin token. Solo lee `TBK_TOKEN`, `TBK_ORDEN_COMPRA` y `TBK_ID_SESION`, `@Throttle` de 20 por minuto, y siempre responde con una redirección, nunca con un error |
+| `GET /payments/oneclick/inscription` y `DELETE` | `patient` (dueño) | ✅ Protegido — solo la tarjeta propia; devuelve tipo y últimos 4 dígitos, nunca el `tbk_user` |
+| `POST /payments/oneclick/charges` y `GET` | `patient` (dueño) | ✅ Protegido — solo cuotas propias |
+| `POST /payments/oneclick/charges/run-due` | `coordinator` | ✅ Protegido + `ENABLE_DEV_TOOLS` (404 si no está) — cobra la cuota vencida de **todos** los pacientes que tengan una tarjeta inscrita |
+| `GET /payments/oneclick/charges/:id/transbank-status` | `coordinator` | ✅ Protegido + `ENABLE_DEV_TOOLS` |
+| `GET /payments/oneclick/test-page` | Público | 🔓 Público, **solo con `ENABLE_DEV_TOOLS`** (404 si no). Es HTML estático sin datos: no hay nada que filtrar |
+
+**Pendiente antes de producción:** `run-due` hoy es una herramienta de desarrollo. El cobro real lo
+dispara el cron (`TBK_AUTO_CHARGE_CRON`, apagado por defecto), que no es un endpoint. Quién paga
+(`family`) todavía no tiene ruta: ver `ASUNCIONES-PENDIENTES.md`, punto 4.
+
 ## `family` — `/family`  _(HdU11, 22 y 23; actualizado 29-09-2026)_
 
 | Método + Path | Rol objetivo | Estado actual |
