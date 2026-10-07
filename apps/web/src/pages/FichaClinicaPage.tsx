@@ -226,12 +226,16 @@ export function FichaClinicaPage() {
     const status = (error as ApiError)?.status
     const { titulo: tituloError, detalle } = mensajeDeError(status, (error as ApiError)?.body?.reason)
     return (
-      <div style={{ padding: 32, maxWidth: 560 }}>
+      <div style={{ padding: '22px 26px 48px' }}>
         <Volver onClick={() => navigate('/pacientes')} />
-        <div style={{ ...tarjeta, marginTop: 18 }}>
-          <WIcon name="shield" size={26} color="var(--fg2)" />
-          <h2 style={{ ...titulo, fontSize: 20, margin: '12px 0 8px' }}>{tituloError}</h2>
-          <p style={{ margin: 0, fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>{detalle}</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60vh' }}>
+          <div style={{ ...tarjeta, maxWidth: 480, padding: '28px 28px', textAlign: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <WIcon name="shield" size={30} color="var(--fg2)" />
+            </div>
+            <h2 style={{ ...titulo, fontSize: 20, margin: '12px 0 8px' }}>{tituloError}</h2>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--fg2)', lineHeight: 1.6 }}>{detalle}</p>
+          </div>
         </div>
       </div>
     )
