@@ -34,6 +34,27 @@ hay columnas nuevas.
 
 ---
 
+## 2026-10-04 - Solicitudes de ingreso solo para coordinación; posts reportados en «Moderación» (PR #148)
+
+**A quién le pega:** a **quien pruebe el panel web como psicólogo** y a **Catalina**, porque el
+manual §2.3 dice que la moderación de posts reportados está en *Solicitudes*.
+
+**Qué hacer después de pullear:** nada que correr. La tabla nueva `registration_reviews` la crea
+`synchronize` al levantar el backend.
+
+**Qué cambió:**
+- El **psicólogo ya no ve «Solicitudes»** y recibe **403** al listar, aprobar, rechazar o reabrir solicitudes (`submit` y la consulta de
+  estado siguen públicas). Es a propósito y
+  por un supuesto del cliente que **aún no está confirmado**: no lo «arregles». Detalle y cómo
+  revertir en [`docs/hdu19-solicitudes-ingreso-v2.md`](hdu19-solicitudes-ingreso-v2.md).
+- Al aprobar, el psicólogo asignado **tiene que atender la sede del paciente**: la API responde
+  400 si no. La lista de la web ya filtraba así; el cambio es para quien llame el endpoint a mano.
+- Los **posts reportados** pasaron a una entrada nueva del menú, **«Moderación»**
+  (`/moderacion`), solo para el psicólogo. El coordinador no la ve: el backend no lo deja moderar.
+- El **coordinador puede reabrir** solicitudes rechazadas desde «Rechazadas», en *Solicitudes*.
+
+---
+
 ## 2026-09-30 - Comunidad › Chats ahora es una lista, con mensajes directos (PR #142)
 
 **A quién le pega:** a **Alex** y a quien toque Comunidad en mobile o la moderación (web y app

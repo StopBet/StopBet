@@ -2,16 +2,33 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
 import { type RegistrationRequest } from '../data/mockData'
-import { api } from '../services/api'
-import type { FlaggedPost } from '../services/api'
+import { api, getRejectedRequests, reopenRequest } from '../services/api'
+import type { FlaggedPost, RejectedRequest } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { useDialog } from '../hooks/useDialog'
+import { formatRut } from '../utils/rut'
 
 // El backend no envía iniciales para los posts reportados, así que el avatar salía
 // siempre vacío. Se derivan del nombre del autor.
 function initialsOf(name: string | null): string {
   if (!name) return '?'
   return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase()
+}
+
+// El registro guarda el móvil como 9 dígitos sin el +56. Lo que no calce se muestra tal cual:
+// hay cuentas antiguas con teléfonos de prueba que no son un móvil chileno.
+function PhoneLine({ phone }: { phone: string | null }) {
+  const style = { fontSize: 12, color: 'var(--fg2)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' } as const
+  if (!phone) return <div style={style}>Sin teléfono</div>
+  const digits = phone.replace(/\D/g, '')
+  if (!/^9\d{8}$/.test(digits)) return <div style={style}>{phone}</div>
+  return (
+    <div style={style}>
+      <a href={`tel:+56${digits}`} style={{ color: 'var(--primary-text)', textDecoration: 'none' }}>
+        +56 {digits[0]} {digits.slice(1, 5)} {digits.slice(5)}
+      </a>
+    </div>
+  )
 }
 
 /* ── Approve Modal ───────────────────────────────────── */
@@ -24,7 +41,7 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
     queryFn: api.getPsychologists,
   })
 
-  // Solo psicólogos activos que atienden la sede del solicitante: el backend rechaza con 403
+  // Solo psicólogos activos que atienden la sede del solicitante: el backend rechaza con 400
   // una asignación fuera de sede, y ofrecerla aquí sería prometer algo que va a fallar.
   const disponibles = psicologos.filter(
     p => p.accountStatus === 'active' && p.sedes.some(sede => sede.id === req.sedeId),
@@ -56,8 +73,10 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
             <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'var(--primary)', color: 'var(--fg-on-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15, flexShrink: 0 }}>{req.initials}</div>
             <div>
               <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15.5, color: 'var(--fg1)' }}>{req.name}</div>
-              <div style={{ fontSize: 12.5, color: 'var(--fg2)', display: 'flex', gap: 12 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--fg2)', display: 'flex', flexWrap: 'wrap', gap: '2px 12px' }}>
                 <span>{req.email}</span>
+                {req.rut && <span>RUT {formatRut(req.rut)}</span>}
+                <PhoneLine phone={req.phone} />
                 <span>Sede: {req.sede}</span>
               </div>
             </div>
@@ -127,7 +146,8 @@ function RejectModal({ req, onClose, onConfirm }: { req: RegistrationRequest; on
               nada al backend, y la promesa de "reembolso automático" no la cumple ningún
               servicio. Queda solo lo que de verdad pasa. */}
           <p style={{ margin: '0 0 4px', fontSize: 13.5, color: 'var(--fg1)', lineHeight: 1.5 }}>
-            La solicitud queda rechazada y deja de aparecer en esta lista.
+            La solicitud queda rechazada y el paciente recibe un aviso para que se comunique con AJUTER.
+            Podrás reabrirla más abajo, en «Rechazadas».
           </p>
         </div>
 
@@ -208,7 +228,7 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
 }
 
 /* ── Flagged Posts Section ───────────────────────────── */
-function FlaggedPostsSection() {
+export function FlaggedPostsSection() {
   const isNarrow = useIsNarrow()
   const qc = useQueryClient()
   const [deleteTarget, setDeleteTarget] = useState<FlaggedPost | null>(null)
@@ -381,6 +401,135 @@ function FlaggedPostsSection() {
   )
 }
 
+/* ── Reopen Modal ────────────────────────────────────── */
+function ReopenModal({ req, onClose, onConfirm, loading }: { req: RejectedRequest; onClose: () => void; onConfirm: () => void; loading: boolean }) {
+  const dialogRef = useDialog<HTMLDivElement>(onClose)
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'var(--scrim)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-reabrir-titulo" tabIndex={-1} style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 480, maxWidth: '95vw', animation: 'sb-modal-in 0.28s var(--ease-calm)', zIndex: 1 }}>
+        <div style={{ padding: '28px 28px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 22 }}>
+            <div>
+              <h2 id="sb-reabrir-titulo" style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 21, color: 'var(--fg1)' }}>Reabrir solicitud</h2>
+            </div>
+            <button onClick={onClose} aria-label="Cerrar" style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <WIcon name="x" size={16} />
+            </button>
+          </div>
+
+          <p style={{ margin: '0 0 4px', fontSize: 13.5, color: 'var(--fg1)', lineHeight: 1.5 }}>
+            La solicitud de <strong>{req.firstName} {req.lastName}</strong> vuelve a pendientes y le avisamos que está otra vez en revisión.
+          </p>
+        </div>
+
+        <div style={{ padding: '18px 28px 28px', display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button onClick={onClose} disabled={loading} style={{ height: 46, padding: '0 22px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, cursor: 'pointer' }}>
+            Cancelar
+          </button>
+          <button onClick={onConfirm} disabled={loading}
+            style={{ height: 46, padding: '0 26px', borderRadius: 9999, border: 'none', background: 'var(--primary)', color: 'var(--fg-on-primary)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: loading ? 0.7 : 1 }}>
+            <WIcon name="inbox" size={16} color="var(--fg-on-primary)" /> {loading ? 'Reabriendo…' : 'Confirmar reapertura'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ── Rejected Section ────────────────────────────────── */
+// Formato fijo dd/mm/aaaa hh:mm: `toLocaleString('es-CL')` cambia según el motor y puede salir
+// con guiones o en 12 horas.
+function fechaHora(iso: string): string {
+  const d = new Date(iso)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+function RejectedSection() {
+  const qc = useQueryClient()
+  const [reopenTarget, setReopenTarget] = useState<RejectedRequest | null>(null)
+
+  const { data: rejected = [], isLoading } = useQuery({
+    queryKey: ['registration', 'rejected'],
+    queryFn: getRejectedRequests,
+  })
+
+  const { data: sedes = [] } = useQuery({ queryKey: ['sedes'], queryFn: api.getSedes })
+
+  // La clave comparte el prefijo ['registration'] con las pendientes: una sola invalidación
+  // refresca las dos listas.
+  const reopenMutation = useMutation({
+    mutationFn: (requestId: string) => reopenRequest(requestId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['registration'] })
+      setReopenTarget(null)
+    },
+    // El aviso de error está en la tarjeta, detrás del fondo del modal: se cierra para que se vea.
+    onError: () => setReopenTarget(null),
+  })
+
+  return (
+    <>
+      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginTop: 24 }}>
+        <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Rechazadas</h2>
+          <span style={{ background: 'var(--bg)', color: 'var(--fg2)', borderRadius: 9999, padding: '4px 14px', fontSize: 13, fontWeight: 700 }}>
+            {rejected.length}
+          </span>
+        </div>
+        <p style={{ margin: '-6px 24px 14px', fontSize: 12.5, color: 'var(--fg2)', lineHeight: 1.5 }}>
+          Si el paciente se comunica con AJUTER, puedes reabrir su solicitud: vuelve a pendientes y se le avisa.
+        </p>
+        {reopenMutation.isError && (
+          <p role="alert" style={{ margin: '-6px 24px 14px', fontSize: 12.5, color: 'var(--danger-text)', fontWeight: 600 }}>
+            No pudimos reabrir la solicitud. Vuelve a intentarlo.
+          </p>
+        )}
+
+        {isLoading ? (
+          <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Cargando…</div>
+        ) : rejected.length === 0 ? (
+          <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>No hay solicitudes rechazadas.</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {rejected.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px 16px', padding: '14px 24px', borderTop: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: '1 1 260px', minWidth: 0 }}>
+                  <div style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--bg)', color: 'var(--fg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14 }}>{initialsOf(`${r.firstName} ${r.lastName}`)}</div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.firstName} {r.lastName}</div>
+                    <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
+                    {r.rut && <div style={{ fontSize: 12, color: 'var(--fg2)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>RUT {formatRut(r.rut)}</div>}
+                    <PhoneLine phone={r.phone} />
+                  </div>
+                </div>
+                <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{sedes.find(s => s.id === r.sedeId)?.name ?? r.sedeId}</span>
+                <div style={{ fontSize: 12.5, color: 'var(--fg2)', flex: '1 1 200px' }}>
+                  {r.reviewedAt ? `Rechazada el ${fechaHora(r.reviewedAt)}` : 'Rechazada'} por {r.reviewedByName ?? '—'}
+                </div>
+                <button onClick={() => setReopenTarget(r)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 36, padding: '0 16px', borderRadius: 9999, border: '1.5px solid var(--primary)', background: 'var(--surface)', color: 'var(--primary-text)', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  <WIcon name="inbox" size={14} /> Reabrir
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {reopenTarget && (
+        <ReopenModal
+          req={reopenTarget}
+          onClose={() => setReopenTarget(null)}
+          onConfirm={() => reopenMutation.mutate(reopenTarget.id)}
+          loading={reopenMutation.isPending}
+        />
+      )}
+    </>
+  )
+}
+
 /* ── Solicitudes Page ────────────────────────────────── */
 interface SolicitudesPageProps {
   requests: RegistrationRequest[]
@@ -425,7 +574,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
           <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--fg2)' }}>
             <WIcon name="circle-check" size={40} color="var(--secondary-text)" />
             <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 16, color: 'var(--fg1)' }}>Sin solicitudes pendientes</div>
-            <div style={{ marginTop: 4, fontSize: 13 }}>Todas las solicitudes han sido procesadas.</div>
+            <div style={{ marginTop: 4, fontSize: 13 }}>No hay solicitudes por revisar.</div>
           </div>
         ) : (
           isNarrow ? (
@@ -437,13 +586,15 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</div>
                       <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
+                      {r.rut && <div style={{ fontSize: 12, color: 'var(--fg2)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>RUT {formatRut(r.rut)}</div>}
+                      <PhoneLine phone={r.phone} />
                     </div>
                     <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--primary-text)', flexShrink: 0 }}>{r.amount}</span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
-                    <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.date} · {r.rel}</span>
+                    <span style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.date} {r.time} · {r.rel}</span>
                   </div>
 
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -461,10 +612,10 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
             </div>
           ) : (
           <table style={{ width: '100%', maxWidth: 1000, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 132 }} /><col style={{ width: 155 }} /><col style={{ width: 85 }} /><col style={{ width: 260 }} /></colgroup>
+            <colgroup><col /><col style={{ width: 125 }} /><col style={{ width: 132 }} /><col style={{ width: 155 }} /><col style={{ width: 85 }} /><col style={{ width: 260 }} /></colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                <Head label="Solicitante" /><Head label="Sede" /><Head label="Fecha solicitud" /><Head label="Arancel" /><Head label="Acciones" />
+                <Head label="Solicitante" /><Head label="RUT" /><Head label="Sede" /><Head label="Fecha solicitud" /><Head label="Arancel" /><Head label="Acciones" />
               </tr>
             </thead>
             <tbody>
@@ -478,14 +629,19 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.name}>{r.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--fg2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.email}</div>
+                        <PhoneLine phone={r.phone} />
                       </div>
                     </div>
+                  </td>
+                  <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg1)', whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>
+                    {r.rut ? formatRut(r.rut) : '—'}
                   </td>
                   <td style={{ padding: '14px 14px' }}>
                     <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600 }}>{r.sede}</span>
                   </td>
                   <td style={{ padding: '14px 14px' }}>
-                    <div style={{ fontSize: 13, color: 'var(--fg1)' }}>{r.date}</div>
+                    <div style={{ fontSize: 13, color: 'var(--fg1)', fontVariantNumeric: 'tabular-nums' }}>{r.date}</div>
+                    <div style={{ fontSize: 13, color: 'var(--fg1)', fontVariantNumeric: 'tabular-nums' }}>{r.time}</div>
                     <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{r.rel}</div>
                   </td>
                   <td style={{ padding: '14px 14px', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14, color: 'var(--primary-text)' }}>{r.amount}</td>
@@ -509,8 +665,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
         )}
       </div>
 
-      {/* Posts reportados */}
-      <FlaggedPostsSection />
+      <RejectedSection />
 
       {approveReq && (
         <ApproveModal

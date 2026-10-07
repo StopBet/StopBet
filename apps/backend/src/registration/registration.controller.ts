@@ -10,23 +10,39 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
+// HdU19 v2: solo coordinación decide sobre las solicitudes de ingreso. Es un supuesto sin
+// confirmar: ver docs/hdu19-solicitudes-ingreso-v2.md antes de devolverle el acceso al psicólogo.
 @ApiTags('registration')
 @Controller('registration')
 export class RegistrationController {
   constructor(private readonly registrationService: RegistrationService) {}
 
-  // Devuelve nombre, apellido y correo de quienes solicitan tratamiento: sin
+  // Devuelve nombre, apellido, correo y RUT de quienes solicitan tratamiento: sin
   // guard quedaba abierto a cualquiera que supiera la URL.
   @Get('pending')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('psychologist', 'coordinator')
+  @Roles('coordinator')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Lista solicitudes de registro pendientes (vista psicólogo)' })
+  @ApiOperation({ summary: 'Lista solicitudes de registro pendientes (vista coordinación)' })
   @ApiResponse({ status: 200, description: 'RegistrationRequest[] con datos de usuario' })
   @ApiResponse({ status: 401, description: 'Sin token' })
-  @ApiResponse({ status: 403, description: 'Rol sin permiso' })
+  @ApiResponse({ status: 403, description: 'Solo coordinación (HdU19 v2)' })
   listPending(@CurrentUser() user: AuthUser) {
     return this.registrationService.listPending(user);
+  }
+
+  // Debe declararse antes de `:requestId`, que es @Public(): si no, Nest captura `rejected`
+  // como un requestId y este endpoint quedaría abierto a cualquiera.
+  @Get('rejected')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('coordinator')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Lista las últimas solicitudes rechazadas, para poder reabrirlas' })
+  @ApiResponse({ status: 200, description: 'RegistrationRequest[] rechazadas, con quién las revisó' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Solo coordinación (HdU19 v2)' })
+  listRejected(@CurrentUser() user: AuthUser) {
+    return this.registrationService.listRejected(user);
   }
 
   // Público: quien se registra todavía no tiene cuenta.
@@ -55,14 +71,14 @@ export class RegistrationController {
   // una solicitud inventando el `x-user-id` del revisor.
   @Patch(':requestId/approve')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('psychologist', 'coordinator')
+  @Roles('coordinator')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Psicólogo aprueba la solicitud y asigna al paciente' })
+  @ApiOperation({ summary: 'Coordinación aprueba la solicitud y asigna al paciente' })
   @ApiBody({ type: ApproveRegistrationDto, required: false })
   @ApiResponse({ status: 200, description: 'Aprobado — notificación enviada al paciente' })
   @ApiResponse({ status: 400, description: 'Falta indicar el psicólogo asignado' })
   @ApiResponse({ status: 401, description: 'Sin token' })
-  @ApiResponse({ status: 403, description: 'Rol sin permiso, o solicitud de otra sede' })
+  @ApiResponse({ status: 403, description: 'Solo coordinación (HdU19 v2)' })
   @ApiResponse({ status: 409, description: 'La solicitud no existe o ya fue procesada' })
   approve(
     @Param('requestId') requestId: string,
@@ -74,16 +90,35 @@ export class RegistrationController {
 
   @Patch(':requestId/reject')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('psychologist', 'coordinator')
+  @Roles('coordinator')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Psicólogo rechaza la solicitud' })
+  @ApiOperation({ summary: 'Coordinación rechaza la solicitud' })
   @ApiResponse({ status: 200, description: 'Rechazado — notificación enviada al paciente' })
   @ApiResponse({ status: 401, description: 'Sin token' })
-  @ApiResponse({ status: 403, description: 'Rol sin permiso, o solicitud de otra sede' })
+  @ApiResponse({ status: 403, description: 'Solo coordinación (HdU19 v2)' })
+  @ApiResponse({ status: 404, description: 'Solicitud no encontrada' })
+  @ApiResponse({ status: 409, description: 'La solicitud ya fue procesada' })
   reject(
     @Param('requestId') requestId: string,
     @CurrentUser() user: AuthUser,
   ) {
     return this.registrationService.reject(requestId, user);
+  }
+
+  @Patch(':requestId/reopen')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('coordinator')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Coordinación reabre una solicitud rechazada: vuelve a pendientes' })
+  @ApiResponse({ status: 200, description: 'Reabierta — notificación enviada al paciente' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Solo coordinación (HdU19 v2)' })
+  @ApiResponse({ status: 404, description: 'Solicitud no encontrada' })
+  @ApiResponse({ status: 409, description: 'Solo se puede reabrir una solicitud rechazada' })
+  reopen(
+    @Param('requestId') requestId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.registrationService.reopen(requestId, user);
   }
 }

@@ -72,9 +72,13 @@ autenticados todavía no restringen **qué rol** puede llamarlos.
 |---|---|---|
 | `POST /registration/submit` | Público (onboarding del paciente) | 🔓 Público |
 | `GET /registration/:requestId` | Público (el UUID de la solicitud actúa como secreto) | 🔓 Público |
-| `GET /registration/pending` | `psychologist`, `coordinator` | ✅ Protegido |
-| `PATCH /registration/:requestId/approve` | `psychologist`, `coordinator` | ✅ Protegido |
-| `PATCH /registration/:requestId/reject` | `psychologist`, `coordinator` | ✅ Protegido |
+| `GET /registration/pending` | `coordinator` | ✅ Protegido |
+| `GET /registration/rejected` | `coordinator` | ✅ Protegido |
+| `PATCH /registration/:requestId/approve` | `coordinator` | ✅ Protegido |
+| `PATCH /registration/:requestId/reject` | `coordinator` | ✅ Protegido |
+| `PATCH /registration/:requestId/reopen` | `coordinator` | ✅ Protegido |
+
+Con la HdU19 v2 solo coordinación decide sobre las solicitudes de ingreso; es un supuesto sin confirmar, ver [`docs/hdu19-solicitudes-ingreso-v2.md`](../hdu19-solicitudes-ingreso-v2.md).
 
 ## `panic` — `/panic`
 
