@@ -20,6 +20,42 @@ está.
 
 ---
 
+## 2026-10-07 - El compañero de viaje tiene su propia pantalla en la app (HdU20/21)
+
+**A quién le pega:** a **todos, una vez**, por un cambio en `shared-types` y en el seed. En especial a
+**Matías** (dueño de HdU20/21: se tocaron sus notificaciones) y a quien arme demos del pánico.
+
+**Qué hacer después de pullear:**
+1. `pnpm --filter @stopbet/shared-types build` (o `pnpm run backend`, que lo compila): tipos nuevos
+   `AccompaniedResponse`/`AccompaniedPatient` y el destino de notificación `'sponsor-alert'`. Sin eso el
+   type-check falla en archivos que nadie tocó.
+2. **`pnpm run seed` otra vez.** **Daniela Soto deja de ser `role: 'sponsor'`**: ahora es paciente con una
+   designación activa, como un compañero de viaje real. Antes el login de la app la rechazaba y HdU20/21 no
+   la listaba. Sin re-sembrar, la demo del compañero no funciona.
+
+**Qué cambió:**
+- **Un compañero de viaje es un paciente con una fila en `sponsor_designations`** (desde el PR #118): entra a
+  la app como cualquier paciente. Lo que faltaba era su pantalla. Ahora hay una tarjeta roja en el Inicio
+  cuando alguien a quien acompaña aprieta el SOS, la pantalla `SponsorAlert` (**Responder y llamar** /
+  **Avisar que la vi**) y, en Perfil, la sección «Compañero de viaje».
+- **Endpoint nuevo `GET /panic/accompanied`**: a quién acompaña el usuario, con **nombre y teléfono** (nada
+  del progreso) y su alerta reciente de los últimos 15 min, en cualquier estado.
+- **Bug corregido:** `GET /panic/alerts/active` ya **no** devuelve la alerta de otra persona cuando quien
+  pregunta figura como su compañero. Antes la pantalla SOS del compañero la pintaba como propia («Alerta
+  enviada a {su nombre}»), con «Cancelar» y «Alertar a mi comunidad» fallando en silencio, y a los 2 minutos
+  lo mandaba al asistente. Si tenías algo que dependía de ese respaldo, usa `/panic/accompanied`.
+- Las notificaciones al compañero (alerta de pánico, «Ahora eres compañero de viaje», «Acompañas a una
+  persona nueva») llevan `target: 'sponsor-alert'`. La del paciente sigue con `'panic'`.
+- `/panic/pending` y `/panic/alerts/:id/respond` **no cambian**: `demo:padrino` y `DEMO_PADRINO_SEGUNDOS`
+  siguen funcionando igual.
+- El capítulo 3 del manual de usuario estaba mal («no tiene pantalla»): reescrito.
+
+**Sigue pendiente (a propósito):** avisar al compañero si la alerta escala o se cancela, `isOnline` real,
+manejar el toque del push, y la etiqueta «Compañero de viaje» en los mensajes privados (mira
+`role === 'sponsor'`, no la designación). Una cuenta con `role: 'sponsor'` heredada sigue sin entrar a la app.
+
+---
+
 ## 2026-10-07 - Un psicólogo sin acceso a un paciente ahora sabe por qué (HdU13 CA5)
 
 **A quién le pega:** a quien pruebe accesos con cuentas de otra sede, y a quien lea un 403 de

@@ -20,6 +20,7 @@ import { AiSession } from './ai-assistant/entities/ai-session.entity';
 import { AiMessage } from './ai-assistant/entities/ai-message.entity';
 import { AiSessionSummary } from './ai-assistant/entities/ai-session-summary.entity';
 import { SponsorAssignment } from './panic/entities/sponsor-assignment.entity';
+import { SponsorDesignation } from './panic/entities/sponsor-designation.entity';
 import { PanicAlert } from './panic/entities/panic-alert.entity';
 import { RefreshToken } from './auth/entities/refresh-token.entity';
 import { AJUTER_INSTITUTION_ID } from './institutions/institution';
@@ -80,7 +81,7 @@ async function seed() {
       CommunityPost, PostReply, PostReaction, PostReport, AttendanceConfirmation,
       Invoice,
       AiSession, AiMessage, AiSessionSummary,
-      SponsorAssignment, PanicAlert,
+      SponsorAssignment, SponsorDesignation, PanicAlert,
       RefreshToken,
     ],
     synchronize: true,
@@ -103,6 +104,7 @@ async function seed() {
   const reportRepo    = ds.getRepository(PostReport);
   const panicRepo     = ds.getRepository(PanicAlert);
   const sponsorRepo   = ds.getRepository(SponsorAssignment);
+  const designationRepo = ds.getRepository(SponsorDesignation);
   const sessionRepo   = ds.getRepository(AiSession);
   const msgAiRepo     = ds.getRepository(AiMessage);
   const summaryRepo   = ds.getRepository(AiSessionSummary);
@@ -131,7 +133,9 @@ async function seed() {
     id: SPONSOR_ID,
     email: 'daniela.soto@stopbet.cl',
     passwordHash: devPasswordHash,
-    role: 'sponsor',
+    // Paciente con una designación (más abajo), igual que un compañero de viaje real: con
+    // `role: 'sponsor'` el login de la app la rechazaba y HdU20/21 nunca la listaba.
+    role: 'patient',
     firstName: 'Daniela',
     lastName: 'Soto',
     phone: '+56987654321',
@@ -457,6 +461,21 @@ async function seed() {
     console.log('  ✓ Asignación padrino creada (Carlos → Daniela)');
   } else {
     console.log('  → Asignación padrino ya existe');
+  }
+
+  // CA21.1: lo que la hace compañera de viaje es esta fila, no su rol.
+  const existingDesignation = await designationRepo.findOne({
+    where: { patientId: SPONSOR_ID, isActive: true },
+  });
+  if (!existingDesignation) {
+    await designationRepo.save(designationRepo.create({
+      patientId: SPONSOR_ID,
+      designatedBy: PSYCHOLOGIST_ID,
+      isActive: true,
+    }));
+    console.log('  ✓ Designación de compañera de viaje creada (Daniela)');
+  } else {
+    console.log('  → Designación de compañera de viaje ya existe');
   }
 
   // Pánico histórico respondido (hace 20 días)

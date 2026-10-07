@@ -10,7 +10,7 @@ capítulo; no necesitas leer los demás.
 |---|---|---|
 | **Paciente** en tratamiento | la app StopBet en tu teléfono Android | [1](#1-paciente) |
 | **Psicólogo/a** | el panel web, y la app en tu teléfono | [2](#2-psicólogoa) |
-| **Compañero de viaje** (padrino) | todavía no hay pantalla para ti — lee el capítulo | [3](#3-compañero-de-viaje-padrino) |
+| **Compañero de viaje** (padrino) | la app StopBet, con tu cuenta de paciente | [3](#3-compañero-de-viaje-padrino) |
 | **Familiar** de un paciente | el portal web, desde el computador o el celular | [4](#4-familiar) |
 | **Coordinación** de la institución | el panel web | [5](#5-coordinación) |
 
@@ -343,28 +343,63 @@ La cola trae **dos cosas distintas** y conviene no confundirlas:
 
 ## 3. Compañero de viaje (padrino)
 
-**Lee esto primero: en esta versión todavía no hay una pantalla para ti.**
+Un compañero de viaje es **una persona del programa a la que el equipo de tratamiento le
+pide acompañar a otra** cuando atraviesa una crisis. Es quien recibe el aviso cuando alguien
+aprieta el botón SOS.
 
-Tu rol existe en el sistema y eres el primero en enterarse cuando un paciente aprieta el
-botón SOS: la alerta se registra a tu nombre y se te deja un aviso. Pero **ni la app móvil
-ni el panel web dejan entrar a tu rol por ahora**, así que hoy no tienes dónde leer ese
-aviso ni dónde responder a la alerta.
+**No tienes una cuenta aparte: sigues siendo paciente.** Entras a la app con tu correo y tu
+contraseña de siempre, y conservas todo lo tuyo: tu racha, tu check-in, tus logros y tu
+propio botón SOS. Lo que se suma es lo que describe este capítulo. Nadie puede ser
+compañero de viaje por su cuenta: **te designa tu psicólogo/a** desde el panel, y te llega un
+aviso en la app explicándote qué implica.
 
-En la práctica, mientras eso no exista:
+### 3.1 Cuando alguien a quien acompañas pide ayuda
 
-- **El contacto contigo lo coordina el equipo de tratamiento**, por teléfono o como lo
-  hayan acordado.
-- **El paciente no queda sin salida si no respondes.** La app lo lleva directo al asistente
-  y a la línea \*4141, y su psicólogo/a ve el episodio en su panel igual.
+1. **El teléfono suena** con un aviso de alta prioridad: «Una persona que acompañas necesita
+   contención ahora. Abre StopBet.» **El aviso no dice quién es**, a propósito: la pantalla
+   de bloqueo la puede ver cualquiera.
+2. Al abrir StopBet, en el **Inicio** aparece arriba de todo una **tarjeta roja** con el
+   nombre de la persona y hace cuánto pidió ayuda. Tócala. Si abres el aviso desde la
+   campana, llegas al mismo lugar.
+3. En la pantalla **Compañero de viaje** tienes dos botones:
+   - **Responder y llamar a {nombre}**: le avisa a la persona que ya estás con ella y abre
+     la llamada. Es lo más rápido.
+   - **Avisar que la vi**: solo le avisa que respondiste, sin llamar. Sirve si prefieres
+     escribirle, o si no hay teléfono registrado.
+4. Quien pidió ayuda **ve en su pantalla que respondiste**, con tu nombre.
 
-Lo que ya está listo, y es lo que va a usar tu pantalla cuando exista: el equipo clínico ya
-te designa como compañero de viaje de un paciente desde su propia sección del panel, la
-lista de alertas que esperan tu respuesta existe, y el registro de que respondiste también.
-Lo único que falta es la puerta de entrada para ti.
+**Tienes 2 minutos.** Si nadie responde en ese tiempo, la alerta pasa sola al asistente y el
+equipo clínico la ve en su panel. Por eso conviene responder aunque no puedas hablar de
+inmediato: «Avisar que la vi» detiene la espera.
 
-Lo mismo vale para los **mensajes privados** de la comunidad: están pensados para que
-pacientes y compañeros de viaje se escriban de a dos, y tu rol está habilitado para usarlos.
-Pero mientras no puedas entrar, en la práctica los usan solo los pacientes entre ellos.
+La pantalla se actualiza sola mientras la tienes abierta. Si la persona cancela su alerta o
+pasa al asistente, lo verás ahí con un mensaje neutro; no es un reproche para nadie.
+
+### 3.2 A quién acompañas
+
+En **Perfil › Compañero de viaje › Ver a quién acompaño** ves a las personas que el equipo te
+asignó, cada una con su nombre y un botón para **llamarla**. Si todavía no te asignaron a
+nadie, la pantalla lo dice y te avisa cuando ocurra.
+
+### 3.3 Qué ves de la persona y qué no
+
+Solo su **nombre y su teléfono**, para que puedas devolverle la llamada. **No ves su racha,
+sus check-ins, sus conversaciones con el asistente ni su ficha clínica.** Lo que ella te
+cuente es porque quiere.
+
+Del lado de ella pasa lo mismo: ve tu nombre y tu teléfono para poder llamarte, nada más.
+
+### 3.4 Mensajes privados
+
+Puedes escribirte con otras personas de tu sede desde **Comunidad › Chats**, igual que
+cualquier paciente. Esos mensajes son privados: el equipo clínico solo los ve si alguien
+los denuncia.
+
+### 3.5 Si dejas de ser compañero de viaje
+
+Tu psicólogo/a puede revocar la designación, pero **no mientras tengas a alguien a tu
+cargo**: primero debe asignarle otro compañero a esa persona. Al revocarte no pierdes nada
+de tu cuenta de paciente.
 
 ---
 
@@ -487,7 +522,10 @@ habla directamente con el equipo.
 
 Está acá para que nadie pierda tiempo buscando algo que todavía no existe:
 
-- **El compañero de viaje no tiene pantalla.** Ver el [capítulo 3](#3-compañero-de-viaje-padrino).
+- **Al compañero de viaje no se le avisa si la alerta escala o se cancela.** Lo ve si tiene
+  la pantalla abierta (se actualiza sola); si no, la tarjeta del Inicio simplemente deja de
+  aparecer. Tampoco hay un indicador de «en línea». Ver el
+  [capítulo 3](#3-compañero-de-viaje-padrino).
 - **No hay recuperación automática de contraseña.** Se pide a soporte o al equipo.
 - **Finanzas y Reportes del panel web** no están conectados: Finanzas muestra datos de
   ejemplo y lo avisa en pantalla.

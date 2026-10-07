@@ -3,7 +3,10 @@ import { PanicService } from './panic.service';
 
 describe('PanicService', () => {
   let service: PanicService;
-  let assignmentRepo: { findOne: jest.Mock; update: jest.Mock; save: jest.Mock; create: jest.Mock };
+  let assignmentRepo: {
+    findOne: jest.Mock; find: jest.Mock; update: jest.Mock; save: jest.Mock; create: jest.Mock;
+  };
+  let designationRepo: { findOne: jest.Mock };
   let alertRepo: {
     findOne: jest.Mock; update: jest.Mock; save: jest.Mock; create: jest.Mock; find: jest.Mock;
   };
@@ -25,6 +28,7 @@ describe('PanicService', () => {
   beforeEach(() => {
     assignmentRepo = {
       findOne: jest.fn(),
+      find: jest.fn(),
       update: jest.fn(),
       save: jest.fn((v) => Promise.resolve(v)),
       create: jest.fn((v) => v),
@@ -36,6 +40,7 @@ describe('PanicService', () => {
       create: jest.fn((v) => ({ createdAt: new Date(), ...v })),
       find: jest.fn(),
     };
+    designationRepo = { findOne: jest.fn() };
     userRepo = { findOne: jest.fn() };
     notificationRepo = { save: jest.fn((v) => Promise.resolve(v)), create: jest.fn((v) => v) };
     communityService = { createPanicAlertPost: jest.fn().mockResolvedValue(undefined) };
@@ -50,6 +55,7 @@ describe('PanicService', () => {
       communityService as any,
       sponsorService as any,
       push as any,
+      designationRepo as any,
     );
   });
 
@@ -89,6 +95,8 @@ describe('PanicService', () => {
       const notif = notificationRepo.save.mock.calls[0][0];
       expect(notif.userId).toBe('s1');
       expect(notif.body).toContain('Carlos Demo');
+      // Abre la pantalla del compañero, no el botón SOS del paciente.
+      expect(notif.target).toBe('sponsor-alert');
     });
 
     it('hace sonar el teléfono del compañero de viaje, por el canal de pánico y sin nombrar a nadie', async () => {
@@ -171,7 +179,7 @@ describe('PanicService', () => {
 
   describe('getActiveAlert', () => {
     it('devuelve alert y sponsor null si no hay ninguna alerta activa', async () => {
-      alertRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
+      alertRepo.findOne.mockResolvedValue(null);
 
       const result = await service.getActiveAlert('u1');
 
@@ -206,17 +214,120 @@ describe('PanicService', () => {
       expect(alertRepo.save).toHaveBeenCalledWith(alert);
     });
 
-    it('si no es paciente, busca la alerta como padrino', async () => {
-      const alert = {
-        id: 'a1', patientId: 'p1', sponsorId: 'u1', status: 'pending',
-        createdAt: new Date(), communityNotified: false,
+    it('no devuelve la alerta de otra persona aunque el usuario figure como su compañero de viaje', async () => {
+      alertRepo.findOne.mockResolvedValue(null);
+
+      const result = await service.getActiveAlert('s1');
+
+      expect(result).toEqual({ alert: null, sponsor: null });
+      // Una sola búsqueda, por paciente: ya no hay respaldo por sponsorId.
+      expect(alertRepo.findOne).toHaveBeenCalledTimes(1);
+      expect(alertRepo.findOne).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ patientId: 's1' }) }),
+      );
+    });
+  });
+
+  describe('getAccompanied', () => {
+    const carlos = {
+      id: 'p1', firstName: 'Carlos', lastName: 'Demo', phone: '+56911111111', accountStatus: 'active',
+    };
+
+    it('un paciente común no está designado y no acompaña a nadie', async () => {
+      designationRepo.findOne.mockResolvedValue(null);
+      assignmentRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAccompanied('u1');
+
+      expect(result).toEqual({ designated: false, patients: [] });
+      expect(alertRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('designado sin pacientes asignados: designated true y lista vacía', async () => {
+      designationRepo.findOne.mockResolvedValue({ id: 'd1' });
+      assignmentRepo.find.mockResolvedValue([]);
+
+      const result = await service.getAccompanied('s1');
+
+      expect(result).toEqual({ designated: true, patients: [] });
+    });
+
+    it('devuelve nombre y teléfono de cada persona y su alerta pendiente', async () => {
+      designationRepo.findOne.mockResolvedValue({ id: 'd1' });
+      assignmentRepo.find.mockResolvedValue([{ patient: carlos }]);
+      alertRepo.find.mockResolvedValue([
+        {
+          id: 'a1', patientId: 'p1', sponsorId: 's1', status: 'pending',
+          createdAt: new Date('2026-06-15T11:59:30Z'), communityNotified: false,
+        },
+      ]);
+
+      const result = await service.getAccompanied('s1');
+
+      expect(result.designated).toBe(true);
+      expect(result.patients).toHaveLength(1);
+      expect(result.patients[0]).toMatchObject({
+        id: 'p1', firstName: 'Carlos', lastName: 'Demo', phone: '+56911111111',
+        recentAlert: { id: 'a1', status: 'pending' },
+      });
+      expect(alertRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ sponsorId: 's1' }),
+          order: { createdAt: 'DESC' },
+        }),
+      );
+    });
+
+    it('solo expone nombre y teléfono del paciente, nada de su progreso', async () => {
+      designationRepo.findOne.mockResolvedValue({ id: 'd1' });
+      assignmentRepo.find.mockResolvedValue([
+        { patient: { ...carlos, email: 'carlos@stopbet.cl', rut: 'cifrado', sedeId: 'Santiago' } },
+      ]);
+      alertRepo.find.mockResolvedValue([]);
+
+      const [patient] = (await service.getAccompanied('s1')).patients;
+
+      expect(Object.keys(patient).sort()).toEqual(['firstName', 'id', 'lastName', 'phone', 'recentAlert']);
+    });
+
+    it('con varias alertas recientes de la misma persona se queda con la más nueva', async () => {
+      designationRepo.findOne.mockResolvedValue({ id: 'd1' });
+      assignmentRepo.find.mockResolvedValue([{ patient: carlos }]);
+      alertRepo.find.mockResolvedValue([
+        { id: 'nueva', patientId: 'p1', status: 'responded', createdAt: new Date('2026-06-15T11:59:00Z') },
+        { id: 'vieja', patientId: 'p1', status: 'cancelled', createdAt: new Date('2026-06-15T11:50:00Z') },
+      ]);
+
+      const [patient] = (await service.getAccompanied('s1')).patients;
+
+      expect(patient.recentAlert?.id).toBe('nueva');
+    });
+
+    it('CA1.3: una alerta pendiente que ya venció se escala en el acto', async () => {
+      designationRepo.findOne.mockResolvedValue({ id: 'd1' });
+      assignmentRepo.find.mockResolvedValue([{ patient: carlos }]);
+      const vencida = {
+        id: 'a1', patientId: 'p1', sponsorId: 's1', status: 'pending',
+        createdAt: new Date('2026-06-15T11:57:00Z'), communityNotified: false,
       };
-      alertRepo.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(alert);
-      userRepo.findOne.mockResolvedValue(null);
+      alertRepo.find.mockResolvedValue([vencida]);
 
-      const result = await service.getActiveAlert('u1');
+      const [patient] = (await service.getAccompanied('s1')).patients;
 
-      expect(result.alert?.id).toBe('a1');
+      expect(patient.recentAlert?.status).toBe('escalated');
+      expect(alertRepo.save).toHaveBeenCalledWith(vencida);
+    });
+
+    it('no lista a quien tiene la cuenta suspendida', async () => {
+      designationRepo.findOne.mockResolvedValue({ id: 'd1' });
+      assignmentRepo.find.mockResolvedValue([
+        { patient: { ...carlos, accountStatus: 'suspended' } },
+      ]);
+
+      const result = await service.getAccompanied('s1');
+
+      expect(result.patients).toEqual([]);
+      expect(alertRepo.find).not.toHaveBeenCalled();
     });
   });
 

@@ -22,6 +22,7 @@ import { QuickAccess } from '../components/QuickAccess';
 import { NotificationBell } from '../components/NotificationBell';
 import { NotificationCard } from '../components/NotificationCard';
 import { FamilyRequestCards } from '../components/FamilyRequestCard';
+import { SponsorAlertBanner } from '../components/SponsorAlertCard';
 import { BlockingInviteCard } from '../components/BlockingInviteCard';
 import { Icon } from '../components/Icon';
 import type { Palette } from '../constants/colors';
@@ -336,6 +337,9 @@ export function HomeScreen({ navigation }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Primero que todo: si alguien a quien acompañas pidió ayuda, es lo único que importa. */}
+          <SponsorAlertBanner onOpen={() => navigation.navigate('SponsorAlert')} />
+
           {/* Solo lo urgente. La lista entera vive detrás de la campana: acá ocupaba toda
               la pantalla y empujaba la racha, el check-in y el asistente fuera de la vista. */}
           {urgentes.length > 0 && (
@@ -346,7 +350,10 @@ export function HomeScreen({ navigation }: Props) {
                   notification={n}
                   onPress={() => {
                     handleMarkRead(n.id);
-                    navigation.navigate('Notifications');
+                    // La alerta de alguien que acompaña va directo a responder: pasar por la
+                    // lista de notificaciones es un toque más en plena crisis.
+                    if (n.target === 'sponsor-alert') navigation.navigate('SponsorAlert');
+                    else navigation.navigate('Notifications');
                   }}
                 />
               ))}

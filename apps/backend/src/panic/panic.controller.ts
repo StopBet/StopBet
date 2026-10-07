@@ -68,6 +68,18 @@ export class PanicController {
     return this.service.getActiveAlert(userId);
   }
 
+  @Get('accompanied')
+  @ApiOperation({
+    summary: 'Personas que acompaña el compañero de viaje, con su alerta reciente (polling)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'AccompaniedResponse; `designated: false` y lista vacía para un paciente común',
+  })
+  getAccompanied(@UserId() sponsorId: string) {
+    return this.service.getAccompanied(sponsorId);
+  }
+
   @Get('pending')
   @ApiOperation({ summary: 'Alertas pendientes del padrino (polling)' })
   @ApiResponse({ status: 200, description: 'PanicAlertDto[]' })

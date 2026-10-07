@@ -33,6 +33,7 @@ import { Touchable } from '../components/Touchable';
 import { useDialog } from '../context/DialogContext';
 import { BlockingPocCard } from '../components/BlockingPocCard';
 import { BlockingProfileSection } from '../components/BlockingProfileSection';
+import { SponsorProfileSection } from '../components/SponsorProfileSection';
 
 
 // Vive en el navegador de pestañas, pero también navega al stack de arriba
@@ -245,6 +246,8 @@ export function ProfileScreen({ navigation }: Props) {
             </View>
           </View>
         </View>
+
+        <SponsorProfileSection onOpen={() => navigation.navigate('SponsorAlert')} />
 
         <BlockingProfileSection />
 
