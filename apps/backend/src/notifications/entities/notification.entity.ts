@@ -24,6 +24,7 @@ const NOTIFICATION_TARGETS: NotificationTarget[] = [
   'payment',
   'family-links',
   'family-request',
+  'sponsor-alert',
 ];
 
 @Entity('notifications')

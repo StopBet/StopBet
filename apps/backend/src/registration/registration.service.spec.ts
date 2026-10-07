@@ -18,10 +18,10 @@ describe('RegistrationService — approve', () => {
   let userRepo: { findOne: jest.Mock; update: jest.Mock; find: jest.Mock };
   let notifRepo: { save: jest.Mock; create: jest.Mock };
   let assignmentRepo: { save: jest.Mock; create: jest.Mock };
-  let reviewRepo: { save: jest.Mock; create: jest.Mock };
+  let reviewRepo: { save: jest.Mock; create: jest.Mock; find: jest.Mock };
   let sedeRepo: { findOne: jest.Mock };
   let psychSedeRepo: { find: jest.Mock };
-  let dataSource: { transaction: jest.Mock };
+  let dataSource: { transaction: jest.Mock; getRepository: jest.Mock };
   let mailService: { send: jest.Mock; ajuterContact: string | undefined };
 
   const REQUEST_ID = 'req-1';
@@ -52,7 +52,7 @@ describe('RegistrationService — approve', () => {
     userRepo = { findOne: jest.fn().mockResolvedValue(null), update: jest.fn(), find: jest.fn() };
     notifRepo = { save: jest.fn(), create: jest.fn((data) => data) };
     assignmentRepo = { save: jest.fn(), create: jest.fn((data) => data) };
-    reviewRepo = { save: jest.fn(), create: jest.fn((data) => data) };
+    reviewRepo = { save: jest.fn(), create: jest.fn((data) => data), find: jest.fn() };
     sedeRepo = { findOne: jest.fn() };
     // Por defecto el revisor cubre la sede de la solicitud: los casos de aprobación ya
     // pasaban por aquí antes de que existiera el filtro y no deben cambiar de resultado.
@@ -70,6 +70,7 @@ describe('RegistrationService — approve', () => {
     };
     dataSource = {
       transaction: jest.fn(async (run: (m: unknown) => Promise<unknown>) => run(manager)),
+      getRepository: jest.fn(() => reviewRepo),
     };
 
     mailService = { send: jest.fn().mockResolvedValue(true), ajuterContact: undefined };
@@ -495,6 +496,54 @@ describe('RegistrationService — approve', () => {
   // promesa suelta termine antes de mirar qué se envió.
   const flush = () => new Promise((resolve) => setImmediate(resolve));
   const patient = { email: 'pat@ejemplo.cl', firstName: 'Ana' };
+
+  describe('listHistory', () => {
+    const at = new Date('2026-10-07T18:30:38.000Z');
+
+    it('une cada decisión con el paciente y con quién la tomó, sin perder el rol', async () => {
+      reviewRepo.find.mockResolvedValue([
+        { id: 'rv-2', requestId: 'req-2', verdict: 'reopened', reviewedBy: 'u-1', reviewerRole: 'coordinator', reviewedAt: at },
+        { id: 'rv-1', requestId: 'req-1', verdict: 'rejected', reviewedBy: 'u-1', reviewerRole: 'coordinator', reviewedAt: at },
+      ]);
+      requestRepo.find.mockResolvedValue([
+        { id: 'req-1', user: { firstName: 'Ana', lastName: 'Rojas' } },
+        { id: 'req-2', user: { firstName: 'Luis', lastName: 'Paz' } },
+      ]);
+      userRepo.find.mockResolvedValue([{ id: 'u-1', firstName: 'Sofía', lastName: 'Reyes' }]);
+
+      const result = await service.listHistory();
+
+      expect(reviewRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ order: { reviewedAt: 'DESC' }, take: 100 }),
+      );
+      expect(result).toEqual([
+        { id: 'rv-2', reviewedAt: at.toISOString(), verdict: 'reopened', reviewerName: 'Sofía Reyes', reviewerRole: 'coordinator', patientName: 'Luis Paz' },
+        { id: 'rv-1', reviewedAt: at.toISOString(), verdict: 'rejected', reviewerName: 'Sofía Reyes', reviewerRole: 'coordinator', patientName: 'Ana Rojas' },
+      ]);
+    });
+
+    it('si la cuenta de quien decidió o del paciente ya no existe, la fila sigue y el nombre es null', async () => {
+      reviewRepo.find.mockResolvedValue([
+        { id: 'rv-1', requestId: 'req-9', verdict: 'approved', reviewedBy: 'u-borrado', reviewerRole: 'coordinator', reviewedAt: at },
+      ]);
+      requestRepo.find.mockResolvedValue([]);
+      userRepo.find.mockResolvedValue([]);
+
+      const [entry] = await service.listHistory();
+
+      expect(entry.patientName).toBeNull();
+      expect(entry.reviewerName).toBeNull();
+      expect(entry.verdict).toBe('approved');
+    });
+
+    it('sin decisiones no consulta nada más', async () => {
+      reviewRepo.find.mockResolvedValue([]);
+
+      expect(await service.listHistory()).toEqual([]);
+      expect(requestRepo.find).not.toHaveBeenCalled();
+      expect(userRepo.find).not.toHaveBeenCalled();
+    });
+  });
 
   describe('correo al paciente', () => {
     it('al aprobar avisa con el nombre del psicólogo asignado', async () => {

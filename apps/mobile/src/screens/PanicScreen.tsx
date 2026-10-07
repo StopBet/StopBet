@@ -27,6 +27,7 @@ import { conReintento } from '../services/reintentoEscritura';
 import { readSponsor, saveSponsor } from '../services/offlineStore';
 import { useUserId } from '../context/AuthContext';
 import { useDialog } from '../context/DialogContext';
+import { formatPhone } from '../utils/phone';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Constantes
@@ -35,11 +36,6 @@ const HOLD_DURATION_MS = 2000;
 const POLL_INTERVAL_MS = 5000;
 const ESCALATION_SECONDS = 120; // CA1.3: debe coincidir con ESCALATION_MS del backend
 const CRISIS_LINE = '*4141';
-
-function formatPhone(phone: string): string {
-  const m = /^\+569(\d{4})(\d{4})$/.exec(phone.replace(/\s/g, ''));
-  return m ? `+56 9 ${m[1]} ${m[2]}` : phone;
-}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Tipos internos

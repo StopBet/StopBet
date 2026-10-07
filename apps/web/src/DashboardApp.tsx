@@ -169,7 +169,7 @@ export function DashboardApp({ user, onLogout }: { user: AuthUser; onLogout: () 
   const handleApprove = async (id: string, assignedPsychologistId?: string) => {
     try {
       await api.approveRequest(id, assignedPsychologistId)
-      qc.invalidateQueries({ queryKey: ['registration', 'pending'] })
+      qc.invalidateQueries({ queryKey: ['registration'] })
       // Aprobar crea una asignación: sin invalidar esto, Equipo y el selector de este mismo
       // modal siguen mostrando el conteo de pacientes anterior hasta que alguien recargue.
       qc.invalidateQueries({ queryKey: ['psychologists'] })

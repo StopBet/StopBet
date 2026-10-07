@@ -5,14 +5,16 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, LessThan, Repository } from 'typeorm';
+import { In, LessThan, MoreThanOrEqual, Repository } from 'typeorm';
 import {
+  AccompaniedResponse,
   ActiveAlertResponse,
   PanicAlertDto,
   PanicAlertStatus,
   SponsorInfo,
 } from '@stopbet/shared-types';
 import { SponsorAssignment } from './entities/sponsor-assignment.entity';
+import { SponsorDesignation } from './entities/sponsor-designation.entity';
 import { PanicAlert } from './entities/panic-alert.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
@@ -24,6 +26,9 @@ import { PushService } from '../push/push.service';
 // CA1.3: el padrino tiene 120 s para responder antes de escalar a la IA
 const ESCALATION_MS = 120 * 1000;
 const ACTIVE_STATUSES: PanicAlertStatus[] = ['pending', 'responded', 'escalated'];
+// Cuánto tiempo sigue visible para el compañero una alerta que ya se cerró: lo justo para que
+// su pantalla le diga qué pasó (la cancelaron, escaló) sin dejarle una alerta vieja en el Inicio.
+const RECENT_ALERT_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class PanicService {
@@ -39,6 +44,8 @@ export class PanicService {
     private readonly communityService: CommunityService,
     private readonly sponsorService: SponsorDesignationService,
     private readonly push: PushService,
+    @InjectRepository(SponsorDesignation)
+    private readonly designationRepo: Repository<SponsorDesignation>,
   ) {}
 
   // ── Dashboard (psicólogo) ──────────────────────────────────────────────
@@ -135,7 +142,8 @@ export class PanicService {
         userId: assignment.sponsorId,
         type: 'danger',
         title: 'Alerta de pánico',
-        target: 'panic',
+        // Al compañero lo lleva a su propia pantalla; 'panic' abre el botón SOS del paciente.
+        target: 'sponsor-alert',
         body: `Alerta: El paciente ${patientName} requiere contención inmediata por riesgo de recaída`,
       }),
     );
@@ -185,30 +193,19 @@ export class PanicService {
     await this.alertRepo.save(expired);
   }
 
+  // Solo la alerta que el usuario lanzó como paciente. Antes, si no tenía ninguna, buscaba una
+  // dirigida a él como compañero de viaje y se la devolvía igual: la pantalla de pánico se la
+  // pintaba como propia («Alerta enviada a {su nombre}»). Lo que le toca a un compañero va por
+  // `getAccompanied`.
   async getActiveAlert(userId: string): Promise<ActiveAlertResponse> {
-    // Buscar como paciente primero
-    let alert = await this.alertRepo.findOne({
+    const alert = await this.alertRepo.findOne({
       where: { patientId: userId, status: In(ACTIVE_STATUSES) },
       order: { createdAt: 'DESC' },
     });
 
-    // Si no tiene como paciente, buscar como padrino
-    if (!alert) {
-      alert = await this.alertRepo.findOne({
-        where: { sponsorId: userId, status: 'pending' },
-        order: { createdAt: 'DESC' },
-      });
-    }
-
     if (!alert) return { alert: null, sponsor: null };
 
-    // El cron corre cada 10 s, así que una alerta recién vencida puede seguir
-    // 'pending' acá: se escala en el acto para no devolver un estado atrasado.
-    if (this.hasExpired(alert)) {
-      alert.status = 'escalated';
-      alert.escalatedAt = new Date();
-      await this.alertRepo.save(alert);
-    }
+    await this.escalateIfExpired(alert);
 
     const sponsor = alert.sponsorId
       ? await this.userRepo.findOne({ where: { id: alert.sponsorId } })
@@ -216,6 +213,66 @@ export class PanicService {
     return {
       alert: this.serializeAlert(alert),
       sponsor: sponsor ? this.serializeSponsor(sponsor) : null,
+    };
+  }
+
+  // El cron corre cada 10 s, así que una alerta recién vencida puede seguir 'pending' acá:
+  // se escala en el acto para no devolver un estado atrasado.
+  private async escalateIfExpired(alert: PanicAlert): Promise<void> {
+    if (!this.hasExpired(alert)) return;
+    alert.status = 'escalated';
+    alert.escalatedAt = new Date();
+    await this.alertRepo.save(alert);
+  }
+
+  // Lo que ve alguien designado compañero de viaje: a quién acompaña y si esa persona tiene
+  // una alerta reciente. Entrega nombre y teléfono —para devolver la llamada— y nada más del
+  // paciente; ni racha, ni check-ins, ni ficha.
+  async getAccompanied(sponsorId: string): Promise<AccompaniedResponse> {
+    const [designation, assignments] = await Promise.all([
+      this.designationRepo.findOne({
+        where: { patientId: sponsorId, isActive: true },
+        select: { id: true },
+      }),
+      this.assignmentRepo.find({
+        where: { sponsorId, isActive: true },
+        relations: ['patient'],
+      }),
+    ]);
+
+    const patients = assignments
+      .map((a) => a.patient)
+      .filter((p) => p.accountStatus === 'active');
+
+    const alerts = patients.length
+      ? await this.alertRepo.find({
+          where: {
+            sponsorId,
+            patientId: In(patients.map((p) => p.id)),
+            createdAt: MoreThanOrEqual(new Date(Date.now() - RECENT_ALERT_MS)),
+          },
+          order: { createdAt: 'DESC' },
+        })
+      : [];
+
+    const latestByPatient = new Map<string, PanicAlert>();
+    for (const alert of alerts) {
+      if (!latestByPatient.has(alert.patientId)) latestByPatient.set(alert.patientId, alert);
+    }
+    for (const alert of latestByPatient.values()) await this.escalateIfExpired(alert);
+
+    return {
+      designated: designation !== null,
+      patients: patients.map((p) => {
+        const alert = latestByPatient.get(p.id);
+        return {
+          id: p.id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          phone: p.phone,
+          recentAlert: alert ? this.serializeAlert(alert) : null,
+        };
+      }),
     };
   }
 

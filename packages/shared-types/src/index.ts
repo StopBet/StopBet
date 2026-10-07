@@ -56,7 +56,8 @@ export type NotificationTarget =
   | 'panic'
   | 'payment'
   | 'family-links'
-  | 'family-request';
+  | 'family-request'
+  | 'sponsor-alert';
 
 export interface Notification {
   id: string;
@@ -406,6 +407,26 @@ export interface PanicAlertDto {
 export interface ActiveAlertResponse {
   alert: PanicAlertDto | null;
   sponsor: SponsorInfo | null;
+}
+
+/** Una persona a la que el usuario acompaña como compañero de viaje. */
+export interface AccompaniedPatient {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string | null;
+  /**
+   * La alerta más reciente de esta persona dirigida al compañero, de los últimos minutos y en
+   * cualquier estado: la pantalla necesita saber si se canceló o escaló para no dejarlo
+   * esperando. `null` si no hubo ninguna.
+   */
+  recentAlert: PanicAlertDto | null;
+}
+
+export interface AccompaniedResponse {
+  /** Tiene una designación activa, aunque hoy no acompañe a nadie. */
+  designated: boolean;
+  patients: AccompaniedPatient[];
 }
 
 // ── Autenticación ─────────────────────────────────────────────────────────

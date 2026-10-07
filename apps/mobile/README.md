@@ -122,7 +122,9 @@ quedan con la misma **clave de desarrollo: `Stopbet2026!`**.
 - `psychologist` → vista del equipo clínico (Resumen · Comunidad · Perfil), sin pánico,
   asistente ni check-in.
 - `coordinator`, `sponsor` y `family` → la app rechaza el acceso. La coordinación y los
-  familiares usan el dashboard web.
+  familiares usan el dashboard web. Ojo con `sponsor`: **un compañero de viaje real no tiene ese
+  rol**, es un `patient` con una designación activa y entra como paciente; esta regla solo afecta a
+  cuentas heredadas con `role: 'sponsor'`. Su pantalla (`SponsorAlert`) se ve en el Inicio y en Perfil.
 
 Una cuenta suspendida recibe 403 y ve un mensaje propio, no "credenciales incorrectas".
 

@@ -223,6 +223,7 @@ export class SponsorDesignationService {
         userId: patientId,
         type: 'info',
         title: 'Ahora eres compañero de viaje',
+        target: 'sponsor-alert',
         body:
           'Tu psicólogo te designó como compañero de viaje. Desde ahora puedes ' +
           'recibir alertas de pánico de la persona que se te asigne, para acompañarla ' +
@@ -425,6 +426,7 @@ export class SponsorDesignationService {
         userId: sponsorId,
         type: 'info',
         title: 'Acompañas a una persona nueva',
+        target: 'sponsor-alert',
         body: `Tu psicólogo te asignó como compañero de viaje de ${patient.firstName} ${patient.lastName}. Vas a recibir sus alertas de pánico.`,
       }),
     ]);

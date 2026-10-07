@@ -32,6 +32,7 @@ import { DirectChatScreen } from './src/screens/DirectChatScreen';
 import { NewDirectMessageScreen } from './src/screens/NewDirectMessageScreen';
 import { MainTabs } from './src/navigation/MainTabs';
 import { PanicScreen } from './src/screens/PanicScreen';
+import { SponsorAlertScreen } from './src/screens/SponsorAlertScreen';
 import { SuspendedAccountScreen } from './src/screens/SuspendedAccountScreen';
 
 // Equipo clínico
@@ -87,6 +88,7 @@ function AppNavigator() {
       <AppStack.Screen name="Notifications" component={NotificationsScreen} />
       <AppStack.Screen name="Assistant" component={AssistantScreen} />
       <AppStack.Screen name="Panic" component={PanicScreen} options={{ animation: 'slide_from_bottom', animationDuration: 320 }} />
+      <AppStack.Screen name="SponsorAlert" component={SponsorAlertScreen} options={{ animation: 'slide_from_right' }} />
       <AppStack.Screen name="SuspendedAccount" component={SuspendedAccountScreen} />
       {/* Las conversaciones de Comunidad: una por pantalla, como en WhatsApp. */}
       <AppStack.Screen name="GroupChat" component={GroupChatScreen} options={{ animation: 'slide_from_right' }} />

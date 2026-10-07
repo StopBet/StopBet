@@ -99,6 +99,9 @@ export function NotificationsScreen({ navigation }: Props) {
       case 'panic':
         navigation.navigate('Panic');
         break;
+      case 'sponsor-alert':
+        navigation.navigate('SponsorAlert');
+        break;
       case 'payment':
         navigation.navigate('MainTabs', { screen: 'Profile' });
         break;
