@@ -247,6 +247,8 @@ dispara el cron (`TBK_AUTO_CHARGE_CRON`, apagado por defecto), que no es un endp
 | `GET /family/pending`, `GET /family/active` | `psychologist`, `coordinator` | ✅ Protegido — un psicólogo solo ve los de sus sedes; la coordinación, todos. Los intentos con un paciente inexistente no aparecen nunca |
 | `PATCH /family/links/:id/confirm` \| `reject` \| `revoke` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede (403 fuera de ella). Confirmar exige cómo se verificó y respeta el «no» del paciente |
 | `GET /family/revoked` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede que pendientes y vinculados (06-10) |
+| `GET /family/rejected` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede; solo lectura (HDU 23 CA6, 07-10) |
+| `GET /family/links/:id/history` | `psychologist`, `coordinator` | ✅ Protegido — autor, fecha y veredicto de cada decisión (HDU 23 CA6, 07-10). 403 si el paciente es de una sede que no atiende, 404 si no existe; el id se valida con `ParseDbUuidPipe` |
 | `PATCH /family/links/:id/reopen` | `psychologist`, `coordinator` | ✅ Protegido — misma regla de sede; solo desde `revoked`, y vuelve a `pending` (no restaura el acceso) |
 | `GET /family/patient-requests` | `patient` | ✅ Protegido — solo las solicitudes pendientes dirigidas a él |
 | `PATCH /family/patient-requests/:id` | `patient` | ✅ Protegido — solo las propias y pendientes (404 si no) |
