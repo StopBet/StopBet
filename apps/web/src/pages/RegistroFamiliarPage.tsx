@@ -5,6 +5,9 @@ import { api, type ApiError } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { cleanRut, formatRut, isValidRut } from '../utils/rut'
 import { PatientIdToggle, type PatientIdBy } from '../components/PatientIdToggle'
+import { DemoCredenciales, DemoProfilesPanel } from '../components/DemoProfilesPanel'
+import { useModoDemo } from '../hooks/useModoDemo'
+import { borrarCuentas, guardarCuenta, leerCuentas, type DemoCuenta, type DemoPerfil } from '../utils/demoProfiles'
 import isotipo from '../assets/isotipo-blanco.png'
 
 type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'email' | 'password' | 'rut' | 'patientRut' | 'patientEmail', string>>
@@ -93,6 +96,27 @@ export function RegistroFamiliarPage() {
   const [submitting, setSubmitting] = useState(false)
   const [done, setDone] = useState(false)
 
+  // Modo demo (`?demo=1`): perfiles de prueba y la lista de cuentas ya creadas en este navegador.
+  const modoDemo = useModoDemo()
+  const [cuentasDemo, setCuentasDemo] = useState<DemoCuenta[]>(() => (modoDemo ? leerCuentas() : []))
+  const [cuentaCreada, setCuentaCreada] = useState<DemoCuenta | null>(null)
+
+  // Escribe el perfil en el formulario, igual que si lo hubiera tecleado quien hace la demo: pasa
+  // por las mismas validaciones y por el mismo envío.
+  const fillFromDemo = (perfil: DemoPerfil) => {
+    setFirstName(perfil.firstName)
+    setLastName(perfil.lastName)
+    setEmail(perfil.email)
+    setPassword(perfil.password)
+    setShowPassword(true)
+    setRut(perfil.rut)
+    setPatientIdBy(perfil.patientIdBy)
+    setPatientRut(perfil.patientRut)
+    setPatientEmail(perfil.patientEmail)
+    setErrors({})
+    setFormError(null)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setFormError(null)
@@ -116,6 +140,20 @@ export function RegistroFamiliarPage() {
           : { patientEmail: patientEmail.trim() }),
       })
       // CA1 + CA2 — misma confirmación exista o no el paciente: no se distingue acá.
+      if (modoDemo) {
+        const cuenta: DemoCuenta = {
+          nombre: `${firstName.trim()} ${lastName.trim()}`,
+          email: email.trim(),
+          password,
+          rut: formatRut(rut),
+          declara: patientIdBy === 'rut'
+            ? `Declaró el RUT ${formatRut(patientRut)}`
+            : `Declaró al paciente ${patientEmail.trim()}`,
+          creadaEn: Date.now(),
+        }
+        setCuentasDemo(guardarCuenta(cuenta))
+        setCuentaCreada(cuenta)
+      }
       setDone(true)
     } catch (err) {
       const apiErr = err as ApiError
@@ -169,8 +207,16 @@ export function RegistroFamiliarPage() {
               contraseña para ver en qué estado está: cuando confirmen el vínculo, ahí mismo
               verás las sesiones grupales.
             </p>
+            {cuentaCreada && (
+              <div style={{ textAlign: 'left', background: 'var(--surface-alt)', border: '1.5px dashed var(--border)', borderRadius: 14, padding: '14px 16px', margin: '0 0 24px' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--primary-text)', marginBottom: 8 }}>
+                  Modo demo · la cuenta que acabas de crear
+                </div>
+                <DemoCredenciales cuenta={cuentaCreada} />
+              </div>
+            )}
             <Link
-              to="/"
+              to={modoDemo ? '/?demo=1' : '/'}
               style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 height: 46, padding: '0 26px', borderRadius: 9999,
@@ -191,6 +237,14 @@ export function RegistroFamiliarPage() {
               Vas a poder ver las sesiones grupales y el estado de tu familiar una vez que el
               equipo clínico confirme el vínculo.
             </p>
+
+            {modoDemo && (
+              <DemoProfilesPanel
+                onFill={fillFromDemo}
+                cuentas={cuentasDemo}
+                onClear={() => { borrarCuentas(); setCuentasDemo([]) }}
+              />
+            )}
 
             {formError && (
               <div style={{
@@ -328,7 +382,7 @@ export function RegistroFamiliarPage() {
                 {submitting ? 'Creando cuenta…' : 'Crear cuenta'}
               </button>
 
-              <Link to="/" style={{ textAlign: 'center', fontSize: 13, color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
+              <Link to={modoDemo ? '/?demo=1' : '/'} style={{ textAlign: 'center', fontSize: 13, color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>
                 ¿Ya tienes cuenta? Inicia sesión
               </Link>
             </form>
