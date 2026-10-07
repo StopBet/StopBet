@@ -20,6 +20,41 @@ está.
 
 ---
 
+## 2026-10-07 - Pagos con Webpay Oneclick en sandbox (SPIKE 2, CA5-CA6, PR #149)
+
+**A quién le pega:** a **todos, una sola vez**, por una dependencia nueva. También a quien toque
+`billing` y a **Matías**, dueño del Spike.
+
+**Qué hacer después de pullear:**
+1. `pnpm install` desde la raíz: se agregó **`transbank-sdk@6.1.1`** al backend (trae `axios`). Sin eso
+   el backend no compila y el error parece de código, no de entorno.
+2. Nada más. Las tablas nuevas `payment_inscriptions` y `payment_charges` las crea `synchronize` al
+   levantar el backend, también en Railway.
+
+**Qué cambió:**
+- Módulo nuevo `payments` (`/payments/oneclick`): inscribir una tarjeta y cobrar la mensualidad con
+  Webpay Oneclick. **Es solo el sandbox del Spike: no cambió ninguna pantalla de la app ni de la web, y
+  `POST /billing/pay` sigue siendo el pago simulado de siempre.** Documento y evidencia en
+  [`docs/planning/spike2-pasarela-pago.md`](planning/spike2-pasarela-pago.md).
+- **No cobra dinero real**: sin variables usa el ambiente de *integración* de Transbank, con credenciales
+  públicas. En producción, sin `TBK_ENVIRONMENT=production` y los tres datos de comercio, queda apagado y
+  responde 503.
+- **El retorno de Transbank ya no cierra la inscripción**: la cierra `POST /payments/oneclick/inscriptions/finish` con la
+  sesión del paciente. Quien integre la pantalla de resultado (app o web) tiene que llamarlo con lo que Transbank deja en la URL;
+  la página de prueba ya lo hace sola. Además, **el cobro automático omite las cuentas suspendidas**.
+- **El cobro automático diario está apagado** (`TBK_AUTO_CHARGE_CRON=true` lo enciende). No lo prendas
+  en Railway: cobraría sobre la base de demo.
+- Para probarlo en local: `ENABLE_DEV_TOOLS=true` y abrir `http://localhost:3000/payments/oneclick/test-page`.
+  La tarjeta de prueba y la clave del banco están escritas en la propia página.
+- `BillingService.pay()` ahora llama a `settleInvoices()`, que antes estaba adentro. **No cambia su
+  comportamiento** (tiene tests nuevos que lo fijan); se extrajo para que el cobro real liquide cuotas por
+  el mismo camino.
+- Variables opcionales nuevas, todas en `apps/backend/.env.example`: `TBK_ENVIRONMENT`,
+  `TBK_ONECLICK_COMMERCE_CODE`, `TBK_ONECLICK_CHILD_COMMERCE_CODE`, `TBK_API_KEY`, `BACKEND_PUBLIC_URL`,
+  `TBK_RESULT_URL`, `TBK_AUTO_CHARGE_CRON`.
+
+---
+
 ## 2026-10-06 - Un familiar revocado por error ya tiene vuelta atrás
 
 **A quién le pega:** a quien pruebe el flujo de familiares. **No hay que instalar nada**: no
