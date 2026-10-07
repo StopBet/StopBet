@@ -34,7 +34,7 @@ hay columnas nuevas.
 
 ---
 
-## 2026-10-04 - Solicitudes de ingreso solo para coordinación; posts reportados en «Moderación» (PR por abrir)
+## 2026-10-04 - Solicitudes de ingreso solo para coordinación; posts reportados en «Moderación» (PR #148)
 
 **A quién le pega:** a **quien pruebe el panel web como psicólogo** y a **Catalina**, porque el
 manual §2.3 dice que la moderación de posts reportados está en *Solicitudes*.
