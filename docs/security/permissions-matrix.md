@@ -222,10 +222,11 @@ Sandbox de Webpay Oneclick. Ver [`docs/planning/spike2-pasarela-pago.md`](../pla
 | Método + Path | Rol objetivo | Estado actual |
 |---|---|---|
 | `POST /payments/oneclick/inscriptions` | `patient` | ✅ Protegido |
-| `GET /payments/oneclick/inscriptions/return` y `POST` | Público | 🔓 Público — Transbank devuelve al **navegador** del paciente sin token. Solo lee `TBK_TOKEN`, `TBK_ORDEN_COMPRA` y `TBK_ID_SESION`, `@Throttle` de 20 por minuto, y siempre responde con una redirección, nunca con un error |
+| `GET /payments/oneclick/inscriptions/return` y `POST` | Público | 🔓 Público — Transbank devuelve al **navegador** del paciente sin token. **No cierra la inscripción**: solo lee `TBK_TOKEN`, `TBK_ORDEN_COMPRA` y `TBK_ID_SESION` y los reenvía a la página, `@Throttle` de 20 por minuto, y siempre responde con una redirección, nunca con un error |
+| `POST /payments/oneclick/inscriptions/finish` | `patient` (dueño) | ✅ Protegido — cierra la inscripción **solo si es de quien llama**; una ajena responde `error`, igual que una inexistente. Es lo que evita que alguien deje la tarjeta de otra persona atada a su cuenta |
 | `GET /payments/oneclick/inscription` y `DELETE` | `patient` (dueño) | ✅ Protegido — solo la tarjeta propia; devuelve tipo y últimos 4 dígitos, nunca el `tbk_user` |
 | `POST /payments/oneclick/charges` y `GET` | `patient` (dueño) | ✅ Protegido — solo cuotas propias |
-| `POST /payments/oneclick/charges/run-due` | `coordinator` | ✅ Protegido + `ENABLE_DEV_TOOLS` (404 si no está) — cobra la cuota vencida de **todos** los pacientes que tengan una tarjeta inscrita |
+| `POST /payments/oneclick/charges/run-due` | `coordinator` | ✅ Protegido + `ENABLE_DEV_TOOLS` (404 si no está) — cobra la cuota vencida de **todos** los pacientes que tengan una tarjeta inscrita y la cuenta activa (omite las suspendidas) |
 | `GET /payments/oneclick/charges/:id/transbank-status` | `coordinator` | ✅ Protegido + `ENABLE_DEV_TOOLS` |
 | `GET /payments/oneclick/test-page` | Público | 🔓 Público, **solo con `ENABLE_DEV_TOOLS`** (404 si no). Es HTML estático sin datos: no hay nada que filtrar |
 

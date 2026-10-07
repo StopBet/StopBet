@@ -207,8 +207,9 @@ hace dos cobros, el segundo sin el paciente: [`planning/spike2-pasarela-pago.md`
 - **Es una decisión del cliente, no nuestra:** la recomendación depende de que **AJUTER se afilie a
   Transbank**, un trámite comercial cuyo plazo no está publicado. Hay cinco preguntas para Transbank en
   la §7 del documento (tarifa, débito y prepago, si exige Webpay Plus, documentos de una fundación, IVA).
-- **Sobre el punto 5:** un cobro automático reactiva al paciente **sin que él inicie sesión**, lo que
-  resuelve parte del problema del suspendido. Falta decidir si el cliente quiere eso.
+- **Sobre el punto 5:** el cobro automático **omite las cuentas suspendidas y no las reactiva**: suspender
+  cierra el acceso y ningún cobro sin sesión debe pasar por encima. Si el cliente quiere que pagar levante
+  una suspensión por mora, hay que decidirlo y definir qué se le cobra a un suspendido.
 - **Sobre el punto 4:** la tarjeta se inscribe a nombre de un paciente. Que pague un familiar sigue sin
   resolverse.
 - Los **reintentos** ante un rechazo y qué se le avisa al paciente cuando un cobro falla: ninguna

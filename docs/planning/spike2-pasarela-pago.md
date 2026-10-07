@@ -168,9 +168,12 @@ Paciente (sesión)          Backend (StopBet)                     Transbank (int
       │◀── { token, urlWebpay } ──│◀──────────────── token + url_webpay ─────│
       │  el navegador hace POST con TBK_TOKEN a urlWebpay ─────────────────▶│  formulario + banco
       │◀──────────── vuelve por GET/POST a /inscriptions/return?TBK_TOKEN ───│
+      │◀── 303: el retorno solo REENVÍA el token a la página, no cierra nada
+      │  POST /inscriptions/finish { token } ─▶│  con la SESIÓN del paciente
+      │                           │  ¿la inscripción es de este usuario? si no: «error»
       │                           │  finish(token) ──────────────────────────▶│  (dentro de 60 s)
       │                           │◀── tbk_user + tipo y últimos 4 dígitos ───│  se guarda cifrado
-      │◀── 303 a la página con el resultado
+      │◀── { outcome: "ok" }
 
 COBRO 1 (lo pide el paciente)      POST /charges ──▶ authorize(tbk_user, buyOrder, monto) ──▶ AUTHORIZED
 COBRO 2 (sin el paciente)          run-due / cron ──▶ authorize(...) con la misma tarjeta ───▶ AUTHORIZED
@@ -188,7 +191,7 @@ columna que el RUT), el tipo de tarjeta y los **últimos 4 dígitos**.
 | `payment_inscriptions` | La tarjeta del paciente. Índice único parcial: **una sola activa por usuario**. Estados: `pending`, `active`, `failed`, `aborted`, `deleted`. |
 | `payment_charges` | Cada intento de cobro, con la orden de compra padre e hija (únicas, ≤26 caracteres), monto, `triggeredBy` (`user` o `automatic`), estado y el código y la hora que devuelve Transbank. |
 | `oneclick-payments.service.ts` | Inscripción, cobro de una cuota, cobro de las vencidas y el cron. Liquida la cuota con `BillingService.settleInvoices`, la misma ruta que usa el pago simulado, así que reactiva la cuenta y crea la cuota siguiente igual que hoy. |
-| `tbk-return-params.decorator.ts` | Lee **solo** `TBK_TOKEN`, `TBK_ORDEN_COMPRA` y `TBK_ID_SESION` del retorno de Transbank. Con un DTO, el `ValidationPipe` global (`forbidNonWhitelisted`) respondería 400 al navegador ante cualquier campo extra. |
+| `tbk-return-params.decorator.ts` | Lee **solo** `TBK_TOKEN`, `TBK_ORDEN_COMPRA` y `TBK_ID_SESION` del retorno de Transbank, para reenviarlos. Con un DTO, el `ValidationPipe` global (`forbidNonWhitelisted`) respondería 400 al navegador ante cualquier campo extra. El cierre, que sí viene del cliente con sesión, usa un DTO normal (`finish-inscription.dto.ts`). |
 | `oneclick-test-page.ts` | La página de prueba (`/payments/oneclick/test-page`), con los botones de cada paso y la respuesta JSON a la vista. |
 
 ### 4.3 Endpoints
@@ -196,7 +199,8 @@ columna que el RUT), el tipo de tarjeta y los **últimos 4 dígitos**.
 | Endpoint | Acceso | Para qué |
 |---|---|---|
 | `POST /payments/oneclick/inscriptions` | paciente | Inscribir la tarjeta |
-| `GET` y `POST /payments/oneclick/inscriptions/return` | público, 20 por minuto | A donde vuelve Transbank; siempre redirige 303 al resultado |
+| `GET` y `POST /payments/oneclick/inscriptions/return` | público, 20 por minuto | A donde vuelve Transbank. **No cierra nada**: redirige 303 a la página reenviando `TBK_*` |
+| `POST /payments/oneclick/inscriptions/finish` | paciente (dueño de la inscripción) | Cierra la inscripción con lo que Transbank dejó en la URL; devuelve `{ outcome }` |
 | `GET` y `DELETE /payments/oneclick/inscription` | paciente | Ver o eliminar la tarjeta |
 | `POST /payments/oneclick/charges` | paciente | **Cobro 1** |
 | `GET /payments/oneclick/charges` | paciente | Sus cobros |
@@ -217,7 +221,22 @@ El riesgo real de un cobro automático es cobrar dos veces la misma cuota. Tres 
 3. Aprobado quiere decir `response_code === 0` **y** `status === 'AUTHORIZED'` en **cada** detalle. El
    ejemplo del SDK mira un `status` de nivel superior que la respuesta no trae.
 
-### 4.5 Configuración
+### 4.5 Quién puede inscribir y a quién se cobra
+
+Dos reglas que salieron de la revisión de seguridad del PR:
+1. **El retorno de Transbank no cierra la inscripción.** Es una redirección del navegador y llega sin
+   sesión; si cerrara con solo el token, quien abre un formulario con su propia cuenta podría hacer que
+   otra persona lo complete con SU tarjeta y dejarla atada a la cuenta de quien lo abrió (así quedaría
+   cobrándose la mensualidad del atacante). Por eso la cierra `POST /inscriptions/finish`, que exige la
+   sesión del paciente y que **la inscripción sea suya**; una ajena responde igual que una inexistente.
+   En el cliente real (app o web) la pantalla de resultado hace esa llamada al volver de Transbank.
+2. **Una cuenta suspendida no se cobra ni se reactiva por un cobro.** Suspender una cuenta cierra su
+   acceso; el cobro automático no tiene sesión que se lo impida, así que lo respeta él: omite la cuota y
+   no toca la cuenta. Solo el pago simulado (`POST /billing/pay`, que pide el propio paciente con su
+   sesión) sigue reactivando. Si el cliente quiere que pagar levante una suspensión por mora, hay que
+   decidirlo (`ASUNCIONES-PENDIENTES.md`, punto 5).
+
+### 4.6 Configuración
 
 Todo opcional. Sin ninguna variable usa el ambiente de integración con las credenciales públicas de
 Transbank (no se cobra dinero real).
@@ -232,14 +251,14 @@ Transbank (no se cobra dinero real).
 
 Los logs llevan ids, orden de compra, estado y código. **Nunca** correo, `tbk_user`, `TBK_TOKEN` ni datos de tarjeta.
 
-### 4.6 Tests
+### 4.7 Tests
 
 - **Unitarios** (`payments/*.spec.ts`, `billing/billing.service.spec.ts`): inscripción ok, rechazada, anulada, repetida y con timeout; cobro autorizado que liquida la cuota; rechazado que no la toca; error de red que consulta el estado; sin doble cobro; el mapeo de las respuestas del SDK.
-- **e2e** (`test/payments.e2e-spec.ts`, 27 casos): Transbank reemplazado por un gateway falso, así que corre en CI. Usa el `ValidationPipe` real de `main.ts`. Cubre permisos, el retorno por GET con parámetros desconocidos y por POST urlencoded, la anulación, **los dos cobros** (paciente y automático), el 409 de la doble cobranza, el rechazo y el 404 de las herramientas de desarrollo.
+- **e2e** (`test/payments.e2e-spec.ts`, 31 casos): Transbank reemplazado por un gateway falso, así que corre en CI. Usa el `ValidationPipe` real de `main.ts`. Cubre permisos, el retorno por GET con parámetros desconocidos y por POST urlencoded, la anulación, que una inscripción abierta por otra persona **no se pueda cerrar con mi sesión**, **los dos cobros** (paciente y automático), el 409 de la doble cobranza, el rechazo, que el cobro automático **omita una cuenta suspendida** y el 404 de las herramientas de desarrollo.
 
 ## 5. Evidencia del sandbox
 
-Corrida del **07-10-2026 (19:30, hora de Chile)** contra `webpay3gint.transbank.cl` (ambiente de
+Corrida del **07-10-2026 (19:58, hora de Chile)** contra `webpay3gint.transbank.cl` (ambiente de
 integración, credenciales públicas), con el backend local y los datos del seed. Paciente: Carlos Demo.
 Coordinación: Sofía Reyes. El recorrido lo hizo un script de Playwright sobre el **formulario real** de
 Transbank, no una simulación.
@@ -250,7 +269,7 @@ VISA de prueba `4051 8856 0044 6623`, banco de prueba (RUT `11.111.111-1`, clave
 
 ![Formulario de Transbank con la tarjeta de prueba](img/spike2-pago-1-formulario-transbank.png)
 
-Resultado en StopBet: tarjeta `Visa` terminada en `6623`, estado `active`, código de respuesta `0`. El
+La página cierra la inscripción al volver de Transbank, con la sesión del paciente (`POST /inscriptions/finish`). Resultado en StopBet: tarjeta `Visa` terminada en `6623`, estado `active`, código de respuesta `0`. El
 `tbk_user` queda cifrado en la columna (no se muestra en ninguna respuesta de la API).
 
 ![Tarjeta inscrita](img/spike2-pago-2-tarjeta-inscrita.png)
@@ -262,9 +281,9 @@ Resultado en StopBet: tarjeta `Visa` terminada en `6623`, estado `active`, códi
 | Quién lo dispara | el paciente (`POST /charges`) | el backend, **sin sesión del paciente** (`run-due` como coordinación) |
 | `triggeredBy` | `user` | `automatic` |
 | Cuota | 2026-10 · $30.000 | 2026-11 · $30.000 |
-| Orden de compra | `SBMUYI61LWB3PDJM` | `SBMUYI6BHX6VGXEZ` |
+| Orden de compra | `SBMUYJ60G3ECI6VK` | `SBMUYJ6AJ2WR299O` |
 | Resultado | `AUTHORIZED`, código `0`, autorización `1213` | `AUTHORIZED`, código `0`, autorización `1213` |
-| Hora que informa Transbank | 19:30:43 (Chile) | 19:30:56 (Chile) |
+| Hora que informa Transbank | 19:58:41 (Chile) | 19:58:54 (Chile) |
 | Estado de la cuota después | `paid` | `paid` |
 
 ![Cobro 1, el paciente paga](img/spike2-pago-3-cobro-1-paciente.png)
@@ -275,18 +294,18 @@ Resultado en StopBet: tarjeta `Visa` terminada en `6623`, estado `active`, códi
 la orden de compra de cada cobro:
 
 ```json
-{ "buyOrder": "SBMUYI61LWB3PDJM", "approved": true, "status": "AUTHORIZED", "responseCode": 0,
-  "authorizationCode": "1213", "transactionDate": "2026-10-07T22:30:43.777Z" }
-{ "buyOrder": "SBMUYI6BHX6VGXEZ", "approved": true, "status": "AUTHORIZED", "responseCode": 0,
-  "authorizationCode": "1213", "transactionDate": "2026-10-07T22:30:56.616Z" }
+{ "buyOrder": "SBMUYJ60G3ECI6VK", "approved": true, "status": "AUTHORIZED", "responseCode": 0,
+  "authorizationCode": "1213", "transactionDate": "2026-10-07T22:58:41.834Z" }
+{ "buyOrder": "SBMUYJ6AJ2WR299O", "approved": true, "status": "AUTHORIZED", "responseCode": 0,
+  "authorizationCode": "1213", "transactionDate": "2026-10-07T22:58:54.900Z" }
 ```
 
 **En la base** (`payment_charges` unido con `invoices`):
 
 ```
  parentBuyOrder   | amountCLP | status     | trigger   | rc | auth | tipo | month   | factura
- SBMUYI61LWB3PDJM |     30000 | authorized | user      |  0 | 1213 | VN   | 2026-10 | paid
- SBMUYI6BHX6VGXEZ |     30000 | authorized | automatic |  0 | 1213 | VN   | 2026-11 | paid
+ SBMUYJ60G3ECI6VK |     30000 | authorized | user      |  0 | 1213 | VN   | 2026-10 | paid
+ SBMUYJ6AJ2WR299O |     30000 | authorized | automatic |  0 | 1213 | VN   | 2026-11 | paid
 ```
 
 El paciente recibió dos avisos «Recibimos tu pago» (2026-10 y 2026-11) con `target: payment`.
@@ -296,8 +315,10 @@ El paciente recibió dos avisos «Recibimos tu pago» (2026-10 y 2026-11) con `t
 | Caso | Qué se hizo | Resultado |
 |---|---|---|
 | Tarjeta rechazada | Mastercard de prueba `5186 0595 5959 0568` | Transbank la rechaza al inscribir (código `-1`). Inscripción `failed`, el paciente sigue sin tarjeta. |
-| El paciente abandona | «Abandonar y volver» en el formulario de Transbank | Llega `TBK_ORDEN_COMPRA`: no se llama a `finish`. Inscripción `aborted`. |
+| El paciente abandona | «Abandonar y volver» en el formulario de Transbank | Llega `TBK_ORDEN_COMPRA`: no se cierra con Transbank. Inscripción `aborted`. |
 | Eliminar la tarjeta | `DELETE /inscription` | Se borra en Transbank y en StopBet; sirve para repetir la demo. |
+| Cierre con una sesión ajena | Un paciente intenta cerrar la inscripción que abrió otro | Responde `error`, no llama a Transbank y la inscripción del dueño sigue cerrable. (Probado en el e2e.) |
+| Cuenta suspendida | Cobro automático de una cuota vencida de una cuenta suspendida | Se omite: no se cobra, la cuota sigue vencida y la cuenta sigue suspendida. (Probado en el e2e.) |
 | Doble cobro | Cobrar otra vez la cuota ya pagada; correr `run-due` dos veces | 409 y no se llama a Transbank; la segunda corrida no cobra nada. (Probado en el e2e.) |
 
 ---
@@ -324,7 +345,7 @@ Actualizados `docs/ASUNCIONES-PENDIENTES.md`, `docs/presupuesto-stack-2026-09.md
 **Fuera de este Spike** (el sandbox no toca las pantallas de pacientes ni de familiares):
 - **Cambiar el pago simulado por el real** en `PaymentScreen`, `SuspendedAccountScreen` y el portal del familiar.
 - **Quién paga**, el paciente o el familiar (`ASUNCIONES-PENDIENTES.md`, punto 4). Inscribir la tarjeta de un familiar no está resuelto.
-- **Paciente suspendido:** hoy no puede ni iniciar sesión para pagar (punto 5). Un cobro automático lo reactiva **sin que él entre**, lo que resuelve parte del problema. Falta decidir si eso es lo que quiere el cliente.
+- **Paciente suspendido:** hoy no puede ni iniciar sesión para pagar (punto 5). El cobro automático **lo omite y no lo reactiva** a propósito (§4.5): suspender cierra el acceso y ningún cobro sin sesión debe pasar por encima. Si el cliente quiere que pagar levante la suspensión por mora, es una decisión suya.
 - **La regla del tercer mes** (punto 5-bis) y los **reintentos** ante un rechazo: ninguna pasarela decide eso por nosotros con Oneclick.
 - **Devoluciones**, y **qué dice la notificación** al paciente cuando un cobro falla.
 - **Atar la activación de la cuenta** (HdU19) al primer cobro exitoso.
@@ -353,7 +374,7 @@ Cosas que la documentación de Transbank no avisa y que conviene tener a mano al
   ya al inscribir. El rechazo de un cobro se probó solo con tests (unitario y e2e), no contra Transbank.
 - **El `finish` de una inscripción que nunca se completó responde `-96`**, y Transbank documenta que hay que
   llamarlo dentro de 60 s. Se trata como inscripción fallida, sin error para el navegador.
-- **Las inscripciones abandonadas quedan `pending`** para siempre (en la prueba quedaron 4). No molestan, pero
+- **Las inscripciones abandonadas quedan `pending`** para siempre (en la prueba quedaron varias). No molestan, pero
   hace falta una tarea que las venza antes de producción.
 - **Un cobro que queda en `processing`** (red cortada y Transbank sin responder el estado) bloquea su cuota a
   propósito. Falta una tarea de conciliación que lo resuelva consultando a Transbank.

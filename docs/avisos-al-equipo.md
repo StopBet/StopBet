@@ -39,6 +39,9 @@ está.
 - **No cobra dinero real**: sin variables usa el ambiente de *integración* de Transbank, con credenciales
   públicas. En producción, sin `TBK_ENVIRONMENT=production` y los tres datos de comercio, queda apagado y
   responde 503.
+- **El retorno de Transbank ya no cierra la inscripción**: la cierra `POST /payments/oneclick/inscriptions/finish` con la
+  sesión del paciente. Quien integre la pantalla de resultado (app o web) tiene que llamarlo con lo que Transbank deja en la URL;
+  la página de prueba ya lo hace sola. Además, **el cobro automático omite las cuentas suspendidas**.
 - **El cobro automático diario está apagado** (`TBK_AUTO_CHARGE_CRON=true` lo enciende). No lo prendas
   en Railway: cobraría sobre la base de demo.
 - Para probarlo en local: `ENABLE_DEV_TOOLS=true` y abrir `http://localhost:3000/payments/oneclick/test-page`.
