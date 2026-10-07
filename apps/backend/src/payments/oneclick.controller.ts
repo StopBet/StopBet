@@ -20,6 +20,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { ChargeInvoiceDto } from './dto/charge-invoice.dto';
+import { FinishInscriptionDto } from './dto/finish-inscription.dto';
 import { RunDueChargesDto } from './dto/run-due-charges.dto';
 import { InscriptionOutcome, OneclickPaymentsService } from './oneclick-payments.service';
 import { ONECLICK_TEST_PAGE } from './oneclick-test-page';
@@ -56,26 +57,45 @@ export class OneclickController {
   }
 
   // A donde Transbank devuelve al paciente. Es público porque es una redirección del NAVEGADOR
-  // (no una llamada de servidor a servidor) y el paciente llega sin nuestro token. Qué hacer lo
-  // decide el token de la inscripción, que solo conoce quien abrió ese formulario. Responde
-  // siempre con una redirección, nunca con un error. GET y POST: según la versión de la API,
-  // Transbank vuelve por uno u otro.
+  // (no una llamada de servidor a servidor) y el paciente llega sin nuestro token. Por eso mismo
+  // NO cierra la inscripción: con solo el token cualquiera podría completar la tarjeta de otra
+  // persona dentro de SU cuenta (quien abre el formulario le pasa el enlace a la víctima). Se
+  // limita a reenviar los parámetros de Transbank a la página de resultado, que llama a
+  // `POST inscriptions/finish` con la sesión del paciente. Responde siempre con una redirección,
+  // nunca con un error. GET y POST: según la versión de la API, Transbank vuelve por uno u otro.
   @Public()
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @Get('inscriptions/return')
-  @ApiOperation({ summary: 'Retorno de Transbank tras inscribir la tarjeta (GET)' })
-  @ApiResponse({ status: 303, description: 'Redirige a la página de resultado con ?inscripcion=ok|rechazada|anulada|error' })
+  @ApiOperation({ summary: 'Retorno de Transbank tras el formulario de la tarjeta (GET). No cierra la inscripción' })
+  @ApiResponse({ status: 303, description: 'Redirige a la página de resultado con los parámetros TBK_* para que el paciente cierre la inscripción con su sesión' })
   returnFromGet(@TbkReturn() params: TbkReturnParams, @Res() res: Response) {
-    return this.finishAndRedirect(params, res);
+    res.redirect(303, this.resultUrl(params));
   }
 
   @Public()
   @Throttle({ default: { ttl: 60_000, limit: 20 } })
   @Post('inscriptions/return')
-  @ApiOperation({ summary: 'Retorno de Transbank tras inscribir la tarjeta (POST)' })
-  @ApiResponse({ status: 303, description: 'Redirige a la página de resultado con ?inscripcion=ok|rechazada|anulada|error' })
+  @ApiOperation({ summary: 'Retorno de Transbank tras el formulario de la tarjeta (POST). No cierra la inscripción' })
+  @ApiResponse({ status: 303, description: 'Redirige a la página de resultado con los parámetros TBK_* para que el paciente cierre la inscripción con su sesión' })
   returnFromPost(@TbkReturn() params: TbkReturnParams, @Res() res: Response) {
-    return this.finishAndRedirect(params, res);
+    res.redirect(303, this.resultUrl(params));
+  }
+
+  @Post('inscriptions/finish')
+  @Roles('patient')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Cierra la inscripción con lo que Transbank devolvió al navegador. Solo la puede cerrar quien la abrió' })
+  @ApiResponse({ status: 200, description: '{ outcome: "ok" | "rechazada" | "anulada" | "error" }. Una inscripción ajena o inexistente responde "error"' })
+  async finishInscription(
+    @UserId() userId: string,
+    @Body() dto: FinishInscriptionDto,
+  ): Promise<{ outcome: InscriptionOutcome }> {
+    const outcome = await this.payments.finishInscription(userId, {
+      token: dto.token,
+      abortedBuyOrder: dto.abortedBuyOrder ?? null,
+      abortedSessionId: dto.abortedSessionId ?? null,
+    });
+    return { outcome };
   }
 
   @Get('inscription')
@@ -150,17 +170,20 @@ export class OneclickController {
     res.type('html').send(ONECLICK_TEST_PAGE);
   }
 
-  private async finishAndRedirect(params: TbkReturnParams, res: Response): Promise<void> {
-    const outcome: InscriptionOutcome = await this.payments.finishInscription(params);
-    res.redirect(303, this.resultUrl(outcome));
-  }
-
-  private resultUrl(outcome: InscriptionOutcome): string {
+  // Reenvía lo que Transbank dejó en la URL de retorno. El token viaja en la URL, pero solo sirve
+  // con la sesión de quien abrió la inscripción: sin ella `finish` responde «error».
+  private resultUrl(params: TbkReturnParams): string {
     const configured = this.config.get<string>('TBK_RESULT_URL')?.trim();
     const base = this.config.get<string>('BACKEND_PUBLIC_URL')?.trim().replace(/\/$/, '');
     const fallback = `${base || `http://localhost:${this.config.get<string>('PORT') ?? '3000'}`}/payments/oneclick/test-page`;
     const url = new URL(configured || fallback);
-    url.searchParams.set('inscripcion', outcome);
+    if (params.token) {
+      url.searchParams.set('TBK_TOKEN', params.token);
+      if (params.abortedBuyOrder) url.searchParams.set('TBK_ORDEN_COMPRA', params.abortedBuyOrder);
+      if (params.abortedSessionId) url.searchParams.set('TBK_ID_SESION', params.abortedSessionId);
+    } else {
+      url.searchParams.set('inscripcion', 'error');
+    }
     return url.toString();
   }
 }

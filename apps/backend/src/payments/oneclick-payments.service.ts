@@ -142,14 +142,17 @@ export class OneclickPaymentsService {
     return { inscriptionId: saved.id, token, urlWebpay };
   }
 
-  // Nunca lanza: lo que ve el paciente es una redirección, y una excepción acá sería una pantalla
-  // de error del backend en su navegador. Es idempotente: recargar la página de retorno no vuelve
-  // a llamar a Transbank (el token ya se consumió y volver a cerrarlo fallaría).
-  async finishInscription(params: TbkReturnParams): Promise<InscriptionOutcome> {
+  // Lo llama el paciente CON su sesión, nunca el retorno público de Transbank. Si cerrara la
+  // inscripción solo con el token, quien abre un formulario con su propia cuenta podría hacer que
+  // otra persona lo complete y quedarse con la tarjeta de esa persona atada a su cuenta. Por eso la
+  // inscripción tiene que ser de quien llama; una ajena responde igual que una que no existe.
+  // Es idempotente: volver a abrir la página de retorno no llama de nuevo a Transbank (el token ya
+  // se consumió y volver a cerrarlo fallaría).
+  async finishInscription(userId: string, params: TbkReturnParams): Promise<InscriptionOutcome> {
     if (!params.token) return 'error';
 
     const inscription = await this.inscriptionRepo.findOne({ where: { token: params.token } });
-    if (!inscription) return 'error';
+    if (!inscription || inscription.userId !== userId) return 'error';
     if (inscription.status !== 'pending') return this.outcomeOf(inscription.status);
 
     if (params.abortedBuyOrder) {
@@ -230,6 +233,11 @@ export class OneclickPaymentsService {
   // el paciente (cobro 1) o el backend por su cuenta (cobro 2, sin interacción).
   async chargeInvoice(userId: string, triggeredBy: PaymentChargeTrigger, invoiceId?: string): Promise<ChargeView> {
     this.assertEnabled();
+
+    // Suspender una cuenta cierra su acceso: ningún cobro, y menos el automático que no tiene
+    // sesión, debe pasar por encima de eso. En el lote queda como «skipped».
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user || user.accountStatus !== 'active') throw new ConflictException('La cuenta no está activa: no se cobra');
 
     const inscription = await this.inscriptionRepo.findOne({ where: { userId, status: 'active' } });
     if (!inscription || !inscription.tbkUser) throw new ConflictException('Primero inscribe una tarjeta');
@@ -423,7 +431,7 @@ export class OneclickPaymentsService {
           .getRepository(PaymentCharge)
           .update({ id: charge.id, status: 'processing' }, { status: 'authorized', ...fields });
         if (!updated.affected) return;
-        await this.billing.settleInvoices(charge.userId, [invoice], { notification: 'payment', manager });
+        await this.billing.settleInvoices(charge.userId, [invoice], { notification: 'payment', reactivateAccount: false, manager });
       });
       this.logger.log(`Cobro ${charge.id} autorizado (${charge.triggeredBy})`);
     } else {

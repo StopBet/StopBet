@@ -85,7 +85,7 @@ describe('OneclickPaymentsService', () => {
       findOne: jest.fn().mockResolvedValue(invoice()),
       find: jest.fn().mockResolvedValue([invoice()]),
     };
-    userRepo = { findOne: jest.fn().mockResolvedValue({ id: USER_ID, email: EMAIL }) };
+    userRepo = { findOne: jest.fn().mockResolvedValue({ id: USER_ID, email: EMAIL, accountStatus: 'active' }) };
     const manager = { getRepository: jest.fn((entity: unknown) => (entity === PaymentCharge ? chargeRepo : {})) };
     dataSource = { transaction: jest.fn((run: (m: unknown) => Promise<unknown>) => run(manager)) };
     gateway = {
@@ -152,7 +152,7 @@ describe('OneclickPaymentsService', () => {
   });
 
   describe('finishInscription', () => {
-    const pending = { id: 'insc-1', username: USER_ID, status: 'pending' };
+    const pending = { id: 'insc-1', userId: USER_ID, username: USER_ID, status: 'pending' };
 
     beforeEach(() => inscriptionRepo.findOne.mockResolvedValue(pending));
 
@@ -166,7 +166,7 @@ describe('OneclickPaymentsService', () => {
         authorizationCode: '123456',
       });
 
-      const outcome = await service.finishInscription({ token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
+      const outcome = await service.finishInscription(USER_ID, { token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
 
       expect(outcome).toBe('ok');
       expect(inscriptionRepo.update).toHaveBeenCalledWith(
@@ -185,7 +185,7 @@ describe('OneclickPaymentsService', () => {
         authorizationCode: null,
       });
 
-      const outcome = await service.finishInscription({ token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
+      const outcome = await service.finishInscription(USER_ID, { token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
 
       expect(outcome).toBe('rechazada');
       expect(inscriptionRepo.update).toHaveBeenCalledWith(
@@ -195,7 +195,7 @@ describe('OneclickPaymentsService', () => {
     });
 
     it('si el paciente anuló en el formulario, queda anulada y no se cierra con Transbank', async () => {
-      const outcome = await service.finishInscription({ token: 'TOKEN123', abortedBuyOrder: 'SB123', abortedSessionId: 's' });
+      const outcome = await service.finishInscription(USER_ID, { token: 'TOKEN123', abortedBuyOrder: 'SB123', abortedSessionId: 's' });
 
       expect(outcome).toBe('anulada');
       expect(gateway.finishInscription).not.toHaveBeenCalled();
@@ -208,26 +208,43 @@ describe('OneclickPaymentsService', () => {
     it('un token desconocido responde error sin llamar a Transbank', async () => {
       inscriptionRepo.findOne.mockResolvedValue(null);
 
-      expect(await service.finishInscription({ token: 'NOSE', abortedBuyOrder: null, abortedSessionId: null })).toBe('error');
+      expect(await service.finishInscription(USER_ID, { token: 'NOSE', abortedBuyOrder: null, abortedSessionId: null })).toBe('error');
       expect(gateway.finishInscription).not.toHaveBeenCalled();
     });
 
+    // Con solo el token, quien abre un formulario con SU cuenta podría hacer que otra persona lo
+    // complete y quedarse con la tarjeta de esa persona. Se exige que la inscripción sea de quien llama.
+    it('una inscripción de otra persona responde error, sin llamar a Transbank ni tocarla', async () => {
+      const outcome = await service.finishInscription('otro-paciente', { token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
+
+      expect(outcome).toBe('error');
+      expect(gateway.finishInscription).not.toHaveBeenCalled();
+      expect(inscriptionRepo.update).not.toHaveBeenCalled();
+    });
+
+    it('otra persona tampoco puede anular una inscripción que no abrió', async () => {
+      const outcome = await service.finishInscription('otro-paciente', { token: 'TOKEN123', abortedBuyOrder: 'SB123', abortedSessionId: 's' });
+
+      expect(outcome).toBe('error');
+      expect(inscriptionRepo.update).not.toHaveBeenCalled();
+    });
+
     it('sin token responde error', async () => {
-      expect(await service.finishInscription({ token: null, abortedBuyOrder: null, abortedSessionId: null })).toBe('error');
+      expect(await service.finishInscription(USER_ID, { token: null, abortedBuyOrder: null, abortedSessionId: null })).toBe('error');
     });
 
     // Recargar la página de retorno no debe volver a cerrar con Transbank: el token ya se consumió.
     it('es idempotente: un token ya usado repite el resultado sin llamar a Transbank', async () => {
       inscriptionRepo.findOne.mockResolvedValue({ ...pending, status: 'active' });
 
-      expect(await service.finishInscription({ token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null })).toBe('ok');
+      expect(await service.finishInscription(USER_ID, { token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null })).toBe('ok');
       expect(gateway.finishInscription).not.toHaveBeenCalled();
     });
 
     it('si Transbank falla (por ejemplo pasaron los 60 s), queda fallida y no lanza', async () => {
       gateway.finishInscription.mockRejectedValue(new Error('timeout'));
 
-      const outcome = await service.finishInscription({ token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
+      const outcome = await service.finishInscription(USER_ID, { token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
 
       expect(outcome).toBe('error');
       expect(inscriptionRepo.update).toHaveBeenCalledWith({ id: 'insc-1', status: 'pending' }, expect.objectContaining({ status: 'failed' }));
@@ -244,7 +261,7 @@ describe('OneclickPaymentsService', () => {
       });
       inscriptionRepo.update.mockRejectedValueOnce(uniqueViolation());
 
-      const outcome = await service.finishInscription({ token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
+      const outcome = await service.finishInscription(USER_ID, { token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
 
       expect(outcome).toBe('error');
       expect(gateway.deleteInscription).toHaveBeenCalledWith(TBK_USER, USER_ID);
@@ -286,8 +303,25 @@ describe('OneclickPaymentsService', () => {
       expect(dataSource.transaction).toHaveBeenCalled();
       expect(billing.settleInvoices).toHaveBeenCalledWith(USER_ID, [expect.objectContaining({ id: 'inv-10' })], {
         notification: 'payment',
+        reactivateAccount: false,
         manager: expect.anything(),
       });
+    });
+
+    // Suspender una cuenta cierra su acceso: ningún cobro, y menos el automático, debe pasar por encima.
+    it('una cuenta suspendida no se cobra: ni llama a Transbank ni deja un cobro', async () => {
+      userRepo.findOne.mockResolvedValue({ id: USER_ID, email: EMAIL, accountStatus: 'suspended' });
+
+      await expect(service.chargeInvoice(USER_ID, 'automatic', 'inv-10')).rejects.toThrow(ConflictException);
+
+      expect(gateway.authorize).not.toHaveBeenCalled();
+      expect(chargeRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('un cobro real no le cambia el estado a la cuenta: la reactivación la pide solo el pago simulado', async () => {
+      await service.chargeInvoice(USER_ID, 'automatic', 'inv-10');
+
+      expect(billing.settleInvoices.mock.calls[0][2]).toMatchObject({ reactivateAccount: false });
     });
 
     it('guarda quién lo disparó: el cobro automático queda como automático', async () => {
@@ -422,9 +456,9 @@ describe('OneclickPaymentsService', () => {
       const spies = (['log', 'warn', 'error'] as const).map((m) => jest.spyOn(Logger.prototype, m).mockImplementation(() => undefined));
       gateway.authorize.mockResolvedValueOnce(rejected);
       await service.chargeInvoice(USER_ID, 'user', 'inv-10');
-      inscriptionRepo.findOne.mockResolvedValue({ id: 'insc-1', username: USER_ID, status: 'pending' });
+      inscriptionRepo.findOne.mockResolvedValue({ id: 'insc-1', userId: USER_ID, username: USER_ID, status: 'pending' });
       gateway.finishInscription.mockResolvedValue({ approved: true, responseCode: 0, tbkUser: TBK_USER, cardType: 'Visa', cardLast4: '6623', authorizationCode: '1' });
-      await service.finishInscription({ token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
+      await service.finishInscription(USER_ID, { token: 'TOKEN123', abortedBuyOrder: null, abortedSessionId: null });
 
       const written = spies.flatMap((s) => s.mock.calls.map((c) => String(c[0]))).join('\n');
       expect(written).not.toContain(EMAIL);
@@ -477,6 +511,15 @@ describe('OneclickPaymentsService', () => {
           ['inv-a', 'error'],
           ['inv-b', 'authorized'],
         ]);
+      });
+
+      it('la cuota de una cuenta suspendida aparece como omitida y no se cobra', async () => {
+        userRepo.findOne.mockResolvedValue({ id: USER_ID, email: EMAIL, accountStatus: 'suspended' });
+
+        const summary = await service.chargeDueInvoices('2026-11-30');
+
+        expect(summary[0].result).toBe('skipped');
+        expect(gateway.authorize).not.toHaveBeenCalled();
       });
 
       it('una cuota que ya tiene su cobro aparece como omitida, no como error', async () => {

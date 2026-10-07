@@ -69,14 +69,14 @@ export class BillingService {
       where: { userId, status: 'overdue' },
     });
 
-    await this.settleInvoices(userId, overdueInvoices, { notification: 'reactivated' });
+    await this.settleInvoices(userId, overdueInvoices, { notification: 'reactivated', reactivateAccount: true });
 
     return this.getBillingStatus(userId);
   }
 
   // Salda cuotas y deja el resto de la cuenta consistente. Lo usan el pago simulado (`pay`) y los
   // cobros reales de `payments`, para que una cuota pagada por cualquier camino tenga las mismas
-  // consecuencias: sale de «vencida», la cuenta se reactiva solo si ya no debe nada, existe la
+  // consecuencias: sale de «vencida», la cuenta se reactiva solo si el llamador lo pide y ya no debe nada, existe la
   // cuota del mes siguiente y el paciente recibe su aviso.
   //
   // El update es condicional (`status <> 'paid'`): si dos caminos saldan la misma cuota a la vez,
@@ -84,7 +84,7 @@ export class BillingService {
   async settleInvoices(
     userId: string,
     invoices: Invoice[],
-    opts: { notification: SettleNotification; manager?: EntityManager },
+    opts: { notification: SettleNotification; reactivateAccount: boolean; manager?: EntityManager },
   ): Promise<void> {
     const invoiceRepo = opts.manager ? opts.manager.getRepository(Invoice) : this.invoiceRepo;
     const userRepo = opts.manager ? opts.manager.getRepository(User) : this.userRepo;
@@ -98,13 +98,19 @@ export class BillingService {
       );
     }
 
-    // La cuenta solo se reactiva si no queda ninguna cuota vencida: un cobro de la cuota de este
-    // mes no debe reabrir a quien todavía debe meses anteriores.
-    const stillOverdue = (await invoiceRepo.find({ where: { userId, status: 'overdue' } })).filter(
-      (i) => !ids.includes(i.id),
-    );
-    if (stillOverdue.length === 0) {
-      await userRepo.update(userId, { accountStatus: 'active' });
+    // Reactivar la cuenta es decisión de quien llama. El pago simulado (`pay`) lo hace porque lo pide
+    // el propio paciente con su sesión. Un cobro real NO: lo dispara el backend sin sesión, y una
+    // cuenta suspendida no puede iniciar sesión justamente porque alguien cerró su acceso; que un
+    // cobro lo reabra pasaría por encima de esa suspensión. Cuándo se levanta por pago es una
+    // decisión pendiente del PO (docs/ASUNCIONES-PENDIENTES.md, punto 5).
+    if (opts.reactivateAccount) {
+      // Solo si no queda ninguna cuota vencida: pagar este mes no reabre a quien debe meses anteriores.
+      const stillOverdue = (await invoiceRepo.find({ where: { userId, status: 'overdue' } })).filter(
+        (i) => !ids.includes(i.id),
+      );
+      if (stillOverdue.length === 0) {
+        await userRepo.update(userId, { accountStatus: 'active' });
+      }
     }
 
     // Genera la factura del mes siguiente si no existe

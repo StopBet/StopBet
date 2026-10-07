@@ -135,6 +135,7 @@ export const ONECLICK_TEST_PAGE = `<!doctype html>
       log.textContent = '[' + stamp() + '] Sesión iniciada como ' + email + ' (' + state.role + ')';
     }
     paintSession();
+    cerrarInscripcion();
   }
 
   document.querySelectorAll('button[data-email]').forEach(function (b) {
@@ -178,19 +179,44 @@ export const ONECLICK_TEST_PAGE = `<!doctype html>
     if (id) call('GET', '/payments/oneclick/charges/' + encodeURIComponent(id) + '/transbank-status');
   });
 
-  var outcome = new URLSearchParams(location.search).get('inscripcion');
   var mensajes = {
     ok: 'Tarjeta inscrita. Ya puedes cobrar.',
     rechazada: 'Transbank rechazó la tarjeta. No quedó inscrita.',
     anulada: 'Anulaste la inscripción en el formulario de Transbank.',
     error: 'No pudimos cerrar la inscripción. Vuelve a intentarlo.'
   };
-  if (outcome) {
-    $('resultado').textContent = mensajes[outcome] || outcome;
+  var PENDING = KEY + ':pendiente';
+
+  // Transbank devuelve al navegador con TBK_TOKEN en la URL. El backend NO cierra la inscripción
+  // con eso solo: la cierra esta página llamando con la sesión del paciente que la abrió.
+  async function cerrarInscripcion() {
+    var raw = null;
+    try { raw = JSON.parse(sessionStorage.getItem(PENDING)); } catch (e) {}
+    if (!raw) return;
+    if (!state.token) {
+      $('resultado').textContent = 'Entra como el paciente que abrió el formulario para cerrar la inscripción.';
+      return;
+    }
+    sessionStorage.removeItem(PENDING);
+    var res = await call('POST', '/payments/oneclick/inscriptions/finish', raw);
+    var outcome = res.json && res.json.outcome;
+    $('resultado').textContent = mensajes[outcome] || mensajes.error;
+    if (outcome === 'ok') call('GET', '/payments/oneclick/inscription');
+  }
+
+  var qs = new URLSearchParams(location.search);
+  if (qs.get('TBK_TOKEN')) {
+    var datos = { token: qs.get('TBK_TOKEN') };
+    if (qs.get('TBK_ORDEN_COMPRA')) datos.abortedBuyOrder = qs.get('TBK_ORDEN_COMPRA');
+    if (qs.get('TBK_ID_SESION')) datos.abortedSessionId = qs.get('TBK_ID_SESION');
+    sessionStorage.setItem(PENDING, JSON.stringify(datos));
     history.replaceState(null, '', location.pathname);
-    if (state.token && outcome === 'ok') call('GET', '/payments/oneclick/inscription');
+  } else if (qs.get('inscripcion')) {
+    $('resultado').textContent = mensajes[qs.get('inscripcion')] || mensajes.error;
+    history.replaceState(null, '', location.pathname);
   }
   paintSession();
+  cerrarInscripcion();
 })();
 </script>
 </body>

@@ -114,7 +114,7 @@ describe('BillingService.settleInvoices', () => {
   });
 
   it('un cobro real avisa «Recibimos tu pago» con el mes y destino de pagos, no «cuenta reactivada»', async () => {
-    await service.settleInvoices(USER_ID, [pending('2026-10', 'inv-10')] as any, { notification: 'payment' });
+    await service.settleInvoices(USER_ID, [pending('2026-10', 'inv-10')] as any, { notification: 'payment', reactivateAccount: true });
 
     expect(notifRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -127,7 +127,7 @@ describe('BillingService.settleInvoices', () => {
   });
 
   it('marca pagada solo si no lo estaba ya: el update es condicional', async () => {
-    await service.settleInvoices(USER_ID, [pending('2026-10', 'inv-10')] as any, { notification: 'payment' });
+    await service.settleInvoices(USER_ID, [pending('2026-10', 'inv-10')] as any, { notification: 'payment', reactivateAccount: true });
 
     const [where, set] = invoiceRepo.update.mock.calls[0];
     expect(where).toEqual(expect.objectContaining({ userId: USER_ID, status: expect.anything() }));
@@ -137,7 +137,7 @@ describe('BillingService.settleInvoices', () => {
   it('no reactiva la cuenta si todavía debe cuotas de meses anteriores', async () => {
     invoiceRepo.find.mockResolvedValue([overdue('2026-08', 'inv-8'), overdue('2026-09', 'inv-9')]);
 
-    await service.settleInvoices(USER_ID, [overdue('2026-09', 'inv-9')] as any, { notification: 'payment' });
+    await service.settleInvoices(USER_ID, [overdue('2026-09', 'inv-9')] as any, { notification: 'payment', reactivateAccount: true });
 
     expect(userRepo.update).not.toHaveBeenCalled();
   });
@@ -145,9 +145,20 @@ describe('BillingService.settleInvoices', () => {
   it('reactiva la cuenta cuando salda la última cuota vencida', async () => {
     invoiceRepo.find.mockResolvedValue([overdue('2026-09', 'inv-9')]);
 
-    await service.settleInvoices(USER_ID, [overdue('2026-09', 'inv-9')] as any, { notification: 'payment' });
+    await service.settleInvoices(USER_ID, [overdue('2026-09', 'inv-9')] as any, { notification: 'payment', reactivateAccount: true });
 
     expect(userRepo.update).toHaveBeenCalledWith(USER_ID, { accountStatus: 'active' });
+  });
+
+  // Un cobro real lo dispara el backend sin sesión. Una cuenta suspendida no puede iniciar sesión
+  // porque alguien cerró su acceso: que un cobro la reabriera pasaría por encima de esa decisión.
+  it('con reactivateAccount en false nunca reactiva la cuenta, ni siquiera sin cuotas vencidas', async () => {
+    invoiceRepo.find.mockResolvedValue([]);
+
+    await service.settleInvoices(USER_ID, [pending('2026-10', 'inv-10')] as any, { notification: 'payment', reactivateAccount: false });
+
+    expect(userRepo.update).not.toHaveBeenCalled();
+    expect(invoiceRepo.update).toHaveBeenCalled();
   });
 
   it('dentro de una transacción usa los repositorios del manager y no los del servicio', async () => {
@@ -162,6 +173,7 @@ describe('BillingService.settleInvoices', () => {
 
     await service.settleInvoices(USER_ID, [pending('2026-10', 'inv-10')] as any, {
       notification: 'payment',
+      reactivateAccount: true,
       manager: manager as any,
     });
 

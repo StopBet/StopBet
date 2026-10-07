@@ -36,6 +36,7 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
 
   let patient: { id: string; email: string; token: string };
   let otherPatient: { id: string; email: string; token: string };
+  let attacker: { id: string; email: string; token: string };
   let coordinator: { id: string; email: string; token: string };
   let invoiceA: Invoice;
   let invoiceB: Invoice;
@@ -107,9 +108,15 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
     return res.text ? res.body : null;
   }
 
+  // Lo que hace el navegador del paciente: Transbank lo devuelve a la URL de retorno, que solo
+  // reenvía, y la página cierra la inscripción llamando con SU sesión.
+  const finish = (who: { token: string }, params: Record<string, string>) =>
+    http().post('/payments/oneclick/inscriptions/finish').set(as(who.token)).send(params);
+
   async function enroll(who: { token: string }): Promise<string> {
     const started = await http().post('/payments/oneclick/inscriptions').set(as(who.token)).expect(201);
     await http().get('/payments/oneclick/inscriptions/return').query({ TBK_TOKEN: started.body.token }).expect(303);
+    await finish(who, { token: started.body.token }).expect(200);
     return started.body.token;
   }
 
@@ -136,6 +143,7 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
 
     patient = await createUser('patient', 'Paciente');
     otherPatient = await createUser('patient', 'Otro');
+    attacker = await createUser('patient', 'Atacante');
     coordinator = await createUser('coordinator', 'Coordinacion');
 
     // Dos cuotas vencidas del paciente: la primera la paga él (cobro 1) y la segunda el backend (cobro 2).
@@ -170,11 +178,13 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
   describe('permisos', () => {
     it('sin token, 401', async () => {
       await http().post('/payments/oneclick/inscriptions').expect(401);
+      await http().post('/payments/oneclick/inscriptions/finish').send({ token: 'ABC' }).expect(401);
       await http().post('/payments/oneclick/charges').send({}).expect(401);
     });
 
     it('la coordinación no puede inscribir ni cobrar como paciente', async () => {
       await http().post('/payments/oneclick/inscriptions').set(as(coordinator.token)).expect(403);
+      await http().post('/payments/oneclick/inscriptions/finish').set(as(coordinator.token)).send({ token: 'ABC' }).expect(403);
       await http().post('/payments/oneclick/charges').set(as(coordinator.token)).send({}).expect(403);
       await http().get('/payments/oneclick/inscription').set(as(coordinator.token)).expect(403);
     });
@@ -195,7 +205,8 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
       expect(gateway.startInscription).toHaveBeenCalledWith(patient.id, patient.email, expect.stringContaining('/payments/oneclick/inscriptions/return'));
     });
 
-    it('el retorno es público, acepta parámetros desconocidos y redirige con el resultado', async () => {
+    // El retorno es una redirección del navegador y no trae sesión: por sí solo no puede cerrar nada.
+    it('el retorno es público, acepta parámetros desconocidos y solo reenvía el token, sin cerrar la inscripción', async () => {
       const started = await http().post('/payments/oneclick/inscriptions').set(as(patient.token)).expect(201);
 
       // Con un DTO, `campo_nuevo` haría que el ValidationPipe respondiera 400 al navegador.
@@ -205,7 +216,19 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
         .expect(303);
 
       expect(res.headers.location).toContain('/payments/oneclick/test-page');
-      expect(res.headers.location).toContain('inscripcion=ok');
+      expect(res.headers.location).toContain(`TBK_TOKEN=${started.body.token}`);
+      expect(res.headers.location).not.toContain('campo_nuevo');
+      expect(gateway.finishInscription).not.toHaveBeenCalled();
+      expect(await cardOf(patient)).toBeNull();
+    });
+
+    it('el paciente cierra la inscripción con su sesión y queda con la tarjeta', async () => {
+      const [pendingInscription] = await inscriptionRepo.find({ where: { userId: patient.id, status: 'pending' }, order: { createdAt: 'DESC' } });
+
+      const res = await finish(patient, { token: pendingInscription.token as string }).expect(200);
+
+      expect(res.body).toEqual({ outcome: 'ok' });
+      expect(gateway.finishInscription).toHaveBeenCalledTimes(1);
     });
 
     it('guarda solo el tipo y los últimos 4 dígitos, y el tbkUser cifrado en la base', async () => {
@@ -223,13 +246,13 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
       expect(gateway.startInscription).not.toHaveBeenCalled();
     });
 
-    it('recargar la página de retorno no vuelve a cerrar la inscripción con Transbank', async () => {
+    it('cerrar de nuevo la misma inscripción repite el resultado sin llamar a Transbank', async () => {
       const token = await enroll(otherPatient);
       gateway.finishInscription.mockClear();
 
-      const again = await http().post('/payments/oneclick/inscriptions/return').type('form').send({ TBK_TOKEN: token }).expect(303);
+      const again = await finish(otherPatient, { token }).expect(200);
 
-      expect(again.headers.location).toContain('inscripcion=ok');
+      expect(again.body).toEqual({ outcome: 'ok' });
       expect(gateway.finishInscription).not.toHaveBeenCalled();
     });
 
@@ -239,27 +262,55 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
 
       const res = await http().post('/payments/oneclick/inscriptions/return').type('form').send({ TBK_TOKEN: started.body.token }).expect(303);
 
-      expect(res.headers.location).toContain('inscripcion=ok');
+      expect(res.headers.location).toContain(`TBK_TOKEN=${started.body.token}`);
+      await finish(otherPatient, { token: started.body.token }).expect(200);
+      expect((await cardOf(otherPatient))?.status).toBe('active');
     });
 
-    it('si el paciente anula en Transbank, queda anulada y nunca se cierra', async () => {
+    it('si el paciente anula en Transbank, queda anulada y nunca se cierra con Transbank', async () => {
       await http().delete('/payments/oneclick/inscription').set(as(otherPatient.token)).expect(204);
       const started = await http().post('/payments/oneclick/inscriptions').set(as(otherPatient.token)).expect(201);
 
-      const res = await http()
+      const back = await http()
         .get('/payments/oneclick/inscriptions/return')
         .query({ TBK_TOKEN: started.body.token, TBK_ORDEN_COMPRA: 'SB123', TBK_ID_SESION: 'sess' })
         .expect(303);
+      expect(back.headers.location).toContain('TBK_ORDEN_COMPRA=SB123');
 
-      expect(res.headers.location).toContain('inscripcion=anulada');
+      const res = await finish(otherPatient, { token: started.body.token, abortedBuyOrder: 'SB123', abortedSessionId: 'sess' }).expect(200);
+
+      expect(res.body).toEqual({ outcome: 'anulada' });
       expect(gateway.finishInscription).not.toHaveBeenCalled();
       expect(await cardOf(otherPatient)).toBeNull();
     });
 
-    it('un token que no existe también redirige, sin error', async () => {
-      const res = await http().get('/payments/oneclick/inscriptions/return').query({ TBK_TOKEN: 'NOEXISTE' }).expect(303);
+    // El ataque que esto cierra: quien tiene una cuenta abre una inscripción y hace que otra persona
+    // complete el formulario de Transbank con SU tarjeta, para dejarla atada a la cuenta de quien
+    // abrió. Con la sesión de la víctima, el token del atacante no cierra nada.
+    it('una inscripción abierta por otra persona no se puede cerrar con mi sesión', async () => {
+      const started = await http().post('/payments/oneclick/inscriptions').set(as(attacker.token)).expect(201);
 
-      expect(res.headers.location).toContain('inscripcion=error');
+      const asVictim = await finish(otherPatient, { token: started.body.token }).expect(200);
+
+      expect(asVictim.body).toEqual({ outcome: 'error' });
+      expect(gateway.finishInscription).not.toHaveBeenCalled();
+      expect(await cardOf(attacker)).toBeNull();
+
+      // El dueño sí puede, así que la inscripción no quedó rota.
+      const asOwner = await finish(attacker, { token: started.body.token }).expect(200);
+      expect(asOwner.body).toEqual({ outcome: 'ok' });
+    });
+
+    it('un token que no existe responde error, sin llamar a Transbank', async () => {
+      const res = await finish(patient, { token: 'NOEXISTE' }).expect(200);
+
+      expect(res.body).toEqual({ outcome: 'error' });
+      expect(gateway.finishInscription).not.toHaveBeenCalled();
+    });
+
+    it('un cierre con un token mal formado responde 400', async () => {
+      await finish(patient, { token: 'con espacios y <script>' }).expect(400);
+      await http().post('/payments/oneclick/inscriptions/finish').set(as(patient.token)).send({}).expect(400);
     });
 
     it('un retorno sin nada también redirige, sin error', async () => {
@@ -348,6 +399,43 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
 
     it('un id de cobro que no es un UUID responde 400', async () => {
       await http().get('/payments/oneclick/charges/no-es-uuid/transbank-status').set(as(coordinator.token)).expect(400);
+    });
+  });
+
+  // ── Cuenta suspendida ─────────────────────────────────────────────────────────────────────
+
+  describe('cuenta suspendida', () => {
+    // Suspender una cuenta cierra su acceso. El cobro automático no tiene sesión que se lo impida,
+    // así que lo tiene que respetar él: ni cobra ni reabre la cuenta.
+    it('el cobro automático la omite: no cobra, no paga la cuota y no la reactiva', async () => {
+      const passwordHash = await bcrypt.hash(PASSWORD, 10);
+      const user = await userRepo.save(
+        userRepo.create({
+          email: `e2e-pay-suspendida-${unique()}@stopbet.cl`,
+          passwordHash,
+          role: 'patient',
+          firstName: 'E2E',
+          lastName: 'Suspendida',
+          accountStatus: 'suspended',
+          onboardingStatus: 'complete',
+        }),
+      );
+      userIds.push(user.id);
+      await inscriptionRepo.save(
+        inscriptionRepo.create({ userId: user.id, username: user.id, token: `SUSP${unique().replace(/[^a-z0-9]/gi, '')}`, status: 'active', tbkUser: 'tbk-suspendida', cardType: 'Visa', cardLast4: '6623' }),
+      );
+      const debt = await invoiceRepo.save(
+        invoiceRepo.create({ userId: user.id, month: '2020-05', amountCLP: 30000, status: 'overdue', dueDate: '2020-05-31' }),
+      );
+      gateway.authorize.mockClear();
+
+      const res = await http().post('/payments/oneclick/charges/run-due').set(as(coordinator.token)).send({ asOf: '2020-12-31' }).expect(200);
+
+      expect(res.body).toEqual(expect.arrayContaining([expect.objectContaining({ invoiceId: debt.id, result: 'skipped' })]));
+      expect(gateway.authorize).not.toHaveBeenCalled();
+      expect((await invoiceRepo.findOneByOrFail({ id: debt.id })).status).toBe('overdue');
+      expect((await userRepo.findOneByOrFail({ id: user.id })).accountStatus).toBe('suspended');
+      expect(await chargeRepo.count({ where: { userId: user.id } })).toBe(0);
     });
   });
 
