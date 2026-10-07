@@ -67,6 +67,8 @@ export type AppStackParamList = {
   Notifications: undefined;
   Assistant: undefined;
   Panic: undefined;
+  /** La pantalla de quien fue designado compañero de viaje: responder alertas y ver a quién acompaña. */
+  SponsorAlert: undefined;
   SuspendedAccount: undefined;
   // Las conversaciones van en el stack y no dentro de la pestaña Comunidad: abrir el teclado
   // sobre el pager lo rearma en la primera página y remonta la pantalla (ver `StaffThread`).

@@ -1,5 +1,6 @@
 import type {
   LoginResponse,
+  AccompaniedResponse,
   ActiveAlertResponse,
   AchievementsData,
   RelapseResponse,
@@ -453,8 +454,9 @@ export const api = {
       method: 'POST',
     }),
 
-  getPendingPanicAlerts: (sponsorId: string) =>
-    request<PanicAlertDto[]>('/panic/pending', { userId: sponsorId }),
+  // Para quien fue designado compañero de viaje: a quién acompaña y su alerta reciente.
+  getAccompanied: (userId: string) =>
+    request<AccompaniedResponse>('/panic/accompanied', { userId }),
 
   // ── Comunidad y red de apoyo ─────────────────────────────────────────
   getAnnouncements: (userId: string, sede: string) =>
