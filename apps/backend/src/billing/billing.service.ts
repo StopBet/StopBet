@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, In, Not, Repository } from 'typeorm';
 import {
   BillingStatus,
   Invoice as InvoiceType,
@@ -13,6 +13,10 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { todayInChile } from '../common/chile-date';
 
 const MONTHLY_AMOUNT_CLP = 30_000;
+
+// Qué se le dice al paciente al saldar sus cuotas: «reactivated» es el pago simulado de hoy
+// (`pay`, que vuelve a abrir una cuenta suspendida); «payment» es un cobro real de la pasarela.
+export type SettleNotification = 'reactivated' | 'payment';
 
 @Injectable()
 export class BillingService {
@@ -65,25 +69,58 @@ export class BillingService {
       where: { userId, status: 'overdue' },
     });
 
-    const now = new Date();
-    for (const invoice of overdueInvoices) {
-      invoice.status = 'paid' as InvoiceStatus;
-      invoice.paidAt = now;
-    }
-    await this.invoiceRepo.save(overdueInvoices);
+    await this.settleInvoices(userId, overdueInvoices, { notification: 'reactivated', reactivateAccount: true });
 
-    await this.userRepo.update(userId, { accountStatus: 'active' });
+    return this.getBillingStatus(userId);
+  }
+
+  // Salda cuotas y deja el resto de la cuenta consistente. Lo usan el pago simulado (`pay`) y los
+  // cobros reales de `payments`, para que una cuota pagada por cualquier camino tenga las mismas
+  // consecuencias: sale de «vencida», la cuenta se reactiva solo si el llamador lo pide y ya no debe nada, existe la
+  // cuota del mes siguiente y el paciente recibe su aviso.
+  //
+  // El update es condicional (`status <> 'paid'`): si dos caminos saldan la misma cuota a la vez,
+  // la segunda no la vuelve a marcar. Con `manager`, todo ocurre en la transacción del cobro.
+  async settleInvoices(
+    userId: string,
+    invoices: Invoice[],
+    opts: { notification: SettleNotification; reactivateAccount: boolean; manager?: EntityManager },
+  ): Promise<void> {
+    const invoiceRepo = opts.manager ? opts.manager.getRepository(Invoice) : this.invoiceRepo;
+    const userRepo = opts.manager ? opts.manager.getRepository(User) : this.userRepo;
+    const notifRepo = opts.manager ? opts.manager.getRepository(Notification) : this.notifRepo;
+
+    const ids = invoices.map((i) => i.id);
+    if (ids.length > 0) {
+      await invoiceRepo.update(
+        { id: In(ids), userId, status: Not('paid' as InvoiceStatus) },
+        { status: 'paid' as InvoiceStatus, paidAt: new Date() },
+      );
+    }
+
+    // Reactivar la cuenta es decisión de quien llama. El pago simulado (`pay`) lo hace porque lo pide
+    // el propio paciente con su sesión. Un cobro real NO: lo dispara el backend sin sesión, y una
+    // cuenta suspendida no puede iniciar sesión justamente porque alguien cerró su acceso; que un
+    // cobro lo reabra pasaría por encima de esa suspensión. Cuándo se levanta por pago es una
+    // decisión pendiente del PO (docs/ASUNCIONES-PENDIENTES.md, punto 5).
+    if (opts.reactivateAccount) {
+      // Solo si no queda ninguna cuota vencida: pagar este mes no reabre a quien debe meses anteriores.
+      const stillOverdue = (await invoiceRepo.find({ where: { userId, status: 'overdue' } })).filter(
+        (i) => !ids.includes(i.id),
+      );
+      if (stillOverdue.length === 0) {
+        await userRepo.update(userId, { accountStatus: 'active' });
+      }
+    }
 
     // Genera la factura del mes siguiente si no existe
     const nextMonth = this.nextMonthStr(this.today());
-    const exists = await this.invoiceRepo.findOne({
-      where: { userId, month: nextMonth },
-    });
+    const exists = await invoiceRepo.findOne({ where: { userId, month: nextMonth } });
     if (!exists) {
       const [y, m] = nextMonth.split('-').map(Number);
       const lastDay = new Date(y, m, 0).getDate();
-      await this.invoiceRepo.save(
-        this.invoiceRepo.create({
+      await invoiceRepo.save(
+        invoiceRepo.create({
           userId,
           month: nextMonth,
           amountCLP: MONTHLY_AMOUNT_CLP,
@@ -93,16 +130,25 @@ export class BillingService {
       );
     }
 
-    await this.notifRepo.save(
-      this.notifRepo.create({
-        userId,
-        type: 'success',
-        title: '¡Cuenta reactivada!',
-        body: 'Tu cuenta quedó activa de nuevo. Puedes retomar tu proceso.',
-      }),
+    const months = invoices.map((i) => i.month).join(', ');
+    await notifRepo.save(
+      notifRepo.create(
+        opts.notification === 'reactivated'
+          ? {
+              userId,
+              type: 'success',
+              title: '¡Cuenta reactivada!',
+              body: 'Tu cuenta quedó activa de nuevo. Puedes retomar tu proceso.',
+            }
+          : {
+              userId,
+              type: 'success',
+              title: 'Recibimos tu pago',
+              body: `Se cobró tu mensualidad${months ? ` (${months})` : ''}. ¡Gracias!`,
+              target: 'payment',
+            },
+      ),
     );
-
-    return this.getBillingStatus(userId);
   }
 
   getFamilyLink(userId: string): { url: string; token: string } {
