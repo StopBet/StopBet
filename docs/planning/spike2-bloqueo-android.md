@@ -4,10 +4,10 @@
 **Historias que dependen de esto:** HdU08 (bloqueo), HdU15-18 (carga y actualización de URLs)
 **Criterios:** CA1, CA2, CA3 y CA4 del SPIKE 2 (`docs/Sprint 2.md`).
 
-> **Estado (26-09-2026):** CA1 y CA3 redactados y verificados. El **PoC del CA2 está construido y
-> compila** (§5); falta correrlo en el teléfono y grabar el video (§6, paso 3). El CA4 tiene una
-> propuesta (§7) que se confirma con los resultados del CA2. Lo marcado _verificado_ tiene fuente
-> en §3; lo marcado _por medir_ **no se afirma todavía**.
+> **Estado (07-10-2026): CA1, CA2, CA3 y CA4 cerrados.** El CA2 se corrió el 07-10 en un Xiaomi
+> 2412DPC0AG (Android 16, Chrome 154) con video y registro; resultados en §6, paso 3, y la
+> evidencia criterio por criterio en `docs/planning/evidencia-spike2.md`. El CA4 quedó decidido
+> en §7. Lo marcado _verificado_ tiene fuente en §3; lo marcado _medido_ sale de esa prueba.
 
 **Respuesta corta:** sí es posible. Una app Android común —sin root, sin ser dueña del
 dispositivo, instalable desde Google Play— puede bloquear dominios de apuestas en todo el teléfono
@@ -36,7 +36,8 @@ usando la API `VpnService` como filtro de DNS local. El paciente puede desactiva
 | Contra | Impacto |
 |---|---|
 | **El paciente puede apagarlo en dos toques** | Es una barrera contra el impulso, no un candado. Hay que decirlo al definir qué se promete |
-| **El DNS cifrado se lo salta** | Chrome con "DNS seguro" y un proveedor elegido a mano, o el DNS privado de Android en modo estricto _(por medir — CA2)_ |
+| **El DNS seguro de Chrome se lo salta** | Con *Usar DNS seguro* en un proveedor elegido a mano (Google, Cloudflare…), Chrome resuelve por HTTPS y los sitios cargan, aunque StopBet vea y bloquee la consulta paralela. Además Chrome **guarda esas direcciones y las sigue usando** después de volver a la opción por defecto, incluso tras reiniciar. Con la opción por defecto no pasa _(medido — CA2)_ |
+| **El DNS privado estricto de Android rompe la navegación** | Con *DNS privado* en un servidor fijo y StopBet activo, el teléfono deja de resolver casi todo, no solo apuestas. No es un escape, es una avería visible; la app lo detecta y lo avisa en Perfil _(medido — CA2)_ |
 | **Una sola VPN activa a la vez** | Si el paciente usa otra VPN, una desactiva a la otra |
 | **«VPN siempre activa» con «Bloquear conexiones sin VPN»** | Si el paciente activa las dos en Ajustes, apagar el bloqueo desde la app deja **todo el teléfono sin internet**, y solo con la primera Android lo vuelve a encender solo. Desde Android 10 la app lo detecta (`isAlwaysOn()` / `isLockdownEnabled()`) y manda a Ajustes › VPN en vez de apagar; en Android 7-9 no hay API para saberlo _(verificado en emulador, 29-09)_ |
 | **Filtrar DNS no impide abrir aplicaciones** | Una app de apuestas instalada se abre igual; lo que se corta es su conexión, si resuelve por el DNS del sistema. Decisión del CA4 (§7) |
@@ -69,7 +70,7 @@ Los tres mecanismos que pide el criterio, en las cinco dimensiones que pide el c
 | **¿El paciente puede desactivarlo?** | Sí: desde Ajustes › VPN, desde la notificación, forzando el cierre o desinstalando. La app **se entera** por `onRevoke()` en los dos primeros casos; en los otros, solo por la ausencia de latido (§2.6) | Igual que A | Sí, desde Ajustes. **No hay aviso**: la app solo puede sondear `LinkProperties.getPrivateDnsServerName()` para ver si sigue puesto |
 | **Privacidad de sus datos** | La app ve **solo los nombres** que el teléfono consulta, y los procesa en el teléfono. No sale nada del dispositivo | La app ve **todas las conexiones** (IPs, puertos, nombre del servidor TLS). Nada sale, pero la responsabilidad es mucho mayor | ⚠️ **Todas las consultas DNS del paciente van a un tercero** (p. ej. NextDNS), normalmente fuera de Chile: es su historial de navegación en manos de un proveedor que StopBet no controla |
 | **Política de Google Play** | Formulario de declaración de `VpnService`, categoría de control parental / seguridad, aviso destacado con consentimiento y video ≤ 90 s (§4) | Mismo trámite, **más difícil de justificar**: la app ve tráfico que no necesita para bloquear | No usa `VpnService`: **sin declaración**. La app solo daría instrucciones |
-| **Limitaciones** | DNS cifrado propio de una app o del sistema lo salta _(por medir)_; una IP escrita a mano también; una sola VPN a la vez; no impide abrir apps | Batería y complejidad: hay que reimplementar el reenvío TCP/UDP en la app. Tampoco descifra HTTPS: bloquea por IP o por nombre TLS | Depende de la categoría del proveedor, no de la nómina chilena (salvo lista propia); plan gratuito de NextDNS limitado a 300.000 consultas/mes; el paciente debe configurarlo a mano |
+| **Limitaciones** | El DNS seguro de Chrome con un proveedor elegido lo salta _(medido)_; el DNS privado estricto de Android deja el teléfono sin resolver _(medido)_; una IP escrita a mano también; una sola VPN a la vez; no impide abrir apps | Batería y complejidad: hay que reimplementar el reenvío TCP/UDP en la app. Tampoco descifra HTTPS: bloquea por IP o por nombre TLS | Depende de la categoría del proveedor, no de la nómina chilena (salvo lista propia); plan gratuito de NextDNS limitado a 300.000 consultas/mes; el paciente debe configurarlo a mano |
 | **Veredicto** | **Elegido para el PoC** | Solo si A se evade con facilidad | No como mecanismo propio |
 
 | Descarte | Por qué |
@@ -132,9 +133,14 @@ después `prepare()` devuelve `null` y la app levanta el bloqueo **sin diálogo*
 _(verificado)_. La primera vez el paciente debe tocar aceptar, y eso no se puede saltar. Hay que
 llamar a `prepare()` siempre antes de arrancar, porque el paciente pudo haber elegido otra VPN.
 
-**Tras reiniciar el teléfono el bloqueo no vuelve solo**, salvo que el paciente active *VPN siempre
-activa* para StopBet en Ajustes (el PoC lo soporta: el sistema lo arranca con la acción
-`android.net.VpnService`). _(por medir — CA2)_
+**Tras reiniciar el teléfono el bloqueo vuelve solo** si estaba encendido: `BootReceiver` lo
+levanta sin abrir la app, y Android 16 autoriza el servicio en primer plano desde el arranque
+(`Background started FGS: Allowed ... code:BOOT_COMPLETED`). **Con demora**: el Xiaomi avisó del
+arranque casi 2 minutos después de encender, y durante ese tiempo el teléfono queda sin filtro.
+*VPN siempre activa* en Ajustes también lo levanta _(medido — CA2)_.
+
+**Ojo en Xiaomi:** apagar la VPN desde Ajustes **retira también el consentimiento**, así que
+*Reactivar* vuelve a mostrar el diálogo del sistema _(medido — CA2)_.
 
 **Detectar que lo apagaron: sí.** Android llama a **`onRevoke()`** cuando el usuario desactiva la
 VPN o cuando otra app de VPN toma su lugar _(verificado)_. Dos detalles: cuando llega, la interfaz
@@ -468,8 +474,8 @@ lo escuche en vivo.
 ### Paso 1 — CA1: comparación de mecanismos ✅ listo
 
 Matriz en §2.0: los tres mecanismos del criterio en las cinco dimensiones, más Device Owner y
-`AccessibilityService` como descartes justificados. Las celdas _por medir_ se confirman con el
-paso 3.
+`AccessibilityService` como descartes justificados. Las celdas que dependían de la prueba
+quedaron medidas en el paso 3.
 
 ### Paso 2 — CA3: fuentes de dominios ✅ listo
 
@@ -489,7 +495,7 @@ node scripts/spike2-cobertura-listas.mjs <carpeta-con-las-listas>
 Quedan abiertos, sin frenar el cierre: pedir por transparencia la nómina del 21-09, y la pregunta
 de `polla.cl` / `loteria.cl` a AJUTER (§7).
 
-### Paso 3 — CA2: correr el PoC y grabar el video ⬜
+### Paso 3 — CA2: correr el PoC y grabar el video ✅ 07-10-2026
 
 **Instalar** (teléfono con depuración USB, JDK 17, desde la raíz del repo):
 
@@ -512,16 +518,16 @@ partida es el de un teléfono normal.
 
 | # | Prueba | Qué demuestra | Resultado |
 |---|---|---|---|
-| 1 | Encender el interruptor → aparece el diálogo del sistema → aceptar. Se ve la llave en la barra de estado | Consentimiento, una sola vez | _por medir_ |
-| 2 | Con el bloqueo **activo**, abrir en Chrome al menos **20 dominios** de la lista: 12 de control (`bwin.com`, `pokerstars.com`, `888casino.com`, `williamhill.com`, `unibet.com`, `draftkings.com`, `fanduel.com`, `ladbrokes.com`, `paddypower.com`, `bovada.lv`, `betmgm.com`, `skybet.com`) + 8 de Subtel (`coolbet.com`, `1xbet.com`, `stake.com`, `betsson.com`, `rojabet.cl`, `jugabet.cl`, `melbet.com`, `bc.game`). El contador y *Últimos bloqueados* los van registrando | **Que bloquea ≥ 20 dominios** | _por medir_ |
-| 3 | Abrir sitios normales: `bancoestado.cl`, `sii.cl`, `google.com`, y usar StopBet (asistente, comunidad) | Que no rompe nada | _por medir_ |
-| 4 | **Desactivar la VPN desde Ajustes** (o desde la notificación) y volver a StopBet: aparece *Desactivado desde el sistema a las HH:MM*. Reabrir `bwin.com` y `pokerstars.com` | Que se evade en dos toques, que la app se entera (`onRevoke()`) y que los de control vuelven a cargar | _por medir_ |
-| 5 | Mismo apagado, reabrir `coolbet.com` | Que los de Subtel siguen cortados **por el ISP**, no por StopBet (anotar la red usada) | _por medir_ |
-| 6 | Reactivar. Chrome › *Usar DNS seguro* › elegir un proveedor (Cloudflare o Google). Reabrir `bwin.com` | **Si Chrome se salta el filtro** → decide A vs. B | _por medir_ |
-| 7 | Volver Chrome a la opción por defecto. Ajustes › DNS privado › `dns.google`. Reabrir `bwin.com`. La tarjeta debería mostrar el aviso de DNS privado | Si el DNS privado del sistema se salta el filtro, y que la app lo detecta | _por medir_ |
-| 8 | Dejar DNS privado en *Automático*. Reiniciar el teléfono con el bloqueo activo | Que **no** vuelve solo (esperado) | _por medir_ |
-| 9 | Ajustes › VPN › StopBet › *VPN siempre activa*. Reiniciar | Que así sí vuelve | _por medir_ |
-| 10 | Dejarlo activo unas horas y mirar Ajustes › Batería | Impacto en batería, aproximado | _por medir_ |
+| 1 | Encender desde Inicio → aparece el diálogo del sistema → aceptar | Consentimiento | ✅ Diálogo *Solicitud de conexión*; al aceptar, VPN `tun0` conectada (DNS `192.0.2.53`). En video: la reactivación de las 11:42 |
+| 2 | Con el bloqueo **activo**, abrir en Chrome al menos **20 dominios** de la lista: 12 de control (`bwin.com`, `pokerstars.com`, `888casino.com`, `williamhill.com`, `unibet.com`, `draftkings.com`, `fanduel.com`, `ladbrokes.com`, `paddypower.com`, `bovada.lv`, `betmgm.com`, `skybet.com`) + 8 de Subtel (`coolbet.com`, `1xbet.com`, `stake.com`, `betsson.com`, `rojabet.cl`, `jugabet.cl`, `melbet.com`, `bc.game`). El contador y *Últimos bloqueados* los van registrando | **Que bloquea ≥ 20 dominios** | ✅ **20 de 20**: `DNS_PROBE_FINISHED_NXDOMAIN` en Chrome y `BLOQUEADO` en el registro, entre 11:30:23 y 11:33:31. Contador: 509 consultas bloqueadas |
+| 3 | Abrir sitios normales: `bancoestado.cl`, `sii.cl`, `google.com`, y usar StopBet (asistente, comunidad) | Que no rompe nada | ✅ BancoEstado, SII, Google y Wikipedia cargan. ⚠️ Con wifi **y** datos encendidos a la vez aparecía un bug que dejaba todo sin resolver; arreglado en `fix/HU-08-dns-red-activa` (ver hallazgos) |
+| 4 | **Desactivar la VPN desde Ajustes** y volver a StopBet. Reabrir dominios de control | Que se evade en dos toques, que la app se entera (`onRevoke()`) y que los de control vuelven a cargar | ✅ `onRevoke` a las 11:37:09. Perfil: *Desactivado desde el sistema a las 11:37:09*; Inicio: *La protección está apagada · Reactivar*. **Cargan 7 de control** (pokerstars, 888casino, unibet, williamhill, draftkings, betmgm, skybet) y StopBet no registra nada |
+| 5 | Mismo apagado, reabrir dominios de Subtel | Que los de Subtel siguen cortados **por el ISP**, no por StopBet | ✅ En datos de **Claro**: `1xbet.com` y `stake.com` NXDOMAIN, `coolbet.com` `ERR_CONNECTION_REFUSED`. Claro corta también `bwin.com`, que en wifi sí cargaba: **cada operador bloquea listas distintas** |
+| 6 | Reactivar. Chrome › *Usar DNS seguro* › *Google (Public DNS)*. Reabrir dominios | **Si Chrome se salta el filtro** → decide A vs. B | ❌ **Se lo salta.** Con la opción por defecto (*Usa tu proveedor de servicios actual*) los 20 se bloquean; con Google cargan unibet, pokerstars, williamhill y draftkings, **y también** `stake.com` y `1xbet.com`: el bloqueo del operador tampoco aplica. StopBet igual ve y registra la consulta |
+| 7 | Volver Chrome a la opción por defecto. DNS privado del sistema = `dns.google`. Reabrir dominios | Si el DNS privado del sistema se salta el filtro, y que la app lo detecta | ⚠️ **No lo salta: rompe la resolución.** Apuestas y sitios normales (Emol, YouTube) dan `ERR_NAME_NOT_RESOLVED`. Perfil muestra *DNS privado activo (dns.google): las consultas no pasan por el filtro* |
+| 8 | DNS privado en *Automático*. Reiniciar el teléfono con el bloqueo activo, **sin abrir la app** | Que vuelve solo (`BootReceiver`) | ✅ Vuelve solo a las 12:07:38, ~2 min después de encender (Xiaomi avisa tarde del arranque). `888casino.com` y `coolbet.com` NXDOMAIN |
+| 9 | Ajustes › VPN › StopBet › *VPN siempre activa*. Reiniciar | Que así también vuelve | ➖ No hizo falta: con `BootReceiver` ya vuelve. El caso *siempre activa* lo verificó Alex en emulador (PR #140) |
+| 10 | Dejarlo activo unas horas y mirar Ajustes › Batería | Impacto en batería, aproximado | ➖ No medido: la prueba duró ~40 min con el teléfono cargando. Queda para HdU08 |
 
 Registro de apoyo, con el teléfono conectado:
 
@@ -535,11 +541,31 @@ Muestra `BLOQUEADO <dominio>` por cada consulta cortada y `onRevoke` al apagar d
 (filas 1-3), y las filas 4, 6 y 7 —las que pide el CA2— quedan documentadas **aunque el resultado
 sea negativo**. Anotar modelo del teléfono, versión de Android, versión de Chrome y red usada.
 
-### Paso 4 — CA4: confirmar la decisión ⬜
+**Equipo de la prueba:** Xiaomi 2412DPC0AG, Android 16, Chrome 154.0.8037.126. Red: datos móviles
+de Claro y wifi residencial (el teléfono pasó de una a otra durante la prueba). Build de desarrollo
+de `main` del 07-10. Evidencia: `docs/planning/evidencia-spike2.md`.
 
-Pasar la propuesta del §7 de _borrador_ a _decidido_ con los resultados del paso 3 en la mano.
+**Hallazgos que no estaban en el plan:**
 
-### Paso 5 — Cierre ⬜
+1. **Bug con wifi y datos a la vez (arreglado).** El servicio reenviaba al DNS de la primera red
+   que listaba Android —la de datos de Claro— mientras el paquete salía por el wifi, donde ese DNS
+   no contesta. Con las dos redes encendidas, que es lo normal en un teléfono, **no resolvía nada**
+   (802 timeouts en el registro). Ahora elige la red como lo hace el sistema (validada, y wifi
+   antes que datos) y envía la consulta por esa misma red (`Network.bindSocket`). Rama
+   `fix/HU-08-dns-red-activa`.
+2. **Chrome recuerda las direcciones del DNS seguro.** Después de la prueba 6, `pokerstars.com`
+   seguía cargando con la opción por defecto y tras reiniciar, aunque el sistema lo daba por
+   inexistente (`ping: unknown host`) y StopBet lo bloqueó 73 veces. Chrome guarda en disco lo que
+   resolvió y lo reutiliza.
+3. **Cada operador bloquea distinto.** `bwin.com` carga en el wifi y está cortado en Claro.
+4. **Xiaomi retira el consentimiento** al apagar la VPN desde Ajustes, y avisa del arranque con
+   ~2 minutos de demora.
+
+### Paso 4 — CA4: confirmar la decisión ✅
+
+Ver §7.
+
+### Paso 5 — Cierre ✅
 
 - Documento de evidencia en el formato de `docs/planning/evidencia-spike-sprint1.md`: criterio
   por criterio, qué es y cómo demostrarlo, con el enlace al video.
@@ -553,13 +579,14 @@ Pasar la propuesta del §7 de _borrador_ a _decidido_ con los resultados del pas
 
 ---
 
-## 7. Alcance (CA4) — _borrador, se confirma con el paso 3_
+## 7. Alcance (CA4) — decidido el 07-10-2026 con los resultados del CA2
 
-| Pregunta | Propuesta | Por qué | Depende de |
+| Pregunta | Decisión | Por qué | Resultado del CA2 que la respalda |
 |---|---|---|---|
-| **¿Carga manual (HdU15) o automática (HdU18)?** | **HdU15 dentro del MVP**, pero como lista **servida por el backend** (`GET /blocking/domains` con versión), no como lista fija en el APK. Arranca con la nómina de Subtel + un corte de HaGeZi, y el equipo agrega dominios a mano. **HdU18 queda como mejora futura**: un proceso que baje HaGeZi y Subtel solo | Una lista dentro del APK solo cambia publicando otra versión en Play. Servida por el backend, la carga manual ya llega a todos los teléfonos sin reinstalar, y HdU18 es solo automatizar quién la llena. Subtel advierte que la nómina seguirá creciendo con espejos | Fila 2 (que el filtro por lista funcione) |
-| **¿Bloqueo de aplicaciones (HdU08)?** | **Fuera del alcance** impedir que una app **se abra**. **Dentro, como efecto**, que una app de apuestas **no conecte** si usa dominios de la lista | Impedir abrir apps exige `AccessibilityService` o Device Owner, los dos descartados en el CA1. El filtro DNS corta la conexión de la app igual que la del navegador | Probar con una app de apuestas si hay una instalable; si no, dejarlo _no verificado_ |
-| **¿Qué se le promete al paciente?** | Una **barrera contra el impulso** que puede apagar, no un candado. Si la apaga, queda registrado solo si lo consintió | Es lo que la tecnología permite sin Device Owner (§1.3) | Filas 4, 6 y 7 |
+| **¿Carga manual (HdU15) o automática (HdU18)?** | **HdU15 dentro del MVP**, pero como lista **servida por el backend** (`GET /blocking/domains` con versión), no como lista fija en el APK. Arranca con la nómina de Subtel + un corte de HaGeZi, y el equipo agrega dominios a mano. **HdU18 queda como mejora futura**: un proceso que baje HaGeZi y Subtel solo | Una lista dentro del APK solo cambia publicando otra versión en Play. Servida por el backend, la carga manual ya llega a todos los teléfonos sin reinstalar, y HdU18 es solo automatizar quién la llena. Subtel advierte que la nómina seguirá creciendo con espejos | Fila 2: el filtro por lista bloqueó 20 de 20. Fila 5: cada operador bloquea listas distintas, así que no basta con lo que corta el ISP |
+| **¿Bloqueo de aplicaciones (HdU08)?** | **Fuera del alcance** impedir que una app **se abra**. **Dentro, como efecto**, que una app de apuestas **no conecte** si usa dominios de la lista | Impedir abrir apps exige `AccessibilityService` o Device Owner, los dos descartados en el CA1. El filtro DNS corta la conexión de la app igual que la del navegador | _No verificado en el teléfono_: no hay apps de apuestas instalables desde Play en Chile para probarlo. Queda como prueba de HdU08 |
+| **¿Qué se le promete al paciente?** | Una **barrera contra el impulso** que puede apagar, no un candado. Si la apaga, queda registrado solo si lo consintió | Es lo que la tecnología permite sin Device Owner (§1.3) | Fila 4: se apaga en dos toques. Fila 6: el DNS seguro de Chrome con un proveedor se lo salta. Las dos exigen una acción deliberada del paciente |
+| **¿Método A o B?** | **Se mantiene A (solo DNS).** El escape del DNS seguro de Chrome queda como límite conocido | El método B tampoco lo resuelve sin descifrar HTTPS: tendría que bloquear las direcciones de los proveedores de DNS cifrado, una lista que cambia, a cambio de ver todo el tráfico del paciente | Fila 6 |
 | **¿Se bloquean `polla.cl` y `loteria.cl`?** | Pregunta para AJUTER → `docs/ASUNCIONES-PENDIENTES.md` | Es juego legal en Chile; HaGeZi y Blocklist Project ya lo bloquean | — |
 | **¿Se avisa al psicólogo cuando se apaga?** | Pregunta para AJUTER → `docs/ASUNCIONES-PENDIENTES.md` | Consentimiento clínico y regla de Play (§2.6, §4.2) | — |
 
@@ -576,11 +603,13 @@ Construida en la misma rama sobre el PoC, siguiendo esta propuesta:
 | Conservar el módulo frente a R8 en release | `proguard-rules.pro` |
 
 APK de release compilado el 29-09 (41 MB, apunta a Railway). **Sin cambios en el backend**: no se
-envía ningún evento al psicólogo, y el texto del aviso lo dice. Pendiente de probar en el teléfono:
-activar desde Inicio, apagar desde Ajustes y ver "Reactivar", reinicio del teléfono.
+envía ningún evento al psicólogo, y el texto del aviso lo dice. **Probado el 07-10 en el Xiaomi**:
+activar desde Inicio, apagar desde Ajustes y ver *Reactivar*, y reiniciar el teléfono (filas 1, 4 y 8).
 
-### Riesgo principal
+### Riesgo que queda
 
-Que el DNS cifrado (filas 6 y 7) se salte el filtro con demasiada facilidad. No invalida el
-método A —el paciente tendría que hacerlo a propósito, y la app puede detectar el DNS privado y
-avisar—, pero si pasa hay que decidir entre aceptarlo como límite conocido o pasar al método B.
+El DNS seguro de Chrome con un proveedor elegido (fila 6). Se acepta como límite conocido: exige
+que el paciente cambie un ajuste a propósito, y el resto del teléfono sigue filtrado. Para HdU08
+queda por probar bloquear los nombres de los proveedores de DNS cifrado (`dns.google`,
+`cloudflare-dns.com`, `chrome.cloudflare-dns.com`), sabiendo que Chrome puede conocer sus
+direcciones sin preguntarlas.
