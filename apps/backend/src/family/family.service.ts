@@ -294,7 +294,12 @@ export class FamilyService {
   async registerFamily(dto: RegisterFamilyDto): Promise<RegisterFamilyResponse> {
     const cleanFamilyRut = cleanRut(dto.rut);
 
-    const emailTaken = await this.userRepo.findOne({ where: { email: dto.email } });
+    // "Jose@…" y "jose@…" son la misma casilla, pero el índice único de users.email distingue
+    // mayúsculas: sin comparar así, la misma persona podía crear una segunda cuenta (CA3).
+    const email = dto.email.trim();
+    const emailTaken = await this.userRepo.findOne({
+      where: { email: Raw((alias) => `LOWER(${alias}) = LOWER(:email)`, { email }) },
+    });
     if (emailTaken) {
       throw new ConflictException('Ya existe una cuenta con esos datos');
     }
@@ -318,7 +323,7 @@ export class FamilyService {
       try {
         created = await manager.getRepository(User).save(
           manager.getRepository(User).create({
-            email: dto.email,
+            email,
             passwordHash,
             role: 'family',
             firstName: dto.firstName,
