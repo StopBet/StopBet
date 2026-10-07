@@ -336,19 +336,24 @@ export class FamilyService {
         : `${name} pidió vincularse como familiar de un paciente de tu sede. Revísalo en Familiares pendientes.`,
     );
 
-    // HDU 23 CA4 — se le pregunta al paciente. En la app sí va el nombre: para verla hay que
-    // desbloquear el teléfono y entrar con su cuenta. El push, en cambio, no lo lleva.
+    await this.consultPatient(manager, patient.id, name);
+    return patient.id;
+  }
+
+  // HDU 23 CA4 — se le pregunta al paciente. En la app sí va el nombre: para verla hay que
+  // desbloquear el teléfono y entrar con su cuenta. El push (pushFamilyRequest, después del
+  // commit) en cambio no lo lleva.
+  private async consultPatient(manager: EntityManager, patientId: string, familyName: string): Promise<void> {
     const notifRepo = manager.getRepository(Notification);
     await notifRepo.save(
       notifRepo.create({
-        userId: patient.id,
+        userId: patientId,
         type: 'info',
         title: 'Solicitud de vínculo familiar',
-        body: `${name} dice ser tu familiar y pidió acompañarte en StopBet. Responde en el Inicio.`,
+        body: `${familyName} dice ser tu familiar y pidió acompañarte en StopBet. Responde en el Inicio.`,
         target: 'family-request',
       }),
     );
-    return patient.id;
   }
 
   // Después del commit, y sin esperar: si Firebase falla, la solicitud ya quedó registrada y la
@@ -539,6 +544,12 @@ export class FamilyService {
     return this.listLinksByStatus('active', reviewer);
   }
 
+  // Sin esta lista, un vínculo revocado desaparecía de la vista del psicólogo y un revocado por
+  // error no tenía vuelta atrás sin tocar la base de datos.
+  listRevokedLinks(reviewer: AuthUser): Promise<FamilyLinkListItem[]> {
+    return this.listLinksByStatus('revoked', reviewer);
+  }
+
   // CA2 — confirma el vínculo, habilita las funcionalidades del familiar y notifica a
   // ambas partes. `getSessionsForFamily`/`getLinkStatus` ya reaccionan solos al cambio de
   // estado: no hace falta tocar nada más para "habilitar" el acceso.
@@ -659,6 +670,40 @@ export class FamilyService {
     });
   }
 
+  // Devuelve a revisión un vínculo revocado. No restaura el acceso de inmediato: la solicitud
+  // vuelve a Pendientes, al paciente se le pregunta de nuevo (su respuesta anterior era sobre el
+  // vínculo que se revocó) y se confirma con las reglas de siempre (CA4).
+  async reopenLink(linkId: string, reviewer: AuthUser): Promise<void> {
+    const link = await this.linkRepo.findOne({
+      where: { id: linkId },
+      relations: ['familyUser', 'patientUser'],
+    });
+    if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
+
+    const patient = link.patientUser;
+    await this.assertCoversSede(reviewer, patient.sedeId);
+
+    const familyName = `${link.familyUser.firstName} ${link.familyUser.lastName}`;
+    await this.dataSource.transaction(async (manager) => {
+      await this.applyVerdict(manager, linkId, 'revoked', 'reopened', reviewer, 'El vínculo no está revocado');
+      await manager
+        .getRepository(FamilyLink)
+        .update({ id: linkId }, { patientResponse: null, patientRespondedAt: null, verification: null });
+
+      const notifRepo = manager.getRepository(Notification);
+      await notifRepo.save(
+        notifRepo.create({
+          userId: link.familyUserId,
+          type: 'info',
+          title: 'Tu solicitud de vinculación volvió a revisión',
+          body: 'El equipo clínico va a revisar de nuevo tu vínculo con el paciente. Te avisaremos cuando lo confirme.',
+        }),
+      );
+      await this.consultPatient(manager, patient.id, familyName);
+    });
+    this.pushFamilyRequest(patient.id);
+  }
+
   // CA6 — el cambio de estado y su fila de auditoría van en la misma transacción: una decisión
   // no puede quedar aplicada sin registro, ni registrada sin aplicarse.
   private async applyVerdict(
@@ -675,6 +720,7 @@ export class FamilyService {
       confirmed: 'active',
       rejected: 'rejected',
       revoked: 'revoked',
+      reopened: 'pending',
     };
     const result = await manager.getRepository(FamilyLink).update(
       { id: linkId, status: from, ...extraWhere },

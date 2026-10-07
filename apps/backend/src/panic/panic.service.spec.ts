@@ -11,6 +11,7 @@ describe('PanicService', () => {
   let notificationRepo: { save: jest.Mock; create: jest.Mock };
   let communityService: { createPanicAlertPost: jest.Mock };
   let sponsorService: { assign: jest.Mock };
+  let push: { enviarAUsuarios: jest.Mock };
 
   beforeAll(() => {
     jest.useFakeTimers();
@@ -39,6 +40,7 @@ describe('PanicService', () => {
     notificationRepo = { save: jest.fn((v) => Promise.resolve(v)), create: jest.fn((v) => v) };
     communityService = { createPanicAlertPost: jest.fn().mockResolvedValue(undefined) };
     sponsorService = { assign: jest.fn().mockResolvedValue(undefined) };
+    push = { enviarAUsuarios: jest.fn().mockResolvedValue(1) };
 
     service = new PanicService(
       assignmentRepo as any,
@@ -47,6 +49,7 @@ describe('PanicService', () => {
       notificationRepo as any,
       communityService as any,
       sponsorService as any,
+      push as any,
     );
   });
 
@@ -86,6 +89,36 @@ describe('PanicService', () => {
       const notif = notificationRepo.save.mock.calls[0][0];
       expect(notif.userId).toBe('s1');
       expect(notif.body).toContain('Carlos Demo');
+    });
+
+    it('hace sonar el teléfono del compañero de viaje, por el canal de pánico y sin nombrar a nadie', async () => {
+      alertRepo.findOne.mockResolvedValue(null);
+      assignmentRepo.findOne.mockResolvedValue({ patientId: 'p1', sponsorId: 's1', isActive: true });
+      userRepo.findOne.mockResolvedValue({ id: 'p1', firstName: 'Carlos', lastName: 'Demo' });
+
+      await service.createAlert('p1');
+
+      expect(push.enviarAUsuarios).toHaveBeenCalledWith(['s1'], 'Alerta de pánico', expect.any(String), 'panic_alerts');
+      // La pantalla de bloqueo la ve cualquiera: el push no lleva el nombre del paciente.
+      expect(push.enviarAUsuarios.mock.calls[0][2]).not.toContain('Carlos');
+    });
+
+    it('si el push falla, la alerta se crea igual', async () => {
+      alertRepo.findOne.mockResolvedValue(null);
+      assignmentRepo.findOne.mockResolvedValue({ patientId: 'p1', sponsorId: 's1', isActive: true });
+      userRepo.findOne.mockResolvedValue({ id: 'p1', firstName: 'Carlos', lastName: 'Demo' });
+      push.enviarAUsuarios.mockRejectedValue(new Error('Firebase caído'));
+
+      await expect(service.createAlert('p1')).resolves.toMatchObject({ status: 'pending', sponsorId: 's1' });
+    });
+
+    it('sin compañero de viaje no manda push a nadie', async () => {
+      alertRepo.findOne.mockResolvedValue(null);
+      assignmentRepo.findOne.mockResolvedValue(null);
+
+      await service.createAlert('p1');
+
+      expect(push.enviarAUsuarios).not.toHaveBeenCalled();
     });
 
     it('si no encuentra al paciente, notifica al padrino con un nombre genérico', async () => {

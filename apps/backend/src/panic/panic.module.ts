@@ -13,6 +13,7 @@ import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { CommunityModule } from '../community/community.module';
+import { PushModule } from '../push/push.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { CommunityModule } from '../community/community.module';
       PsychologistSede,
     ]),
     CommunityModule,
+    PushModule,
   ],
   controllers: [
     PanicController,

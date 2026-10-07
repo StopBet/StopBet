@@ -119,6 +119,26 @@ export class FamilyController {
     return this.familyService.revokeLink(id, user);
   }
 
+  @Get('revoked')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'Familiares con el acceso revocado en mi sede (para poder devolverlos a revisión)' })
+  @ApiResponse({ status: 200, description: 'FamilyLinkListItem[]' })
+  listRevokedLinks(@CurrentUser() user: AuthUser) {
+    return this.familyService.listRevokedLinks(user);
+  }
+
+  @Patch('links/:id/reopen')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'Devolver a revisión un vínculo revocado (p. ej. revocado por error)' })
+  @ApiResponse({
+    status: 200,
+    description: 'El vínculo vuelve a pendiente y se le pregunta de nuevo al paciente; no restaura el acceso de inmediato',
+  })
+  @ApiResponse({ status: 409, description: 'El vínculo no está revocado' })
+  reopenLink(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.familyService.reopenLink(id, user);
+  }
+
   // ── Consulta al paciente (HDU 23 CA4) ───────────────────────────────────────
 
   @Get('patient-requests')

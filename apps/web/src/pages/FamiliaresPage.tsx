@@ -8,6 +8,7 @@ import { useDialog } from '../hooks/useDialog'
 
 const PENDING_KEY = ['family', 'links', 'pending']
 const ACTIVE_KEY = ['family', 'links', 'active']
+const REVOKED_KEY = ['family', 'links', 'revoked']
 
 function fecha(iso: string): string {
   return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -235,10 +236,12 @@ export function FamiliaresPage() {
 
   const { data: pending = [], isLoading: loadingPending } = useQuery({ queryKey: PENDING_KEY, queryFn: api.getPendingFamilyLinks })
   const { data: active = [], isLoading: loadingActive } = useQuery({ queryKey: ACTIVE_KEY, queryFn: api.getActiveFamilyLinks })
+  const { data: revoked = [] } = useQuery({ queryKey: REVOKED_KEY, queryFn: api.getRevokedFamilyLinks })
 
   const [confirmTarget, setConfirmTarget] = useState<FamilyLinkListItem | null>(null)
   const [rejectTarget, setRejectTarget] = useState<FamilyLinkListItem | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<FamilyLinkListItem | null>(null)
+  const [reopenTarget, setReopenTarget] = useState<FamilyLinkListItem | null>(null)
   const [modalError, setModalError] = useState<string | null>(null)
   const [verification, setVerification] = useState<FamilyLinkVerification | null>(null)
 
@@ -251,6 +254,7 @@ export function FamiliaresPage() {
   const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: PENDING_KEY })
     qc.invalidateQueries({ queryKey: ACTIVE_KEY })
+    qc.invalidateQueries({ queryKey: REVOKED_KEY })
   }
 
   const confirmMutation = useMutation({
@@ -268,6 +272,11 @@ export function FamiliaresPage() {
     mutationFn: (id: string) => api.revokeFamilyLink(id),
     onSuccess: () => { invalidateAll(); setRevokeTarget(null); setModalError(null) },
     onError: (err) => setModalError(errorMessage(err, 'No pudimos revocar el vínculo.')),
+  })
+  const reopenMutation = useMutation({
+    mutationFn: (id: string) => api.reopenFamilyLink(id),
+    onSuccess: () => { invalidateAll(); setReopenTarget(null); setModalError(null) },
+    onError: (err) => setModalError(errorMessage(err, 'No pudimos devolver el vínculo a revisión.')),
   })
 
   const Head = ({ label }: { label: string }) => (
@@ -366,6 +375,40 @@ export function FamiliaresPage() {
         )}
       </div>
 
+      {/* Revocados: solo aparece si hay alguno. Sin ella, un vínculo revocado por error no tenía
+          vuelta atrás desde el panel. */}
+      {revoked.length > 0 && (
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginTop: 24 }}>
+          <div style={{ padding: '20px 24px 16px' }}>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Familiares revocados</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--fg2)' }}>
+              Si alguno se revocó por error, devuélvelo a revisión: vuelve a Pendientes y se le pregunta de nuevo al paciente.
+            </p>
+          </div>
+          {cards ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {revoked.map((l) => (
+                <LinkRow key={l.id} link={l} card actions={
+                  <button onClick={() => setReopenTarget(l)} style={{ ...pillBtn('primary'), ...stretch }}><WIcon name="clock" size={14} color="var(--fg-on-primary)" /> Volver a revisar</button>
+                } />
+              ))}
+            </div>
+          ) : (
+            <table style={{ width: '100%', maxWidth: 820, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <colgroup><col /><col style={{ width: 250 }} /><col style={{ width: 120 }} /><col style={{ width: 180 }} /></colgroup>
+              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
+              <tbody>
+                {revoked.map((l) => (
+                  <LinkRow key={l.id} link={l} card={false} actions={
+                    <button onClick={() => setReopenTarget(l)} style={pillBtn('primary')}><WIcon name="clock" size={14} color="var(--fg-on-primary)" /> Volver a revisar</button>
+                  } />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
       {confirmTarget && (
         <ActionModal
           titleId="sb-confirmar-vinculo"
@@ -413,6 +456,19 @@ export function FamiliaresPage() {
           error={modalError}
           onClose={() => { setRevokeTarget(null); setModalError(null) }}
           onConfirm={() => revokeMutation.mutate(revokeTarget.id)}
+        />
+      )}
+
+      {reopenTarget && (
+        <ActionModal
+          titleId="sb-reabrir-vinculo"
+          title="Volver a revisar el vínculo"
+          description={<>La solicitud de <strong>{reopenTarget.familyName}</strong> vuelve a <strong>Familiares pendientes</strong> y a <strong>{reopenTarget.patientName}</strong> se le pregunta de nuevo en la app. El acceso no se restaura todavía: lo confirmas como cualquier otra solicitud.</>}
+          confirmLabel="Volver a revisar"
+          isPending={reopenMutation.isPending}
+          error={modalError}
+          onClose={() => { setReopenTarget(null); setModalError(null) }}
+          onConfirm={() => reopenMutation.mutate(reopenTarget.id)}
         />
       )}
     </div>
