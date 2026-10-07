@@ -7,7 +7,7 @@ import { cleanRut, formatRut, isValidRut } from '../utils/rut'
 import { PatientIdToggle, type PatientIdBy } from '../components/PatientIdToggle'
 import { DemoCredenciales, DemoProfilesPanel } from '../components/DemoProfilesPanel'
 import { useModoDemo } from '../hooks/useModoDemo'
-import { borrarCuentas, guardarCuenta, leerCuentas, type DemoCuenta, type DemoPerfil } from '../utils/demoProfiles'
+import { borrarCuentas, esCuentaDemo, guardarCuenta, leerCuentas, type DemoCuenta, type DemoPerfil } from '../utils/demoProfiles'
 import isotipo from '../assets/isotipo-blanco.png'
 
 type FieldErrors = Partial<Record<'firstName' | 'lastName' | 'email' | 'password' | 'rut' | 'patientRut' | 'patientEmail', string>>
@@ -140,7 +140,9 @@ export function RegistroFamiliarPage() {
           : { patientEmail: patientEmail.trim() }),
       })
       // CA1 + CA2 — misma confirmación exista o no el paciente: no se distingue acá.
-      if (modoDemo) {
+      // Solo si los datos los generó el panel: una persona real que abra `?demo=1` y escriba su
+      // clave no debe verla guardada ni repetida en pantalla.
+      if (modoDemo && esCuentaDemo(email, password)) {
         const cuenta: DemoCuenta = {
           nombre: `${firstName.trim()} ${lastName.trim()}`,
           email: email.trim(),

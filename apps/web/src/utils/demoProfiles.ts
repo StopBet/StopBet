@@ -87,18 +87,29 @@ export function generarPerfil(kind: DemoKind): DemoPerfil {
 }
 
 const KEY = 'sb-demo-familiares'
+const DOMINIO_DEMO = '@demo.stopbet.cl'
+
+// Solo las cuentas que generó el panel (correo del dominio de demo y la clave fija de demo). Con
+// `?demo=1` cualquiera puede abrir el registro y escribir sus datos reales: esa clave no puede
+// terminar guardada en el navegador ni mostrada en pantalla.
+export function esCuentaDemo(email: string, password: string): boolean {
+  return email.trim().toLowerCase().endsWith(DOMINIO_DEMO) && password === DEMO_PASSWORD
+}
 
 export function leerCuentas(): DemoCuenta[] {
   try {
     const raw = localStorage.getItem(KEY)
     const parsed: unknown = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? (parsed as DemoCuenta[]) : []
+    return Array.isArray(parsed)
+      ? (parsed as DemoCuenta[]).filter((c) => esCuentaDemo(String(c?.email ?? ''), String(c?.password ?? '')))
+      : []
   } catch {
     return []
   }
 }
 
 export function guardarCuenta(cuenta: DemoCuenta): DemoCuenta[] {
+  if (!esCuentaDemo(cuenta.email, cuenta.password)) return leerCuentas()
   const todas = [cuenta, ...leerCuentas().filter((c) => c.email !== cuenta.email)]
   try {
     localStorage.setItem(KEY, JSON.stringify(todas))
