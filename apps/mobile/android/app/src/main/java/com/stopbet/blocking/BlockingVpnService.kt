@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.pm.ServiceInfo
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.VpnService
 import android.os.Build
@@ -163,7 +164,11 @@ class BlockingVpnService : VpnService() {
         // Sin protect() el socket volvería a entrar por la propia VPN y se enlazaría consigo mismo.
         protect(socket)
         socket.soTimeout = 5000
-        val upstream = upstreamDns()
+        val (network, upstream) = upstreamDns()
+        // La consulta tiene que salir por la misma red cuyo DNS se eligió: el DNS de los datos
+        // móviles no contesta si el paquete sale por el wifi, y con las dos encendidas (lo normal
+        // en un teléfono) eso dejaba sin resolver todo.
+        network?.bindSocket(socket)
         socket.send(DatagramPacket(query.dnsPayload, query.dnsPayload.size, upstream, 53))
         val response = ByteArray(4096)
         val packet = DatagramPacket(response, response.size)
@@ -181,20 +186,31 @@ class BlockingVpnService : VpnService() {
   }
 
   /**
-   * El DNS de la red física (wifi o datos), no el de la VPN, que es este mismo servicio. Se
-   * consulta en cada reenvío porque cambia al pasar de wifi a datos.
+   * La red física por la que reenviar (wifi o datos, nunca la VPN, que es este mismo servicio) y
+   * su DNS. Se consulta en cada reenvío porque cambia al pasar de wifi a datos.
+   *
+   * Con wifi y datos encendidos Android mantiene las dos redes y `allNetworks` puede traer
+   * primero la de datos aunque el tráfico salga por el wifi. Por eso se elige como lo hace el
+   * sistema: validada antes que no validada, y wifi o cable antes que datos móviles.
    */
   @Suppress("DEPRECATION") // allNetworks: la alternativa exige un callback para una consulta puntual
-  private fun upstreamDns(): InetAddress {
+  private fun upstreamDns(): Pair<Network?, InetAddress> {
     val cm = getSystemService(ConnectivityManager::class.java)
-    for (network in cm.allNetworks) {
-      val caps = cm.getNetworkCapabilities(network) ?: continue
-      if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue
-      if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) continue
-      val dns = cm.getLinkProperties(network)?.dnsServers?.firstOrNull { it is Inet4Address }
-      if (dns != null) return dns
-    }
-    return InetAddress.getByName(FALLBACK_DNS)
+    val candidates =
+        cm.allNetworks.mapNotNull { network ->
+          val caps = cm.getNetworkCapabilities(network) ?: return@mapNotNull null
+          if (caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return@mapNotNull null
+          if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return@mapNotNull null
+          val dns =
+              cm.getLinkProperties(network)?.dnsServers?.firstOrNull { it is Inet4Address }
+                  ?: return@mapNotNull null
+          val score =
+              (if (caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) 2 else 0) +
+                  (if (caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) 0 else 1)
+          Triple(network, dns, score)
+        }
+    val best = candidates.maxByOrNull { it.third } ?: return null to InetAddress.getByName(FALLBACK_DNS)
+    return best.first to best.second
   }
 
   private fun shutdown() {

@@ -20,6 +20,26 @@ está.
 
 ---
 
+## 2026-10-07 - Bloqueo de apuestas: con wifi y datos a la vez no resolvía nada (PR #157)
+
+**A quién le pega:** a quien tenga el bloqueo de apuestas activo en un teléfono.
+
+**Qué hacer después de pullear:** **recompilar el nativo** (`pnpm run android:device`): cambió
+`BlockingVpnService.kt`.
+
+**Qué cambió:** con wifi **y** datos móviles encendidos (lo normal), el bloqueo reenviaba las
+consultas al DNS de los datos mientras salían por el wifi, y **el teléfono se quedaba sin
+navegar**: Chrome daba `DNS_PROBE_STARTED` o páginas en blanco en cualquier sitio. Si te pasó
+probando el bloqueo, no era tu red: era esto. Ahora elige la red como el sistema y envía la
+consulta por esa misma red.
+
+**Otro aviso de la misma prueba:** si activas el **DNS seguro de Chrome con un proveedor** (Google,
+Cloudflare), Chrome se salta el bloqueo y **recuerda esas direcciones** aun después de volver a la
+opción por defecto y de reiniciar. Si un sitio de apuestas carga con la protección activa, revisa
+eso antes de buscar un bug. Detalle en `docs/planning/evidencia-spike2.md`.
+
+---
+
 ## 2026-10-07 - El compañero de viaje tiene su propia pantalla en la app (HdU20/21)
 
 **A quién le pega:** a **todos, una vez**, por un cambio en `shared-types` y en el seed. En especial a
