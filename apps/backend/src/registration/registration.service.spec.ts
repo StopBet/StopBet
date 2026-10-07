@@ -200,21 +200,53 @@ describe('RegistrationService — approve', () => {
       requestRepo.findOne.mockResolvedValue(pendingRequest);
       userRepo.findOne.mockResolvedValue({ id: 'psych-otro', accountStatus: 'active' });
       requestRepo.update.mockResolvedValue({ affected: 1 });
-      psychSedeRepo.find.mockResolvedValue([]);
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: SEDE_ID }]);
 
       await service.approve(REQUEST_ID, reviewer({ role: 'coordinator', sedeId: null }), {
         assignedPsychologistId: 'psych-otro',
       });
 
       expect(assignmentRepo.save).toHaveBeenCalled();
-      expect(psychSedeRepo.find).not.toHaveBeenCalled();
+      // Las sedes que se consultan son las del psicólogo asignado, no las del coordinador.
+      expect(psychSedeRepo.find).toHaveBeenCalledTimes(1);
+      expect(psychSedeRepo.find).toHaveBeenCalledWith({ where: { psychologistId: 'psych-otro' } });
+    });
+
+    it('el coordinador no puede asignar a un psicólogo que no atiende la sede del paciente', async () => {
+      requestRepo.findOne.mockResolvedValue(pendingRequest);
+      userRepo.findOne.mockResolvedValue({ id: 'psych-otro', accountStatus: 'active' });
+      psychSedeRepo.find.mockResolvedValue([{ sedeId: 'sede-concepcion' }]);
+
+      await expect(
+        service.approve(REQUEST_ID, reviewer({ role: 'coordinator', sedeId: null }), {
+          assignedPsychologistId: 'psych-otro',
+        }),
+      ).rejects.toThrow('no atiende la sede del paciente');
+
+      // Falla antes de tocar nada: ni se aprueba la solicitud ni se crea la asignación.
+      expect(requestRepo.update).not.toHaveBeenCalled();
+      expect(assignmentRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('un psicólogo sin ninguna sede registrada tampoco puede quedar asignado', async () => {
+      requestRepo.findOne.mockResolvedValue(pendingRequest);
+      userRepo.findOne.mockResolvedValue({ id: 'psych-otro', accountStatus: 'active', sedeId: null });
+      psychSedeRepo.find.mockResolvedValue([]);
+      sedeRepo.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.approve(REQUEST_ID, reviewer({ role: 'coordinator', sedeId: null }), {
+          assignedPsychologistId: 'psych-otro',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(assignmentRepo.save).not.toHaveBeenCalled();
     });
 
     // El seed guarda el NOMBRE de la sede en User.sedeId, no su UUID: sin traducirlo, el
     // psicólogo legado no cubriría ninguna sede y no podría aprobar nada.
     it('traduce la sede legada guardada por nombre', async () => {
       requestRepo.findOne.mockResolvedValue(pendingRequest);
-      userRepo.findOne.mockResolvedValue(activePsychologist);
+      userRepo.findOne.mockResolvedValue({ ...activePsychologist, sedeId: 'Santiago' });
       requestRepo.update.mockResolvedValue({ affected: 1 });
       psychSedeRepo.find.mockResolvedValue([]);
       sedeRepo.findOne.mockResolvedValue({ id: SEDE_ID, name: 'Santiago' });

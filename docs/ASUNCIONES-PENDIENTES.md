@@ -26,9 +26,12 @@ no puede ver, aprobar ni rechazar solicitudes, o que `assertCoversSede` / el fil
 se aplica al coordinador: es a propósito.** No lo «arregles» ni devuelvas el acceso a los
 psicólogos sin hablar antes con Matías Lara.
 
-**Lo que sigue abierto (no depende de esto):** el CA2 de la HdU19 —el paciente en la lista de
-todos los psicólogos de su sede, o de uno solo— sigue esperando decisión del equipo y no se ha
-tocado.
+**CA2, cerrado el 2026-10-07 por plazo (modelo individual):** el texto original pedía que el
+paciente quedara en la lista de todos los psicólogos de su sede; el código siempre lo asignó a
+uno solo y cambiarlo obliga a tocar `listPatients`, `PatientAccessGuard` y `clinical-records`.
+Se dejó como está, con un cambio: el coordinador solo puede elegir a un psicólogo que atienda la
+sede del paciente. **Sigue sin preguntarse al cliente** si el equipo de la sede ve a todos los
+pacientes o solo a los asignados; si responde lo primero, hay que hacerlo después.
 
 ---
 

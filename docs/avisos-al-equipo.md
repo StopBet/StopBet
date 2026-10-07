@@ -33,6 +33,8 @@ manual §2.3 dice que la moderación de posts reportados está en *Solicitudes*.
   estado siguen públicas). Es a propósito y
   por un supuesto del cliente que **aún no está confirmado**: no lo «arregles». Detalle y cómo
   revertir en [`docs/hdu19-solicitudes-ingreso-v2.md`](hdu19-solicitudes-ingreso-v2.md).
+- Al aprobar, el psicólogo asignado **tiene que atender la sede del paciente**: la API responde
+  400 si no. La lista de la web ya filtraba así; el cambio es para quien llame el endpoint a mano.
 - Los **posts reportados** pasaron a una entrada nueva del menú, **«Moderación»**
   (`/moderacion`), solo para el psicólogo. El coordinador no la ve: el backend no lo deja moderar.
 - El **coordinador puede reabrir** solicitudes rechazadas desde «Rechazadas», en *Solicitudes*.

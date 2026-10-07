@@ -41,7 +41,7 @@ function ApproveModal({ req, onClose, onConfirm }: { req: RegistrationRequest; o
     queryFn: api.getPsychologists,
   })
 
-  // Solo psicólogos activos que atienden la sede del solicitante: el backend rechaza con 403
+  // Solo psicólogos activos que atienden la sede del solicitante: el backend rechaza con 400
   // una asignación fuera de sede, y ofrecerla aquí sería prometer algo que va a fallar.
   const disponibles = psicologos.filter(
     p => p.accountStatus === 'active' && p.sedes.some(sede => sede.id === req.sedeId),

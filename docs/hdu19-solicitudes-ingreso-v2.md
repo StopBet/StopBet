@@ -32,7 +32,7 @@ Miguel Ángel lo desmiente, volver atrás es acotado (ver «Si se desmiente», a
 |---|---|---|
 | **Quién decide** | «Como psicólogo de AJUTER… a mis sedes» | «Como **psicólogo coordinador** de AJUTER… de **todas las sedes**» |
 | **CA1** listado | pendientes «en mi sede» | pendientes de **cualquier sede**; el listado suma la **sede** de cada solicitud, porque ahora se mezclan |
-| **CA2** aprobar | «asigna al paciente a la sede **del psicólogo**» | asigna al paciente a la **sede que él eligió al registrarse**, porque quien aprueba ya no tiene una sede propia. ⚠️ Sigue **bloqueado** por la decisión A/B de abajo |
+| **CA2** aprobar | «asigna al paciente a la sede **del psicólogo**» | asigna al paciente a **un psicólogo de la sede que él eligió al registrarse**: lo escoge el coordinador, porque quien aprueba ya no atiende pacientes. **Decidido el 07-10: modelo individual (B)**, ver abajo |
 | **CA3** rechazar | «el psicólogo determina…» | lo determina el **coordinador**. La reapertura sigue siendo suya |
 | **CA4** vacío | «no hay solicitudes pendientes **en la sede**» | no hay solicitudes pendientes |
 | **CA5** aislamiento | un psicólogo **no ve** las de otra sede | **se invierte:** un psicólogo sin rol de coordinador **no accede** a la sección (403 en los endpoints; «Solicitudes» desaparece del menú del psicólogo y sus posts reportados pasan a una entrada propia, «Moderación»). Mismo patrón que HdU24 CA4 |
@@ -44,7 +44,7 @@ Miguel Ángel lo desmiente, volver atrás es acotado (ver «Si se desmiente», a
 > Como psicólogo coordinador de AJUTER, Quiero revisar y gestionar las solicitudes de ingreso de nuevos pacientes de todas las sedes, Para aprobar o rechazar su acceso a la plataforma según los criterios de AJUTER.
 >
 > 1. Dado que existen solicitudes pendientes, cuando el coordinador accede a la sección de solicitudes de ingreso en el dashboard, entonces el sistema muestra un listado con el nombre, RUT, correo, sede y fecha de solicitud de cada paciente pendiente, de cualquier sede.
-> 2. Dado que el coordinador revisa una solicitud pendiente, cuando la aprueba, entonces el sistema asigna al paciente a la sede que eligió al registrarse (incorporándolo a la lista de pacientes de los psicólogos de esa sede) y notifica al paciente que ya puede continuar con el pago de su mensualidad para activar la cuenta. _(pendiente: ver CA2 abajo)_
+> 2. Dado que el coordinador revisa una solicitud pendiente, cuando la aprueba, entonces el sistema asigna al paciente a un psicólogo de la sede que eligió al registrarse, que el coordinador escoge entre los que atienden esa sede, y notifica al paciente que ya puede continuar con el pago de su mensualidad para activar la cuenta. _(modelo individual, ver CA2 abajo)_
 > 3. Dado que el coordinador determina que una solicitud no cumple los criterios de ingreso, cuando la rechaza, entonces el sistema notifica al paciente que su solicitud no fue aprobada y le indica contactar directamente a AJUTER; la solicitud queda en estado "Rechazada", sin otorgarle acceso a la app, y el coordinador puede reabrirla si el paciente contacta a AJUTER.
 > 4. Dado que no hay solicitudes pendientes, cuando el coordinador accede a la sección, entonces el sistema muestra un estado vacío indicando que no hay solicitudes por revisar.
 > 5. Dado que un psicólogo sin rol de coordinador intenta ver, aprobar o rechazar solicitudes de ingreso, cuando accede a la función, entonces el sistema bloquea la acción por falta de permisos.
@@ -57,18 +57,29 @@ Miguel Ángel lo desmiente, volver atrás es acotado (ver «Si se desmiente», a
 - Los CA3 (reapertura), CA4, CA6 conservan su intención; solo cambia quién los ejecuta.
 - La moderación de la comunidad (posts reportados) sigue siendo del psicólogo.
 
-## CA2 — sigue bloqueado, ahora con un matiz
+## CA2 — decidido el 07-10: modelo individual (B), por plazo
 
-El bloqueo original (entrada 10 de `claude_privado/pendientes.md`) era: ¿el paciente queda en
-la lista de **todos** los psicólogos de su sede (modelo por sede) o de **uno** (modelo actual,
-`PatientAssignment` individual)? Esa decisión del equipo **sigue abierta** y el CA2 se deja
-para el final de esta historia.
+La pregunta era: ¿el paciente queda en la lista de **todos** los psicólogos de su sede
+(modelo por sede, A) o de **uno** (modelo individual, B, el que ya tenía el código)? El texto
+original del CA2 pedía A. **Se eligió B por el plazo del Sprint 2**: A obliga a cambiar
+`listPatients`, `PatientAccessGuard` y el estado de las fichas, que son de otro integrante, y a
+re-estimar. Es una decisión de tiempo, no de producto: A sigue siendo lo que se corrigió el
+10-09 y queda en el backlog.
 
-El cambio de v2 añade un matiz: como aprueba el coordinador, que **no atiende pacientes**,
-`approve()` ya no puede asumir «el que aprueba es el psicólogo asignado». Hoy responde 400
-«Indica a qué psicólogo se asigna el paciente» cuando aprueba un coordinador sin elegir
-uno. Bajo el modelo por sede ese paso desaparecería; bajo el individual, el coordinador
-tendría que elegir psicólogo siempre. **Hasta decidirlo, `approve()` no se toca.**
+Cómo funciona con B:
+- Como aprueba el coordinador, que **no atiende pacientes**, `approve()` no puede asumir «el que
+  aprueba es el psicólogo asignado»: sin `assignedPsychologistId` responde 400 «Indica a qué
+  psicólogo se asigna el paciente».
+- **El psicólogo elegido tiene que atender la sede del paciente.** La lista de la web ya
+  filtraba así, pero la API aceptaba a cualquiera; ahora responde 400 «El psicólogo asignado no
+  atiende la sede del paciente» antes de tocar nada.
+- Una sede sin psicólogos activos (hoy «Online») no se puede aprobar hasta que alguien la cubra
+  desde *Equipo*.
+
+**Para pasar a A después:** cambiar la visibilidad a «asignado o de la misma sede» en los tres
+puntos de arriba y decidir si `PatientAssignment` queda como «psicólogo responsable». Pasar toda
+consulta por sede por `formasDeSede`, o la lista sale incompleta sin error. Con A, el coordinador
+dejaría de elegir psicólogo al aprobar.
 
 ## Si Miguel Ángel lo desmiente
 

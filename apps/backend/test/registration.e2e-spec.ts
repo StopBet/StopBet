@@ -40,6 +40,7 @@ describe('Registration approve/reject/reopen (e2e)', () => {
   let psychRemoteEmail: string;
   let coordinatorEmail: string;
   let psychLocalId: string;
+  let psychRemoteId: string;
   let localSedeId: string;
   let remoteSedeId: string;
 
@@ -93,6 +94,7 @@ describe('Registration approve/reject/reopen (e2e)', () => {
 
     const psychRemote = await makeUser('psychologist', 'psych-remote', passwordHash);
     psychRemoteEmail = psychRemote.email;
+    psychRemoteId = psychRemote.id;
 
     coordinatorEmail = (await makeUser('coordinator', 'coordinator', passwordHash)).email;
 
@@ -208,6 +210,24 @@ describe('Registration approve/reject/reopen (e2e)', () => {
       expect(review.reviewerRole).toBe('coordinator');
 
       await assignmentRepo.delete({ patientId, psychologistId: psychLocalId });
+    });
+
+    // CA2 modelo individual: el filtro de la web no basta, un cliente a mano podía asignar al
+    // paciente a un psicólogo que no atiende su sede.
+    it('el coordinador asigna a un psicólogo de otra sede → 400 y no cambia nada', async () => {
+      const requestId = await makePendingRequest(localSedeId);
+      const token = await loginAs(coordinatorEmail);
+      const res = await request(app.getHttpServer())
+        .patch(`/registration/${requestId}/approve`)
+        .set('Authorization', `Bearer ${token}`)
+        .send({ assignedPsychologistId: psychRemoteId })
+        .expect(400);
+
+      expect(res.body.message).toContain('no atiende la sede del paciente');
+      const req = await requestRepo.findOneOrFail({ where: { id: requestId } });
+      expect(req.status).toBe('pending');
+      expect(await assignmentRepo.count({ where: { patientId, active: true } })).toBe(0);
+      expect(await reviewRepo.count({ where: { requestId } })).toBe(0);
     });
   });
 

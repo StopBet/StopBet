@@ -268,6 +268,18 @@ export class RegistrationService {
         );
       }
 
+      // CA2 modelo individual (decisión B, 07-10): el paciente queda con un psicólogo de SU
+      // sede. La lista de la web ya filtra así, pero la API aceptaba cualquier psicólogo activo.
+      const assigneeSedes = await sedeIdsOfPsychologist(
+        this.psychSedeRepo,
+        this.sedeRepo,
+        assignee.id,
+        assignee.sedeId,
+      );
+      if (!assigneeSedes.includes(req.sedeId)) {
+        throw new BadRequestException('El psicólogo asignado no atiende la sede del paciente');
+      }
+
       // Update condicional en vez de comprobar el estado y actualizar por separado: dos
       // aprobaciones simultáneas pasarían las dos ese `if` y crearían asignaciones duplicadas.
       // `affected` es opcional en TypeORM, así que se comprueba con `!` y no con `=== 0`.
