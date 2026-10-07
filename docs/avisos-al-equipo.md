@@ -20,6 +20,24 @@ está.
 
 ---
 
+## 2026-10-07 - Solicitudes de ingreso: el paciente recibe un correo al aprobar, rechazar o reabrir (PR #150)
+
+**A quién le pega:** a quien administre las variables de Railway (José) y a quien pruebe
+solicitudes con correos reales.
+
+- **Qué hacer:** nada que correr. Opcional: definir `AJUTER_CONTACTO` (correo o teléfono de
+  AJUTER) en Railway. Sin ella, el correo de rechazo dice solo «comunícate con AJUTER», porque
+  todavía no hay un contacto confirmado.
+- **Qué cambió:** `approve`, `reject` y `reopen` mandan un correo al paciente (Brevo, mismo
+  diseño que el de credenciales). El envío es opcional y sin esperarlo: si Brevo cae, la
+  decisión queda guardada igual. Con `BREVO_API_KEY` en local, aprobar una solicitud de seed
+  manda un correo real a una dirección que no existe (rebota y gasta cuota): corre con
+  `BREVO_API_KEY=` vacía.
+- **El correo de «aprobada» aún no trae el enlace para crear contraseña** (el paciente que se
+  registra desde la app no tiene contraseña). Deja el lugar marcado con un `TODO` en
+  `RegistrationService.approve`; dice que el enlace llegará después. Falta la historia de
+  activación de cuenta.
+
 ## 2026-10-07 - Pagos con Webpay Oneclick en sandbox (SPIKE 2, CA5-CA6, PR #149)
 
 **A quién le pega:** a **todos, una sola vez**, por una dependencia nueva. También a quien toque
