@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -11,6 +11,7 @@ import { Sede } from '../src/sedes/entities/sede.entity';
 import { PsychologistSede } from '../src/psychologists/entities/psychologist-sede.entity';
 import { PatientAssignment } from '../src/psychologists/entities/patient-assignment.entity';
 import { RegistrationRequest } from '../src/registration/entities/registration-request.entity';
+import { RegistrationReview } from '../src/registration/entities/registration-review.entity';
 
 // 24.4 — la gestión de cuentas de psicólogo exige @Roles('coordinator'), verificable con
 // una app real (BD real), no solo con la UI.
@@ -22,6 +23,7 @@ describe('Psychologists guard (e2e)', () => {
   let psychSedeRepo: Repository<PsychologistSede>;
   let assignmentRepo: Repository<PatientAssignment>;
   let requestRepo: Repository<RegistrationRequest>;
+  let reviewRepo: Repository<RegistrationReview>;
 
   const TEST_PASSWORD = 'TestE2E2026!';
   let patientId: string;
@@ -45,6 +47,7 @@ describe('Psychologists guard (e2e)', () => {
     psychSedeRepo = moduleFixture.get(getRepositoryToken(PsychologistSede));
     assignmentRepo = moduleFixture.get(getRepositoryToken(PatientAssignment));
     requestRepo = moduleFixture.get(getRepositoryToken(RegistrationRequest));
+    reviewRepo = moduleFixture.get(DataSource).getRepository(RegistrationReview);
 
     const passwordHash = await bcrypt.hash(TEST_PASSWORD, 10);
     // Sufijo random además del timestamp: roles.e2e-spec.ts genera emails con el mismo
@@ -93,6 +96,15 @@ describe('Psychologists guard (e2e)', () => {
     sedeId = sedes[0].id;
     secondSedeId = sedes[1].id;
   });
+
+  // Aprobar una solicitud escribe una fila en `registration_reviews`, que no tiene FK y nunca se
+  // borra sola: si solo se borra la solicitud, queda una decisión huérfana sin autor ni
+  // paciente en la bitácora de la web.
+  async function deleteRequestsOf(userId: string): Promise<void> {
+    const requests = await requestRepo.find({ where: { userId } });
+    if (requests.length) await reviewRepo.delete({ requestId: In(requests.map((r) => r.id)) });
+    await requestRepo.delete({ userId });
+  }
 
   afterAll(async () => {
     for (const id of [...createdPsychologistIds, psychologistId, coordinatorId]) {
@@ -248,7 +260,7 @@ describe('Psychologists guard (e2e)', () => {
     afterAll(async () => {
       await assignmentRepo.delete({ patientId: newPatientId });
       await refreshTokenRepo.delete({ userId: newPatientId });
-      await requestRepo.delete({ userId: newPatientId });
+      await deleteRequestsOf(newPatientId);
       await userRepo.delete({ id: newPatientId });
     });
 
@@ -283,7 +295,7 @@ describe('Psychologists guard (e2e)', () => {
 
       expect(res.body.message).toContain('Indica a qué psicólogo');
 
-      await requestRepo.delete({ userId: submitted.body.userId });
+      await deleteRequestsOf(submitted.body.userId);
       await userRepo.delete({ id: submitted.body.userId });
     });
 
@@ -395,7 +407,7 @@ describe('Psychologists guard (e2e)', () => {
       for (const id of patientIds) {
         await assignmentRepo.delete({ patientId: id });
         await refreshTokenRepo.delete({ userId: id });
-        await requestRepo.delete({ userId: id });
+        await deleteRequestsOf(id);
         await userRepo.delete({ id });
       }
     });

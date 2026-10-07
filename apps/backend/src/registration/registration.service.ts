@@ -31,7 +31,7 @@ import {
 } from '../mail/templates/registration-decision';
 import { SubmitRegistrationDto } from './dto/submit-registration.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
-import { AuthUser, SubmitRegistrationResponse,
+import { AuthUser, SubmitRegistrationResponse, UserRole,
   IntakeAnswers,
   RegistrationStatus,
 } from '@stopbet/shared-types';
@@ -55,6 +55,19 @@ export interface ReviewableRequest {
   phone: string | null;
   createdAt: string;
 }
+
+export interface RegistrationHistoryEntry {
+  id: string;
+  reviewedAt: string;
+  verdict: RegistrationVerdict;
+  reviewerName: string | null;
+  reviewerRole: UserRole;
+  patientName: string | null;
+}
+
+// Tope de la bitácora que se muestra: es una pantalla de consulta, no un export. La tabla
+// completa queda en la BD para auditoría.
+const HISTORY_LIMIT = 100;
 
 export interface RejectedRequest extends ReviewableRequest {
   reviewedAt: string | null;
@@ -214,6 +227,43 @@ export class RegistrationService {
         reviewedAt: r.reviewedAt ? r.reviewedAt.toISOString() : null,
         reviewedByName: r.reviewedBy ? (names.get(r.reviewedBy) ?? null) : null,
       }));
+  }
+
+  /**
+   * CA6: la bitácora de decisiones (aprobó, rechazó, reabrió) para mostrarla en pantalla.
+   * `registration_reviews` no tiene FK a propósito, así que el paciente y quien decidió se
+   * resuelven aparte, con una consulta por tabla. Un usuario ya borrado sale como `null`:
+   * la fila de auditoría sobrevive aunque la cuenta no.
+   */
+  async listHistory(): Promise<RegistrationHistoryEntry[]> {
+    const reviews = await this.dataSource.getRepository(RegistrationReview).find({
+      order: { reviewedAt: 'DESC' },
+      take: HISTORY_LIMIT,
+    });
+    if (reviews.length === 0) return [];
+
+    const requestIds = [...new Set(reviews.map((r) => r.requestId))];
+    const reviewerIds = [...new Set(reviews.map((r) => r.reviewedBy))];
+    const [requests, reviewers] = await Promise.all([
+      this.requestRepo.find({ where: { id: In(requestIds) }, relations: ['user'] }),
+      this.userRepo.find({ where: { id: In(reviewerIds) } }),
+    ]);
+
+    const patientByRequest = new Map(
+      requests.map((r) => [r.id, r.user ? `${r.user.firstName} ${r.user.lastName}`.trim() : null]),
+    );
+    const reviewerById = new Map(
+      reviewers.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim()]),
+    );
+
+    return reviews.map((r) => ({
+      id: r.id,
+      reviewedAt: r.reviewedAt.toISOString(),
+      verdict: r.verdict,
+      reviewerName: reviewerById.get(r.reviewedBy) ?? null,
+      reviewerRole: r.reviewerRole,
+      patientName: patientByRequest.get(r.requestId) ?? null,
+    }));
   }
 
   async submit(dto: SubmitRegistrationDto): Promise<SubmitRegistrationResponse> {

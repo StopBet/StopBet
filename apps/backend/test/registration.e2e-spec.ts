@@ -378,4 +378,44 @@ describe('Registration approve/reject/reopen (e2e)', () => {
       expect(ids).toContain(rejected);
     });
   });
+
+  describe('GET /registration/history', () => {
+    it('sin token → 401, no lo captura la ruta pública :requestId', async () => {
+      await request(app.getHttpServer()).get('/registration/history').expect(401);
+    });
+
+    it('un psicólogo → 403', async () => {
+      const token = await loginAs(psychLocalEmail);
+      await request(app.getHttpServer())
+        .get('/registration/history')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(403);
+    });
+
+    it('el coordinador ve la decisión que acaba de tomar, con paciente, autor y rol', async () => {
+      const requestId = await makePendingRequest(localSedeId);
+      const token = await loginAs(coordinatorEmail);
+      await request(app.getHttpServer())
+        .patch(`/registration/${requestId}/reject`)
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const res = await request(app.getHttpServer())
+        .get('/registration/history')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      const review = await reviewRepo.findOneOrFail({ where: { requestId } });
+      const entry = res.body.find((e: { id: string }) => e.id === review.id);
+      expect(entry).toEqual(
+        expect.objectContaining({
+          verdict: 'rejected',
+          reviewerRole: 'coordinator',
+          patientName: expect.any(String),
+          reviewerName: expect.any(String),
+        }),
+      );
+      expect(new Date(entry.reviewedAt).getTime()).not.toBeNaN();
+    });
+  });
 });
