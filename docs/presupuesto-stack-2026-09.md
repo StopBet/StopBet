@@ -55,7 +55,7 @@ de Transbank** (sección 3.4), que es un porcentaje de lo recaudado y no un cost
 | **Dominio** | [NIC Chile](https://www.nic.cl/) | `stopbet.cl` | — | **$9.940 + IVA al año** (≈ $11.829) | Descuento por 2, 5 o 10 años |
 | **Certificado SSL** | Vercel / Cloudflare | HTTPS | Incluido | $0 | — |
 | **Tipografías** | Chillax y Satoshi (Fontshare) | Marca | Licencia gratuita | $0 | Confirmar la licencia comercial antes de publicar |
-| **Pasarela de pago** | [Transbank Webpay Plus](https://publico.transbank.cl/tarifas) | Cobro del plan mensual | **No implementada** | Sin cargo fijo mensual | Comisión por venta: ver 3.4 |
+| **Pasarela de pago** | [Transbank Webpay Oneclick](https://publico.transbank.cl/tarifas) | Cobro del plan mensual | **No implementada** | Sin cargo fijo mensual | Comisión por venta: ver 3.4 |
 
 ### Detalle de los tres escenarios
 
@@ -123,19 +123,25 @@ mes**, y la salida de datos no se cobra — que es justamente lo caro en AWS S3.
 
 ### 3.4 Transbank (cuando exista la pasarela)
 
-Tarifa vigente desde el 20 de mayo de 2026 para comercios nuevos, **sin cargo fijo mensual**:
+Tarifa vigente **a partir del 1 de septiembre de 2026** para comercios nuevos, **sin cargo fijo mensual**
+(consultada el 07-10-2026 en [publico.transbank.cl/tarifas](https://publico.transbank.cl/tarifas)):
 
 | Medio de pago | Comisión |
 |---|---|
-| Crédito | **2,35 % + IVA** |
-| Débito y prepago | **1,75 % + IVA** |
+| Crédito | **2,29 % + IVA** |
+| Débito y prepago | **1,49 % + IVA** |
+
+> Esta tabla decía 2,35 % y 1,75 % «desde el 20 de mayo de 2026». Esas cifras siguen en el centro de
+> ayuda de Transbank, sin fecha, pero la página oficial de tarifas muestra hoy las de arriba. Valen para
+> **comercios nuevos**: si AJUTER ya fuera cliente, hay que confirmar cuál le toca. La comparación con
+> Flow y Mercado Pago está en [`planning/spike2-pasarela-pago.md`](planning/spike2-pasarela-pago.md).
 
 Sobre el plan de $30.000 mensuales:
 
 | Pacientes | Recaudación mensual | Comisión (crédito, con IVA) |
 |---|---|---|
-| 100 | $3.000.000 | ≈ **$83.895** |
-| 500 | $15.000.000 | ≈ **$419.475** |
+| 100 | $3.000.000 | ≈ **$81.753** |
+| 500 | $15.000.000 | ≈ **$408.765** |
 
 Es decir: **la comisión de Transbank, con 500 pacientes, cuesta casi cuatro veces todo el resto del stack junto.**
 Es el único número grande de este presupuesto, y se descuenta de lo recaudado, no se paga
