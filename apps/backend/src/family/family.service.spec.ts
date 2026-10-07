@@ -449,6 +449,22 @@ describe('FamilyService (HU-11)', () => {
       });
     });
 
+    it('un familiar revocado puede volver a pedir el vínculo: se reabre el mismo', async () => {
+      linkRepo.find.mockResolvedValue([{ status: 'revoked', patientUserId: 'pac-1', declaredPatientRut: null, declaredPatientEmail: 'carlos@stopbet.cl' }]);
+      userRepo.findOne
+        .mockResolvedValueOnce(familyUser)
+        .mockResolvedValueOnce({ id: 'pac-1', sedeId: SEDE_UUID });
+      linkRepo.findOne.mockResolvedValue({ id: 'link-1', status: 'revoked' });
+
+      const result = await service.requestLink(FAMILY_ID, { patientEmail: 'carlos@stopbet.cl' });
+
+      expect(result).toEqual({ status: 'pending', alreadyInReview: false });
+      expect(linkRepo.update).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'link-1' }),
+        expect.objectContaining({ status: 'pending', patientResponse: null }),
+      );
+    });
+
     it('volver a declarar a un paciente que lo rechazó reabre el mismo vínculo', async () => {
       userRepo.findOne
         .mockResolvedValueOnce(familyUser)
@@ -756,6 +772,17 @@ describe('FamilyService (HU-11)', () => {
         expect.objectContaining({ where: expect.objectContaining({ status: 'active' }) }),
       );
     });
+
+    it('listRevokedLinks pide los vínculos revocados de la sede', async () => {
+      linkRepo.find.mockResolvedValue([]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: SEDE_UUID }]);
+
+      await service.listRevokedLinks(psychologist());
+
+      expect(linkRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ status: 'revoked' }) }),
+      );
+    });
   });
 
   describe('confirmLink / rejectLink / revokeLink', () => {
@@ -929,6 +956,58 @@ describe('FamilyService (HU-11)', () => {
       await expect(service.confirmLink('no-existe', psychologist(), 'in_person')).rejects.toThrow(
         'Vínculo no encontrado',
       );
+    });
+
+    // Un revocado por error tenía que poder volver. No se restaura el acceso de golpe: vuelve a
+    // pendiente y se le pregunta de nuevo al paciente, porque su respuesta anterior ya no vale.
+    describe('reopenLink', () => {
+      it('devuelve a pendiente, borra la respuesta anterior del paciente y lo registra en la auditoría', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow({ status: 'revoked', patientResponse: 'accepted' }));
+
+        await service.reopenLink('link-1', psychologist());
+
+        expect(linkRepo.update).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'link-1', status: 'revoked' }),
+          expect.objectContaining({ status: 'pending', reviewedBy: 'psych-1' }),
+        );
+        expect(linkRepo.update).toHaveBeenCalledWith(
+          { id: 'link-1' },
+          { patientResponse: null, patientRespondedAt: null, verification: null },
+        );
+        expect(reviewRepo.save).toHaveBeenCalledWith(expect.objectContaining({ verdict: 'reopened', reviewedBy: 'psych-1' }));
+      });
+
+      it('avisa al familiar y vuelve a consultar al paciente en la app y por push', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow({ status: 'revoked' }));
+
+        await service.reopenLink('link-1', psychologist());
+
+        expect(notifRepo.save).toHaveBeenCalledWith(
+          expect.objectContaining({ userId: 'fam-1', title: 'Tu solicitud de vinculación volvió a revisión' }),
+        );
+        expect(notifRepo.save).toHaveBeenCalledWith(
+          expect.objectContaining({ userId: 'pat-1', target: 'family-request' }),
+        );
+        expect(push.enviarAUsuarios).toHaveBeenCalledWith(['pat-1'], expect.any(String), expect.any(String));
+      });
+
+      it('409 si el vínculo no está revocado', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow({ status: 'active' }));
+        linkRepo.update.mockResolvedValue({ affected: 0 });
+
+        await expect(service.reopenLink('link-1', psychologist())).rejects.toThrow('El vínculo no está revocado');
+        expect(push.enviarAUsuarios).not.toHaveBeenCalled();
+      });
+
+      it('un psicólogo de otra sede no puede reabrir', async () => {
+        linkRepo.findOne.mockResolvedValue(linkRow({ status: 'revoked' }));
+        psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'otro', sedeId: 'sede-concepcion' }]);
+
+        await expect(service.reopenLink('link-1', psychologist())).rejects.toThrow(
+          'No puedes revisar vínculos de una sede que no atiendes',
+        );
+        expect(linkRepo.update).not.toHaveBeenCalled();
+      });
     });
   });
 

@@ -151,9 +151,14 @@ function SessionsHome({ user, onLogout }: { user: AuthUser; onLogout: () => void
     return (
       <Shell user={user} onLogout={onLogout}>
         <Notice icon="circle-alert" title="Tu acceso como familiar fue retirado">
-          El equipo clínico retiró tu vínculo con el paciente. Si crees que esto es un error,
-          contacta directamente al equipo clínico de tu sede.
+          El equipo clínico retiró tu vínculo con el paciente. Si crees que fue un error, puedes
+          pedirlo de nuevo abajo: el equipo clínico lo revisará otra vez.
         </Notice>
+        <RedeclareCard
+          title="Pedir el vínculo de nuevo"
+          intro="Escribe el RUT o el correo de tu familiar. Volverá a revisión y se le preguntará a tu familiar."
+          onDone={onRedeclared}
+        />
       </Shell>
     )
   }

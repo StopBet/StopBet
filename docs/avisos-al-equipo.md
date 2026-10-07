@@ -20,6 +20,20 @@ está.
 
 ---
 
+## 2026-10-06 - Un familiar revocado por error ya tiene vuelta atrás
+
+**A quién le pega:** a quien pruebe el flujo de familiares. **No hay que instalar nada**: no
+hay columnas nuevas.
+
+**Qué cambió:**
+- En *Familiares* aparece una sección **«Familiares revocados»** (solo si hay alguno) con el
+  botón **«Volver a revisar»**. No devuelve el acceso de inmediato: la solicitud vuelve a
+  *Pendientes* y al paciente se le pregunta de nuevo en la app.
+- El portal del familiar revocado ahora tiene el formulario **«Pedir el vínculo de nuevo»**.
+- Endpoints nuevos: `GET /family/revoked` y `PATCH /family/links/:id/reopen`.
+
+---
+
 ## 2026-09-30 - Comunidad › Chats ahora es una lista, con mensajes directos (PR #142)
 
 **A quién le pega:** a **Alex** y a quien toque Comunidad en mobile o la moderación (web y app

@@ -596,6 +596,11 @@ export const api = {
 
   revokeFamilyLink: (linkId: string) =>
     patchWithAuth<void>(`/family/links/${linkId}/revoke`, {}),
+
+  // Revocados por error: vuelven a Pendientes y se le pregunta de nuevo al paciente.
+  getRevokedFamilyLinks: () => get<FamilyLinkListItem[]>('/family/revoked'),
+  reopenFamilyLink: (linkId: string) =>
+    patchWithAuth<void>(`/family/links/${linkId}/reopen`, {}),
 }
 
 // ── Tipos del portal del familiar (HU-11) ─────────────────────────────────────
