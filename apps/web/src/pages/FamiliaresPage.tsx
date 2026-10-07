@@ -1,18 +1,22 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
-import { api, type ApiError, type FamilyLinkListItem, type FamilyLinkVerification } from '../services/api'
+import {
+  api, type ApiError, type FamilyLinkListItem, type FamilyLinkReviewItem, type FamilyLinkVerdict,
+  type FamilyLinkVerification,
+} from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useDialog } from '../hooks/useDialog'
+import { fechaCorta as fecha, fechaHora } from '../utils/fecha'
 
-const PENDING_KEY = ['family', 'links', 'pending']
-const ACTIVE_KEY = ['family', 'links', 'active']
-const REVOKED_KEY = ['family', 'links', 'revoked']
-
-function fecha(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
+// Todas comparten el prefijo ['family', 'links']: invalidarlo refresca las listas y los historiales.
+const LINKS_KEY = ['family', 'links']
+const PENDING_KEY = [...LINKS_KEY, 'pending']
+const ACTIVE_KEY = [...LINKS_KEY, 'active']
+const REVOKED_KEY = [...LINKS_KEY, 'revoked']
+const REJECTED_KEY = [...LINKS_KEY, 'rejected']
+const historyKey = (linkId: string) => [...LINKS_KEY, 'history', linkId]
 
 const VERIFICATION_LABEL: Record<FamilyLinkVerification, string> = {
   patient_consulted: 'Confirmado por el paciente',
@@ -85,9 +89,21 @@ function ActionModal({
 /* ── Fila / tarjeta de un vínculo ────────────────────────────────────── */
 // `card` cuando la tabla no cabe. Los datos van a la izquierda y los botones a la derecha, y con
 // flex-wrap los botones bajan solos en el teléfono: el mismo componente sirve para los dos anchos.
+// `reviewLabel` es lo que se hizo («Confirmado», «Rechazado»…) y lo fija la sección, no el vínculo.
+// En pendientes no se pasa: un familiar que vuelve a declarar a un paciente rechazado reabre el
+// mismo vínculo sin registrar un veredicto, así que ahí decir «Devuelto por X» sería falso.
+// Sin `actions` (rechazados: solo lectura) no se dibuja la columna.
 function LinkRow({
-  link, card, actions, showPatientResponse = false,
-}: { link: FamilyLinkListItem; card: boolean; actions: React.ReactNode; showPatientResponse?: boolean }) {
+  link, card, actions, showPatientResponse = false, reviewLabel, onHistory,
+}: {
+  link: FamilyLinkListItem
+  card: boolean
+  actions?: React.ReactNode
+  showPatientResponse?: boolean
+  reviewLabel?: string
+  onHistory: (link: FamilyLinkListItem) => void
+}) {
+  const review = <ReviewLine link={link} label={reviewLabel} onHistory={onHistory} />
   if (card) {
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 20px', padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
@@ -102,8 +118,9 @@ function LinkRow({
           {link.verification && <VerificationChip verification={link.verification} />}
           {showPatientResponse && <PatientResponseChip link={link} />}
           {showPatientResponse && link.patientResponse === 'denied' && <DeniedHint />}
+          {review}
         </div>
-        <div style={{ display: 'flex', gap: 8, flex: '1 1 auto', justifyContent: 'flex-end', maxWidth: 340 }}>{actions}</div>
+        {actions && <div style={{ display: 'flex', gap: 8, flex: '1 1 auto', justifyContent: 'flex-end', maxWidth: 340 }}>{actions}</div>}
       </div>
     )
   }
@@ -118,12 +135,39 @@ function LinkRow({
         {link.verification && <div style={{ marginTop: 6 }}><VerificationChip verification={link.verification} /></div>}
         {showPatientResponse && <div style={{ marginTop: 6 }}><PatientResponseChip link={link} /></div>}
         {showPatientResponse && link.patientResponse === 'denied' && <div style={{ marginTop: 4 }}><DeniedHint /></div>}
+        {link.lastReviewedAt && <div style={{ marginTop: 6 }}>{review}</div>}
       </td>
       <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg2)' }}>{fecha(link.createdAt)}</td>
-      <td style={{ padding: '14px 14px' }}>
-        <div style={{ display: 'flex', gap: 8 }}>{actions}</div>
-      </td>
+      {actions && (
+        <td style={{ padding: '14px 14px' }}>
+          <div style={{ display: 'flex', gap: 8 }}>{actions}</div>
+        </td>
+      )}
     </tr>
+  )
+}
+
+// HDU 23 CA6 — quién decidió y cuándo, a la vista; el resto, en el historial. No se dibuja si el
+// vínculo nunca fue revisado por un psicólogo.
+function ReviewLine({
+  link, label, onHistory,
+}: { link: FamilyLinkListItem; label?: string; onHistory: (link: FamilyLinkListItem) => void }) {
+  if (!link.lastReviewedAt) return null
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 12px', fontSize: 12.5, color: 'var(--fg2)' }}>
+      {label && (
+        <span>
+          {label} por <strong style={{ color: 'var(--fg1)', fontWeight: 600 }}>{link.lastReviewedByName ?? 'un usuario eliminado'}</strong> · {fechaHora(link.lastReviewedAt)}
+        </span>
+      )}
+      <button
+        onClick={() => onHistory(link)}
+        aria-label={`Ver el historial de decisiones del vínculo de ${link.familyName}`}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--primary-text)', fontSize: 12.5, fontWeight: 700, textDecoration: 'underline' }}
+      >
+        <WIcon name="clock" size={13} /> Historial
+      </button>
+    </div>
   )
 }
 
@@ -217,6 +261,87 @@ function VerificationChoice({
   )
 }
 
+/* ── Historial de decisiones (HDU 23 CA6) ────────────────────────────── */
+// El rojo se reserva para pánico: rechazar o revocar es una decisión clínica normal, no una alerta.
+const VERDICT_META: Record<FamilyLinkVerdict, { label: string; text: string; dot: string }> = {
+  confirmed: { label: 'Confirmó el vínculo', text: 'var(--secondary-text)', dot: 'var(--secondary)' },
+  rejected: { label: 'Rechazó la solicitud', text: 'var(--fg1)', dot: 'var(--fg2)' },
+  revoked: { label: 'Revocó el acceso', text: 'var(--fg1)', dot: 'var(--fg2)' },
+  reopened: { label: 'Devolvió a revisión', text: 'var(--primary-text)', dot: 'var(--primary)' },
+}
+
+function HistoryEntry({ item, last }: { item: FamilyLinkReviewItem; last: boolean }) {
+  const meta = VERDICT_META[item.verdict]
+  return (
+    <li style={{ display: 'flex', gap: 14 }}>
+      <div aria-hidden="true" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 12, flexShrink: 0 }}>
+        <span style={{ width: 12, height: 12, borderRadius: '50%', background: meta.dot, marginTop: 4 }} />
+        {!last && <span style={{ flex: 1, width: 2, background: 'var(--border)', marginTop: 4 }} />}
+      </div>
+      <div style={{ paddingBottom: last ? 0 : 18, minWidth: 0 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14.5, color: meta.text }}>{meta.label}</div>
+        <div style={{ fontSize: 12.5, color: 'var(--fg2)', marginTop: 2 }}>
+          {item.reviewedByName ?? 'Un usuario eliminado'} · {fechaHora(item.reviewedAt)}
+        </div>
+        {item.verification && <div style={{ marginTop: 6 }}><VerificationChip verification={item.verification} /></div>}
+      </div>
+    </li>
+  )
+}
+
+function HistoryModal({ link, onClose }: { link: FamilyLinkListItem; onClose: () => void }) {
+  const dialogRef = useDialog<HTMLDivElement>(onClose)
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: historyKey(link.id),
+    queryFn: () => api.getFamilyLinkHistory(link.id),
+  })
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div onClick={onClose} style={{ position: 'absolute', inset: 0, background: 'var(--scrim)', animation: 'sb-scrim-in 0.18s ease' }} />
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="sb-historial-vinculo" tabIndex={-1} style={{ position: 'relative', background: 'var(--surface)', borderRadius: 20, boxShadow: 'var(--shadow-strong)', width: 480, maxWidth: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column', animation: 'sb-modal-in 0.28s var(--ease-calm)', zIndex: 1 }}>
+        <div style={{ padding: '28px 28px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+            <div style={{ minWidth: 0 }}>
+              <h2 id="sb-historial-vinculo" style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 21, color: 'var(--fg1)' }}>Historial del vínculo</h2>
+              <p style={{ margin: '6px 0 0', fontSize: 13.5, color: 'var(--fg2)', lineHeight: 1.5, overflowWrap: 'anywhere' }}>
+                <strong style={{ color: 'var(--fg1)' }}>{link.familyName}</strong> y su paciente declarado, <strong style={{ color: 'var(--fg1)' }}>{link.patientName}</strong>.
+              </p>
+            </div>
+            <button onClick={onClose} aria-label="Cerrar" style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <WIcon name="x" size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div style={{ padding: '20px 28px 0', overflowY: 'auto', minHeight: 0 }}>
+          {isLoading ? (
+            <div style={{ color: 'var(--fg2)', fontSize: 13.5 }}>Cargando…</div>
+          ) : isError ? (
+            <div role="alert" style={{ fontSize: 13, color: 'var(--danger-text)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px' }}>
+              No pudimos cargar el historial.{' '}
+              <button onClick={() => refetch()} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', color: 'var(--primary-text)', fontWeight: 700, textDecoration: 'underline', fontSize: 13 }}>Reintentar</button>
+            </div>
+          ) : !data || data.length === 0 ? (
+            <div style={{ color: 'var(--fg2)', fontSize: 13.5 }}>Este vínculo todavía no tiene decisiones registradas.</div>
+          ) : (
+            <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+              {data.map((item, i) => <HistoryEntry key={item.id} item={item} last={i === data.length - 1} />)}
+            </ol>
+          )}
+        </div>
+
+        <div style={{ padding: '18px 28px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: 'var(--fg2)', flex: '1 1 180px' }}>Este historial no se puede editar ni borrar.</span>
+          <button onClick={onClose} style={{ height: 46, padding: '0 22px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg2)', fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, cursor: 'pointer' }}>
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const pillBtn = (tone: 'primary' | 'danger'): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
   height: 36, padding: '0 16px', borderRadius: 9999, cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -237,7 +362,9 @@ export function FamiliaresPage() {
   const { data: pending = [], isLoading: loadingPending } = useQuery({ queryKey: PENDING_KEY, queryFn: api.getPendingFamilyLinks })
   const { data: active = [], isLoading: loadingActive } = useQuery({ queryKey: ACTIVE_KEY, queryFn: api.getActiveFamilyLinks })
   const { data: revoked = [] } = useQuery({ queryKey: REVOKED_KEY, queryFn: api.getRevokedFamilyLinks })
+  const { data: rejected = [] } = useQuery({ queryKey: REJECTED_KEY, queryFn: api.getRejectedFamilyLinks })
 
+  const [historyTarget, setHistoryTarget] = useState<FamilyLinkListItem | null>(null)
   const [confirmTarget, setConfirmTarget] = useState<FamilyLinkListItem | null>(null)
   const [rejectTarget, setRejectTarget] = useState<FamilyLinkListItem | null>(null)
   const [revokeTarget, setRevokeTarget] = useState<FamilyLinkListItem | null>(null)
@@ -251,10 +378,9 @@ export function FamiliaresPage() {
     setConfirmTarget(l)
   }
 
+  // Por el prefijo: refresca las cuatro listas y también cualquier historial ya cargado.
   const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: PENDING_KEY })
-    qc.invalidateQueries({ queryKey: ACTIVE_KEY })
-    qc.invalidateQueries({ queryKey: REVOKED_KEY })
+    qc.invalidateQueries({ queryKey: LINKS_KEY })
   }
 
   const confirmMutation = useMutation({
@@ -318,7 +444,7 @@ export function FamiliaresPage() {
         ) : cards ? (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {pending.map((l) => (
-              <LinkRow key={l.id} link={l} card showPatientResponse actions={<>
+              <LinkRow key={l.id} link={l} onHistory={setHistoryTarget} card showPatientResponse actions={<>
                 {l.patientResponse !== 'denied' && <button onClick={() => openConfirm(l)} style={{ ...pillBtn('primary'), ...stretch }}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>}
                 <button onClick={() => setRejectTarget(l)} style={{ ...pillBtn('danger'), ...stretch }}><WIcon name="x" size={14} /> Rechazar</button>
               </>} />
@@ -330,7 +456,7 @@ export function FamiliaresPage() {
             <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente declarado" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
             <tbody>
               {pending.map((l) => (
-                <LinkRow key={l.id} link={l} card={false} showPatientResponse actions={<>
+                <LinkRow key={l.id} link={l} onHistory={setHistoryTarget} card={false} showPatientResponse actions={<>
                   {l.patientResponse !== 'denied' && <button onClick={() => openConfirm(l)} style={pillBtn('primary')}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>}
                   <button onClick={() => setRejectTarget(l)} style={pillBtn('danger')}><WIcon name="x" size={14} /> Rechazar</button>
                 </>} />
@@ -355,7 +481,7 @@ export function FamiliaresPage() {
         ) : cards ? (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {active.map((l) => (
-              <LinkRow key={l.id} link={l} card actions={
+              <LinkRow key={l.id} link={l} reviewLabel="Confirmado" onHistory={setHistoryTarget} card actions={
                 <button onClick={() => setRevokeTarget(l)} style={{ ...pillBtn('danger'), ...stretch }}><WIcon name="x" size={14} /> Revocar</button>
               } />
             ))}
@@ -366,7 +492,7 @@ export function FamiliaresPage() {
             <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
             <tbody>
               {active.map((l) => (
-                <LinkRow key={l.id} link={l} card={false} actions={
+                <LinkRow key={l.id} link={l} reviewLabel="Confirmado" onHistory={setHistoryTarget} card={false} actions={
                   <button onClick={() => setRevokeTarget(l)} style={pillBtn('danger')}><WIcon name="x" size={14} /> Revocar</button>
                 } />
               ))}
@@ -388,7 +514,7 @@ export function FamiliaresPage() {
           {cards ? (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {revoked.map((l) => (
-                <LinkRow key={l.id} link={l} card actions={
+                <LinkRow key={l.id} link={l} reviewLabel="Revocado" onHistory={setHistoryTarget} card actions={
                   <button onClick={() => setReopenTarget(l)} style={{ ...pillBtn('primary'), ...stretch }}><WIcon name="clock" size={14} color="var(--fg-on-primary)" /> Volver a revisar</button>
                 } />
               ))}
@@ -399,7 +525,7 @@ export function FamiliaresPage() {
               <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
               <tbody>
                 {revoked.map((l) => (
-                  <LinkRow key={l.id} link={l} card={false} actions={
+                  <LinkRow key={l.id} link={l} reviewLabel="Revocado" onHistory={setHistoryTarget} card={false} actions={
                     <button onClick={() => setReopenTarget(l)} style={pillBtn('primary')}><WIcon name="clock" size={14} color="var(--fg-on-primary)" /> Volver a revisar</button>
                   } />
                 ))}
@@ -408,6 +534,39 @@ export function FamiliaresPage() {
           )}
         </div>
       )}
+
+      {/* Rechazados (HDU 23 CA6): solo lectura. Sin esta lista el veredicto «rechazado» no se veía en
+          ninguna parte del panel. Si el familiar vuelve a declarar al paciente desde su portal, la
+          solicitud reaparece en Pendientes. */}
+      {rejected.length > 0 && (
+        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginTop: 24 }}>
+          <div style={{ padding: '20px 24px 16px' }}>
+            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Familiares rechazados</h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--fg2)' }}>
+              Si el familiar vuelve a declarar al paciente desde su portal, la solicitud vuelve a Pendientes.
+            </p>
+          </div>
+          {cards ? (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {rejected.map((l) => (
+                <LinkRow key={l.id} link={l} reviewLabel="Rechazado" onHistory={setHistoryTarget} card />
+              ))}
+            </div>
+          ) : (
+            <table style={{ width: '100%', maxWidth: 640, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <colgroup><col /><col style={{ width: 250 }} /><col style={{ width: 120 }} /></colgroup>
+              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente declarado" /><Head label="Solicitud" /></tr></thead>
+              <tbody>
+                {rejected.map((l) => (
+                  <LinkRow key={l.id} link={l} reviewLabel="Rechazado" onHistory={setHistoryTarget} card={false} />
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {historyTarget && <HistoryModal link={historyTarget} onClose={() => setHistoryTarget(null)} />}
 
       {confirmTarget && (
         <ActionModal

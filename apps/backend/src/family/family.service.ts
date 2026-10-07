@@ -148,6 +148,22 @@ export interface FamilyLinkListItem {
   // HDU 23 CA4 — lo que respondió el paciente desde la app (nulo: todavía no responde).
   patientResponse: FamilyLinkPatientResponse | null;
   patientRespondedAt: string | null;
+  // HDU 23 CA6 — la última decisión de un psicólogo sobre este vínculo. En "pendientes" solo
+  // indica que hubo una anterior: el familiar pudo volver a declararlo después (eso reabre el
+  // vínculo sin registrar un veredicto), así que ahí no dice qué se decidió. El detalle
+  // completo está en el historial.
+  lastReviewedAt: string | null;
+  lastReviewedByName: string | null;
+}
+
+// HDU 23 CA6 — una fila del historial de decisiones sobre un vínculo.
+export interface FamilyLinkReviewItem {
+  id: string;
+  verdict: FamilyLinkVerdict;
+  reviewedAt: string;
+  reviewedByName: string | null;
+  // Solo en las confirmaciones (CA4).
+  verification: FamilyLinkVerification | null;
 }
 
 export interface RequestLinkResponse {
@@ -192,6 +208,8 @@ export class FamilyService {
     @InjectDataSource()
     private readonly dataSource: DataSource,
     private readonly push: PushService,
+    @InjectRepository(FamilyLinkReview)
+    private readonly reviewRepo: Repository<FamilyLinkReview>,
   ) {}
 
   // ── Vínculo familiar ↔ paciente ───────────────────────────────────────────
@@ -510,13 +528,20 @@ export class FamilyService {
     });
 
     const sedeIds = await this.reviewableSedeIds(reviewer);
-    const result: FamilyLinkListItem[] = [];
+    const visible: (FamilyLink & { patientUser: User })[] = [];
     for (const link of links) {
       if (!link.patientUser) continue; // ya excluidos por el where; guarda de tipos
       if (sedeIds !== null) {
         const resolved = await resolveSedeId(this.sedeRepo, link.patientUser.sedeId);
         if (!resolved || !sedeIds.includes(resolved)) continue;
       }
+      visible.push(link as FamilyLink & { patientUser: User });
+    }
+
+    // Después del filtro por sede: no se piden nombres de quienes revisaron vínculos ajenos.
+    const reviewerNames = await this.namesOf(visible.map((l) => l.reviewedBy));
+    const result: FamilyLinkListItem[] = [];
+    for (const link of visible) {
       result.push({
         id: link.id,
         familyUserId: link.familyUserId,
@@ -529,6 +554,8 @@ export class FamilyService {
         verification: link.status === 'active' ? link.verification : null,
         patientResponse: link.patientResponse,
         patientRespondedAt: link.patientRespondedAt?.toISOString() ?? null,
+        lastReviewedAt: link.reviewedAt?.toISOString() ?? null,
+        lastReviewedByName: link.reviewedBy ? (reviewerNames.get(link.reviewedBy) ?? null) : null,
       });
     }
     return result;
@@ -548,6 +575,38 @@ export class FamilyService {
   // error no tenía vuelta atrás sin tocar la base de datos.
   listRevokedLinks(reviewer: AuthUser): Promise<FamilyLinkListItem[]> {
     return this.listLinksByStatus('revoked', reviewer);
+  }
+
+  // Los vínculos que un psicólogo rechazó. Sin esta lista el veredicto "rechazado" no se veía en
+  // ninguna parte del panel (CA6).
+  listRejectedLinks(reviewer: AuthUser): Promise<FamilyLinkListItem[]> {
+    return this.listLinksByStatus('rejected', reviewer);
+  }
+
+  // CA6 — todas las decisiones sobre un vínculo, de la más nueva a la más vieja. Solo lectura:
+  // family_link_reviews no se edita ni se borra. Mismo alcance por sede que el resto de HDU 23.
+  async getLinkHistory(linkId: string, reviewer: AuthUser): Promise<FamilyLinkReviewItem[]> {
+    const link = await this.linkRepo.findOne({ where: { id: linkId }, relations: ['patientUser'] });
+    if (!link || !link.patientUser) throw new NotFoundException('Vínculo no encontrado');
+    await this.assertCoversSede(reviewer, link.patientUser.sedeId, 'No puedes ver vínculos de una sede que no atiendes');
+
+    const reviews = await this.reviewRepo.find({ where: { linkId }, order: { reviewedAt: 'DESC' } });
+    const names = await this.namesOf(reviews.map((r) => r.reviewedBy));
+    return reviews.map((r) => ({
+      id: r.id,
+      verdict: r.verdict,
+      reviewedAt: r.reviewedAt.toISOString(),
+      reviewedByName: names.get(r.reviewedBy) ?? null,
+      verification: r.verification,
+    }));
+  }
+
+  // Una sola consulta para los nombres de quienes revisaron, en vez de una por fila.
+  private async namesOf(ids: (string | null)[]): Promise<Map<string, string>> {
+    const unique = [...new Set(ids.filter((id): id is string => !!id))];
+    if (unique.length === 0) return new Map();
+    const users = await this.userRepo.find({ where: { id: In(unique) } });
+    return new Map(users.map((u) => [u.id, `${u.firstName} ${u.lastName}`.trim()]));
   }
 
   // CA2 — confirma el vínculo, habilita las funcionalidades del familiar y notifica a

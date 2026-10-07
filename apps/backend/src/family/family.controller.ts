@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { ParseDbUuidPipe } from '../common/pipes/parse-db-uuid.pipe';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AuthUser } from '@stopbet/shared-types';
 
@@ -125,6 +126,24 @@ export class FamilyController {
   @ApiResponse({ status: 200, description: 'FamilyLinkListItem[]' })
   listRevokedLinks(@CurrentUser() user: AuthUser) {
     return this.familyService.listRevokedLinks(user);
+  }
+
+  @Get('rejected')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HDU 23 CA6 — Familiares cuyo vínculo fue rechazado en mi sede (solo lectura)' })
+  @ApiResponse({ status: 200, description: 'FamilyLinkListItem[]' })
+  listRejectedLinks(@CurrentUser() user: AuthUser) {
+    return this.familyService.listRejectedLinks(user);
+  }
+
+  @Get('links/:id/history')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HDU 23 CA6 — Historial de decisiones (autor, fecha y veredicto) de un vínculo' })
+  @ApiResponse({ status: 200, description: 'FamilyLinkReviewItem[], de la más nueva a la más vieja' })
+  @ApiResponse({ status: 403, description: 'El vínculo es de una sede que no atiendes' })
+  @ApiResponse({ status: 404, description: 'Vínculo no encontrado' })
+  getLinkHistory(@Param('id', ParseDbUuidPipe) id: string, @CurrentUser() user: AuthUser) {
+    return this.familyService.getLinkHistory(id, user);
   }
 
   @Patch('links/:id/reopen')

@@ -272,7 +272,18 @@ verificaste**, y eso tiene reglas:
 - Si el paciente dijo **que no**, no se puede confirmar: solo rechazar.
 
 Cada decisión queda registrada con tu nombre, la fecha y el veredicto, y **ese registro no
-se edita ni se borra** — igual que el historial de la ficha clínica.
+se edita ni se borra** — igual que el historial de la ficha clínica. **Y se puede consultar**:
+
+- Bajo cada familiar vinculado, rechazado o revocado ves **quién tomó la última decisión y
+  cuándo** («Confirmado por … · 02/10/2026 11:05»).
+- El enlace **Historial** abre todas las decisiones sobre ese vínculo, de la más nueva a la más
+  vieja: quién confirmó, rechazó, revocó o lo devolvió a revisión, y cómo se verificó cada
+  confirmación. Un vínculo que se revisó antes y volvió a Pendientes también lo muestra.
+- Los vínculos que **rechazaste** aparecen en **Familiares rechazados**, que es de solo
+  lectura. Si el familiar vuelve a declarar al paciente desde su portal, la solicitud reaparece
+  en Pendientes.
+
+Solo ves el historial de los vínculos de tu sede.
 
 **Sesiones de familiares.** Las sesiones grupales de tu sede y quién confirmó asistencia.
 También las creas desde acá.
@@ -415,7 +426,9 @@ el alcance de lo que muestra cada página:
 - **Compañeros de viaje**: la sección propia del menú para designar y revocar. Vale la pena
   revisarla seguido: un paciente sin compañero de viaje no tiene a quién avisarle al apretar
   el botón SOS.
-- **Familiares**: confirmar, rechazar o revocar los vínculos de los familiares.
+- **Familiares**: confirmar, rechazar o revocar los vínculos de los familiares, y consultar
+  quién decidió cada uno (el enlace *Historial* y la lista de rechazados). Ves los de todas las
+  sedes.
 - **Equipo**: crear cuentas de psicólogo/a y ver a quién tiene asignado cada uno.
 - **Sesiones de familiares** de las sedes.
 
