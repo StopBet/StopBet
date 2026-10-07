@@ -350,7 +350,10 @@ export function HomeScreen({ navigation }: Props) {
                   notification={n}
                   onPress={() => {
                     handleMarkRead(n.id);
-                    navigation.navigate('Notifications');
+                    // La alerta de alguien que acompaña va directo a responder: pasar por la
+                    // lista de notificaciones es un toque más en plena crisis.
+                    if (n.target === 'sponsor-alert') navigation.navigate('SponsorAlert');
+                    else navigation.navigate('Notifications');
                   }}
                 />
               ))}
