@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-10-07 - Pagos con Webpay Oneclick en sandbox (SPIKE 2, CA5-CA6)
+## 2026-10-07 - Pagos con Webpay Oneclick en sandbox (SPIKE 2, CA5-CA6, PR #149)
 
 **A quién le pega:** a **todos, una sola vez**, por una dependencia nueva. También a quien toque
 `billing` y a **Matías**, dueño del Spike.
