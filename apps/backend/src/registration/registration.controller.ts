@@ -45,6 +45,19 @@ export class RegistrationController {
     return this.registrationService.listRejected(user);
   }
 
+  // Misma razón que `rejected`: va antes de `:requestId`, que es público.
+  @Get('history')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('coordinator')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bitácora de decisiones sobre solicitudes: quién, cuándo y qué veredicto (CA6)' })
+  @ApiResponse({ status: 200, description: 'Las últimas decisiones, la más reciente primero' })
+  @ApiResponse({ status: 401, description: 'Sin token' })
+  @ApiResponse({ status: 403, description: 'Solo coordinación (HdU19 v2)' })
+  listHistory() {
+    return this.registrationService.listHistory();
+  }
+
   // Público: quien se registra todavía no tiene cuenta.
   @Public()
   @Post('submit')

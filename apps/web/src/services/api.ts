@@ -819,3 +819,18 @@ export const getRejectedRequests = () => get<RejectedRequest[]>('/registration/r
 /** CA3: devuelve la solicitud a pendientes y avisa al paciente. Da 409 si no estaba rechazada. */
 export const reopenRequest = (requestId: string) =>
   patch<void>(`/registration/${requestId}/reopen`)
+
+// ── HdU19 CA6: bitácora de decisiones sobre solicitudes (solo coordinación) ──
+
+export interface RegistrationHistoryEntry {
+  id: string
+  reviewedAt: string
+  verdict: 'approved' | 'rejected' | 'reopened'
+  reviewerName: string | null
+  reviewerRole: 'psychologist' | 'coordinator' | 'admin' | string
+  patientName: string | null
+}
+
+/** CA6: quién aprobó, rechazó o reabrió qué solicitud y cuándo; la más reciente primero. */
+export const getRegistrationHistory = () =>
+  get<RegistrationHistoryEntry[]>('/registration/history')

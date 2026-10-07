@@ -2,12 +2,17 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
 import { type RegistrationRequest } from '../data/mockData'
-import { api, getRejectedRequests, reopenRequest } from '../services/api'
-import type { FlaggedPost, RejectedRequest } from '../services/api'
+import { api, getRejectedRequests, getRegistrationHistory, reopenRequest } from '../services/api'
+import type { FlaggedPost, RegistrationHistoryEntry, RejectedRequest } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { useDialog } from '../hooks/useDialog'
 import { formatRut } from '../utils/rut'
 import { fechaHora } from '../utils/fecha'
+
+// Las tres listas de esta pantalla comparten el mismo tope de alto: así se leen como un solo
+// patrón. Se mide en píxeles y no en filas porque una pendiente (3 líneas) es mucho más alta
+// que una del historial, y con el mismo número de filas quedarían tres alturas distintas.
+const LIST_MAX_HEIGHT = 480
 
 // El backend no envía iniciales para los posts reportados, así que el avatar salía
 // siempre vacío. Se derivan del nombre del autor.
@@ -485,7 +490,7 @@ function RejectedSection() {
         ) : rejected.length === 0 ? (
           <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>No hay solicitudes rechazadas.</div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div tabIndex={0} role="region" aria-label="Solicitudes rechazadas" style={{ display: 'flex', flexDirection: 'column', maxHeight: LIST_MAX_HEIGHT, overflowY: 'auto' }}>
             {rejected.map(r => (
               <div key={r.id} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px 16px', padding: '14px 24px', borderTop: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: '1 1 260px', minWidth: 0 }}>
@@ -523,6 +528,83 @@ function RejectedSection() {
   )
 }
 
+/* ── History Section (CA6) ───────────────────────────── */
+const VERDICT_LABEL: Record<RegistrationHistoryEntry['verdict'], { text: string; bg: string; fg: string }> = {
+  approved: { text: 'Aprobó', bg: 'var(--sage-50)', fg: 'var(--secondary-text)' },
+  rejected: { text: 'Rechazó', bg: 'var(--bg)', fg: 'var(--danger-text)' },
+  reopened: { text: 'Reabrió', bg: 'var(--teal-50)', fg: 'var(--primary-text)' },
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  coordinator: 'Coordinación',
+  psychologist: 'Psicólogo',
+}
+
+function HistorySection() {
+  const { data: history = [], isLoading, isError } = useQuery({
+    queryKey: ['registration', 'history'],
+    queryFn: getRegistrationHistory,
+  })
+
+  const th: React.CSSProperties = { textAlign: 'left', padding: '10px 24px', fontSize: 12, fontWeight: 700, color: 'var(--fg2)', textTransform: 'uppercase', letterSpacing: 0.4, whiteSpace: 'nowrap', position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface)' }
+  const td: React.CSSProperties = { padding: '12px 24px', fontSize: 13.5, color: 'var(--fg1)', borderTop: '1px solid var(--border)' }
+
+  return (
+    <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginTop: 24 }}>
+      <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Historial de decisiones</h2>
+        <span style={{ background: 'var(--bg)', color: 'var(--fg2)', borderRadius: 9999, padding: '4px 14px', fontSize: 13, fontWeight: 700 }}>
+          {history.length}
+        </span>
+      </div>
+      <p style={{ margin: '-6px 24px 14px', fontSize: 12.5, color: 'var(--fg2)', lineHeight: 1.5 }}>
+        Registro de cada aprobación, rechazo y reapertura. No se puede editar ni borrar.
+      </p>
+
+      {isLoading ? (
+        <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Cargando…</div>
+      ) : isError ? (
+        <p role="alert" style={{ margin: 0, padding: '24px', textAlign: 'center', fontSize: 13, color: 'var(--danger-text)', fontWeight: 600 }}>
+          No pudimos cargar el historial. Vuelve a intentarlo.
+        </p>
+      ) : history.length === 0 ? (
+        <div style={{ padding: '32px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13 }}>Aún no hay decisiones registradas.</div>
+      ) : (
+        <div tabIndex={0} role="region" aria-label="Historial de decisiones" style={{ overflow: 'auto', maxHeight: LIST_MAX_HEIGHT }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 640 }}>
+            <thead>
+              <tr>
+                <th style={th}>Fecha y hora</th>
+                <th style={th}>Autor</th>
+                <th style={th}>Rol</th>
+                <th style={th}>Veredicto</th>
+                <th style={th}>Paciente</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map(h => {
+                const v = VERDICT_LABEL[h.verdict]
+                return (
+                  <tr key={h.id}>
+                    <td style={{ ...td, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{fechaHora(h.reviewedAt)}</td>
+                    <td style={td}>{h.reviewerName ?? '—'}</td>
+                    <td style={td}>{ROLE_LABEL[h.reviewerRole] ?? h.reviewerRole}</td>
+                    <td style={td}>
+                      <span style={{ display: 'inline-block', background: v.bg, color: v.fg, borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700 }}>{v.text}</span>
+                    </td>
+                    <td style={td}>{h.patientName ?? '—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+    </div>
+  )
+}
+
 /* ── Solicitudes Page ────────────────────────────────── */
 interface SolicitudesPageProps {
   requests: RegistrationRequest[]
@@ -536,7 +618,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
   const [rejectReq, setRejectReq]   = useState<RegistrationRequest | null>(null)
 
   const Head = ({ label }: { label: string }) => (
-    <th style={{ textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 14px 12px' }}>{label}</th>
+    <th style={{ textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 14px 12px', position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface)' }}>{label}</th>
   )
 
   return (
@@ -570,7 +652,10 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
             <div style={{ marginTop: 4, fontSize: 13 }}>No hay solicitudes por revisar.</div>
           </div>
         ) : (
-          isNarrow ? (
+          // Sin tope, con decenas de solicitudes la lista empujaba «Rechazadas» y el historial
+          // fuera de la pantalla.
+          <div tabIndex={0} role="region" aria-label="Solicitudes pendientes" style={{ maxHeight: LIST_MAX_HEIGHT, overflowY: 'auto' }}>
+          {isNarrow ? (
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               {requests.map(r => (
                 <div key={r.id} style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
@@ -604,7 +689,7 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
               ))}
             </div>
           ) : (
-          <table style={{ width: '100%', maxWidth: 1000, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup><col /><col style={{ width: 125 }} /><col style={{ width: 132 }} /><col style={{ width: 155 }} /><col style={{ width: 85 }} /><col style={{ width: 260 }} /></colgroup>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -654,11 +739,13 @@ export function SolicitudesPage({ requests, onApprove, onReject }: SolicitudesPa
               ))}
             </tbody>
           </table>
-          )
+          )}
+          </div>
         )}
       </div>
 
       <RejectedSection />
+      <HistorySection />
 
       {approveReq && (
         <ApproveModal
