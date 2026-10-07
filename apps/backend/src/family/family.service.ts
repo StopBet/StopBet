@@ -528,14 +528,20 @@ export class FamilyService {
     });
 
     const sedeIds = await this.reviewableSedeIds(reviewer);
-    const reviewerNames = await this.namesOf(links.map((l) => l.reviewedBy));
-    const result: FamilyLinkListItem[] = [];
+    const visible: (FamilyLink & { patientUser: User })[] = [];
     for (const link of links) {
       if (!link.patientUser) continue; // ya excluidos por el where; guarda de tipos
       if (sedeIds !== null) {
         const resolved = await resolveSedeId(this.sedeRepo, link.patientUser.sedeId);
         if (!resolved || !sedeIds.includes(resolved)) continue;
       }
+      visible.push(link as FamilyLink & { patientUser: User });
+    }
+
+    // Después del filtro por sede: no se piden nombres de quienes revisaron vínculos ajenos.
+    const reviewerNames = await this.namesOf(visible.map((l) => l.reviewedBy));
+    const result: FamilyLinkListItem[] = [];
+    for (const link of visible) {
       result.push({
         id: link.id,
         familyUserId: link.familyUserId,

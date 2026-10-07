@@ -817,6 +817,18 @@ describe('FamilyService (HU-11)', () => {
       expect(userRepo.find).not.toHaveBeenCalled();
     });
 
+    it('CA6: no pide los nombres de quienes revisaron vínculos de otra sede', async () => {
+      linkRepo.find.mockResolvedValue([
+        linkRow({ status: 'active', reviewedBy: 'psych-ajeno', reviewedAt: new Date('2026-10-02') }),
+      ]);
+      psychSedeRepo.find.mockResolvedValue([{ psychologistId: 'psych-1', sedeId: 'sede-concepcion' }]);
+
+      const result = await service.listActiveLinks(psychologist());
+
+      expect(result).toEqual([]);
+      expect(userRepo.find).not.toHaveBeenCalled();
+    });
+
     it('CA6: si el autor ya no existe, el nombre queda en null en vez de romper la lista', async () => {
       linkRepo.find.mockResolvedValue([
         linkRow({ status: 'rejected', reviewedBy: 'psych-borrado', reviewedAt: new Date('2026-10-02') }),

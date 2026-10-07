@@ -8,7 +8,7 @@ import {
 import { useIsNarrow } from '../hooks/useIsNarrow'
 import { useMediaQuery } from '../hooks/useMediaQuery'
 import { useDialog } from '../hooks/useDialog'
-import { fechaHora } from '../utils/fecha'
+import { fechaCorta as fecha, fechaHora } from '../utils/fecha'
 
 // Todas comparten el prefijo ['family', 'links']: invalidarlo refresca las listas y los historiales.
 const LINKS_KEY = ['family', 'links']
@@ -17,10 +17,6 @@ const ACTIVE_KEY = [...LINKS_KEY, 'active']
 const REVOKED_KEY = [...LINKS_KEY, 'revoked']
 const REJECTED_KEY = [...LINKS_KEY, 'rejected']
 const historyKey = (linkId: string) => [...LINKS_KEY, 'history', linkId]
-
-function fecha(iso: string): string {
-  return new Date(iso).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' })
-}
 
 const VERIFICATION_LABEL: Record<FamilyLinkVerification, string> = {
   patient_consulted: 'Confirmado por el paciente',
