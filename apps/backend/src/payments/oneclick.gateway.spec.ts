@@ -179,6 +179,7 @@ describe('OneclickGateway', () => {
 
 describe('toChargeResult', () => {
   it('aprobado: response_code 0 y AUTHORIZED en el detalle', () => {
+    // Transbank manda la hora de Chile con sufijo Z: 18:00 de Chile en octubre son las 21:00 UTC.
     const result = toChargeResult({ transaction_date: '2026-10-07T18:00:00.000Z', details: [approvedDetail] });
 
     expect(result).toMatchObject({
@@ -189,7 +190,7 @@ describe('toChargeResult', () => {
       paymentTypeCode: 'VN',
       installments: 1,
     });
-    expect(result.transactionDate?.toISOString()).toBe('2026-10-07T18:00:00.000Z');
+    expect(result.transactionDate?.toISOString()).toBe('2026-10-07T21:00:00.000Z');
   });
 
   // El ejemplo del propio SDK mira un `status` de nivel superior que la respuesta no trae:

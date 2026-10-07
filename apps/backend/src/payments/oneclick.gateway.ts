@@ -8,6 +8,7 @@ import {
   Options,
   TransactionDetail,
 } from 'transbank-sdk';
+import { chileWallClockToDate } from '../common/chile-date';
 
 export interface InscriptionStart {
   token: string;
@@ -177,8 +178,9 @@ export function toChargeResult(raw: unknown): ChargeResult {
       return readNumber(detail, 'response_code') === 0 && readString(detail, 'status') === 'AUTHORIZED';
     });
 
+  // `transaction_date` llega en hora de Chile con sufijo `Z`: ver chileWallClockToDate.
   const date = readString(raw, 'transaction_date');
-  const parsed = date ? new Date(date) : null;
+  const parsed = date ? chileWallClockToDate(date) : null;
   return {
     approved,
     status: readString(first, 'status'),
@@ -186,6 +188,6 @@ export function toChargeResult(raw: unknown): ChargeResult {
     authorizationCode: readString(first, 'authorization_code'),
     paymentTypeCode: readString(first, 'payment_type_code'),
     installments: readNumber(first, 'installments_number'),
-    transactionDate: parsed && !Number.isNaN(parsed.getTime()) ? parsed : null,
+    transactionDate: parsed,
   };
 }
