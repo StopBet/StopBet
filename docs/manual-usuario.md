@@ -262,7 +262,9 @@ rechazas; hasta que no apruebes, esa persona no puede entrar. También te llegan
 **mensajes reportados** de la comunidad (ver [2.3](#23-moderación-de-la-comunidad)).
 
 **Familiares.** Los familiares que pidieron vincularse a un paciente de tu sede: acá
-**confirmas, rechazas o revocas** el vínculo. Es lo que le abre el portal a un familiar, así
+**confirmas, rechazas o revocas** el vínculo. La página tiene cuatro pestañas con su conteo,
+**Pendientes · Vinculados · Revocados · Rechazados**, y un buscador por nombre o correo del
+familiar o del paciente. Se abre en Pendientes si hay algo por revisar. Es lo que le abre el portal a un familiar, así
 que mientras no decidas, esa persona no ve nada. Al confirmar tienes que declarar **cómo lo
 verificaste**, y eso tiene reglas:
 
@@ -274,12 +276,13 @@ verificaste**, y eso tiene reglas:
 Cada decisión queda registrada con tu nombre, la fecha y el veredicto, y **ese registro no
 se edita ni se borra** — igual que el historial de la ficha clínica. **Y se puede consultar**:
 
-- Bajo cada familiar vinculado, rechazado o revocado ves **quién tomó la última decisión y
-  cuándo** («Confirmado por … · 02/10/2026 11:05»).
-- El enlace **Historial** abre todas las decisiones sobre ese vínculo, de la más nueva a la más
+- En la columna **Última decisión** de cada familiar vinculado, rechazado o revocado ves
+  **quién la tomó y cuándo** («Confirmado por … · 02/10/2026 11:05»). Si dice «Sin decisión
+  registrada», ese vínculo no pasó por una revisión guardada, por ejemplo los datos de ejemplo.
+- El enlace **Ver historial** abre todas las decisiones sobre ese vínculo, de la más nueva a la más
   vieja: quién confirmó, rechazó, revocó o lo devolvió a revisión, y cómo se verificó cada
   confirmación. Un vínculo que se revisó antes y volvió a Pendientes también lo muestra.
-- Los vínculos que **rechazaste** aparecen en **Familiares rechazados**, que es de solo
+- Los vínculos que **rechazaste** aparecen en la pestaña **Rechazados**, que es de solo
   lectura. Si el familiar vuelve a declarar al paciente desde su portal, la solicitud reaparece
   en Pendientes.
 
