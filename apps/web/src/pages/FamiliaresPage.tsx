@@ -132,7 +132,7 @@ function Avatar({ nombre }: { nombre: string }) {
   )
 }
 
-const celda: React.CSSProperties = { padding: '16px 20px', verticalAlign: 'middle' }
+const celda: React.CSSProperties = { padding: '16px 24px', verticalAlign: 'middle' }
 
 const boton = (tono: 'primary' | 'neutral'): React.CSSProperties => ({
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -222,7 +222,7 @@ function Tabla({
 }) {
   const conAcciones = tab.id !== 'rejected'
   const cabecera = (texto: string, alinear: 'left' | 'right' = 'left') => (
-    <th scope="col" style={{ ...celda, padding: '12px 20px', textAlign: alinear, fontSize: 11.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--fg2)', background: 'var(--surface-alt)' }}>{texto}</th>
+    <th scope="col" style={{ padding: '12px 24px', textAlign: alinear, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', whiteSpace: 'nowrap', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>{texto}</th>
   )
   return (
     <div style={{ overflowX: 'auto' }}>
@@ -275,7 +275,7 @@ function Tarjetas({
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
       {links.map((l, i) => (
-        <article key={l.id} style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}>
+        <article key={l.id} style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}>
           <Familiar link={l} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px 20px' }}>
             <Etiqueta texto="Paciente declarado"><Paciente link={l} enPendientes={tab.id === 'pending'} /></Etiqueta>
@@ -551,7 +551,7 @@ export function FamiliaresPage() {
     <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1280, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
       <section style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
         {/* Pestañas con conteo y buscador */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px 20px', padding: '0 20px', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px 20px', padding: '0 24px', borderBottom: '1px solid var(--border)' }}>
           <div role="tablist" aria-label="Estado de los vínculos" style={{ display: 'flex', gap: 24, overflowX: 'auto', overflowY: 'hidden', maxWidth: '100%', scrollbarWidth: 'none' }}>
             {TABS.map((t) => {
               const seleccionada = t.id === tabId
@@ -594,12 +594,12 @@ export function FamiliaresPage() {
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar familiar o paciente"
               aria-label="Buscar familiar o paciente"
-              style={{ width: '100%', height: 38, boxSizing: 'border-box', padding: '0 14px 0 36px', borderRadius: 9999, border: '1.5px solid var(--border)', background: 'var(--surface)', color: 'var(--fg1)', fontFamily: 'var(--font-body)', fontSize: 14, outline: 'none' }}
+              style={{ width: '100%', height: 40, boxSizing: 'border-box', padding: '0 12px 0 36px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg1)', fontFamily: 'var(--font-body)', fontSize: 13.5 }}
             />
           </label>
         </div>
 
-        <p style={{ margin: 0, padding: '14px 20px', fontSize: 13.5, color: 'var(--fg2)', lineHeight: 1.5, borderBottom: '1px solid var(--border)' }}>
+        <p style={{ margin: 0, padding: '14px 24px', fontSize: 13.5, color: 'var(--fg2)', lineHeight: 1.5, borderBottom: '1px solid var(--border)' }}>
           {tab.ayuda}
         </p>
 
