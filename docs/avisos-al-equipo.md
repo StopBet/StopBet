@@ -20,6 +20,19 @@ está.
 
 ---
 
+## 2026-10-07 - Comando nuevo para borrar las cuentas de familiar de la demo
+
+**A quién le pega:** a quien haga la demo de las HDU 22 y 23 con la guía de criterios.
+
+- **Qué hacer:** después de una demo, `pnpm run limpiar:familiares-demo` desde la raíz para ver qué
+  cuentas borraría, y `pnpm run limpiar:familiares-demo -- --confirmar` para borrarlas. Con
+  `-- --juego 1` (o `2`) limpia solo ese juego. Contra Railway, con su `DATABASE_URL`.
+- **Qué borra:** solo los familiares `familiar.{uno,dos,tres}.juego{1,2}@correo.cl` (y el intento del
+  CA3), con sus vínculos, su historial de decisiones, notificaciones y sesiones. Nunca toca a un
+  usuario que no tenga rol familiar.
+
+---
+
 ## 2026-10-07 - Bloqueo de apuestas: con wifi y datos a la vez no resolvía nada (PR #157)
 
 **A quién le pega:** a quien tenga el bloqueo de apuestas activo en un teléfono.

@@ -7,6 +7,7 @@
     "backend": "pnpm --filter @stopbet/backend start:dev",
     "seed": "pnpm --filter @stopbet/backend run seed",
     "seed:family": "pnpm --filter @stopbet/backend run seed:family",
+    "limpiar:familiares-demo": "pnpm --filter @stopbet/backend run limpiar:familiares-demo",
     "seed:fichas": "pnpm --filter @stopbet/backend run seed:fichas",
     "migrate:replies": "pnpm --filter @stopbet/backend migrate:replies",
     "migrate:logros": "pnpm --filter @stopbet/backend migrate:logros",
