@@ -86,87 +86,205 @@ function ActionModal({
   )
 }
 
-/* ── Fila / tarjeta de un vínculo ────────────────────────────────────── */
-// `card` cuando la tabla no cabe. Los datos van a la izquierda y los botones a la derecha, y con
-// flex-wrap los botones bajan solos en el teléfono: el mismo componente sirve para los dos anchos.
-// `reviewLabel` es lo que se hizo («Confirmado», «Rechazado»…) y lo fija la sección, no el vínculo.
-// En pendientes no se pasa: un familiar que vuelve a declarar a un paciente rechazado reabre el
-// mismo vínculo sin registrar un veredicto, así que ahí decir «Devuelto por X» sería falso.
-// Sin `actions` (rechazados: solo lectura) no se dibuja la columna.
-function LinkRow({
-  link, card, actions, showPatientResponse = false, reviewLabel, onHistory,
-}: {
-  link: FamilyLinkListItem
-  card: boolean
-  actions?: React.ReactNode
-  showPatientResponse?: boolean
-  reviewLabel?: string
-  onHistory: (link: FamilyLinkListItem) => void
-}) {
-  const review = <ReviewLine link={link} label={reviewLabel} onHistory={onHistory} />
-  if (card) {
-    return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px 20px', padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)' }}>{link.familyName}</div>
-            <div style={{ fontSize: 12, color: 'var(--fg2)', overflowWrap: 'anywhere' }}>{link.familyEmail}</div>
-          </div>
-          <div style={{ fontSize: 12.5, color: 'var(--fg2)' }}>
-            Paciente: <strong style={{ color: 'var(--fg1)' }}>{link.patientName}</strong> · {fecha(link.createdAt)}
-          </div>
-          {link.verification && <VerificationChip verification={link.verification} />}
-          {showPatientResponse && <PatientResponseChip link={link} />}
-          {showPatientResponse && link.patientResponse === 'denied' && <DeniedHint />}
-          {review}
-        </div>
-        {actions && <div style={{ display: 'flex', gap: 8, flex: '1 1 auto', justifyContent: 'flex-end', maxWidth: 340 }}>{actions}</div>}
-      </div>
-    )
-  }
+/* ── Pestañas y filas ─────────────────────────────────────────────────── */
+type Tab = 'pending' | 'active' | 'revoked' | 'rejected'
+
+// Qué se hizo con el vínculo en cada pestaña. En «pendientes» no hay verbo: un familiar que vuelve a
+// declarar a un paciente rechazado reabre el mismo vínculo sin registrar un veredicto, así que ahí
+// decir «Devuelto por X» sería falso.
+const TABS: { id: Tab; label: string; verbo?: string; ayuda: string; vacio: { icono: string; titulo: string; texto: string } }[] = [
+  {
+    id: 'pending', label: 'Pendientes',
+    ayuda: 'Confirma el vínculo si el paciente declarado corresponde, o recházalo si se equivocó de paciente.',
+    vacio: { icono: 'circle-check', titulo: 'Sin familiares pendientes', texto: 'Todas las solicitudes fueron revisadas.' },
+  },
+  {
+    id: 'active', label: 'Vinculados', verbo: 'Confirmado',
+    ayuda: 'Tienen acceso a las sesiones grupales y a los pagos de su paciente. Si alguno ya no debe tenerlo, revócalo.',
+    vacio: { icono: 'users', titulo: 'Todavía no hay familiares vinculados', texto: 'Cuando confirmes un vínculo, aparecerá aquí.' },
+  },
+  {
+    id: 'revoked', label: 'Revocados', verbo: 'Revocado',
+    ayuda: 'Si alguno se revocó por error, devuélvelo a revisión: vuelve a Pendientes y se le pregunta de nuevo al paciente.',
+    vacio: { icono: 'inbox', titulo: 'Ningún vínculo revocado', texto: 'Los accesos que retires aparecerán aquí.' },
+  },
+  {
+    id: 'rejected', label: 'Rechazados', verbo: 'Rechazado',
+    ayuda: 'Si el familiar vuelve a declarar al paciente desde su portal, la solicitud vuelve a Pendientes.',
+    vacio: { icono: 'inbox', titulo: 'Ninguna solicitud rechazada', texto: 'Las solicitudes que rechaces aparecerán aquí.' },
+  },
+]
+
+function normalizar(texto: string): string {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}
+
+function iniciales(nombre: string): string {
+  const partes = nombre.trim().split(/\s+/).filter(Boolean)
+  return ((partes[0]?.[0] ?? '') + (partes.length > 1 ? partes[partes.length - 1][0] : '')).toUpperCase()
+}
+
+function Avatar({ nombre }: { nombre: string }) {
   return (
-    <tr style={{ borderBottom: '1px solid var(--border)' }}>
-      <td style={{ padding: '14px 14px' }}>
-        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14, color: 'var(--fg1)' }}>{link.familyName}</div>
-        <div style={{ fontSize: 12, color: 'var(--fg2)' }}>{link.familyEmail}</div>
-      </td>
-      <td style={{ padding: '14px 14px', fontSize: 13.5, color: 'var(--fg1)' }}>
-        {link.patientName}
-        {link.verification && <div style={{ marginTop: 6 }}><VerificationChip verification={link.verification} /></div>}
-        {showPatientResponse && <div style={{ marginTop: 6 }}><PatientResponseChip link={link} /></div>}
-        {showPatientResponse && link.patientResponse === 'denied' && <div style={{ marginTop: 4 }}><DeniedHint /></div>}
-        {link.lastReviewedAt && <div style={{ marginTop: 6 }}>{review}</div>}
-      </td>
-      <td style={{ padding: '14px 14px', fontSize: 13, color: 'var(--fg2)' }}>{fecha(link.createdAt)}</td>
-      {actions && (
-        <td style={{ padding: '14px 14px' }}>
-          <div style={{ display: 'flex', gap: 8 }}>{actions}</div>
-        </td>
-      )}
-    </tr>
+    <span aria-hidden="true" style={{ width: 38, height: 38, borderRadius: '50%', flexShrink: 0, background: 'var(--surface-alt)', color: 'var(--primary-text)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13.5 }}>
+      {iniciales(nombre)}
+    </span>
   )
 }
 
-// HDU 23 CA6 — quién decidió y cuándo, a la vista; el resto, en el historial. No se dibuja si el
-// vínculo nunca fue revisado por un psicólogo.
-function ReviewLine({
-  link, label, onHistory,
-}: { link: FamilyLinkListItem; label?: string; onHistory: (link: FamilyLinkListItem) => void }) {
-  if (!link.lastReviewedAt) return null
+const celda: React.CSSProperties = { padding: '16px 24px', verticalAlign: 'middle' }
+
+const boton = (tono: 'primary' | 'neutral'): React.CSSProperties => ({
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+  height: 34, padding: '0 14px', borderRadius: 9999, cursor: 'pointer', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+  border: tono === 'neutral' ? '1.5px solid var(--border)' : '1.5px solid transparent',
+  background: tono === 'neutral' ? 'var(--surface)' : 'var(--primary)',
+  color: tono === 'neutral' ? 'var(--fg1)' : 'var(--fg-on-primary)',
+})
+
+function Familiar({ link }: { link: FamilyLinkListItem }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '2px 12px', fontSize: 12.5, color: 'var(--fg2)' }}>
-      {label && (
-        <span>
-          {label} por <strong style={{ color: 'var(--fg1)', fontWeight: 600 }}>{link.lastReviewedByName ?? 'un usuario eliminado'}</strong> · {fechaHora(link.lastReviewedAt)}
-        </span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+      <Avatar nombre={link.familyName} />
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 14.5, color: 'var(--fg1)', overflowWrap: 'anywhere' }}>{link.familyName}</div>
+        <div style={{ fontSize: 12.5, color: 'var(--fg2)', overflowWrap: 'anywhere' }}>{link.familyEmail}</div>
+      </div>
+    </div>
+  )
+}
+
+function Paciente({ link, enPendientes }: { link: FamilyLinkListItem; enPendientes: boolean }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start', minWidth: 0 }}>
+      <span style={{ fontSize: 14, color: 'var(--fg1)', fontWeight: 500, overflowWrap: 'anywhere' }}>{link.patientName}</span>
+      {link.verification && <VerificationChip verification={link.verification} />}
+      {enPendientes && <PatientResponseChip link={link} />}
+      {enPendientes && link.patientResponse === 'denied' && <DeniedHint />}
+    </div>
+  )
+}
+
+// HDU 23 CA6 — quién decidió y cuándo, a la vista; el resto, en el historial.
+function Decision({
+  link, verbo, onHistory,
+}: { link: FamilyLinkListItem; verbo?: string; onHistory: (link: FamilyLinkListItem) => void }) {
+  if (!link.lastReviewedAt) {
+    return (
+      <span
+        title={verbo ? 'Este vínculo no pasó por una revisión registrada (por ejemplo, datos de ejemplo del seed).' : undefined}
+        style={{ fontSize: 13, color: 'var(--fg2)' }}
+      >
+        {verbo ? 'Sin decisión registrada' : '—'}
+      </span>
+    )
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start', minWidth: 0 }}>
+      {verbo ? (
+        <>
+          <span style={{ fontSize: 13.5, color: 'var(--fg1)' }}>
+            {verbo} por <strong style={{ fontWeight: 600 }}>{link.lastReviewedByName ?? 'un usuario eliminado'}</strong>
+          </span>
+          <span style={{ fontSize: 12.5, color: 'var(--fg2)', fontVariantNumeric: 'tabular-nums' }}>{fechaHora(link.lastReviewedAt)}</span>
+        </>
+      ) : (
+        <span style={{ fontSize: 13, color: 'var(--fg2)' }}>Revisado antes</span>
       )}
       <button
         onClick={() => onHistory(link)}
         aria-label={`Ver el historial de decisiones del vínculo de ${link.familyName}`}
-        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--primary-text)', fontSize: 12.5, fontWeight: 700, textDecoration: 'underline' }}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: 0, marginTop: 2, border: 'none', background: 'none', cursor: 'pointer', color: 'var(--primary-text)', fontSize: 12.5, fontWeight: 700 }}
       >
-        <WIcon name="clock" size={13} /> Historial
+        <WIcon name="clock" size={13} /> Ver historial
       </button>
+    </div>
+  )
+}
+
+function Etiqueta({ texto, children }: { texto: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+      <span style={{ fontSize: 11.5, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--fg2)' }}>{texto}</span>
+      {children}
+    </div>
+  )
+}
+
+/* ── Vista de tabla (pantallas anchas) ───────────────────────────────── */
+function Tabla({
+  links, tab, acciones, onHistory,
+}: {
+  links: FamilyLinkListItem[]
+  tab: (typeof TABS)[number]
+  acciones: (l: FamilyLinkListItem) => React.ReactNode
+  onHistory: (link: FamilyLinkListItem) => void
+}) {
+  const conAcciones = tab.id !== 'rejected'
+  const cabecera = (texto: string, alinear: 'left' | 'right' = 'left') => (
+    <th scope="col" style={{ padding: '12px 24px', textAlign: alinear, fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', whiteSpace: 'nowrap', background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>{texto}</th>
+  )
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '25%' }} />
+          <col style={{ width: '22%' }} />
+          <col style={{ width: 118 }} />
+          <col />
+          {conAcciones && <col style={{ width: tab.id === 'pending' ? 290 : tab.id === 'revoked' ? 200 : 160 }} />}
+        </colgroup>
+        <thead>
+          <tr>
+            {cabecera('Familiar')}
+            {cabecera('Paciente declarado')}
+            {cabecera('Solicitud')}
+            {cabecera('Última decisión')}
+            {conAcciones && cabecera('Acciones', 'right')}
+          </tr>
+        </thead>
+        <tbody>
+          {links.map((l, i) => (
+            <tr key={l.id} style={{ borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}>
+              <td style={celda}><Familiar link={l} /></td>
+              <td style={celda}><Paciente link={l} enPendientes={tab.id === 'pending'} /></td>
+              <td style={{ ...celda, fontSize: 13.5, color: 'var(--fg2)', fontVariantNumeric: 'tabular-nums' }}>{fecha(l.createdAt)}</td>
+              <td style={celda}><Decision link={l} verbo={tab.verbo} onHistory={onHistory} /></td>
+              {conAcciones && (
+                <td style={{ ...celda, textAlign: 'right' }}>
+                  <div style={{ display: 'inline-flex', gap: 8, justifyContent: 'flex-end' }}>{acciones(l)}</div>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+/* ── Vista de tarjetas (cuando la tabla no cabe) ──────────────────────── */
+function Tarjetas({
+  links, tab, acciones, onHistory,
+}: {
+  links: FamilyLinkListItem[]
+  tab: (typeof TABS)[number]
+  acciones: (l: FamilyLinkListItem) => React.ReactNode
+  onHistory: (link: FamilyLinkListItem) => void
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      {links.map((l, i) => (
+        <article key={l.id} style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: 14, borderTop: i === 0 ? 'none' : '1px solid var(--border)' }}>
+          <Familiar link={l} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '14px 20px' }}>
+            <Etiqueta texto="Paciente declarado"><Paciente link={l} enPendientes={tab.id === 'pending'} /></Etiqueta>
+            <Etiqueta texto="Solicitud"><span style={{ fontSize: 14, color: 'var(--fg1)', fontVariantNumeric: 'tabular-nums' }}>{fecha(l.createdAt)}</span></Etiqueta>
+            <Etiqueta texto="Última decisión"><Decision link={l} verbo={tab.verbo} onHistory={onHistory} /></Etiqueta>
+          </div>
+          {tab.id !== 'rejected' && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{acciones(l)}</div>}
+        </article>
+      ))}
     </div>
   )
 }
@@ -342,21 +460,11 @@ function HistoryModal({ link, onClose }: { link: FamilyLinkListItem; onClose: ()
   )
 }
 
-const pillBtn = (tone: 'primary' | 'danger'): React.CSSProperties => ({
-  display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-  height: 36, padding: '0 16px', borderRadius: 9999, cursor: 'pointer', fontSize: 13, fontWeight: 700,
-  whiteSpace: 'nowrap',
-  border: tone === 'danger' ? '1.5px solid var(--danger)' : 'none',
-  background: tone === 'danger' ? 'var(--surface)' : 'var(--primary)',
-  color: tone === 'danger' ? 'var(--danger-text)' : 'var(--fg-on-primary)',
-})
-
 export function FamiliaresPage() {
   const isNarrow = useIsNarrow()
-  // Bajo este ancho las cuatro columnas no caben (y con la tipografía de AJUTER, más ancha,
-  // "Rechazar" quedaba cortado): se pasa a tarjetas en vez de apretar o desplazar la tabla.
-  const cards = useMediaQuery('(max-width: 1180px)')
-  const stretch: React.CSSProperties = isNarrow ? { flex: 1 } : {}
+  // Con cinco columnas la tabla necesita más ancho que antes: bajo este punto se pasa a tarjetas en
+  // vez de apretar o desplazar la tabla (con la tipografía de AJUTER, más ancha, los botones se cortaban).
+  const cards = useMediaQuery('(max-width: 1320px)')
   const qc = useQueryClient()
 
   const { data: pending = [], isLoading: loadingPending } = useQuery({ queryKey: PENDING_KEY, queryFn: api.getPendingFamilyLinks })
@@ -405,166 +513,116 @@ export function FamiliaresPage() {
     onError: (err) => setModalError(errorMessage(err, 'No pudimos devolver el vínculo a revisión.')),
   })
 
-  const Head = ({ label }: { label: string }) => (
-    <th style={{ textAlign: 'left', fontSize: 12, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: 'var(--fg2)', padding: '0 14px 12px' }}>{label}</th>
-  )
+  // La pestaña se elige sola mientras nadie toque nada: Pendientes si hay algo que revisar y, si no,
+  // Vinculados. Cuando el psicólogo elige una, se respeta.
+  const [elegida, setElegida] = useState<Tab | null>(null)
+  const [busqueda, setBusqueda] = useState('')
+  const cargando = loadingPending || loadingActive
+  const porTab: Record<Tab, FamilyLinkListItem[]> = { pending, active, revoked, rejected }
+  const tabId: Tab = elegida ?? (pending.length > 0 || cargando ? 'pending' : 'active')
+  const tab = TABS.find((t) => t.id === tabId) ?? TABS[0]
+
+  const consulta = normalizar(busqueda.trim())
+  const visibles = consulta
+    ? porTab[tabId].filter((l) => normalizar(`${l.familyName} ${l.familyEmail} ${l.patientName}`).includes(consulta))
+    : porTab[tabId]
+
+  const acciones = (l: FamilyLinkListItem): React.ReactNode => {
+    switch (tabId) {
+      case 'pending':
+        return (
+          <>
+            {l.patientResponse !== 'denied' && (
+              <button onClick={() => openConfirm(l)} style={boton('primary')}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>
+            )}
+            <button onClick={() => setRejectTarget(l)} style={boton('neutral')}><WIcon name="x" size={14} /> Rechazar</button>
+          </>
+        )
+      case 'active':
+        return <button onClick={() => setRevokeTarget(l)} style={boton('neutral')}><WIcon name="x" size={14} /> Revocar</button>
+      case 'revoked':
+        return <button onClick={() => setReopenTarget(l)} style={boton('primary')}><WIcon name="clock" size={14} color="var(--fg-on-primary)" /> Volver a revisar</button>
+      default:
+        return null
+    }
+  }
 
   return (
-    <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1200, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-      {/* Intro banner */}
-      <div style={{ background: 'var(--amber-50)', border: '1px solid var(--accent)', borderRadius: 16, padding: '18px 22px', marginBottom: 24, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-        <WIcon name="heart-handshake" size={22} color="var(--primary-text)" />
-        <div>
-          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 15.5, color: 'var(--fg1)', marginBottom: 3 }}>
-            Tienes {pending.length} familiar{pending.length !== 1 ? 'es' : ''} pendiente{pending.length !== 1 ? 's' : ''} de vinculación
+    <div style={{ padding: isNarrow ? '16px 12px 28px' : 32, maxWidth: 1280, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      <section style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
+        {/* Pestañas con conteo y buscador */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '8px 20px', padding: '0 24px', borderBottom: '1px solid var(--border)' }}>
+          <div role="tablist" aria-label="Estado de los vínculos" style={{ display: 'flex', gap: 24, overflowX: 'auto', overflowY: 'hidden', maxWidth: '100%', scrollbarWidth: 'none' }}>
+            {TABS.map((t) => {
+              const seleccionada = t.id === tabId
+              const n = porTab[t.id].length
+              const urgente = t.id === 'pending' && n > 0
+              return (
+                <button
+                  key={t.id}
+                  role="tab"
+                  id={`sb-fam-tab-${t.id}`}
+                  aria-selected={seleccionada}
+                  aria-controls="sb-fam-panel"
+                  onClick={() => { setElegida(t.id); setBusqueda('') }}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8, padding: '18px 2px 14px', background: 'none', cursor: 'pointer',
+                    border: 'none', borderBottom: `2.5px solid ${seleccionada ? 'var(--primary)' : 'transparent'}`,
+                    fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 15, whiteSpace: 'nowrap',
+                    color: seleccionada ? 'var(--primary-text)' : 'var(--fg2)',
+                  }}
+                >
+                  {t.label}
+                  <span style={{
+                    minWidth: 24, height: 22, padding: '0 8px', borderRadius: 9999, display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums',
+                    background: seleccionada || urgente ? 'var(--amber-50)' : 'var(--surface-alt)',
+                    color: seleccionada || urgente ? 'var(--primary-text)' : 'var(--fg2)',
+                  }}>{n}</span>
+                </button>
+              )
+            })}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--fg2)', lineHeight: 1.5 }}>
-            Confirma el vínculo si el paciente declarado corresponde, o recházalo si se equivocó de paciente.
-          </div>
-        </div>
-      </div>
 
-      {/* Pendientes */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginBottom: 24 }}>
-        <div style={{ padding: '20px 24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Familiares pendientes</h2>
-          <span style={{ background: 'var(--amber-50)', color: 'var(--primary-text)', borderRadius: 9999, padding: '4px 14px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
-            {pending.length} pendiente{pending.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-
-        {loadingPending ? (
-          <div style={{ padding: '32px 24px', color: 'var(--fg2)', fontSize: 13.5 }}>Cargando…</div>
-        ) : pending.length === 0 ? (
-          <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--fg2)' }}>
-            <WIcon name="circle-check" size={40} color="var(--secondary-text)" />
-            <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 16, color: 'var(--fg1)' }}>Sin familiares pendientes</div>
-            <div style={{ marginTop: 4, fontSize: 13 }}>Todas las solicitudes fueron revisadas.</div>
-          </div>
-        ) : cards ? (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {pending.map((l) => (
-              <LinkRow key={l.id} link={l} onHistory={setHistoryTarget} card showPatientResponse actions={<>
-                {l.patientResponse !== 'denied' && <button onClick={() => openConfirm(l)} style={{ ...pillBtn('primary'), ...stretch }}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>}
-                <button onClick={() => setRejectTarget(l)} style={{ ...pillBtn('danger'), ...stretch }}><WIcon name="x" size={14} /> Rechazar</button>
-              </>} />
-            ))}
-          </div>
-        ) : (
-          <table style={{ width: '100%', maxWidth: 1000, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 250 }} /><col style={{ width: 110 }} /><col style={{ width: 260 }} /></colgroup>
-            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente declarado" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
-            <tbody>
-              {pending.map((l) => (
-                <LinkRow key={l.id} link={l} onHistory={setHistoryTarget} card={false} showPatientResponse actions={<>
-                  {l.patientResponse !== 'denied' && <button onClick={() => openConfirm(l)} style={pillBtn('primary')}><WIcon name="circle-check" size={14} color="var(--fg-on-primary)" /> Confirmar</button>}
-                  <button onClick={() => setRejectTarget(l)} style={pillBtn('danger')}><WIcon name="x" size={14} /> Rechazar</button>
-                </>} />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Vinculados */}
-      <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px 16px' }}>
-          <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Familiares vinculados</h2>
+          <label style={{ position: 'relative', display: 'block', width: isNarrow ? '100%' : 260, margin: '10px 0' }}>
+            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', display: 'flex', color: 'var(--fg2)', pointerEvents: 'none' }}>
+              <WIcon name="search" size={16} />
+            </span>
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar familiar o paciente"
+              aria-label="Buscar familiar o paciente"
+              style={{ width: '100%', height: 40, boxSizing: 'border-box', padding: '0 12px 0 36px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--fg1)', fontFamily: 'var(--font-body)', fontSize: 13.5 }}
+            />
+          </label>
         </div>
 
-        {loadingActive ? (
-          <div style={{ padding: '32px 24px', color: 'var(--fg2)', fontSize: 13.5 }}>Cargando…</div>
-        ) : active.length === 0 ? (
-          <div style={{ padding: '40px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 13.5 }}>
-            Todavía no hay familiares vinculados en tu sede.
-          </div>
-        ) : cards ? (
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            {active.map((l) => (
-              <LinkRow key={l.id} link={l} reviewLabel="Confirmado" onHistory={setHistoryTarget} card actions={
-                <button onClick={() => setRevokeTarget(l)} style={{ ...pillBtn('danger'), ...stretch }}><WIcon name="x" size={14} /> Revocar</button>
-              } />
-            ))}
-          </div>
-        ) : (
-          <table style={{ width: '100%', maxWidth: 780, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup><col /><col style={{ width: 250 }} /><col style={{ width: 120 }} /><col style={{ width: 140 }} /></colgroup>
-            <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
-            <tbody>
-              {active.map((l) => (
-                <LinkRow key={l.id} link={l} reviewLabel="Confirmado" onHistory={setHistoryTarget} card={false} actions={
-                  <button onClick={() => setRevokeTarget(l)} style={pillBtn('danger')}><WIcon name="x" size={14} /> Revocar</button>
-                } />
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        <p style={{ margin: 0, padding: '14px 24px', fontSize: 13.5, color: 'var(--fg2)', lineHeight: 1.5, borderBottom: '1px solid var(--border)' }}>
+          {tab.ayuda}
+        </p>
 
-      {/* Revocados: solo aparece si hay alguno. Sin ella, un vínculo revocado por error no tenía
-          vuelta atrás desde el panel. */}
-      {revoked.length > 0 && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginTop: 24 }}>
-          <div style={{ padding: '20px 24px 16px' }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Familiares revocados</h2>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--fg2)' }}>
-              Si alguno se revocó por error, devuélvelo a revisión: vuelve a Pendientes y se le pregunta de nuevo al paciente.
-            </p>
-          </div>
-          {cards ? (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {revoked.map((l) => (
-                <LinkRow key={l.id} link={l} reviewLabel="Revocado" onHistory={setHistoryTarget} card actions={
-                  <button onClick={() => setReopenTarget(l)} style={{ ...pillBtn('primary'), ...stretch }}><WIcon name="clock" size={14} color="var(--fg-on-primary)" /> Volver a revisar</button>
-                } />
-              ))}
+        <div role="tabpanel" id="sb-fam-panel" aria-labelledby={`sb-fam-tab-${tabId}`}>
+          {cargando && porTab[tabId].length === 0 ? (
+            <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 14 }}>Cargando…</div>
+          ) : porTab[tabId].length === 0 ? (
+            <div style={{ padding: '56px 24px', textAlign: 'center', color: 'var(--fg2)' }}>
+              <WIcon name={tab.vacio.icono} size={40} color="var(--secondary-text)" />
+              <div style={{ marginTop: 12, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 16, color: 'var(--fg1)' }}>{tab.vacio.titulo}</div>
+              <div style={{ marginTop: 4, fontSize: 13.5 }}>{tab.vacio.texto}</div>
             </div>
+          ) : visibles.length === 0 ? (
+            <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--fg2)', fontSize: 14 }}>
+              Ningún resultado para «{busqueda.trim()}» en {tab.label.toLowerCase()}.
+            </div>
+          ) : cards ? (
+            <Tarjetas links={visibles} tab={tab} acciones={acciones} onHistory={setHistoryTarget} />
           ) : (
-            <table style={{ width: '100%', maxWidth: 820, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <colgroup><col /><col style={{ width: 250 }} /><col style={{ width: 120 }} /><col style={{ width: 180 }} /></colgroup>
-              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente" /><Head label="Fecha" /><Head label="Acciones" /></tr></thead>
-              <tbody>
-                {revoked.map((l) => (
-                  <LinkRow key={l.id} link={l} reviewLabel="Revocado" onHistory={setHistoryTarget} card={false} actions={
-                    <button onClick={() => setReopenTarget(l)} style={pillBtn('primary')}><WIcon name="clock" size={14} color="var(--fg-on-primary)" /> Volver a revisar</button>
-                  } />
-                ))}
-              </tbody>
-            </table>
+            <Tabla links={visibles} tab={tab} acciones={acciones} onHistory={setHistoryTarget} />
           )}
         </div>
-      )}
-
-      {/* Rechazados (HDU 23 CA6): solo lectura. Sin esta lista el veredicto «rechazado» no se veía en
-          ninguna parte del panel. Si el familiar vuelve a declarar al paciente desde su portal, la
-          solicitud reaparece en Pendientes. */}
-      {rejected.length > 0 && (
-        <div style={{ background: 'var(--surface)', borderRadius: 16, border: '1px solid var(--border)', boxShadow: 'var(--shadow-soft)', overflow: 'hidden', marginTop: 24 }}>
-          <div style={{ padding: '20px 24px 16px' }}>
-            <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 18, color: 'var(--fg1)' }}>Familiares rechazados</h2>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--fg2)' }}>
-              Si el familiar vuelve a declarar al paciente desde su portal, la solicitud vuelve a Pendientes.
-            </p>
-          </div>
-          {cards ? (
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
-              {rejected.map((l) => (
-                <LinkRow key={l.id} link={l} reviewLabel="Rechazado" onHistory={setHistoryTarget} card />
-              ))}
-            </div>
-          ) : (
-            <table style={{ width: '100%', maxWidth: 640, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-              <colgroup><col /><col style={{ width: 250 }} /><col style={{ width: 120 }} /></colgroup>
-              <thead><tr style={{ borderBottom: '1px solid var(--border)' }}><Head label="Familiar" /><Head label="Paciente declarado" /><Head label="Solicitud" /></tr></thead>
-              <tbody>
-                {rejected.map((l) => (
-                  <LinkRow key={l.id} link={l} reviewLabel="Rechazado" onHistory={setHistoryTarget} card={false} />
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
+      </section>
 
       {historyTarget && <HistoryModal link={historyTarget} onClose={() => setHistoryTarget(null)} />}
 
