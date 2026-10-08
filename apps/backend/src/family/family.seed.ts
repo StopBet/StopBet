@@ -10,6 +10,7 @@ import {
 import { User } from '../users/entities/user.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { FamilyLink } from './entities/family-link.entity';
+import { FamilyLinkReview } from './entities/family-link-review.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
 import {
@@ -19,6 +20,7 @@ import {
   FAMILY_EXTRA_IDS,
   ensureFamilyDemoSessions,
 } from './family-demo-sessions';
+import { PSICOLOGOS_DEMO, estadoFinal, historialDemo, type PsicologoDemo } from './family-demo-history';
 
 // Seed propio de HU-11. Va aparte de src/seed.ts para no tocar un archivo compartido:
 // se ejecuta después de `pnpm run seed` y sólo agrega lo del portal familiar.
@@ -63,7 +65,7 @@ async function seedFamily(): Promise<void> {
   const ds = new DataSource({
     type: 'postgres',
     url: process.env.DATABASE_URL,
-    entities: [User, Sede, FamilyLink, FamilySession, SessionAttendance],
+    entities: [User, Sede, FamilyLink, FamilyLinkReview, FamilySession, SessionAttendance],
     synchronize: true,
     logging: false,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -74,6 +76,7 @@ async function seedFamily(): Promise<void> {
 
   const userRepo       = ds.getRepository(User);
   const linkRepo       = ds.getRepository(FamilyLink);
+  const reviewRepo     = ds.getRepository(FamilyLinkReview);
 
   const demoPatient = await userRepo.findOne({ where: { id: DEMO_PATIENT_ID } });
   if (!demoPatient) {
@@ -211,6 +214,61 @@ async function seedFamily(): Promise<void> {
       await linkRepo.save(linkRepo.create({ familyUserId, patientUserId, status }));
       console.log(`  ✓ ${label}`);
     }
+  }
+
+  console.log('\n── Historial de decisiones (HDU 23 CA6) ───');
+
+  // Quién confirmó o revocó cada vínculo y cuándo. Los psicólogos vienen del seed principal; si
+  // falta alguno se avisa y se sigue, porque el resto del seed de familia no depende de esto.
+  const psicologos = new Map<PsicologoDemo, User>();
+  for (const [clave, email] of Object.entries(PSICOLOGOS_DEMO) as [PsicologoDemo, string][]) {
+    const psicologo = await userRepo.findOne({ where: { email } });
+    if (psicologo) psicologos.set(clave, psicologo);
+    else console.log(`  ! Falta ${email}: sus decisiones no se registran (corre \`pnpm run seed\`).`);
+  }
+
+  const historial = historialDemo({ activo: FAMILY_ACTIVE_ID, remoto: FAMILY_EMPTY_ID, extras: FAMILY_EXTRA_IDS });
+  for (const [familyUserId, decisiones] of Object.entries(historial)) {
+    const link = await linkRepo.findOne({ where: { familyUserId }, relations: ['familyUser'] });
+    if (!link) continue;
+    const etiqueta = link.familyUser ? `${link.familyUser.firstName} ${link.familyUser.lastName}` : familyUserId;
+
+    // Solo si el vínculo todavía no tiene ninguna decisión: no se pisan las que tomó una
+    // persona de verdad, ni se duplican al volver a correr el seed.
+    if ((await reviewRepo.count({ where: { linkId: link.id } })) > 0) {
+      console.log(`  → ${etiqueta}: ya tiene historial`);
+      continue;
+    }
+    if (estadoFinal(decisiones) !== link.status) {
+      console.log(`  ! ${etiqueta}: el vínculo está «${link.status}» y el historial lo dejaría distinto; se omite`);
+      continue;
+    }
+    if (decisiones.some((d) => !psicologos.has(d.by))) continue;
+
+    const ahora = Date.now();
+    const filas = decisiones.map((d) =>
+      reviewRepo.create({
+        linkId: link.id,
+        verdict: d.verdict,
+        reviewedBy: psicologos.get(d.by)!.id,
+        verification: d.verification ?? null,
+        reviewedAt: new Date(ahora - d.hoursAgo * 3_600_000),
+      }),
+    );
+    await reviewRepo.save(filas);
+
+    // `family_links` guarda solo la última decisión; el detalle quedó en family_link_reviews.
+    const ultima = filas[filas.length - 1];
+    link.reviewedBy = ultima.reviewedBy;
+    link.reviewedAt = ultima.reviewedAt;
+    link.verification = ultima.verification;
+    // «Confirmado por el paciente» solo vale si el paciente respondió que sí (HDU 23 CA4).
+    if (ultima.verification === 'patient_consulted' && !link.patientResponse) {
+      link.patientResponse = 'accepted';
+      link.patientRespondedAt = new Date(ultima.reviewedAt.getTime() - 3_600_000);
+    }
+    await linkRepo.save(link);
+    console.log(`  ✓ ${etiqueta}: ${decisiones.length} decisión${decisiones.length === 1 ? '' : 'es'}`);
   }
 
   console.log('\n── Sesiones grupales y asistencias ────────');

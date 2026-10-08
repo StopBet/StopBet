@@ -20,6 +20,20 @@ está.
 
 ---
 
+## 2026-10-07 - `seed:family` ahora deja el historial de decisiones de los vínculos (HDU 23 CA6)
+
+**A quién le pega:** a quien arme una demo de Familiares o quiera ver el *Historial* con datos.
+
+- **Qué hacer:** `pnpm run seed:family` desde la raíz (necesita `pnpm run seed` corrido antes: busca a
+  Miguel, Valentina y Tomás). Es idempotente.
+- **Qué cambia:** los vínculos del seed dejan de verse activos pero sin autor. Ahora cada uno muestra
+  «Confirmado por {psicólogo} · fecha» y el enlace *Historial*; Jorge Gómez trae cuatro decisiones
+  (confirmó, revocó, devolvió a revisión, volvió a confirmar) para ver una línea de tiempo completa.
+- **No pisa nada real:** solo siembra el historial de los vínculos que no tienen ninguna decisión. Una
+  base ya sembrada, como la de Railway, lo recibe al volver a correrlo.
+
+---
+
 ## 2026-10-07 - Bloqueo de apuestas: con wifi y datos a la vez no resolvía nada (PR #157)
 
 **A quién le pega:** a quien tenga el bloqueo de apuestas activo en un teléfono.
