@@ -3,9 +3,6 @@ import { Link } from 'react-router-dom'
 import { WIcon } from '../components/WIcon'
 import { api, type LoginResponse } from '../services/api'
 import { useIsNarrow } from '../hooks/useIsNarrow'
-import { useModoDemo } from '../hooks/useModoDemo'
-import { DemoCuentasLogin } from '../components/DemoProfilesPanel'
-import { leerCuentas, type DemoCuenta } from '../utils/demoProfiles'
 import isotipo from '../assets/isotipo-blanco.png'
 
 // Reemplaza a la red de "personitas conectadas", que era genérica y podía ser de
@@ -89,16 +86,6 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
   const [keepSession, setKeepSession] = useState(true)
   const [formState, setFormState] = useState<FormState>('idle')
   const [showRecovery, setShowRecovery] = useState(false)
-
-  // Modo demo (`?demo=1`): las cuentas de familiar creadas en este navegador, para entrar con un toque.
-  const modoDemo = useModoDemo()
-  const [cuentasDemo] = useState<DemoCuenta[]>(() => (modoDemo ? leerCuentas() : []))
-  const usarCuentaDemo = (cuenta: DemoCuenta) => {
-    setEmail(cuenta.email)
-    setPassword(cuenta.password)
-    setShowPassword(true)
-    setFormState('idle')
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -511,12 +498,10 @@ export function LoginPage({ sessionExpired = false, onSuccess }: { sessionExpire
 
           <p style={{ fontSize: 12.5, color: 'var(--fg2)', textAlign: 'center', margin: '0 0 10px', lineHeight: 1.5 }}>
             ¿Eres familiar de un paciente?{' '}
-            <Link to={modoDemo ? '/registro-familiar?demo=1' : '/registro-familiar'} style={{ color: BLUE_TEXT, fontWeight: 600, textDecoration: 'none' }}>
+            <Link to="/registro-familiar" style={{ color: BLUE_TEXT, fontWeight: 600, textDecoration: 'none' }}>
               Crea tu cuenta
             </Link>
           </p>
-
-          {modoDemo && <DemoCuentasLogin cuentas={cuentasDemo} onUse={usarCuentaDemo} />}
 
           <p style={{ fontSize: 12, color: 'var(--fg2)', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
             ¿No tienes acceso? Contacta a{' '}
