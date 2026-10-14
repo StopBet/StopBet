@@ -56,7 +56,7 @@ export class AiAssistantController {
 
   @Get('sessions/summaries')
   @ApiOperation({ summary: 'Historial de resúmenes de sesiones del paciente (últimas 10)' })
-  @ApiResponse({ status: 200, description: 'AiSessionSummary[]' })
+  @ApiResponse({ status: 200, description: 'AiSessionHistoryItem[]' })
   getSummaries(@UserId() userId: string) {
     return this.service.getSummaries(userId);
   }

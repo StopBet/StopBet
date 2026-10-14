@@ -4,6 +4,7 @@ import type {
   ActiveAlertResponse,
   AchievementsData,
   RelapseResponse,
+  AiSessionHistoryItem,
   AiSessionSummary,
   BadgeMilestone,
   BillingStatus,
@@ -415,7 +416,7 @@ export const api = {
     }),
 
   getAiSummaries: (userId: string) =>
-    request<AiSessionSummary[]>('/ai/sessions/summaries', { userId }),
+    request<AiSessionHistoryItem[]>('/ai/sessions/summaries', { userId }),
 
   // ── Botón de pánico ──────────────────────────────────────────────────
   getSponsorInfo: (userId: string) =>

@@ -315,12 +315,14 @@ export class AiAssistantService {
     return summary;
   }
 
-  async getSummaries(userId: string): Promise<AiSessionSummary[]> {
-    return this.summaryRepo.find({
+  // Lo que ve el propio paciente: sin riesgo, ánimo ni detonante, que son material clínico.
+  async getSummaries(userId: string): Promise<AiSessionHistoryItem[]> {
+    const rows = await this.summaryRepo.find({
       where: { userId },
       order: { createdAt: 'DESC' },
       take: 10,
     });
+    return rows.map((r) => this.mapHistoryItem(r));
   }
 
   async setFeedback(sessionId: string, userId: string, feedback: PatientFeedback): Promise<AiSessionHistoryItem> {

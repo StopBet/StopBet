@@ -630,8 +630,18 @@ describe('AiAssistantService', () => {
 
   describe('getSummaries', () => {
     it('devuelve los resúmenes del paciente', async () => {
-      summaryRepo.find.mockResolvedValue([{ id: 's1' }]);
+      summaryRepo.find.mockResolvedValue([{ id: 's1', sessionId: 'x', createdAt: new Date(), durationMinutes: 2 }]);
       expect(await service.getSummaries(USER_ID)).toHaveLength(1);
+    });
+
+    it('al paciente no le llega el riesgo, el ánimo ni el detonante', async () => {
+      summaryRepo.find.mockResolvedValue([{ id: 's1', sessionId: 'x', userId: USER_ID, riskLevel: 'high', mood: 'Ansiedad', trigger: 'sueldo', progressNote: 'nota', triggerCategory: 'money', technique: 'breathing', patientFeedback: null, durationMinutes: 4, createdAt: new Date('2026-10-01T10:00:00Z') }]);
+      const [item] = await service.getSummaries(USER_ID);
+      expect(item).not.toHaveProperty('riskLevel');
+      expect(item).not.toHaveProperty('mood');
+      expect(item).not.toHaveProperty('trigger');
+      expect(item).not.toHaveProperty('progressNote');
+      expect(item).toMatchObject({ triggerCategory: 'money', technique: 'breathing' });
     });
   });
 
