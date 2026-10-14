@@ -24,6 +24,7 @@ import {
   SendMessageWithRiskResponse,
   StartSessionResponse,
   TechniqueType,
+  TriggerCategory,
 } from '@stopbet/shared-types';
 import {
   AJUTER_SYSTEM_PROMPT,
@@ -103,7 +104,7 @@ export class AiAssistantService {
     const lastSummary = await this.summaryRepo
       .findOne({ where: { userId }, order: { createdAt: 'DESC' } })
       .catch((err: unknown) => {
-        this.logger.error(`No se pudo leer el historial del asistente (${err instanceof Error ? err.name : 'Error'})`);
+        this.logHistoryFailure(err);
         return null;
       });
 
@@ -210,20 +211,23 @@ export class AiAssistantService {
       }),
     );
 
-    // Cargar historial reciente para contexto
-    const history = await this.messageRepo.find({
-      where: { sessionId },
-      order: { createdAt: 'ASC' },
-      take: MAX_HISTORY,
-    });
+    // Se piden los más nuevos y se devuelven a orden cronológico: con ASC + take llegaban los 12
+    // más viejos y en una conversación larga el modelo nunca veía los últimos turnos. El mensaje
+    // actual queda al final, que es lo que espera buildCrisisSignal.
+    const history = (
+      await this.messageRepo.find({
+        where: { sessionId },
+        order: { createdAt: 'DESC' },
+        take: MAX_HISTORY,
+      })
+    ).reverse();
 
     // El motivo se lee de todo lo que el paciente lleva escrito en esta conversación, no solo del
     // último mensaje: «sí, eso» no dice nada por sí solo.
     const category = classifyTrigger(
       history.filter((m) => m.role === 'user').map((m) => m.content).join(' '),
     );
-    const memory = await this.loadMemory(userId);
-    const memoryBlock = memory ? buildMemoryBlock(memory.sessions, memory.panicTimes, category) : null;
+    const memoryBlock = await this.loadMemoryBlock(userId, category);
 
     // Generar respuesta del asistente
     const aiContent = await this.generateResponse(
@@ -316,8 +320,22 @@ export class AiAssistantService {
     });
   }
 
-  // CA3: si el historial no se lee, se conversa sin él. El log lleva solo el tipo de error:
-  // el mensaje de la base podría arrastrar datos del paciente.
+  // El log lleva solo el tipo de error: el mensaje de la base podría arrastrar datos del paciente.
+  private logHistoryFailure(err: unknown): void {
+    this.logger.error(`No se pudo leer el historial del asistente (${err instanceof Error ? err.name : 'Error'})`);
+  }
+
+  // CA3: si el historial no se lee, o una fila viene malformada, se conversa sin memoria.
+  private async loadMemoryBlock(userId: string, category: TriggerCategory): Promise<string | null> {
+    try {
+      const memory = await this.loadMemory(userId);
+      return memory ? buildMemoryBlock(memory.sessions, memory.panicTimes, category) : null;
+    } catch (err) {
+      this.logHistoryFailure(err);
+      return null;
+    }
+  }
+
   private async loadMemory(
     userId: string,
   ): Promise<{ sessions: MemorySession[]; panicTimes: Date[] } | null> {
@@ -345,7 +363,7 @@ export class AiAssistantService {
         panicTimes: alerts.map((a) => a.createdAt),
       };
     } catch (err) {
-      this.logger.error(`No se pudo leer el historial del asistente (${err instanceof Error ? err.name : 'Error'})`);
+      this.logHistoryFailure(err);
       return null;
     }
   }
