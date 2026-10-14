@@ -6,6 +6,7 @@ import { AiSessionSummary } from './entities/ai-session-summary.entity';
 import { User } from '../users/entities/user.entity';
 import { FamilyLink } from '../family/entities/family-link.entity';
 import { SponsorAssignment } from '../panic/entities/sponsor-assignment.entity';
+import { PanicAlert } from '../panic/entities/panic-alert.entity';
 import { AiAssistantController } from './ai-assistant.controller';
 import { AiAssistantService } from './ai-assistant.service';
 import { ClinicalRecordsModule } from '../clinical-records/clinical-records.module';
@@ -20,6 +21,8 @@ import { ClinicalRecordsModule } from '../clinical-records/clinical-records.modu
       // HdU13 CA6: para omitir tambien los nombres de quienes rodean al paciente.
       FamilyLink,
       SponsorAssignment,
+      // HdU10: un pánico poco después del cierre anula la técnica que "sirvió".
+      PanicAlert,
     ]),
     ClinicalRecordsModule,
   ],

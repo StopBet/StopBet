@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage, AIMessage as LcAIMessage } from '@langchain/core/messages';
 import { AiSession } from './entities/ai-session.entity';
@@ -10,11 +10,12 @@ import { AiSessionSummary } from './entities/ai-session-summary.entity';
 import { SendMessageDto } from './dto/send-message.dto';
 import { getFallbackMessage } from './fallback';
 import { classifyTrigger, isTriggerCategory } from './trigger-catalog';
-import { sessionTechnique } from './technique-memory';
+import { MEMORY_SESSIONS, MemorySession, buildMemoryBlock, sessionTechnique } from './technique-memory';
 import { DatosAOmitir, sanitizePii } from './sanitizer';
 import { User } from '../users/entities/user.entity';
 import { FamilyLink } from '../family/entities/family-link.entity';
 import { SponsorAssignment } from '../panic/entities/sponsor-assignment.entity';
+import { PanicAlert } from '../panic/entities/panic-alert.entity';
 import { ClinicalRecordsService } from '../clinical-records/clinical-records.service';
 import {
   CrisisSignal,
@@ -56,6 +57,7 @@ const RISK_WINDOW = 3;
 
 @Injectable()
 export class AiAssistantService {
+  private readonly logger = new Logger(AiAssistantService.name);
   private llm: ChatGoogleGenerativeAI | null;
 
   constructor(
@@ -73,6 +75,8 @@ export class AiAssistantService {
     private readonly sponsorRepo: Repository<SponsorAssignment>,
     private readonly configService: ConfigService,
     private readonly clinicalRecords: ClinicalRecordsService,
+    @InjectRepository(PanicAlert)
+    private readonly panicAlertRepo: Repository<PanicAlert>,
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.llm = apiKey
@@ -96,10 +100,12 @@ export class AiAssistantService {
     }
 
     // Obtener contexto de la sesión anterior (solo resumen, no contenido)
-    const lastSummary = await this.summaryRepo.findOne({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+    const lastSummary = await this.summaryRepo
+      .findOne({ where: { userId }, order: { createdAt: 'DESC' } })
+      .catch((err: unknown) => {
+        this.logger.error(`No se pudo leer el historial del asistente (${err instanceof Error ? err.name : 'Error'})`);
+        return null;
+      });
 
     const aiVal = (v: string | null | undefined) => (!v || v.toLowerCase() === 'null' || v.trim() === '') ? null : v.trim();
     const hasMeaningfulSummary = lastSummary && (aiVal(lastSummary.mood) || aiVal(lastSummary.trigger) || aiVal(lastSummary.techniqueUsed));
@@ -211,6 +217,14 @@ export class AiAssistantService {
       take: MAX_HISTORY,
     });
 
+    // El motivo se lee de todo lo que el paciente lleva escrito en esta conversación, no solo del
+    // último mensaje: «sí, eso» no dice nada por sí solo.
+    const category = classifyTrigger(
+      history.filter((m) => m.role === 'user').map((m) => m.content).join(' '),
+    );
+    const memory = await this.loadMemory(userId);
+    const memoryBlock = memory ? buildMemoryBlock(memory.sessions, memory.panicTimes, category) : null;
+
     // Generar respuesta del asistente
     const aiContent = await this.generateResponse(
       history,
@@ -218,6 +232,7 @@ export class AiAssistantService {
       sessionId,
       await this.datosParaOmitir(userId),
       await this.clinicalRecords.getTriggersForAssistant(userId),
+      memoryBlock,
     );
 
     const assistantMsg = await this.messageRepo.save(
@@ -299,6 +314,40 @@ export class AiAssistantService {
       order: { createdAt: 'DESC' },
       take: 10,
     });
+  }
+
+  // CA3: si el historial no se lee, se conversa sin él. El log lleva solo el tipo de error:
+  // el mensaje de la base podría arrastrar datos del paciente.
+  private async loadMemory(
+    userId: string,
+  ): Promise<{ sessions: MemorySession[]; panicTimes: Date[] } | null> {
+    try {
+      const rows = await this.summaryRepo.find({
+        where: { userId },
+        order: { createdAt: 'DESC' },
+        take: MEMORY_SESSIONS,
+      });
+      if (rows.length === 0) return { sessions: [], panicTimes: [] };
+      const oldest = rows[rows.length - 1].createdAt;
+      const alerts = await this.panicAlertRepo.find({
+        where: { patientId: userId, createdAt: MoreThanOrEqual(oldest) },
+        select: { createdAt: true },
+      });
+      return {
+        sessions: rows.map((r) => ({
+          triggerCategory: r.triggerCategory,
+          trigger: r.trigger,
+          technique: r.technique,
+          patientFeedback: r.patientFeedback,
+          llmThoughtHelpful: r.llmThoughtHelpful,
+          closedAt: r.createdAt,
+        })),
+        panicTimes: alerts.map((a) => a.createdAt),
+      };
+    } catch (err) {
+      this.logger.error(`No se pudo leer el historial del asistente (${err instanceof Error ? err.name : 'Error'})`);
+      return null;
+    }
   }
 
   // ── Generación de texto con Gemini ──────────────────────────────────────
@@ -437,6 +486,7 @@ export class AiAssistantService {
     sessionId: string,
     paciente?: DatosAOmitir,
     clinicalTriggers?: string | null,
+    memoryBlock: string | null = null,
   ): Promise<string> {
     // S.3: se sanea SOLO lo que sale hacia el LLM. Lo guardado en la base queda
     // intacto a proposito: son las palabras del propio paciente y el psicologo las
@@ -449,6 +499,7 @@ export class AiAssistantService {
       previousContext,
       clinicalTriggers ?? null,
       omitir,
+      memoryBlock,
     );
 
     const lcMessages = [
@@ -647,6 +698,7 @@ function buildSystemPrompt(
   previousContext: string | null,
   clinicalTriggers: string | null,
   omitir: (texto: string) => string,
+  memoryBlock: string | null = null,
 ): string {
   let prompt = AJUTER_SYSTEM_PROMPT;
   if (clinicalTriggers) {
@@ -654,6 +706,9 @@ function buildSystemPrompt(
   }
   if (previousContext) {
     prompt += `\n\nContexto de sesión anterior: ${omitir(previousContext)}`;
+  }
+  if (memoryBlock) {
+    prompt += `\n\n${omitir(memoryBlock)}`;
   }
   return prompt;
 }

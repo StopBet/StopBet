@@ -29,6 +29,7 @@ describe('AiAssistantService', () => {
   let familyLinkRepo: { find: jest.Mock };
   let sponsorRepo: { find: jest.Mock };
   let clinicalRecords: { getTriggersForAssistant: jest.Mock };
+  let panicAlertRepo: { find: jest.Mock };
 
   beforeEach(() => {
     sessionRepo = {
@@ -62,6 +63,8 @@ describe('AiAssistantService', () => {
     // la HdU13. Los detonantes como contexto tienen sus propios tests.
     clinicalRecords = { getTriggersForAssistant: jest.fn().mockResolvedValue(null) };
 
+    panicAlertRepo = { find: jest.fn().mockResolvedValue([]) };
+
     service = new AiAssistantService(
       sessionRepo as any,
       messageRepo as any,
@@ -71,6 +74,7 @@ describe('AiAssistantService', () => {
       sponsorRepo as any,
       configService as any,
       clinicalRecords as any,
+      panicAlertRepo as any,
     );
   });
 
@@ -693,6 +697,68 @@ describe('AiAssistantService', () => {
 
       const enviado = JSON.stringify(invoke.mock.calls[0][0]);
       expect(enviado).toContain('gracias, ya estoy más tranquila');
+    });
+  });
+
+  describe('HdU10 — memoria en la conversación', () => {
+    const llmInvoke = jest.fn();
+    const resumen = (over: object) => ({
+      sessionId: 'x', userId: USER_ID, triggerCategory: 'money', trigger: 'sueldo',
+      technique: 'breathing', patientFeedback: 'yes', llmThoughtHelpful: null,
+      createdAt: new Date('2026-10-01T10:00:00Z'), ...over,
+    });
+
+    beforeEach(() => {
+      // mockReset y no solo mockResolvedValue: si no, `calls[0]` es la llamada del test anterior.
+      (service as any).llm = { invoke: llmInvoke.mockReset().mockResolvedValue({ content: 'ok' }) };
+      sessionRepo.findOne.mockResolvedValue({ id: SESSION_ID, userId: USER_ID, status: 'active', previousContext: null });
+      messageRepo.find.mockResolvedValue([userMessage('me llegó el finiquito y quiero ir al casino')]);
+    });
+
+    const systemPrompt = () => llmInvoke.mock.calls[0][0][0].content as string;
+
+    it('CA1: con 2 sesiones previas propone primero la técnica que le sirvió', async () => {
+      summaryRepo.find.mockResolvedValue([resumen({}), resumen({ technique: 'grounding', patientFeedback: 'no' })]);
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'me llegó el finiquito' } as any);
+      expect(systemPrompt()).toContain('respiración 4-7-8');
+      expect(systemPrompt()).toMatch(/primero/);
+    });
+
+    it('CA2: sin historial no agrega memoria y responde igual', async () => {
+      summaryRepo.find.mockResolvedValue([]);
+      const r = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+      expect(systemPrompt()).not.toContain('Memoria del paciente');
+      expect(r.assistantMessage.content).toBe('ok');
+    });
+
+    it('CA3: si el historial no se puede leer, el chat sigue y el fallo queda registrado', async () => {
+      summaryRepo.find.mockRejectedValue(new Error('connection refused'));
+      const log = jest.spyOn((service as any).logger, 'error').mockImplementation(() => undefined);
+      const r = await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+      expect(r.assistantMessage.content).toBe('ok');
+      expect(log).toHaveBeenCalled();
+      expect(String(log.mock.calls[0][0])).not.toContain('finiquito');
+    });
+
+    it('CA3: abrir un chat nuevo funciona aunque falle leer el resumen anterior', async () => {
+      summaryRepo.findOne.mockRejectedValue(new Error('connection refused'));
+      sessionRepo.save.mockImplementation((v) => Promise.resolve({ ...v, id: 'nueva', startedAt: new Date() }));
+      await expect(service.startSession(USER_ID)).resolves.toBeDefined();
+    });
+
+    it('un pánico poco después del cierre anula la técnica', async () => {
+      summaryRepo.find.mockResolvedValue([resumen({}), resumen({})]);
+      panicAlertRepo.find.mockResolvedValue([{ createdAt: new Date('2026-10-01T11:00:00Z') }]);
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'me llegó el finiquito' } as any);
+      expect(systemPrompt()).not.toContain('Memoria del paciente');
+    });
+
+    it('las alertas de pánico se piden solo del paciente de la conversación', async () => {
+      summaryRepo.find.mockResolvedValue([resumen({}), resumen({})]);
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+      expect(panicAlertRepo.find).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ patientId: USER_ID }) }),
+      );
     });
   });
 });
