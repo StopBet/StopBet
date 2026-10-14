@@ -665,5 +665,34 @@ describe('AiAssistantService', () => {
 
       expect(summaryRepo.save).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'vieja' }));
     });
+
+    it('si la sesión abierta no se puede resumir, igual se cierra y el chat nuevo se abre', async () => {
+      sessionRepo.find = jest.fn().mockResolvedValue([{ id: 'vieja', userId: USER_ID, startedAt: new Date() }]);
+      sessionRepo.findOne.mockResolvedValue({ id: 'vieja', userId: USER_ID, startedAt: new Date() });
+      summaryRepo.save.mockRejectedValue(new Error('db caída'));
+      sessionRepo.save.mockImplementation((v) => Promise.resolve({ ...v, id: 'nueva', startedAt: new Date() }));
+
+      const res = await service.startSession(USER_ID);
+
+      expect(res.session.id).toBe('nueva');
+      expect(sessionRepo.update).toHaveBeenCalledWith(
+        'vieja',
+        expect.objectContaining({ status: 'closed' }),
+      );
+    });
+
+    it('el final de una conversación larga llega al prompt del resumen', async () => {
+      const invoke = jest.fn().mockResolvedValue({ content: '{}' });
+      (service as unknown as { llm: { invoke: jest.Mock } }).llm = { invoke };
+      sessionRepo.findOne.mockResolvedValue({ id: SESSION_ID, userId: USER_ID, startedAt: new Date() });
+      messageRepo.find.mockResolvedValue([
+        userMessage(`${'tuve un día muy pesado en el trabajo y sentí ganas de apostar. '.repeat(15)}gracias, ya estoy más tranquila`),
+      ]);
+
+      await service.closeSession(SESSION_ID, USER_ID);
+
+      const enviado = JSON.stringify(invoke.mock.calls[0][0]);
+      expect(enviado).toContain('gracias, ya estoy más tranquila');
+    });
   });
 });

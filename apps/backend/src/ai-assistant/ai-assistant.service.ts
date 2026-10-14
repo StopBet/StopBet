@@ -87,7 +87,12 @@ export class AiAssistantService {
     const abiertas = await this.sessionRepo.find({ where: { userId, status: 'active' } });
     for (const abierta of abiertas) {
       // Abrir un chat nuevo nunca puede fallar porque no se pudo resumir el anterior.
-      await this.closeSession(abierta.id, userId).catch(() => undefined);
+      await this.closeSession(abierta.id, userId).catch(async () => {
+        // Sin cerrarla quedaría activa junto a la nueva y `getActiveSession` podría devolver la vieja.
+        await this.sessionRepo
+          .update(abierta.id, { status: 'closed', closedAt: new Date() })
+          .catch(() => undefined);
+      });
     }
 
     // Obtener contexto de la sesión anterior (solo resumen, no contenido)
