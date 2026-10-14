@@ -19,6 +19,8 @@ describe('normalizeTechnique / sessionTechnique', () => {
     expect(normalizeTechnique('Hagamos la respiración 4-7-8')).toBe('breathing');
     expect(normalizeTechnique('nombra 5 cosas que puedes ver')).toBe('grounding');
     expect(normalizeTechnique('posterga el impulso 30 minutos')).toBe('postponement');
+    expect(normalizeTechnique('hagamos juntos el ejercicio de esperar treinta minutos antes de hacer cualquier movimiento')).toBe('postponement');
+    expect(normalizeTechnique('pospongamos el impulso un rato')).toBe('postponement');
     expect(normalizeTechnique('Mindfulness')).toBeNull();
     expect(normalizeTechnique(null)).toBeNull();
   });

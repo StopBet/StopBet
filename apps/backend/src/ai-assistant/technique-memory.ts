@@ -16,7 +16,7 @@ export interface MemorySession {
 const TECHNIQUE_PATTERNS: [TechniqueType, RegExp][] = [
   ['breathing', /\b(respir\w*|4-7-8|inhala\w*|exhala\w*)/g],
   ['grounding', /\b(grounding|5-4-3-2-1|cosas que (?:ves|puedes ver)|anclaje)/g],
-  ['postponement', /\b(posterg\w*|postpon\w*|30 minutos|media hora)/g],
+  ['postponement', /\b(posterg\w*|postpon\w*|pospon\w*|30 minutos|treinta minutos|media hora|espera(?:r)? un rato)/g],
 ];
 
 const CATEGORY_TEXT: Record<TriggerCategory, string> = {
