@@ -18,8 +18,11 @@ import { SponsorAssignment } from '../panic/entities/sponsor-assignment.entity';
 import { PanicAlert } from '../panic/entities/panic-alert.entity';
 import { ClinicalRecordsService } from '../clinical-records/clinical-records.service';
 import {
+  AiSessionClinicalItem,
+  AiSessionHistoryItem,
   CrisisSignal,
   CrisisSuggestion,
+  PatientFeedback,
   RiskLevel,
   SendMessageWithRiskResponse,
   StartSessionResponse,
@@ -318,6 +321,30 @@ export class AiAssistantService {
       order: { createdAt: 'DESC' },
       take: 10,
     });
+  }
+
+  async setFeedback(sessionId: string, userId: string, feedback: PatientFeedback): Promise<AiSessionHistoryItem> {
+    const summary = await this.summaryRepo.findOne({ where: { sessionId, userId } });
+    if (!summary) throw new NotFoundException('Resumen no encontrado');
+    summary.patientFeedback = feedback;
+    return this.mapHistoryItem(await this.summaryRepo.save(summary));
+  }
+
+  async getPatientSummaries(patientId: string): Promise<AiSessionClinicalItem[]> {
+    const rows = await this.summaryRepo.find({ where: { userId: patientId }, order: { createdAt: 'DESC' }, take: 50 });
+    return rows.map((r) => ({ ...this.mapHistoryItem(r), mood: r.mood, trigger: r.trigger, riskLevel: r.riskLevel }));
+  }
+
+  private mapHistoryItem(r: AiSessionSummary): AiSessionHistoryItem {
+    return {
+      id: r.id,
+      sessionId: r.sessionId,
+      createdAt: r.createdAt.toISOString(),
+      durationMinutes: r.durationMinutes,
+      triggerCategory: r.triggerCategory ?? null,
+      technique: r.technique ?? null,
+      patientFeedback: r.patientFeedback ?? null,
+    };
   }
 
   // El log lleva solo el tipo de error: el mensaje de la base podría arrastrar datos del paciente.

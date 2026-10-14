@@ -798,4 +798,31 @@ describe('AiAssistantService', () => {
       );
     });
   });
+
+  describe('HdU10 — respuesta del paciente', () => {
+    it('guarda la respuesta en el resumen de SU sesión', async () => {
+      summaryRepo.findOne.mockResolvedValue({ id: 's1', sessionId: SESSION_ID, userId: USER_ID, createdAt: new Date(), durationMinutes: 3 });
+      const r = await service.setFeedback(SESSION_ID, USER_ID, 'yes');
+      expect(summaryRepo.findOne).toHaveBeenCalledWith({ where: { sessionId: SESSION_ID, userId: USER_ID } });
+      expect(r.patientFeedback).toBe('yes');
+    });
+
+    it('responder otra vez reemplaza la respuesta anterior', async () => {
+      summaryRepo.findOne.mockResolvedValue({ id: 's1', sessionId: SESSION_ID, userId: USER_ID, patientFeedback: 'no', createdAt: new Date(), durationMinutes: 3 });
+      const r = await service.setFeedback(SESSION_ID, USER_ID, 'somewhat');
+      expect(r.patientFeedback).toBe('somewhat');
+      expect(summaryRepo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('404 si la sesión es de otra persona', async () => {
+      summaryRepo.findOne.mockResolvedValue(null);
+      await expect(service.setFeedback(SESSION_ID, 'otro', 'yes')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('el historial clínico incluye el riesgo', async () => {
+      summaryRepo.find.mockResolvedValue([{ id: 's1', sessionId: 'x', userId: 'p1', riskLevel: 'high', mood: 'Ansiedad', trigger: 'sueldo', triggerCategory: 'money', technique: 'breathing', patientFeedback: null, durationMinutes: 4, createdAt: new Date('2026-10-01T10:00:00Z') }]);
+      const [item] = await service.getPatientSummaries('p1');
+      expect(item).toMatchObject({ riskLevel: 'high', triggerCategory: 'money', createdAt: '2026-10-01T10:00:00.000Z' });
+    });
+  });
 });

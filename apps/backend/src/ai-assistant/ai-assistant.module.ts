@@ -7,6 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { FamilyLink } from '../family/entities/family-link.entity';
 import { SponsorAssignment } from '../panic/entities/sponsor-assignment.entity';
 import { PanicAlert } from '../panic/entities/panic-alert.entity';
+import { PatientAssignment } from '../psychologists/entities/patient-assignment.entity';
 import { AiAssistantController } from './ai-assistant.controller';
 import { AiAssistantService } from './ai-assistant.service';
 import { ClinicalRecordsModule } from '../clinical-records/clinical-records.module';
@@ -23,6 +24,8 @@ import { ClinicalRecordsModule } from '../clinical-records/clinical-records.modu
       SponsorAssignment,
       // HdU10: un pánico poco después del cierre anula la técnica que "sirvió".
       PanicAlert,
+      // HdU10 CA4: `PatientAccessGuard` consulta las asignaciones del psicólogo.
+      PatientAssignment,
     ]),
     ClinicalRecordsModule,
   ],
