@@ -50,6 +50,11 @@ describe('effectivenessScore', () => {
     expect(effectivenessScore(s({ patientFeedback: 'yes' }), [at(-30)])).toBe(1);
     expect(effectivenessScore(s({ patientFeedback: 'yes' }), [at(121)])).toBe(1);
   });
+
+  it('el borde del veto: exactamente 120 minutos anula, exactamente al cierre no', () => {
+    expect(effectivenessScore(s({ patientFeedback: 'yes' }), [at(120)])).toBe(0);
+    expect(effectivenessScore(s({ patientFeedback: 'yes' }), [at(0)])).toBe(1);
+  });
 });
 
 describe('pickTechnique', () => {
@@ -66,12 +71,25 @@ describe('pickTechnique', () => {
     expect(pickTechnique(sessions, [], 'money')).toBe('breathing');
   });
 
-  it('con empate gana la usada más recientemente', () => {
-    const sessions = [
+  it('con empate gana la usada más recientemente, sin importar el orden de entrada', () => {
+    const masRecienteAlFinal = [
+      s({ technique: 'breathing', patientFeedback: 'yes', closedAt: at(0) }),
+      s({ technique: 'grounding', patientFeedback: 'yes', closedAt: at(60) }),
+    ];
+    const masRecienteAlPrincipio = [
       s({ technique: 'grounding', patientFeedback: 'yes', closedAt: at(60) }),
       s({ technique: 'breathing', patientFeedback: 'yes', closedAt: at(0) }),
     ];
-    expect(pickTechnique(sessions, [], 'money')).toBe('grounding');
+    expect(pickTechnique(masRecienteAlFinal, [], 'money')).toBe('grounding');
+    expect(pickTechnique(masRecienteAlPrincipio, [], 'money')).toBe('grounding');
+  });
+
+  it('sin sesiones en la categoría pedida no propone nada', () => {
+    const otraCategoria = [
+      s({ triggerCategory: 'work', technique: 'breathing', patientFeedback: 'yes' }),
+      s({ triggerCategory: 'work', technique: 'grounding', patientFeedback: 'yes' }),
+    ];
+    expect(pickTechnique(otraCategoria, [], 'money')).toBeNull();
   });
 
   it('no propone nada si nada sumó puntos', () => {
