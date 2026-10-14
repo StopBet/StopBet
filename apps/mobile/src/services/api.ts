@@ -18,6 +18,7 @@ import type {
   Notification,
   PaginatedResponse,
   PanicAlertDto,
+  PatientFeedback,
   PatientFamilyRequest,
   PaymentMethod,
   ReactionEmoji,
@@ -612,3 +613,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
 };
+
+// ── HdU10: memoria del asistente ──
+export const sendAiFeedback = (sessionId: string, feedback: PatientFeedback) =>
+  request<AiSessionHistoryItem>(`/ai/sessions/${sessionId}/feedback`, {
+    method: 'PATCH',
+    body: JSON.stringify({ feedback }),
+  });

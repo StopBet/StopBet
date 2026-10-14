@@ -16,6 +16,7 @@ import type {
   AIMessage,
   AiSessionSummary,
   CrisisSignal,
+  PatientFeedback,
   SponsorInfo,
   SendMessageWithRiskResponse,
   TechniqueType,
@@ -23,7 +24,7 @@ import type {
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
-import { api } from '../services/api';
+import { api, sendAiFeedback } from '../services/api';
 import {
   buildLocalUserMessage,
   buildOfflineFallbackMessage,
@@ -33,6 +34,7 @@ import { CrisisCard } from '../components/CrisisCard';
 import { TechniqueCard } from '../components/TechniqueCard';
 import { TypingIndicator } from '../components/TypingIndicator';
 import { SessionSummaryModal } from '../components/SessionSummaryModal';
+import { AssistantHistorySheet } from '../components/AssistantHistorySheet';
 import { Icon } from '../components/Icon';
 import { PanicHeaderButton } from '../components/PanicHeaderButton';
 import type { AppStackParamList } from '../navigation/types';
@@ -73,6 +75,8 @@ export function AssistantScreen() {
   const [idleWarning, setIdleWarning] = useState(false);
   const [sponsor, setSponsor] = useState<SponsorInfo | null>(null);
   const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [feedback, setFeedback] = useState<PatientFeedback | null>(null);
 
   const listRef = useRef<FlatList>(null);
   const itemsAlBajar = useRef(0);
@@ -93,6 +97,7 @@ export function AssistantScreen() {
     if (!sessionId) return;
     try {
       const result = await api.closeAiSession(userId, sessionId);
+      setFeedback(null);
       setSummary(result);
       setSummaryVisible(true);
     } catch {
@@ -257,6 +262,7 @@ export function AssistantScreen() {
             try {
               if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
               const result = await api.closeAiSession(userId, sessionId);
+              setFeedback(null);
               setSummary(result);
               setSummaryVisible(true);
             } catch {
@@ -268,6 +274,16 @@ export function AssistantScreen() {
       ],
     });
   }, [sessionId]);
+
+  const handleFeedback = useCallback(async (value: PatientFeedback) => {
+    if (!summary) return;
+    setFeedback(value);
+    try {
+      await sendAiFeedback(summary.sessionId, value);
+    } catch {
+      showToast('No pudimos guardar tu respuesta.', 'error');
+    }
+  }, [summary, showToast]);
 
   const durationMinutes = sessionStartedAt
     ? Math.max(1, Math.round((Date.now() - sessionStartedAt.getTime()) / 60000))
@@ -360,6 +376,15 @@ export function AssistantScreen() {
         </View>
 
         <View style={styles.headerActions}>
+          <Touchable
+            onPress={() => setHistoryVisible(true)}
+            style={styles.closeBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Ver historial"
+            accessibilityHint="Muestra tus conversaciones anteriores"
+          >
+            <Icon name="clock" size={20} color={c.fg2} />
+          </Touchable>
           {sessionId && (
             <Touchable
               onPress={handleManualClose}
@@ -489,7 +514,10 @@ export function AssistantScreen() {
           setSummaryVisible(false);
           navigation.goBack();
         }}
+        feedback={feedback}
+        onFeedback={handleFeedback}
       />
+      <AssistantHistorySheet visible={historyVisible} onClose={() => setHistoryVisible(false)} />
     </SafeAreaView>
   );
 }
