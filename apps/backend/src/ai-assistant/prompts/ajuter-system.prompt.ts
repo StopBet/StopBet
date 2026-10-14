@@ -37,7 +37,7 @@ Ofrecer contención emocional inmediata y cálida usando técnicas validadas cl�
 
 export const SUMMARY_EXTRACTION_PROMPT = (userMessages: string) => `
 Analiza los mensajes del paciente y extrae un resumen clínico en JSON exactamente con este formato:
-{"mood":"...","trigger":"...","riskLevel":"low|medium|high","techniqueUsed":"...","progressNote":"..."}
+{"mood":"...","trigger":"...","riskLevel":"low|medium|high","techniqueUsed":"...","progressNote":"...","triggerCategory":"money|temptation|sports|emotions|loneliness|family|work|other","helpful":true}
 
 Reglas:
 - mood: estado anímico principal en 1-3 palabras (ej: "Ansiedad", "Soledad", "Bien")
@@ -45,8 +45,10 @@ Reglas:
 - riskLevel: "low" si sin impulso activo, "medium" si impulso presente, "high" si crisis
 - techniqueUsed: nombre de la técnica mencionada o null
 - progressNote: frase positiva breve de máximo 4 palabras o null
+- triggerCategory: una sola de las opciones del formato; "other" si no calza ninguna
+- helpful: true si al final de los mensajes el paciente parece más tranquilo o dice que le sirvió; false si no
 
-Mensajes del paciente: "${userMessages.substring(0, 600)}"
+Mensajes del paciente: "${userMessages}"
 
 Responde SOLO con el JSON válido, sin texto adicional.
 `.trim();

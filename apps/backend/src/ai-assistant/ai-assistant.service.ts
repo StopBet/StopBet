@@ -9,6 +9,8 @@ import { AiMessage } from './entities/ai-message.entity';
 import { AiSessionSummary } from './entities/ai-session-summary.entity';
 import { SendMessageDto } from './dto/send-message.dto';
 import { getFallbackMessage } from './fallback';
+import { classifyTrigger, isTriggerCategory } from './trigger-catalog';
+import { sessionTechnique } from './technique-memory';
 import { DatosAOmitir, sanitizePii } from './sanitizer';
 import { User } from '../users/entities/user.entity';
 import { FamilyLink } from '../family/entities/family-link.entity';
@@ -81,11 +83,12 @@ export class AiAssistantService {
   // ── Inicio de sesión ────────────────────────────────────────────────────
 
   async startSession(userId: string): Promise<StartSessionResponse> {
-    // Cerrar sesión activa previa si existe (no debería, pero por si acaso)
-    await this.sessionRepo.update(
-      { userId, status: 'active' },
-      { status: 'closed', closedAt: new Date() },
-    );
+    // Cerrarla con `update` dejaba esa conversación sin resumen: se perdía para la memoria (HdU10).
+    const abiertas = await this.sessionRepo.find({ where: { userId, status: 'active' } });
+    for (const abierta of abiertas) {
+      // Abrir un chat nuevo nunca puede fallar porque no se pudo resumir el anterior.
+      await this.closeSession(abierta.id, userId).catch(() => undefined);
+    }
 
     // Obtener contexto de la sesión anterior (solo resumen, no contenido)
     const lastSummary = await this.summaryRepo.findOne({
@@ -256,11 +259,23 @@ export class AiAssistantService {
       await this.datosParaOmitir(userId),
     );
 
+    const userText = messages.filter((m) => m.role === 'user').map((m) => m.content).join(' ');
+    const byCatalog = userText.trim() ? classifyTrigger(userText) : null;
+    // El catálogo manda; el LLM solo completa lo que las palabras clave no reconocieron.
+    const triggerCategory =
+      byCatalog === 'other' && summaryData.triggerCategory ? summaryData.triggerCategory : byCatalog;
+    const technique = sessionTechnique(
+      messages.filter((m) => m.role === 'assistant').map((m) => m.content),
+      summaryData.techniqueUsed ?? null,
+    );
+
     const summary = await this.summaryRepo.save(
       this.summaryRepo.create({
         sessionId,
         userId,
         ...summaryData,
+        triggerCategory,
+        technique,
         durationMinutes,
       }),
     );
@@ -467,7 +482,10 @@ export class AiAssistantService {
     );
 
     if (!userContent.trim() || !this.llm) {
-      return { mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: null };
+      return {
+        mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: null,
+        triggerCategory: null, llmThoughtHelpful: null,
+      };
     }
 
     try {
@@ -476,28 +494,34 @@ export class AiAssistantService {
       // error. Si se pasa, el catch devuelve el resumen vacío y la sesión igual
       // se cierra — el resumen es secundario, cerrar bien no lo es.
       const response = await this.conTope(
-        this.llm.invoke([new HumanMessage(SUMMARY_EXTRACTION_PROMPT(userContent))]),
+        this.llm.invoke([new HumanMessage(SUMMARY_EXTRACTION_PROMPT(headAndTail(userContent)))]),
       );
-      const text = (response.content as string).trim();
-      const match = text.match(/\{[\s\S]*\}/);
+      const raw = (response.content as string).trim();
+      const match = raw.match(/\{[\s\S]*\}/);
       if (match) {
-        const parsed = JSON.parse(match[0]) as Record<string, string>;
+        const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+        const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
         return {
-          mood: parsed.mood ?? null,
-          trigger: parsed.trigger ?? null,
+          mood: text(parsed.mood),
+          trigger: text(parsed.trigger),
           // Un valor que no reconocemos es tan poco evaluable como un fallo
-          riskLevel: (['low', 'medium', 'high'].includes(parsed.riskLevel)
+          riskLevel: (['low', 'medium', 'high'].includes(parsed.riskLevel as string)
             ? (parsed.riskLevel as RiskLevel)
             : null),
-          techniqueUsed: parsed.techniqueUsed ?? null,
-          progressNote: parsed.progressNote ?? null,
+          techniqueUsed: text(parsed.techniqueUsed),
+          progressNote: text(parsed.progressNote),
+          triggerCategory: isTriggerCategory(parsed.triggerCategory) ? parsed.triggerCategory : null,
+          llmThoughtHelpful: typeof parsed.helpful === 'boolean' ? parsed.helpful : null,
         };
       }
     } catch {
       // Fallo silencioso — no loguear contenido del mensaje
     }
 
-    return { mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: 'Sesión completada' };
+    return {
+      mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: 'Sesión completada',
+      triggerCategory: null, llmThoughtHelpful: null,
+    };
   }
 
   // ── Detección de técnica ────────────────────────────────────────────────
@@ -600,6 +624,14 @@ export class AiAssistantService {
       createdAt: m.createdAt.toISOString(),
     };
   }
+}
+
+// Si la técnica sirvió se nota al final de la conversación: antes se mandaban solo los
+// primeros 600 caracteres y justo eso quedaba fuera.
+function headAndTail(text: string, max = 600): string {
+  if (text.length <= max) return text;
+  const half = Math.floor(max / 2);
+  return `${text.slice(0, half)} … ${text.slice(-half)}`;
 }
 
 // Arma el system prompt con los dos contextos que puede haber. Los dos pasan por `omitir`

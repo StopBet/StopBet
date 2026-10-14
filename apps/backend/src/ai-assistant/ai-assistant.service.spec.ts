@@ -22,7 +22,7 @@ function userMessage(content: string): Partial<AiMessage> {
 
 describe('AiAssistantService', () => {
   let service: AiAssistantService;
-  let sessionRepo: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock };
+  let sessionRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock };
   let messageRepo: { findOne: jest.Mock; find: jest.Mock; save: jest.Mock; create: jest.Mock };
   let summaryRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let userRepo: { findOne: jest.Mock; find: jest.Mock };
@@ -33,6 +33,7 @@ describe('AiAssistantService', () => {
   beforeEach(() => {
     sessionRepo = {
       findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
       create: jest.fn((v) => v),
       save: jest.fn(),
       update: jest.fn().mockResolvedValue(undefined),
@@ -626,6 +627,43 @@ describe('AiAssistantService', () => {
     it('devuelve los resúmenes del paciente', async () => {
       summaryRepo.find.mockResolvedValue([{ id: 's1' }]);
       expect(await service.getSummaries(USER_ID)).toHaveLength(1);
+    });
+  });
+
+  describe('HdU10 — el resumen guarda la memoria', () => {
+    it('clasifica el motivo y la técnica que usó el asistente', async () => {
+      sessionRepo.findOne.mockResolvedValue({ id: SESSION_ID, userId: USER_ID, startedAt: new Date() });
+      messageRepo.find.mockResolvedValue([
+        userMessage('me pagaron el sueldo y quiero apostar'),
+        { ...userMessage('Hagamos la respiración 4-7-8 juntos'), role: 'assistant' },
+      ]);
+
+      await service.closeSession(SESSION_ID, USER_ID);
+
+      expect(summaryRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ triggerCategory: 'money', technique: 'breathing' }),
+      );
+    });
+
+    it('sin mensajes del paciente no inventa categoría', async () => {
+      sessionRepo.findOne.mockResolvedValue({ id: SESSION_ID, userId: USER_ID, startedAt: new Date() });
+      messageRepo.find.mockResolvedValue([]);
+
+      await service.closeSession(SESSION_ID, USER_ID);
+
+      expect(summaryRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ triggerCategory: null, technique: null }),
+      );
+    });
+
+    it('al abrir un chat nuevo, la sesión que quedó abierta se cierra CON resumen', async () => {
+      sessionRepo.find = jest.fn().mockResolvedValue([{ id: 'vieja', userId: USER_ID, startedAt: new Date() }]);
+      sessionRepo.findOne.mockResolvedValue({ id: 'vieja', userId: USER_ID, startedAt: new Date() });
+      sessionRepo.save.mockImplementation((v) => Promise.resolve({ ...v, id: 'nueva', startedAt: new Date() }));
+
+      await service.startSession(USER_ID);
+
+      expect(summaryRepo.save).toHaveBeenCalledWith(expect.objectContaining({ sessionId: 'vieja' }));
     });
   });
 });
