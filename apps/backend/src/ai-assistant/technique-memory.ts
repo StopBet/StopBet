@@ -69,13 +69,35 @@ export function sessionTechnique(assistantTexts: string[], llmTechnique: string 
   return mostFrequent(countTechniques(assistantTexts.join(' '))) ?? normalizeTechnique(llmTechnique);
 }
 
+// Un valor fuera del enum (la columna es varchar) cuenta como ausencia de respuesta: no se
+// puede dar por bueno lo que no se entiende.
+function feedbackScore(feedback: PatientFeedback | null): number | null {
+  if (feedback === null || !Object.prototype.hasOwnProperty.call(FEEDBACK_SCORE, feedback)) return null;
+  return FEEDBACK_SCORE[feedback];
+}
+
 export function effectivenessScore(session: MemorySession, panicTimes: Date[]): number {
   const closed = session.closedAt.getTime();
-  // Un pánico poco después de cerrar dice más que cualquier respuesta: la técnica no alcanzó.
-  const vetoed = panicTimes.some((p) => p.getTime() > closed && p.getTime() - closed <= PANIC_VETO_MS);
+  // Un pánico desde el cierre y hasta 2 horas después dice más que cualquier respuesta: la
+  // técnica no alcanzó. El borde incluye el cierre mismo para no dejar huecos en la ventana.
+  const vetoed = panicTimes.some((p) => p.getTime() >= closed && p.getTime() - closed <= PANIC_VETO_MS);
   if (vetoed) return 0;
-  if (session.patientFeedback) return FEEDBACK_SCORE[session.patientFeedback];
+  const fromFeedback = feedbackScore(session.patientFeedback);
+  if (fromFeedback !== null) return fromFeedback;
   return session.llmThoughtHelpful ? 0.5 : 0;
+}
+
+// El detonante lo escribe el paciente y entra al prompt del sistema: sin saltos de línea ni
+// comillas no puede cerrar la frase ni inventar instrucciones nuevas.
+const TRIGGER_MAX_CHARS = 60;
+
+function safeTrigger(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .replace(/["'«»`<>{}[\]]/g, '')
+    .trim()
+    .slice(0, TRIGGER_MAX_CHARS)
+    .trim();
 }
 
 function withTechnique(sessions: MemorySession[]): MemorySession[] {
@@ -126,7 +148,7 @@ export function buildMemoryBlock(
 
   const helpful = withTechnique(sessions)
     .filter((s) => effectivenessScore(s, panicTimes) > 0)
-    .map((s) => `${TECHNIQUE_TEXT[s.technique!]} (cuando ${s.trigger ?? CATEGORY_TEXT[s.triggerCategory ?? 'other']})`);
+    .map((s) => `${TECHNIQUE_TEXT[s.technique!]} (cuando ${safeTrigger(s.trigger ?? '') || CATEGORY_TEXT[s.triggerCategory ?? 'other']})`);
   const unique = [...new Set(helpful)];
   if (unique.length === 0) return null;
   return `Técnicas que le han servido antes: ${unique.join('; ')}. Si lo que cuenta ahora se parece a alguna de esas situaciones, propón esa técnica primero.`;
