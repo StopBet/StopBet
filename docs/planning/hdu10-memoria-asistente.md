@@ -46,9 +46,11 @@ la primera de la tabla.
 
 Por sesión cerrada se calcula un puntaje, en este orden de prioridad:
 
-1. **Veto por pánico.** Si el paciente creó una alerta de pánico en las **2 horas siguientes** al
-   cierre, el puntaje es 0 sin importar lo demás. Se calcula al consultar, cruzando `panic_alerts`
-   con la hora de cierre: no hace falta un cron.
+1. **Veto por pánico.** Si el paciente creó una alerta de pánico dentro de la ventana
+   **[inicio de la conversación, fin + 2 horas]**, el puntaje es 0 sin importar lo demás. El fin es
+   la **última actividad** de la sesión, no el momento en que se guardó el resumen (una sesión
+   cerrada por inactividad se resume horas después). Se calcula al consultar, cruzando
+   `panic_alerts` con `ai_sessions`: no hace falta un cron.
 2. **Respuesta del paciente.** «Sí» = 1, «Un poco» = 0,5, «No» = 0.
 3. **Si el paciente no respondió**, lo que dedujo el LLM al resumir: «pareció servirle» = 0,5; si no, 0.
 

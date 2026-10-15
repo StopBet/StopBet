@@ -257,6 +257,14 @@ reales**.
 **11. Falta probar en un teléfono físico.** Toda la auditoría de mobile se verificó en
 emulador. Es el hueco de verificación más grande que queda.
 
+**12. HdU10: los resúmenes del asistente anteriores a esta versión.** Se guardaron bajo un
+aviso que decía que eran solo para el asistente; hoy el equipo clínico los ve. Decidir con
+AJUTER/PO si se filtran por fecha de lanzamiento o se aceptan.
+
+**13. HdU10: el bloque de memoria agrega una instrucción al final del prompt del asistente**
+(«propón primero la técnica que le sirvió… salvo crisis severa»). El texto base no cambió, pero
+el efecto sí: falta el visto bueno clínico de AJUTER sobre esa redacción.
+
 ---
 
 ## 🔴 Importantes (requieren decisión del equipo)
