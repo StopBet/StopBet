@@ -14,7 +14,7 @@ const CATEGORY: Record<TriggerCategory, string> = {
   emotions: 'Emociones difíciles', loneliness: 'Soledad o aburrimiento',
   family: 'Familia o pareja', work: 'Trabajo', other: 'Otro motivo',
 };
-const TECHNIQUE: Record<TechniqueType, string> = {
+export const TECHNIQUE: Record<TechniqueType, string> = {
   breathing: 'Respiración 4-7-8', grounding: 'Grounding 5-4-3-2-1', postponement: 'Postergar el impulso',
 };
 const FEEDBACK = { yes: 'Te ayudó', somewhat: 'Te ayudó un poco', no: 'No te ayudó' } as const;
@@ -55,7 +55,7 @@ export function AssistantHistorySheet({ visible, onClose }: { visible: boolean; 
               <Icon name="x" size={20} color={c.fg2} />
             </Touchable>
           </View>
-          <Text style={styles.sub}>Solo tú y tu psicólogo pueden ver este historial.</Text>
+          <Text style={styles.sub}>Solo tú y tu equipo clínico pueden ver este historial.</Text>
           {estado === 'cargando' && <Text style={styles.empty} accessibilityLiveRegion="polite">Cargando…</Text>}
           {estado === 'error' && (
             <Text style={styles.empty} accessibilityLiveRegion="polite">

@@ -5,7 +5,7 @@ import type {
   AchievementsData,
   RelapseResponse,
   AiSessionHistoryItem,
-  AiSessionSummary,
+  AiSessionSummaryWithMemory,
   BadgeMilestone,
   BillingStatus,
   CheckIn,
@@ -411,7 +411,7 @@ export const api = {
     }),
 
   closeAiSession: (userId: string, sessionId: string) =>
-    request<AiSessionSummary>(`/ai/sessions/${sessionId}/close`, {
+    request<AiSessionSummaryWithMemory>(`/ai/sessions/${sessionId}/close`, {
       userId,
       method: 'POST',
     }),

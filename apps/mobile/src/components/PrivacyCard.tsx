@@ -26,7 +26,7 @@ export function PrivacyCard() {
           <View style={styles.listIcon}>
             <Icon name="eye-off" size={14} color={c.primaryText} />
           </View>
-          <Text style={styles.listText}>Tu psicólogo no lee esta conversación.</Text>
+          <Text style={styles.listText}>Tu equipo clínico no lee esta conversación.</Text>
         </View>
         <View style={styles.listItem}>
           <View style={styles.listIcon}>
@@ -50,7 +50,7 @@ export function PrivacyCard() {
             <Icon name="clipboard-list" size={14} color={c.primaryText} />
           </View>
           <Text style={styles.listText}>
-            Al cerrar, se guarda un resumen: ánimo, técnica usada y nivel de riesgo.
+            Al cerrar, se guarda un resumen (ánimo, motivo, técnica y nivel de riesgo) que ve tu equipo clínico. Nunca ve tus mensajes.
           </Text>
         </View>
       </View>

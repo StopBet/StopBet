@@ -697,3 +697,8 @@ export interface AiSessionClinicalItem extends AiSessionHistoryItem {
   trigger: string | null;
   riskLevel: RiskLevel | null;
 }
+
+// Lo que devuelve el cierre de la conversación: el resumen más la técnica que decidió el código.
+export interface AiSessionSummaryWithMemory extends AiSessionSummary {
+  technique?: TechniqueType | null;
+}

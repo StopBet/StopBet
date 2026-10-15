@@ -5,12 +5,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { AiSessionSummary, PatientFeedback } from '@stopbet/shared-types';
+import type { AiSessionSummaryWithMemory, PatientFeedback } from '@stopbet/shared-types';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
+import { TECHNIQUE } from './AssistantHistorySheet';
 
 interface SummaryChip {
   bg: string;
@@ -26,7 +27,7 @@ function aiVal(v: string | null | undefined, fallback: string): string {
   return v.trim();
 }
 
-function buildChips(summary: AiSessionSummary, durationMinutes: number, c: Palette): SummaryChip[] {
+function buildChips(summary: AiSessionSummaryWithMemory, durationMinutes: number, c: Palette): SummaryChip[] {
   return [
     {
       bg: c.infoSurface,
@@ -48,7 +49,8 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number, c: Palet
       icon: 'wind',
       iconColor: c.primary,
       label: 'Técnica usada',
-      value: aiVal(summary.techniqueUsed, 'Ninguna'),
+      // La técnica que decidió el código manda; el texto libre del modelo es el respaldo.
+      value: summary.technique ? TECHNIQUE[summary.technique] : aiVal(summary.techniqueUsed, 'Ninguna'),
     },
     {
       bg: c.sage50,
@@ -62,7 +64,7 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number, c: Palet
 
 interface Props {
   visible: boolean;
-  summary: AiSessionSummary | null;
+  summary: AiSessionSummaryWithMemory | null;
   durationMinutes: number;
   onContinue: () => void;
   feedback: PatientFeedback | null;
@@ -132,6 +134,7 @@ export function SessionSummaryModal({
                   onPress={() => onFeedback(value)}
                   style={[styles.askBtn, selected && styles.askBtnSelected]}
                   accessibilityRole="button"
+                  accessibilityLabel={`¿Te ayudó lo que hicimos? ${label}`}
                   accessibilityState={{ selected }}
                 >
                   <Text style={[styles.askText, selected && styles.askTextSelected]}>{label}</Text>
@@ -143,7 +146,7 @@ export function SessionSummaryModal({
           <View style={styles.noteRow}>
             <Icon name="lock" size={14} color={c.fg2} />
             <Text style={styles.note}>
-              Este resumen ayuda al asistente a retomar la próxima vez. Tu psicólogo puede ver este resumen, pero no la conversación.
+              Este resumen ayuda al asistente a retomar la próxima vez. Tu equipo clínico puede ver este resumen, pero no la conversación.
             </Text>
           </View>
 

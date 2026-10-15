@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type {
   AIMessage,
-  AiSessionSummary,
+  AiSessionSummaryWithMemory,
   CrisisSignal,
   PatientFeedback,
   SponsorInfo,
@@ -70,13 +70,14 @@ export function AssistantScreen() {
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [crisis, setCrisis] = useState<CrisisSignal | null>(null);
-  const [summary, setSummary] = useState<AiSessionSummary | null>(null);
+  const [summary, setSummary] = useState<AiSessionSummaryWithMemory | null>(null);
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [idleWarning, setIdleWarning] = useState(false);
   const [sponsor, setSponsor] = useState<SponsorInfo | null>(null);
   const [sessionStartedAt, setSessionStartedAt] = useState<Date | null>(null);
   const [historyVisible, setHistoryVisible] = useState(false);
   const [feedback, setFeedback] = useState<PatientFeedback | null>(null);
+  const latestFeedback = useRef<PatientFeedback | null>(null);
 
   const listRef = useRef<FlatList>(null);
   const itemsAlBajar = useRef(0);
@@ -97,6 +98,7 @@ export function AssistantScreen() {
     if (!sessionId) return;
     try {
       const result = await api.closeAiSession(userId, sessionId);
+      latestFeedback.current = null;
       setFeedback(null);
       setSummary(result);
       setSummaryVisible(true);
@@ -262,6 +264,7 @@ export function AssistantScreen() {
             try {
               if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
               const result = await api.closeAiSession(userId, sessionId);
+              latestFeedback.current = null;
               setFeedback(null);
               setSummary(result);
               setSummaryVisible(true);
@@ -277,13 +280,21 @@ export function AssistantScreen() {
 
   const handleFeedback = useCallback(async (value: PatientFeedback) => {
     if (!summary) return;
+    const previous = feedback;
+    latestFeedback.current = value;
     setFeedback(value);
     try {
       await sendAiFeedback(summary.sessionId, value);
     } catch {
+      // Solo se revierte si este sigue siendo el último toque: una respuesta vieja que falla
+      // no debe pisar lo que el paciente eligió después.
+      if (latestFeedback.current === value) {
+        latestFeedback.current = previous;
+        setFeedback(previous);
+      }
       showToast('No pudimos guardar tu respuesta.', 'error');
     }
-  }, [summary, showToast]);
+  }, [summary, feedback, showToast]);
 
   const durationMinutes = sessionStartedAt
     ? Math.max(1, Math.round((Date.now() - sessionStartedAt.getTime()) / 60000))
