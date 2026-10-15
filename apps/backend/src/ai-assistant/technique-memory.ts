@@ -10,6 +10,8 @@ export interface MemorySession {
   technique: TechniqueType | null;
   patientFeedback: PatientFeedback | null;
   llmThoughtHelpful: boolean | null;
+  startedAt: Date;
+  // Fin real de la conversación (su última actividad), no el momento en que se guardó el resumen.
   closedAt: Date;
 }
 
@@ -77,10 +79,11 @@ function feedbackScore(feedback: PatientFeedback | null): number | null {
 }
 
 export function effectivenessScore(session: MemorySession, panicTimes: Date[]): number {
+  const started = session.startedAt.getTime();
   const closed = session.closedAt.getTime();
-  // Un pánico desde el cierre y hasta 2 horas después dice más que cualquier respuesta: la
-  // técnica no alcanzó. El borde incluye el cierre mismo para no dejar huecos en la ventana.
-  const vetoed = panicTimes.some((p) => p.getTime() >= closed && p.getTime() - closed <= PANIC_VETO_MS);
+  // Un pánico desde el inicio de la conversación y hasta 2 horas después de su fin dice más que
+  // cualquier respuesta: la técnica no alcanzó. Los bordes son cerrados para no dejar huecos.
+  const vetoed = panicTimes.some((p) => p.getTime() >= started && p.getTime() - closed <= PANIC_VETO_MS);
   if (vetoed) return 0;
   const fromFeedback = feedbackScore(session.patientFeedback);
   if (fromFeedback !== null) return fromFeedback;
@@ -143,7 +146,7 @@ export function buildMemoryBlock(
   if (category !== 'other') {
     const technique = pickTechnique(sessions, panicTimes, category);
     if (!technique) return null;
-    return `Memoria del paciente: cuando el motivo fue ${CATEGORY_TEXT[category]}, le sirvió ${TECHNIQUE_TEXT[technique]}. Propónsela primero, antes que otra técnica.`;
+    return `Memoria del paciente: cuando el motivo fue ${CATEGORY_TEXT[category]}, le sirvió ${TECHNIQUE_TEXT[technique]}. Propónsela primero, antes que otra técnica. Salvo crisis severa: ahí manda el protocolo de crisis y el botón de pánico.`;
   }
 
   const helpful = withTechnique(sessions)
@@ -151,5 +154,5 @@ export function buildMemoryBlock(
     .map((s) => `${TECHNIQUE_TEXT[s.technique!]} (cuando ${safeTrigger(s.trigger ?? '') || CATEGORY_TEXT[s.triggerCategory ?? 'other']})`);
   const unique = [...new Set(helpful)];
   if (unique.length === 0) return null;
-  return `Técnicas que le han servido antes: ${unique.join('; ')}. Si lo que cuenta ahora se parece a alguna de esas situaciones, propón esa técnica primero.`;
+  return `Técnicas que le han servido antes: ${unique.join('; ')}. Si lo que cuenta ahora se parece a alguna de esas situaciones, propón esa técnica primero. Salvo crisis severa: ahí manda el protocolo de crisis y el botón de pánico.`;
 }

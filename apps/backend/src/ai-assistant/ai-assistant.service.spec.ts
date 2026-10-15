@@ -308,6 +308,19 @@ describe('AiAssistantService', () => {
         expect.objectContaining({ status: 'closed' }),
       );
     });
+
+    it('la duración llega hasta la última actividad, no hasta el momento del cierre', async () => {
+      sessionRepo.findOne.mockResolvedValue({
+        id: SESSION_ID, userId: USER_ID, status: 'active',
+        startedAt: new Date(Date.now() - 1500 * 60 * 1000),
+        lastActivityAt: new Date(Date.now() - 1490 * 60 * 1000),
+      });
+      messageRepo.find.mockResolvedValue([userMessage('tuve ganas de apostar')]);
+
+      const summary = await service.closeSession(SESSION_ID, USER_ID);
+
+      expect(summary.durationMinutes).toBe(10);
+    });
   });
 
   // El servicio deja `llm` en null sin API key; se inyecta un doble para cubrir
@@ -634,6 +647,13 @@ describe('AiAssistantService', () => {
       expect(await service.getSummaries(USER_ID)).toHaveLength(1);
     });
 
+    it('la fecha mostrada es la última actividad de la conversación, no cuándo se guardó el resumen', async () => {
+      summaryRepo.find.mockResolvedValue([{ id: 's1', sessionId: 'x', durationMinutes: 4, createdAt: new Date('2026-10-02T10:00:00Z'), session: { lastActivityAt: new Date('2026-10-01T10:00:00Z') } }]);
+      const [item] = await service.getSummaries(USER_ID);
+      expect(item.createdAt).toBe('2026-10-01T10:00:00.000Z');
+      expect(summaryRepo.find).toHaveBeenCalledWith(expect.objectContaining({ relations: ['session'] }));
+    });
+
     it('al paciente no le llega el riesgo, el ánimo ni el detonante', async () => {
       summaryRepo.find.mockResolvedValue([{ id: 's1', sessionId: 'x', userId: USER_ID, riskLevel: 'high', mood: 'Ansiedad', trigger: 'sueldo', progressNote: 'nota', triggerCategory: 'money', technique: 'breathing', patientFeedback: null, durationMinutes: 4, createdAt: new Date('2026-10-01T10:00:00Z') }]);
       const [item] = await service.getSummaries(USER_ID);
@@ -646,9 +666,23 @@ describe('AiAssistantService', () => {
   });
 
   describe('HdU10 — el resumen guarda la memoria', () => {
+    it('el saludo de apertura no cuenta para detectar la técnica usada', async () => {
+      sessionRepo.findOne.mockResolvedValue({ id: SESSION_ID, userId: USER_ID, startedAt: new Date() });
+      messageRepo.find.mockResolvedValue([
+        { ...userMessage('Hola. La vez pasada te ayudó la respiración 4-7-8, ¿cómo estás?'), role: 'assistant' },
+        userMessage('quiero apostar'),
+        { ...userMessage('Hagamos el ejercicio de grounding 5-4-3-2-1'), role: 'assistant' },
+      ]);
+
+      await service.closeSession(SESSION_ID, USER_ID);
+
+      expect(summaryRepo.save).toHaveBeenCalledWith(expect.objectContaining({ technique: 'grounding' }));
+    });
+
     it('clasifica el motivo y la técnica que usó el asistente', async () => {
       sessionRepo.findOne.mockResolvedValue({ id: SESSION_ID, userId: USER_ID, startedAt: new Date() });
       messageRepo.find.mockResolvedValue([
+        { ...userMessage('Hola, ¿cómo estás hoy?'), role: 'assistant' },
         userMessage('me pagaron el sueldo y quiero apostar'),
         { ...userMessage('Hagamos la respiración 4-7-8 juntos'), role: 'assistant' },
       ]);
@@ -716,7 +750,13 @@ describe('AiAssistantService', () => {
     const resumen = (over: object) => ({
       sessionId: 'x', userId: USER_ID, triggerCategory: 'money', trigger: 'sueldo',
       technique: 'breathing', patientFeedback: 'yes', llmThoughtHelpful: null,
-      createdAt: new Date('2026-10-01T10:00:00Z'), ...over,
+      createdAt: new Date('2026-10-01T10:00:00Z'),
+      session: {
+        startedAt: new Date('2026-10-01T09:50:00Z'),
+        lastActivityAt: new Date('2026-10-01T10:00:00Z'),
+        closedAt: new Date('2026-10-01T10:00:00Z'),
+      },
+      ...over,
     });
 
     beforeEach(() => {
@@ -800,6 +840,28 @@ describe('AiAssistantService', () => {
       expect(systemPrompt()).not.toContain('Memoria del paciente');
     });
 
+    it('un pánico durante la conversación también anula la técnica', async () => {
+      summaryRepo.find.mockResolvedValue([resumen({}), resumen({})]);
+      panicAlertRepo.find.mockResolvedValue([{ createdAt: new Date('2026-10-01T09:55:00Z') }]);
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'me llegó el finiquito' } as any);
+      expect(systemPrompt()).not.toContain('Memoria del paciente');
+    });
+
+    it('un resumen guardado días después igual veta un pánico 30 min tras la última actividad', async () => {
+      const tarde = { createdAt: new Date('2026-10-03T10:00:00Z') };
+      summaryRepo.find.mockResolvedValue([resumen(tarde), resumen(tarde)]);
+      panicAlertRepo.find.mockResolvedValue([{ createdAt: new Date('2026-10-01T10:30:00Z') }]);
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'me llegó el finiquito' } as any);
+      expect(systemPrompt()).not.toContain('Memoria del paciente');
+    });
+
+    it('las alertas de pánico se piden desde el inicio de la conversación más antigua', async () => {
+      summaryRepo.find.mockResolvedValue([resumen({}), resumen({})]);
+      await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
+      const where = panicAlertRepo.find.mock.calls[0][0].where;
+      expect(where.createdAt.value ?? where.createdAt._value).toEqual(new Date('2026-10-01T09:50:00Z'));
+    });
+
     it('las alertas de pánico se piden solo del paciente de la conversación', async () => {
       summaryRepo.find.mockResolvedValue([resumen({}), resumen({})]);
       await service.sendMessage(SESSION_ID, USER_ID, { content: 'hola' } as any);
@@ -813,7 +875,7 @@ describe('AiAssistantService', () => {
     it('guarda la respuesta en el resumen de SU sesión', async () => {
       summaryRepo.findOne.mockResolvedValue({ id: 's1', sessionId: SESSION_ID, userId: USER_ID, createdAt: new Date(), durationMinutes: 3 });
       const r = await service.setFeedback(SESSION_ID, USER_ID, 'yes');
-      expect(summaryRepo.findOne).toHaveBeenCalledWith({ where: { sessionId: SESSION_ID, userId: USER_ID } });
+      expect(summaryRepo.findOne).toHaveBeenCalledWith({ where: { sessionId: SESSION_ID, userId: USER_ID }, relations: ['session'] });
       expect(r.patientFeedback).toBe('yes');
     });
 
@@ -833,6 +895,12 @@ describe('AiAssistantService', () => {
       summaryRepo.find.mockResolvedValue([{ id: 's1', sessionId: 'x', userId: 'p1', riskLevel: 'high', mood: 'Ansiedad', trigger: 'sueldo', triggerCategory: 'money', technique: 'breathing', patientFeedback: null, durationMinutes: 4, createdAt: new Date('2026-10-01T10:00:00Z') }]);
       const [item] = await service.getPatientSummaries('p1');
       expect(item).toMatchObject({ riskLevel: 'high', triggerCategory: 'money', createdAt: '2026-10-01T10:00:00.000Z' });
+    });
+
+    it('el historial clínico también muestra la última actividad como fecha', async () => {
+      summaryRepo.find.mockResolvedValue([{ id: 's1', sessionId: 'x', userId: 'p1', riskLevel: 'low', durationMinutes: 4, createdAt: new Date('2026-10-02T10:00:00Z'), session: { lastActivityAt: new Date('2026-10-01T10:00:00Z') } }]);
+      const [item] = await service.getPatientSummaries('p1');
+      expect(item.createdAt).toBe('2026-10-01T10:00:00.000Z');
     });
   });
 });

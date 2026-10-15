@@ -275,8 +275,11 @@ export class AiAssistantService {
       order: { createdAt: 'ASC' },
     });
 
+    // Una sesión cerrada por inactividad se resume horas después: medirla hasta ahora inflaría
+    // la duración (y la fecha) con el tiempo que el paciente ni estaba.
+    const endedAt = session.lastActivityAt ? new Date(session.lastActivityAt).getTime() : Date.now();
     const durationMs = session.startedAt
-      ? Date.now() - new Date(session.startedAt).getTime()
+      ? Math.max(0, endedAt - new Date(session.startedAt).getTime())
       : 0;
     const durationMinutes = Math.round(durationMs / 60000);
 
@@ -291,8 +294,9 @@ export class AiAssistantService {
     // El catálogo manda; el LLM solo completa lo que las palabras clave no reconocieron.
     const triggerCategory =
       byCatalog === 'other' && summaryData.triggerCategory ? summaryData.triggerCategory : byCatalog;
+    // El saludo de apertura puede repetir la técnica de la sesión anterior: no es lo que se aplicó.
     const technique = sessionTechnique(
-      messages.filter((m) => m.role === 'assistant').map((m) => m.content),
+      messages.filter((m) => m.role === 'assistant').slice(1).map((m) => m.content),
       summaryData.techniqueUsed ?? null,
     );
 
@@ -319,6 +323,7 @@ export class AiAssistantService {
   async getSummaries(userId: string): Promise<AiSessionHistoryItem[]> {
     const rows = await this.summaryRepo.find({
       where: { userId },
+      relations: ['session'],
       order: { createdAt: 'DESC' },
       take: 10,
     });
@@ -326,14 +331,14 @@ export class AiAssistantService {
   }
 
   async setFeedback(sessionId: string, userId: string, feedback: PatientFeedback): Promise<AiSessionHistoryItem> {
-    const summary = await this.summaryRepo.findOne({ where: { sessionId, userId } });
+    const summary = await this.summaryRepo.findOne({ where: { sessionId, userId }, relations: ['session'] });
     if (!summary) throw new NotFoundException('Resumen no encontrado');
     summary.patientFeedback = feedback;
     return this.mapHistoryItem(await this.summaryRepo.save(summary));
   }
 
   async getPatientSummaries(patientId: string): Promise<AiSessionClinicalItem[]> {
-    const rows = await this.summaryRepo.find({ where: { userId: patientId }, order: { createdAt: 'DESC' }, take: 50 });
+    const rows = await this.summaryRepo.find({ where: { userId: patientId }, relations: ['session'], order: { createdAt: 'DESC' }, take: 50 });
     return rows.map((r) => ({ ...this.mapHistoryItem(r), mood: r.mood, trigger: r.trigger, riskLevel: r.riskLevel }));
   }
 
@@ -341,7 +346,7 @@ export class AiAssistantService {
     return {
       id: r.id,
       sessionId: r.sessionId,
-      createdAt: r.createdAt.toISOString(),
+      createdAt: (r.session?.lastActivityAt ?? r.createdAt).toISOString(),
       durationMinutes: r.durationMinutes,
       triggerCategory: r.triggerCategory ?? null,
       technique: r.technique ?? null,
@@ -371,24 +376,27 @@ export class AiAssistantService {
     try {
       const rows = await this.summaryRepo.find({
         where: { userId },
+        relations: ['session'],
         order: { createdAt: 'DESC' },
         take: MEMORY_SESSIONS,
       });
       if (rows.length === 0) return { sessions: [], panicTimes: [] };
-      const oldest = rows[rows.length - 1].createdAt;
+      const sessions: MemorySession[] = rows.map((r) => ({
+        triggerCategory: r.triggerCategory,
+        trigger: r.trigger,
+        technique: r.technique,
+        patientFeedback: r.patientFeedback,
+        llmThoughtHelpful: r.llmThoughtHelpful,
+        startedAt: r.session?.startedAt ?? r.createdAt,
+        closedAt: r.session?.lastActivityAt ?? r.session?.closedAt ?? r.createdAt,
+      }));
+      const oldest = new Date(Math.min(...sessions.map((x) => x.startedAt.getTime())));
       const alerts = await this.panicAlertRepo.find({
         where: { patientId: userId, createdAt: MoreThanOrEqual(oldest) },
         select: { createdAt: true },
       });
       return {
-        sessions: rows.map((r) => ({
-          triggerCategory: r.triggerCategory,
-          trigger: r.trigger,
-          technique: r.technique,
-          patientFeedback: r.patientFeedback,
-          llmThoughtHelpful: r.llmThoughtHelpful,
-          closedAt: r.createdAt,
-        })),
+        sessions,
         panicTimes: alerts.map((a) => a.createdAt),
       };
     } catch (err) {

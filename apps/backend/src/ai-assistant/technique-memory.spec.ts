@@ -10,7 +10,8 @@ const at = (min: number) => new Date(T0.getTime() + min * 60_000);
 function s(over: Partial<MemorySession> = {}): MemorySession {
   return {
     triggerCategory: 'money', trigger: 'sueldo', technique: 'breathing',
-    patientFeedback: null, llmThoughtHelpful: null, closedAt: T0, ...over,
+    patientFeedback: null, llmThoughtHelpful: null,
+    startedAt: new Date(T0.getTime() - 10 * 60_000), closedAt: T0, ...over,
   };
 }
 
@@ -49,7 +50,11 @@ describe('effectivenessScore', () => {
     expect(effectivenessScore(s({ patientFeedback: 'yes' }), [at(90)])).toBe(0);
   });
 
-  it('un pánico antes del cierre o pasadas las 2 horas no anula', () => {
+  it('un pánico durante la conversación también anula', () => {
+    expect(effectivenessScore(s({ patientFeedback: 'yes' }), [at(-5)])).toBe(0);
+  });
+
+  it('un pánico antes del inicio de la conversación o pasadas las 2 horas no anula', () => {
     expect(effectivenessScore(s({ patientFeedback: 'yes' }), [at(-30)])).toBe(1);
     expect(effectivenessScore(s({ patientFeedback: 'yes' }), [at(121)])).toBe(1);
   });
@@ -122,6 +127,11 @@ describe('buildMemoryBlock', () => {
   it('sin historial suficiente no agrega nada (CA2: técnica general)', () => {
     expect(buildMemoryBlock([], [], 'money')).toBeNull();
     expect(buildMemoryBlock([dos[0]], [], 'money')).toBeNull();
+  });
+
+  it('ambas redacciones dejan mandar al protocolo de crisis', () => {
+    expect(buildMemoryBlock(dos, [], 'money')).toContain('Salvo crisis severa');
+    expect(buildMemoryBlock(dos, [], 'other')).toContain('Salvo crisis severa');
   });
 
   it('con categoría conocida indica la técnica a proponer primero (CA1)', () => {
