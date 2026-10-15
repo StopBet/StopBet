@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, MoreThanOrEqual, Repository } from 'typeorm';
 import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
 import { HumanMessage, SystemMessage, AIMessage as LcAIMessage } from '@langchain/core/messages';
 import { AiSession } from './entities/ai-session.entity';
@@ -9,18 +9,25 @@ import { AiMessage } from './entities/ai-message.entity';
 import { AiSessionSummary } from './entities/ai-session-summary.entity';
 import { SendMessageDto } from './dto/send-message.dto';
 import { getFallbackMessage } from './fallback';
+import { classifyTrigger, isTriggerCategory } from './trigger-catalog';
+import { MEMORY_SESSIONS, MemorySession, buildMemoryBlock, sessionTechnique } from './technique-memory';
 import { DatosAOmitir, sanitizePii } from './sanitizer';
 import { User } from '../users/entities/user.entity';
 import { FamilyLink } from '../family/entities/family-link.entity';
 import { SponsorAssignment } from '../panic/entities/sponsor-assignment.entity';
+import { PanicAlert } from '../panic/entities/panic-alert.entity';
 import { ClinicalRecordsService } from '../clinical-records/clinical-records.service';
 import {
+  AiSessionClinicalItem,
+  AiSessionHistoryItem,
   CrisisSignal,
   CrisisSuggestion,
+  PatientFeedback,
   RiskLevel,
   SendMessageWithRiskResponse,
   StartSessionResponse,
   TechniqueType,
+  TriggerCategory,
 } from '@stopbet/shared-types';
 import {
   AJUTER_SYSTEM_PROMPT,
@@ -54,6 +61,7 @@ const RISK_WINDOW = 3;
 
 @Injectable()
 export class AiAssistantService {
+  private readonly logger = new Logger(AiAssistantService.name);
   private llm: ChatGoogleGenerativeAI | null;
 
   constructor(
@@ -71,6 +79,8 @@ export class AiAssistantService {
     private readonly sponsorRepo: Repository<SponsorAssignment>,
     private readonly configService: ConfigService,
     private readonly clinicalRecords: ClinicalRecordsService,
+    @InjectRepository(PanicAlert)
+    private readonly panicAlertRepo: Repository<PanicAlert>,
   ) {
     const apiKey = this.configService.get<string>('GEMINI_API_KEY');
     this.llm = apiKey
@@ -81,17 +91,25 @@ export class AiAssistantService {
   // ── Inicio de sesión ────────────────────────────────────────────────────
 
   async startSession(userId: string): Promise<StartSessionResponse> {
-    // Cerrar sesión activa previa si existe (no debería, pero por si acaso)
-    await this.sessionRepo.update(
-      { userId, status: 'active' },
-      { status: 'closed', closedAt: new Date() },
-    );
+    // Cerrarla con `update` dejaba esa conversación sin resumen: se perdía para la memoria (HdU10).
+    const abiertas = await this.sessionRepo.find({ where: { userId, status: 'active' } });
+    for (const abierta of abiertas) {
+      // Abrir un chat nuevo nunca puede fallar porque no se pudo resumir el anterior.
+      await this.closeSession(abierta.id, userId).catch(async () => {
+        // Sin cerrarla quedaría activa junto a la nueva y `getActiveSession` podría devolver la vieja.
+        await this.sessionRepo
+          .update(abierta.id, { status: 'closed', closedAt: new Date() })
+          .catch(() => undefined);
+      });
+    }
 
     // Obtener contexto de la sesión anterior (solo resumen, no contenido)
-    const lastSummary = await this.summaryRepo.findOne({
-      where: { userId },
-      order: { createdAt: 'DESC' },
-    });
+    const lastSummary = await this.summaryRepo
+      .findOne({ where: { userId }, order: { createdAt: 'DESC' } })
+      .catch((err: unknown) => {
+        this.logHistoryFailure(err);
+        return null;
+      });
 
     const aiVal = (v: string | null | undefined) => (!v || v.toLowerCase() === 'null' || v.trim() === '') ? null : v.trim();
     const hasMeaningfulSummary = lastSummary && (aiVal(lastSummary.mood) || aiVal(lastSummary.trigger) || aiVal(lastSummary.techniqueUsed));
@@ -196,12 +214,23 @@ export class AiAssistantService {
       }),
     );
 
-    // Cargar historial reciente para contexto
-    const history = await this.messageRepo.find({
-      where: { sessionId },
-      order: { createdAt: 'ASC' },
-      take: MAX_HISTORY,
-    });
+    // Se piden los más nuevos y se devuelven a orden cronológico: con ASC + take llegaban los 12
+    // más viejos y en una conversación larga el modelo nunca veía los últimos turnos. El mensaje
+    // actual queda al final, que es lo que espera buildCrisisSignal.
+    const history = (
+      await this.messageRepo.find({
+        where: { sessionId },
+        order: { createdAt: 'DESC' },
+        take: MAX_HISTORY,
+      })
+    ).reverse();
+
+    // El motivo se lee de todo lo que el paciente lleva escrito en esta conversación, no solo del
+    // último mensaje: «sí, eso» no dice nada por sí solo.
+    const category = classifyTrigger(
+      history.filter((m) => m.role === 'user').map((m) => m.content).join(' '),
+    );
+    const memoryBlock = await this.loadMemoryBlock(userId, category);
 
     // Generar respuesta del asistente
     const aiContent = await this.generateResponse(
@@ -210,6 +239,7 @@ export class AiAssistantService {
       sessionId,
       await this.datosParaOmitir(userId),
       await this.clinicalRecords.getTriggersForAssistant(userId),
+      memoryBlock,
     );
 
     const assistantMsg = await this.messageRepo.save(
@@ -245,8 +275,11 @@ export class AiAssistantService {
       order: { createdAt: 'ASC' },
     });
 
+    // Una sesión cerrada por inactividad se resume horas después: medirla hasta ahora inflaría
+    // la duración (y la fecha) con el tiempo que el paciente ni estaba.
+    const endedAt = session.lastActivityAt ? new Date(session.lastActivityAt).getTime() : Date.now();
     const durationMs = session.startedAt
-      ? Date.now() - new Date(session.startedAt).getTime()
+      ? Math.max(0, endedAt - new Date(session.startedAt).getTime())
       : 0;
     const durationMinutes = Math.round(durationMs / 60000);
 
@@ -256,11 +289,24 @@ export class AiAssistantService {
       await this.datosParaOmitir(userId),
     );
 
+    const userText = messages.filter((m) => m.role === 'user').map((m) => m.content).join(' ');
+    const byCatalog = userText.trim() ? classifyTrigger(userText) : null;
+    // El catálogo manda; el LLM solo completa lo que las palabras clave no reconocieron.
+    const triggerCategory =
+      byCatalog === 'other' && summaryData.triggerCategory ? summaryData.triggerCategory : byCatalog;
+    // El saludo de apertura puede repetir la técnica de la sesión anterior: no es lo que se aplicó.
+    const technique = sessionTechnique(
+      messages.filter((m) => m.role === 'assistant').slice(1).map((m) => m.content),
+      summaryData.techniqueUsed ?? null,
+    );
+
     const summary = await this.summaryRepo.save(
       this.summaryRepo.create({
         sessionId,
         userId,
         ...summaryData,
+        triggerCategory,
+        technique,
         durationMinutes,
       }),
     );
@@ -273,12 +319,90 @@ export class AiAssistantService {
     return summary;
   }
 
-  async getSummaries(userId: string): Promise<AiSessionSummary[]> {
-    return this.summaryRepo.find({
+  // Lo que ve el propio paciente: sin riesgo, ánimo ni detonante, que son material clínico.
+  async getSummaries(userId: string): Promise<AiSessionHistoryItem[]> {
+    const rows = await this.summaryRepo.find({
       where: { userId },
+      relations: ['session'],
       order: { createdAt: 'DESC' },
       take: 10,
     });
+    return rows.map((r) => this.mapHistoryItem(r));
+  }
+
+  async setFeedback(sessionId: string, userId: string, feedback: PatientFeedback): Promise<AiSessionHistoryItem> {
+    const summary = await this.summaryRepo.findOne({ where: { sessionId, userId }, relations: ['session'] });
+    if (!summary) throw new NotFoundException('Resumen no encontrado');
+    summary.patientFeedback = feedback;
+    return this.mapHistoryItem(await this.summaryRepo.save(summary));
+  }
+
+  async getPatientSummaries(patientId: string): Promise<AiSessionClinicalItem[]> {
+    const rows = await this.summaryRepo.find({ where: { userId: patientId }, relations: ['session'], order: { createdAt: 'DESC' }, take: 50 });
+    return rows.map((r) => ({ ...this.mapHistoryItem(r), mood: r.mood, trigger: r.trigger, riskLevel: r.riskLevel }));
+  }
+
+  private mapHistoryItem(r: AiSessionSummary): AiSessionHistoryItem {
+    return {
+      id: r.id,
+      sessionId: r.sessionId,
+      createdAt: (r.session?.lastActivityAt ?? r.createdAt).toISOString(),
+      durationMinutes: r.durationMinutes,
+      triggerCategory: r.triggerCategory ?? null,
+      technique: r.technique ?? null,
+      patientFeedback: r.patientFeedback ?? null,
+    };
+  }
+
+  // El log lleva solo el tipo de error: el mensaje de la base podría arrastrar datos del paciente.
+  private logHistoryFailure(err: unknown): void {
+    this.logger.error(`No se pudo leer el historial del asistente (${err instanceof Error ? err.name : 'Error'})`);
+  }
+
+  // CA3: si el historial no se lee, o una fila viene malformada, se conversa sin memoria.
+  private async loadMemoryBlock(userId: string, category: TriggerCategory): Promise<string | null> {
+    try {
+      const memory = await this.loadMemory(userId);
+      return memory ? buildMemoryBlock(memory.sessions, memory.panicTimes, category) : null;
+    } catch (err) {
+      this.logHistoryFailure(err);
+      return null;
+    }
+  }
+
+  private async loadMemory(
+    userId: string,
+  ): Promise<{ sessions: MemorySession[]; panicTimes: Date[] } | null> {
+    try {
+      const rows = await this.summaryRepo.find({
+        where: { userId },
+        relations: ['session'],
+        order: { createdAt: 'DESC' },
+        take: MEMORY_SESSIONS,
+      });
+      if (rows.length === 0) return { sessions: [], panicTimes: [] };
+      const sessions: MemorySession[] = rows.map((r) => ({
+        triggerCategory: r.triggerCategory,
+        trigger: r.trigger,
+        technique: r.technique,
+        patientFeedback: r.patientFeedback,
+        llmThoughtHelpful: r.llmThoughtHelpful,
+        startedAt: r.session?.startedAt ?? r.createdAt,
+        closedAt: r.session?.lastActivityAt ?? r.session?.closedAt ?? r.createdAt,
+      }));
+      const oldest = new Date(Math.min(...sessions.map((x) => x.startedAt.getTime())));
+      const alerts = await this.panicAlertRepo.find({
+        where: { patientId: userId, createdAt: MoreThanOrEqual(oldest) },
+        select: { createdAt: true },
+      });
+      return {
+        sessions,
+        panicTimes: alerts.map((a) => a.createdAt),
+      };
+    } catch (err) {
+      this.logHistoryFailure(err);
+      return null;
+    }
   }
 
   // ── Generación de texto con Gemini ──────────────────────────────────────
@@ -417,6 +541,7 @@ export class AiAssistantService {
     sessionId: string,
     paciente?: DatosAOmitir,
     clinicalTriggers?: string | null,
+    memoryBlock: string | null = null,
   ): Promise<string> {
     // S.3: se sanea SOLO lo que sale hacia el LLM. Lo guardado en la base queda
     // intacto a proposito: son las palabras del propio paciente y el psicologo las
@@ -429,6 +554,7 @@ export class AiAssistantService {
       previousContext,
       clinicalTriggers ?? null,
       omitir,
+      memoryBlock,
     );
 
     const lcMessages = [
@@ -467,7 +593,10 @@ export class AiAssistantService {
     );
 
     if (!userContent.trim() || !this.llm) {
-      return { mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: null };
+      return {
+        mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: null,
+        triggerCategory: null, llmThoughtHelpful: null,
+      };
     }
 
     try {
@@ -476,28 +605,34 @@ export class AiAssistantService {
       // error. Si se pasa, el catch devuelve el resumen vacío y la sesión igual
       // se cierra — el resumen es secundario, cerrar bien no lo es.
       const response = await this.conTope(
-        this.llm.invoke([new HumanMessage(SUMMARY_EXTRACTION_PROMPT(userContent))]),
+        this.llm.invoke([new HumanMessage(SUMMARY_EXTRACTION_PROMPT(headAndTail(userContent)))]),
       );
-      const text = (response.content as string).trim();
-      const match = text.match(/\{[\s\S]*\}/);
+      const raw = (response.content as string).trim();
+      const match = raw.match(/\{[\s\S]*\}/);
       if (match) {
-        const parsed = JSON.parse(match[0]) as Record<string, string>;
+        const parsed = JSON.parse(match[0]) as Record<string, unknown>;
+        const text = (v: unknown): string | null => (typeof v === 'string' ? v : null);
         return {
-          mood: parsed.mood ?? null,
-          trigger: parsed.trigger ?? null,
+          mood: text(parsed.mood),
+          trigger: text(parsed.trigger),
           // Un valor que no reconocemos es tan poco evaluable como un fallo
-          riskLevel: (['low', 'medium', 'high'].includes(parsed.riskLevel)
+          riskLevel: (['low', 'medium', 'high'].includes(parsed.riskLevel as string)
             ? (parsed.riskLevel as RiskLevel)
             : null),
-          techniqueUsed: parsed.techniqueUsed ?? null,
-          progressNote: parsed.progressNote ?? null,
+          techniqueUsed: text(parsed.techniqueUsed),
+          progressNote: text(parsed.progressNote),
+          triggerCategory: isTriggerCategory(parsed.triggerCategory) ? parsed.triggerCategory : null,
+          llmThoughtHelpful: typeof parsed.helpful === 'boolean' ? parsed.helpful : null,
         };
       }
     } catch {
       // Fallo silencioso — no loguear contenido del mensaje
     }
 
-    return { mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: 'Sesión completada' };
+    return {
+      mood: null, trigger: null, riskLevel: null, techniqueUsed: null, progressNote: 'Sesión completada',
+      triggerCategory: null, llmThoughtHelpful: null,
+    };
   }
 
   // ── Detección de técnica ────────────────────────────────────────────────
@@ -602,6 +737,14 @@ export class AiAssistantService {
   }
 }
 
+// Si la técnica sirvió se nota al final de la conversación: antes se mandaban solo los
+// primeros 600 caracteres y justo eso quedaba fuera.
+function headAndTail(text: string, max = 600): string {
+  if (text.length <= max) return text;
+  const half = Math.floor(max / 2);
+  return `${text.slice(0, half)} … ${text.slice(-half)}`;
+}
+
 // Arma el system prompt con los dos contextos que puede haber. Los dos pasan por `omitir`
 // (HdU13 CA6 y S.3): el resumen previo lo escribió el modelo y puede arrastrar el nombre, y los
 // detonantes los escribió el psicólogo, que bien puede haber anotado «discusiones con su
@@ -610,6 +753,7 @@ function buildSystemPrompt(
   previousContext: string | null,
   clinicalTriggers: string | null,
   omitir: (texto: string) => string,
+  memoryBlock: string | null = null,
 ): string {
   let prompt = AJUTER_SYSTEM_PROMPT;
   if (clinicalTriggers) {
@@ -617,6 +761,9 @@ function buildSystemPrompt(
   }
   if (previousContext) {
     prompt += `\n\nContexto de sesión anterior: ${omitir(previousContext)}`;
+  }
+  if (memoryBlock) {
+    prompt += `\n\n${omitir(memoryBlock)}`;
   }
   return prompt;
 }

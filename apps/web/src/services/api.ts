@@ -834,3 +834,21 @@ export interface RegistrationHistoryEntry {
 /** CA6: quién aprobó, rechazó o reabrió qué solicitud y cuándo; la más reciente primero. */
 export const getRegistrationHistory = () =>
   get<RegistrationHistoryEntry[]>('/registration/history')
+
+// ── HdU10: historial del asistente para el equipo clínico ──
+// Espeja AiSessionClinicalItem de shared-types, como el resto de los tipos de la web.
+export interface AssistantHistoryItem {
+  id: string
+  sessionId: string
+  createdAt: string
+  durationMinutes: number
+  triggerCategory: 'money' | 'temptation' | 'sports' | 'emotions' | 'loneliness' | 'family' | 'work' | 'other' | null
+  technique: 'breathing' | 'grounding' | 'postponement' | null
+  patientFeedback: 'yes' | 'somewhat' | 'no' | null
+  mood: string | null
+  trigger: string | null
+  riskLevel: 'low' | 'medium' | 'high' | null
+}
+
+export const getPatientAssistantHistory = (patientId: string) =>
+  get<AssistantHistoryItem[]>(`/ai/patients/${patientId}/summaries`)

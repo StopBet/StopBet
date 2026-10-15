@@ -4,7 +4,8 @@ import type {
   ActiveAlertResponse,
   AchievementsData,
   RelapseResponse,
-  AiSessionSummary,
+  AiSessionHistoryItem,
+  AiSessionSummaryWithMemory,
   BadgeMilestone,
   BillingStatus,
   CheckIn,
@@ -17,6 +18,7 @@ import type {
   Notification,
   PaginatedResponse,
   PanicAlertDto,
+  PatientFeedback,
   PatientFamilyRequest,
   PaymentMethod,
   ReactionEmoji,
@@ -409,13 +411,13 @@ export const api = {
     }),
 
   closeAiSession: (userId: string, sessionId: string) =>
-    request<AiSessionSummary>(`/ai/sessions/${sessionId}/close`, {
+    request<AiSessionSummaryWithMemory>(`/ai/sessions/${sessionId}/close`, {
       userId,
       method: 'POST',
     }),
 
   getAiSummaries: (userId: string) =>
-    request<AiSessionSummary[]>('/ai/sessions/summaries', { userId }),
+    request<AiSessionHistoryItem[]>('/ai/sessions/summaries', { userId }),
 
   // ── Botón de pánico ──────────────────────────────────────────────────
   getSponsorInfo: (userId: string) =>
@@ -611,3 +613,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
 };
+
+// ── HdU10: memoria del asistente ──
+export const sendAiFeedback = (sessionId: string, feedback: PatientFeedback) =>
+  request<AiSessionHistoryItem>(`/ai/sessions/${sessionId}/feedback`, {
+    method: 'PATCH',
+    body: JSON.stringify({ feedback }),
+  });

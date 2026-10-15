@@ -20,6 +20,20 @@ está.
 
 ---
 
+## 2026-10-14 - Memoria del asistente (HdU10) (PR por abrir)
+
+**A quién le pega:** a todos, tras pullear.
+
+- `packages/shared-types` tiene exports nuevos. Si levantas Metro sin el backend, recompila con
+  `pnpm --filter @stopbet/shared-types build`; si no, mobile no ve los tipos nuevos.
+- El asistente ahora manda al LLM los **últimos 12 mensajes** (antes los primeros 12): en chats
+  largos las respuestas cambian, no es un bug.
+- La pestaña **«Sesiones IA»** de la web (Mis pacientes › Seguimiento) ahora muestra datos reales.
+- `ai_session_summaries` tiene columnas nuevas, todas nullable; las crea `synchronize` al arrancar
+  el backend, no hay que correr nada.
+
+---
+
 ## 2026-10-07 - Bloqueo de apuestas: con wifi y datos a la vez no resolvía nada (PR #157)
 
 **A quién le pega:** a quien tenga el bloqueo de apuestas activo en un teléfono.

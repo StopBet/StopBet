@@ -672,3 +672,33 @@ export * from './validators/date';
 
 // ── HdU20/HdU21: designación y asignación de padrinos ──
 export * from './sponsor';
+
+// ── HdU10: memoria del asistente ──
+export type TriggerCategory =
+  | 'money' | 'temptation' | 'sports' | 'emotions'
+  | 'loneliness' | 'family' | 'work' | 'other';
+
+export type PatientFeedback = 'yes' | 'somewhat' | 'no';
+
+// Lo que ve el paciente de cada conversación: sin el nivel de riesgo, que es un dato clínico.
+export interface AiSessionHistoryItem {
+  id: string;
+  sessionId: string;
+  createdAt: string;
+  durationMinutes: number;
+  triggerCategory: TriggerCategory | null;
+  technique: TechniqueType | null;
+  patientFeedback: PatientFeedback | null;
+}
+
+// Lo que ve el equipo clínico: lo mismo más el riesgo, el ánimo y el detonante en texto libre.
+export interface AiSessionClinicalItem extends AiSessionHistoryItem {
+  mood: string | null;
+  trigger: string | null;
+  riskLevel: RiskLevel | null;
+}
+
+// Lo que devuelve el cierre de la conversación: el resumen más la técnica que decidió el código.
+export interface AiSessionSummaryWithMemory extends AiSessionSummary {
+  technique?: TechniqueType | null;
+}
