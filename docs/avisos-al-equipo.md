@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-10-19 - Gestión de grupos de sesión (HdU14) (PR por abrir)
+## 2026-10-19 - Gestión de grupos de sesión (HdU14) (PR #163)
 
 **A quién le pega:** a todos, tras pullear.
 
