@@ -28,7 +28,7 @@ import {
 } from '@stopbet/shared-types';
 import { FamilyLink, FamilyLinkStatus, FamilyLinkVerification } from './entities/family-link.entity';
 import { FamilyLinkReview, FamilyLinkVerdict } from './entities/family-link-review.entity';
-import { FamilySession } from './entities/family-session.entity';
+import { FamilySession, type SessionAudience } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
@@ -90,6 +90,8 @@ export interface SedeSessionView {
   sessionDate: Date;
   location: string;
   isOnline: boolean;
+  capacity: number | null;
+  audience: SessionAudience;
   confirmedCount: number;
   declinedCount: number;
   attendances: SessionAttendanceView[];
@@ -906,8 +908,9 @@ export class FamilyService {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 1);
 
+    // HdU14 CA6: las sesiones de tipo "pacientes" no las ven los familiares.
     const sessions = await this.sessionRepo.find({
-      where: { sedeId, sessionDate: MoreThanOrEqual(cutoff) },
+      where: { sedeId, audience: 'family', sessionDate: MoreThanOrEqual(cutoff) },
       order: { sessionDate: 'ASC' },
     });
 
@@ -1028,6 +1031,8 @@ export class FamilyService {
         sessionDate: s.sessionDate,
         location: s.location,
         isOnline: s.isOnline,
+        capacity: s.capacity,
+        audience: s.audience,
         confirmedCount: list.filter((a) => a.confirmed).length,
         declinedCount: list.filter((a) => !a.confirmed).length,
         attendances: list,

@@ -130,6 +130,14 @@ describe('FamilyService (HU-11)', () => {
     expect(sessionRepo.find.mock.calls[0][0].order).toEqual({ sessionDate: 'ASC' });
   });
 
+  it('HdU14 CA6: al familiar solo le pide las sesiones de tipo familiar', async () => {
+    linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: SEDE } }]);
+
+    await service.getSessionsForFamily(FAMILY_ID);
+
+    expect(sessionRepo.find.mock.calls[0][0].where.audience).toBe('family');
+  });
+
   it('CA 11.1: marca userAttends según lo ya respondido y null si no respondió', async () => {
     linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: SEDE } }]);
     sessionRepo.find.mockResolvedValue([
@@ -315,7 +323,7 @@ describe('FamilyService (HU-11)', () => {
   });
 
   it('un psicólogo no puede crear sesiones en una sede que no atiende', async () => {
-    const dto = { title: 'Grupo', sessionDate: '2026-10-01T19:00:00Z', location: 'Sala 2', sedeId: OTRA_SEDE };
+    const dto = { title: 'Grupo', sessionDate: '2026-10-01T19:00:00Z', location: 'Sala 2', sedeId: OTRA_SEDE, capacity: 10, audience: 'family' as const };
 
     await expect(service.createSession(dto, psychOf(SEDE_UUID))).rejects.toThrow(
       'No puedes crear sesiones en una sede que no atiendes',
@@ -324,12 +332,30 @@ describe('FamilyService (HU-11)', () => {
   });
 
   it('crea la sesión en su propia sede, y la coordinación en cualquiera', async () => {
-    const dto = { title: 'Grupo', sessionDate: '2026-10-01T19:00:00Z', location: 'Sala 2', sedeId: SEDE_UUID };
+    const dto = { title: 'Grupo', sessionDate: '2026-10-01T19:00:00Z', location: 'Sala 2', sedeId: SEDE_UUID, capacity: 10, audience: 'family' as const };
 
     await service.createSession(dto, psychOf(SEDE_UUID));
     await service.createSession({ ...dto, sedeId: OTRA_SEDE }, coordinator);
 
     expect(sessionRepo.save).toHaveBeenCalledTimes(2);
+  });
+
+  it('HdU14 CA1: guarda el cupo y el tipo de la sesión', async () => {
+    const dto = { title: 'Grupo', sessionDate: '2026-11-04T19:00:00Z', location: 'Sala 2', sedeId: SEDE_UUID, capacity: 12, audience: 'patients' as const };
+
+    await service.createSession(dto, psychOf(SEDE_UUID));
+
+    expect(sessionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ capacity: 12, audience: 'patients' }));
+  });
+
+  it('HdU14 CA1: la lista de la sede trae el cupo y el tipo de cada sesión', async () => {
+    sessionRepo.find.mockResolvedValue([
+      { id: 's1', title: 'Grupo', sessionDate: daysFromNow(2), capacity: 12, audience: 'patients' },
+    ]);
+
+    const [session] = await service.getSedeSessions(SEDE);
+
+    expect(session).toEqual(expect.objectContaining({ capacity: 12, audience: 'patients' }));
   });
 
   it('CA 11.4: la vista del psicólogo cuenta confirmaciones y rechazos por sesión', async () => {
