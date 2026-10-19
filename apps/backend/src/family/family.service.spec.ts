@@ -6,6 +6,8 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { FamilyLinkReview } from './entities/family-link-review.entity';
+import { FamilySession } from './entities/family-session.entity';
+import { SessionAttendance } from './entities/session-attendance.entity';
 
 const FAMILY_ID = 'fam-1';
 const SEDE = 'sede-santiago';
@@ -22,7 +24,7 @@ describe('FamilyService (HU-11)', () => {
   let service: FamilyService;
   let linkRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock };
   let sessionRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
-  let attendanceRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let attendanceRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock; count: jest.Mock };
   let presenceRepo: { find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let userRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let notifRepo: { create: jest.Mock; save: jest.Mock };
@@ -52,6 +54,7 @@ describe('FamilyService (HU-11)', () => {
       findOne: jest.fn(),
       create: jest.fn((v) => v),
       save: jest.fn((v) => Promise.resolve(v)),
+      count: jest.fn().mockResolvedValue(0),
     };
     presenceRepo = {
       find: jest.fn().mockResolvedValue([]),
@@ -83,6 +86,8 @@ describe('FamilyService (HU-11)', () => {
         if (entity === Sede) return sedeRepo;
         if (entity === PsychologistSede) return psychSedeRepo;
         if (entity === FamilyLinkReview) return reviewRepo;
+        if (entity === FamilySession) return sessionRepo;
+        if (entity === SessionAttendance) return attendanceRepo;
         throw new Error('Entidad sin mock en el spec');
       }),
     };
@@ -460,6 +465,157 @@ describe('FamilyService (HU-11)', () => {
 
       await expect(service.updateSession('s1', { capacity: 12 }, psychOf(SEDE_UUID))).rejects.toThrow('Sesión no encontrada');
       expect(sessionRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('cupo y respuestas (HdU14)', () => {
+    const linkActivo = () => linkRepo.find.mockResolvedValue([{ status: 'active', patientUser: { sedeId: 'Santiago' } }]);
+    const futura = (extra: Record<string, unknown> = {}) => ({
+      id: 's1', sedeId: SEDE_UUID, sessionDate: daysFromNow(3), capacity: 2, audience: 'family', ...extra,
+    });
+
+    beforeEach(() => {
+      sedeRepo.findOne.mockResolvedValue({ id: SEDE_UUID });
+    });
+
+    it('con el cupo lleno no deja confirmar a nadie más', async () => {
+      linkActivo();
+      sessionRepo.findOne.mockResolvedValue(futura());
+      attendanceRepo.findOne.mockResolvedValue(null);
+      attendanceRepo.count.mockResolvedValue(2);
+
+      await expect(service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true })).rejects.toThrow('La sesión está llena');
+      expect(attendanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('bloquea la sesión mientras cuenta el cupo, para que dos confirmaciones a la vez no lo pasen', async () => {
+      linkActivo();
+      sessionRepo.findOne.mockResolvedValue(futura());
+      attendanceRepo.findOne.mockResolvedValue(null);
+
+      await service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true });
+
+      expect(dataSource.transaction).toHaveBeenCalled();
+      expect(sessionRepo.findOne).toHaveBeenCalledWith({ where: { id: 's1' }, lock: { mode: 'pessimistic_write' } });
+    });
+
+    it('pasar de "no asistiré" a "asistiré" también ocupa cupo', async () => {
+      linkActivo();
+      sessionRepo.findOne.mockResolvedValue(futura());
+      attendanceRepo.findOne.mockResolvedValue({ sessionId: 's1', familyUserId: FAMILY_ID, confirmed: false });
+      attendanceRepo.count.mockResolvedValue(2);
+
+      await expect(service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true })).rejects.toThrow('La sesión está llena');
+    });
+
+    it('con el cupo lleno igual se puede avisar que no asistirá', async () => {
+      linkActivo();
+      sessionRepo.findOne.mockResolvedValue(futura());
+      attendanceRepo.findOne.mockResolvedValue({ sessionId: 's1', familyUserId: FAMILY_ID, confirmed: true });
+      attendanceRepo.count.mockResolvedValue(2);
+
+      const saved = await service.confirmAttendance(FAMILY_ID, 's1', { confirmed: false });
+
+      expect(saved.confirmed).toBe(false);
+    });
+
+    it('una sesión sin cupo (anterior a la HdU14) no tiene tope', async () => {
+      linkActivo();
+      sessionRepo.findOne.mockResolvedValue(futura({ capacity: null }));
+      attendanceRepo.findOne.mockResolvedValue(null);
+
+      await service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true });
+
+      expect(attendanceRepo.count).not.toHaveBeenCalled();
+      expect(attendanceRepo.save).toHaveBeenCalled();
+    });
+
+    it('no se responde a una sesión que ya ocurrió', async () => {
+      linkActivo();
+      sessionRepo.findOne.mockResolvedValue(futura({ sessionDate: daysFromNow(-1) }));
+
+      await expect(service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true })).rejects.toThrow('Esta sesión ya ocurrió');
+    });
+
+    it('CA6: el familiar no puede responder a una sesión solo de pacientes', async () => {
+      linkActivo();
+      sessionRepo.findOne.mockResolvedValue(futura({ audience: 'patients' }));
+
+      await expect(service.confirmAttendance(FAMILY_ID, 's1', { confirmed: true })).rejects.toThrow('Sesión no encontrada');
+    });
+
+    it('la vista del familiar dice cuántos cupos quedan', async () => {
+      linkActivo();
+      sessionRepo.find.mockResolvedValue([
+        { id: 's1', sessionDate: daysFromNow(2), capacity: 5 },
+        { id: 's2', sessionDate: daysFromNow(3), capacity: null },
+      ]);
+      attendanceRepo.find.mockImplementation(({ where }: { where: { confirmed?: boolean } }) =>
+        Promise.resolve(where.confirmed ? [{ sessionId: 's1' }, { sessionId: 's1' }] : []),
+      );
+
+      const view = await service.getSessionsForFamily(FAMILY_ID);
+
+      expect(view.sessions.map((x) => x.spotsLeft)).toEqual([3, null]);
+    });
+  });
+
+  describe('sesiones del paciente (HdU14 CA6)', () => {
+    const PACIENTE = 'p1';
+
+    beforeEach(() => {
+      userRepo.findOne.mockResolvedValue({ id: PACIENTE, role: 'patient', sedeId: 'Santiago' });
+      sedeRepo.findOne.mockResolvedValue({ id: SEDE_UUID, name: 'Santiago' });
+    });
+
+    it('ve las sesiones de su sede de los dos tipos, con su respuesta y los cupos libres', async () => {
+      sessionRepo.find.mockResolvedValue([
+        { id: 's1', title: 'Pacientes', sessionDate: daysFromNow(1), audience: 'patients', capacity: 3 },
+        { id: 's2', title: 'Familias', sessionDate: daysFromNow(2), audience: 'family', capacity: null },
+      ]);
+      attendanceRepo.find.mockImplementation(({ where }: { where: { familyUserId?: string } }) =>
+        Promise.resolve(where.familyUserId ? [{ sessionId: 's1', confirmed: true }] : [{ sessionId: 's1' }]),
+      );
+
+      const { sessions } = await service.getSessionsForPatient(PACIENTE);
+
+      expect(sessionRepo.find.mock.calls[0][0].where.sedeId.value).toEqual([SEDE_UUID, 'Santiago']);
+      expect(sessions.map((x) => [x.id, x.audience, x.userAttends, x.spotsLeft])).toEqual([
+        ['s1', 'patients', true, 2],
+        ['s2', 'family', null, null],
+      ]);
+    });
+
+    it('sin sede no tiene sesiones, y no es un error', async () => {
+      userRepo.findOne.mockResolvedValue({ id: PACIENTE, role: 'patient', sedeId: null });
+
+      expect(await service.getSessionsForPatient(PACIENTE)).toEqual({ sessions: [] });
+      expect(sessionRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('confirma su asistencia a una sesión de su sede', async () => {
+      sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: SEDE_UUID, sessionDate: daysFromNow(2), capacity: 10, audience: 'patients' });
+      attendanceRepo.findOne.mockResolvedValue(null);
+
+      const saved = await service.confirmPatientAttendance(PACIENTE, 's1', { confirmed: true });
+
+      expect(saved).toMatchObject({ sessionId: 's1', familyUserId: PACIENTE, confirmed: true });
+    });
+
+    it('una sesión de otra sede responde como inexistente', async () => {
+      sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: OTRA_SEDE, sessionDate: daysFromNow(2), capacity: 10 });
+      sedeRepo.findOne.mockResolvedValueOnce({ id: SEDE_UUID });
+
+      await expect(service.confirmPatientAttendance(PACIENTE, 's1', { confirmed: true })).rejects.toThrow('Sesión no encontrada');
+      expect(attendanceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('con el cupo lleno tampoco puede confirmar', async () => {
+      sessionRepo.findOne.mockResolvedValue({ id: 's1', sedeId: SEDE_UUID, sessionDate: daysFromNow(2), capacity: 1, audience: 'patients' });
+      attendanceRepo.findOne.mockResolvedValue(null);
+      attendanceRepo.count.mockResolvedValue(1);
+
+      await expect(service.confirmPatientAttendance(PACIENTE, 's1', { confirmed: true })).rejects.toThrow('La sesión está llena');
     });
   });
 

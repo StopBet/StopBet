@@ -226,6 +226,28 @@ export class FamilyController {
     return this.familyService.confirmAttendance(user.id, sessionId, dto);
   }
 
+  // HdU14 CA6 — el paciente ve en la app las sesiones grupales de su sede y responde.
+  @Get('patient-sessions')
+  @Roles('patient')
+  @ApiOperation({ summary: 'HdU14 CA6 — Sesiones grupales de la sede del paciente' })
+  getPatientSessions(@CurrentUser() user: AuthUser) {
+    return this.familyService.getSessionsForPatient(user.id);
+  }
+
+  @Post('patient-sessions/:id/attendance')
+  @Roles('patient')
+  @ApiOperation({ summary: 'HdU14 CA6 — El paciente confirma o rechaza su asistencia' })
+  @ApiResponse({ status: 201, description: 'Respuesta registrada' })
+  @ApiResponse({ status: 404, description: 'La sesión no existe o es de otra sede' })
+  @ApiResponse({ status: 409, description: 'La sesión está llena o ya ocurrió' })
+  confirmPatientAttendance(
+    @CurrentUser() user: AuthUser,
+    @Param('id') sessionId: string,
+    @Body() dto: ConfirmAttendanceDto,
+  ) {
+    return this.familyService.confirmPatientAttendance(user.id, sessionId, dto);
+  }
+
   // CA 11.4 — sesiones de la sede del psicólogo con quién confirmó cada una.
   // Va antes de 'sessions/:id/attendance' para no depender de conocer un id.
   @Get('sede/sessions')

@@ -69,7 +69,22 @@ const LINK_PRIORITY: Record<FamilyLinkStatus, number> = {
   rejected: 0,
 };
 
-export type FamilySessionView = FamilySession & { userAttends: boolean | null };
+// spotsLeft: cupos libres (null = sin cupo, sesiones anteriores a la HdU14).
+export type FamilySessionView = FamilySession & { userAttends: boolean | null; spotsLeft: number | null };
+
+// HdU14 CA6 — lo que ve el paciente en la app: las sesiones de su sede, de los dos tipos.
+export interface PatientSessionView {
+  id: string;
+  title: string;
+  sessionDate: Date;
+  location: string;
+  isOnline: boolean;
+  isMandatory: boolean;
+  audience: SessionAudience;
+  capacity: number | null;
+  spotsLeft: number | null;
+  userAttends: boolean | null;
+}
 
 export interface FamilySessionsView {
   linkStatus: FamilyLinkState;
@@ -176,6 +191,9 @@ const SESSION_TIME = new Intl.DateTimeFormat('es-CL', {
   hourCycle: 'h23',
 });
 const formatSessionWhen = (d: Date): string => `${SESSION_DAY.format(d)}, a las ${SESSION_TIME.format(d)} h`;
+
+const spotsLeft = (s: FamilySession, taken: Map<string, number>): number | null =>
+  s.capacity === null || s.capacity === undefined ? null : Math.max(0, s.capacity - (taken.get(s.id) ?? 0));
 
 const EMPTY_VIEW = (linkStatus: FamilyLinkState): FamilySessionsView => ({
   linkStatus,
@@ -1147,10 +1165,12 @@ export class FamilyService {
       where: { familyUserId },
     });
     const attendanceMap = new Map(attendances.map((a) => [a.sessionId, a.confirmed]));
+    const taken = await this.confirmedCounts(sessions.map((s) => s.id));
 
     const enriched = sessions.map((s) => ({
       ...s,
       userAttends: attendanceMap.has(s.id) ? attendanceMap.get(s.id)! : null,
+      spotsLeft: spotsLeft(s, taken),
     }));
 
     return { linkStatus: 'active', sessions: enriched, hasUpcoming };
@@ -1175,18 +1195,107 @@ export class FamilyService {
       resolveSedeId(this.sedeRepo, session?.sedeId),
       resolveSedeId(this.sedeRepo, link.patientUser.sedeId),
     ]);
-    if (!session || !sessionSede || sessionSede !== patientSede) {
+    // HdU14 CA6: una sesión solo de pacientes no existe para el familiar.
+    if (!session || !sessionSede || sessionSede !== patientSede || session.audience === 'patients') {
       throw new NotFoundException('Sesión no encontrada');
     }
 
-    const existing = await this.attendanceRepo.findOne({ where: { sessionId, familyUserId } });
-    if (existing) {
-      existing.confirmed = dto.confirmed;
-      return this.attendanceRepo.save(existing);
-    }
+    return this.saveResponse(familyUserId, sessionId, dto.confirmed);
+  }
 
-    const attendance = this.attendanceRepo.create({ sessionId, familyUserId, confirmed: dto.confirmed });
-    return this.attendanceRepo.save(attendance);
+  // HdU14 CA6 — sesiones de la sede del paciente, de los dos tipos: las de pacientes son de él,
+  // y en las de familiares participa junto a su familia.
+  async getSessionsForPatient(patientId: string): Promise<{ sessions: PatientSessionView[] }> {
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient?.sedeId) return { sessions: [] };
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 1);
+    const sessions = await this.sessionRepo.find({
+      where: { sedeId: In(await formasDeSede(this.sedeRepo, patient.sedeId)), sessionDate: MoreThanOrEqual(cutoff) },
+      order: { sessionDate: 'ASC' },
+    });
+    if (sessions.length === 0) return { sessions: [] };
+
+    const mine = await this.attendanceRepo.find({
+      where: { familyUserId: patientId, sessionId: In(sessions.map((s) => s.id)) },
+    });
+    const answered = new Map(mine.map((a) => [a.sessionId, a.confirmed]));
+    const taken = await this.confirmedCounts(sessions.map((s) => s.id));
+
+    return {
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        title: s.title,
+        sessionDate: s.sessionDate,
+        location: s.location,
+        isOnline: s.isOnline,
+        isMandatory: s.isMandatory,
+        audience: s.audience,
+        capacity: s.capacity,
+        spotsLeft: spotsLeft(s, taken),
+        userAttends: answered.has(s.id) ? answered.get(s.id)! : null,
+      })),
+    };
+  }
+
+  async confirmPatientAttendance(
+    patientId: string,
+    sessionId: string,
+    dto: ConfirmAttendanceDto,
+  ): Promise<SessionAttendance> {
+    const [patient, session] = await Promise.all([
+      this.userRepo.findOne({ where: { id: patientId } }),
+      this.sessionRepo.findOne({ where: { id: sessionId } }),
+    ]);
+    const [sessionSede, patientSede] = await Promise.all([
+      resolveSedeId(this.sedeRepo, session?.sedeId),
+      resolveSedeId(this.sedeRepo, patient?.sedeId),
+    ]);
+    // Misma respuesta que una sesión inexistente: no confirma que exista en otra sede.
+    if (!session || !sessionSede || sessionSede !== patientSede) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+    return this.saveResponse(patientId, sessionId, dto.confirmed);
+  }
+
+  // Guarda la respuesta de un paciente o un familiar (`session_attendances.familyUserId` es en
+  // realidad el usuario que responde: el nombre viene de la HdU11, cuando solo respondían
+  // familiares, y renombrar la columna con synchronize la borraría con sus datos).
+  // HdU14 — con la sesión bloqueada, para que dos personas que confirman a la vez el último
+  // cupo no lo pasen. Pasar de "no asistiré" a "asistiré" también ocupa cupo; quien ya había
+  // confirmado no se rechaza aunque el cupo esté justo.
+  private saveResponse(userId: string, sessionId: string, confirmed: boolean): Promise<SessionAttendance> {
+    return this.dataSource.transaction(async (manager) => {
+      const sessions = manager.getRepository(FamilySession);
+      const attendances = manager.getRepository(SessionAttendance);
+
+      const session = await sessions.findOne({ where: { id: sessionId }, lock: { mode: 'pessimistic_write' } });
+      if (!session) throw new NotFoundException('Sesión no encontrada');
+      if (session.sessionDate <= new Date()) {
+        throw new ConflictException('Esta sesión ya ocurrió');
+      }
+
+      const existing = await attendances.findOne({ where: { sessionId, familyUserId: userId } });
+      if (confirmed && existing?.confirmed !== true && session.capacity !== null) {
+        const taken = await attendances.count({ where: { sessionId, confirmed: true } });
+        if (taken >= session.capacity) throw new ConflictException('La sesión está llena');
+      }
+
+      if (existing) {
+        existing.confirmed = confirmed;
+        return attendances.save(existing);
+      }
+      return attendances.save(attendances.create({ sessionId, familyUserId: userId, confirmed }));
+    });
+  }
+
+  private async confirmedCounts(sessionIds: string[]): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (sessionIds.length === 0) return counts;
+    const rows = await this.attendanceRepo.find({ where: { sessionId: In(sessionIds), confirmed: true } });
+    for (const r of rows) counts.set(r.sessionId, (counts.get(r.sessionId) ?? 0) + 1);
+    return counts;
   }
 
   // Para que el psicólogo vea asistencias en su dashboard (CA 11.4 segunda mitad).
