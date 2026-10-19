@@ -30,6 +30,7 @@ import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { GroupChatScreen } from './src/screens/GroupChatScreen';
 import { DirectChatScreen } from './src/screens/DirectChatScreen';
 import { NewDirectMessageScreen } from './src/screens/NewDirectMessageScreen';
+import { GroupSessionsScreen } from './src/screens/GroupSessionsScreen';
 import { MainTabs } from './src/navigation/MainTabs';
 import { PanicScreen } from './src/screens/PanicScreen';
 import { SponsorAlertScreen } from './src/screens/SponsorAlertScreen';
@@ -94,6 +95,7 @@ function AppNavigator() {
       <AppStack.Screen name="GroupChat" component={GroupChatScreen} options={{ animation: 'slide_from_right' }} />
       <AppStack.Screen name="DirectChat" component={DirectChatScreen} options={{ animation: 'slide_from_right' }} />
       <AppStack.Screen name="NewDirectMessage" component={NewDirectMessageScreen} options={{ animation: 'slide_from_right' }} />
+      <AppStack.Screen name="GroupSessions" component={GroupSessionsScreen} options={{ animation: 'slide_from_right' }} />
     </AppStack.Navigator>
   );
 }

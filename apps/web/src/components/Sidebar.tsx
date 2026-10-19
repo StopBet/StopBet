@@ -27,7 +27,7 @@ const NAV_ITEMS: Array<{ id: NavId; icon: string; label: string; soon?: boolean;
   { id: 'requests',  icon: 'inbox',          label: 'Solicitudes', roles: ['coordinator'] },
   { id: 'moderation', icon: 'flag',          label: 'Moderación', roles: ['psychologist'] },
   { id: 'familyLinks', icon: 'user-round',   label: 'Familiares' },
-  { id: 'familySessions', icon: 'heart-handshake', label: 'Sesiones de familiares' },
+  { id: 'familySessions', icon: 'heart-handshake', label: 'Sesiones grupales' },
   { id: 'equipo',    icon: 'user-plus',      label: 'Equipo' },
   { id: 'reports',   icon: 'chart-column',   label: 'Reportes', soon: true },
   { id: 'finanzas',  icon: 'wallet',         label: 'Finanzas' },

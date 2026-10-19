@@ -11,6 +11,8 @@ const QUERY_KEY = ['notifications']
 // paciente: esas notificaciones se marcan leídas y nada más.
 const WEB_ROUTES: Record<string, { path: string; label: string }> = {
   'family-links': { path: '/familiares', label: 'Ver en Familiares' },
+  // HdU14 CA2 — cambió una sesión que el familiar había confirmado: lo lleva a sus sesiones.
+  'group-sessions': { path: '/familiar', label: 'Ver mis sesiones' },
 }
 
 // El tipo se distingue por el ícono, no solo por el color: la web no tiene un ámbar propio y

@@ -4,15 +4,19 @@ import {
   Get,
   Param,
   Patch,
+  Put,
   Post,
+  Query,
   UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { FamilyService } from './family.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
+import { UpdateFamilySessionDto } from './dto/update-family-session.dto';
+import { MarkPresenceDto } from './dto/mark-presence.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
 import { ConfirmFamilyLinkDto } from './dto/confirm-family-link.dto';
 import { AnswerFamilyRequestDto } from './dto/answer-family-request.dto';
@@ -223,6 +227,28 @@ export class FamilyController {
     return this.familyService.confirmAttendance(user.id, sessionId, dto);
   }
 
+  // HdU14 CA6 — el paciente ve en la app las sesiones grupales de su sede y responde.
+  @Get('patient-sessions')
+  @Roles('patient')
+  @ApiOperation({ summary: 'HdU14 CA6 — Sesiones grupales de la sede del paciente' })
+  getPatientSessions(@CurrentUser() user: AuthUser) {
+    return this.familyService.getSessionsForPatient(user.id);
+  }
+
+  @Post('patient-sessions/:id/attendance')
+  @Roles('patient')
+  @ApiOperation({ summary: 'HdU14 CA6 — El paciente confirma o rechaza su asistencia' })
+  @ApiResponse({ status: 201, description: 'Respuesta registrada' })
+  @ApiResponse({ status: 404, description: 'La sesión no existe o es de otra sede' })
+  @ApiResponse({ status: 409, description: 'La sesión está llena o ya ocurrió' })
+  confirmPatientAttendance(
+    @CurrentUser() user: AuthUser,
+    @Param('id') sessionId: string,
+    @Body() dto: ConfirmAttendanceDto,
+  ) {
+    return this.familyService.confirmPatientAttendance(user.id, sessionId, dto);
+  }
+
   // CA 11.4 — sesiones de la sede del psicólogo con quién confirmó cada una.
   // Va antes de 'sessions/:id/attendance' para no depender de conocer un id.
   @Get('sede/sessions')
@@ -232,13 +258,43 @@ export class FamilyController {
     status: 200,
     description: 'Sesiones ordenadas por fecha, con confirmedCount, declinedCount y el detalle',
   })
-  getSedeSessions(@CurrentUser() user: AuthUser) {
+  @ApiQuery({ name: 'scope', required: false, enum: ['upcoming', 'past'] })
+  async getSedeSessions(@CurrentUser() user: AuthUser, @Query('scope') scope?: string) {
+    // HdU14: todas las sedes que atiende (psychologist_sedes), no solo la de su ficha; si no,
+    // una sesión creada en su segunda sede no aparecía en el listado (CA1).
+    const sedes = await this.familyService.sessionSedesFor(user);
     // Una cuenta clínica sin sede es un error de configuración, no un estado
     // normal: devolver lista vacía lo haría pasar por "no hay sesiones".
-    if (!user.sedeId) {
+    if (sedes.length === 0) {
       throw new UnprocessableEntityException('Tu cuenta no tiene una sede asignada');
     }
-    return this.familyService.getSedeSessions(user.sedeId);
+    return this.familyService.getSedeSessions(sedes, scope === 'past' ? 'past' : 'upcoming');
+  }
+
+  // HdU14 CA1 — las sedes en que puede crear sesiones, para el selector del formulario.
+  @Get('session-sedes')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HdU14 — Sedes en las que puedo crear sesiones grupales' })
+  sessionSedes(@CurrentUser() user: AuthUser) {
+    return this.familyService.sessionSedesFor(user);
+  }
+
+  @Get('sessions/:id')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HdU14 CA3 — Detalle de una sesión: confirmados, no asistirán y sin respuesta' })
+  @ApiResponse({ status: 404, description: 'La sesión no existe o es de una sede que no atiende' })
+  getSessionDetail(@Param('id') sessionId: string, @CurrentUser() user: AuthUser) {
+    return this.familyService.getSessionDetail(sessionId, user);
+  }
+
+  @Put('sessions/:id/presence')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HdU14 CA4 — Registrar quién asistió y quién no a una sesión pasada' })
+  @ApiResponse({ status: 200, description: 'Detalle de la sesión con la asistencia registrada' })
+  @ApiResponse({ status: 400, description: 'Alguna persona no estaba invitada a la sesión' })
+  @ApiResponse({ status: 409, description: 'La sesión todavía no comienza' })
+  markPresence(@Param('id') sessionId: string, @Body() dto: MarkPresenceDto, @CurrentUser() user: AuthUser) {
+    return this.familyService.markPresence(sessionId, dto, user);
   }
 
   // Psicólogo ve asistencias de una sesión (CA 11.4 segunda mitad)
@@ -258,5 +314,19 @@ export class FamilyController {
   @ApiResponse({ status: 403, description: 'La sede no es una de las que atiende el psicólogo' })
   createSession(@Body() dto: CreateFamilySessionDto, @CurrentUser() user: AuthUser) {
     return this.familyService.createSession(dto, user);
+  }
+
+  @Patch('sessions/:id')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HdU14 CA2 — Editar una sesión futura y avisar a los confirmados' })
+  @ApiResponse({ status: 200, description: 'Sesión actualizada' })
+  @ApiResponse({ status: 404, description: 'La sesión no existe o es de una sede que no atiende' })
+  @ApiResponse({ status: 409, description: 'La sesión ya ocurrió, o el cupo queda bajo los confirmados' })
+  updateSession(
+    @Param('id') sessionId: string,
+    @Body() dto: UpdateFamilySessionDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.familyService.updateSession(sessionId, dto, user);
   }
 }

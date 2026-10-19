@@ -51,6 +51,7 @@ import { FamilyLink } from './family/entities/family-link.entity';
 import { FamilyLinkReview } from './family/entities/family-link-review.entity';
 import { FamilySession } from './family/entities/family-session.entity';
 import { SessionAttendance } from './family/entities/session-attendance.entity';
+import { SessionPresence } from './family/entities/session-presence.entity';
 import { CommunityMute } from './notifications/entities/community-mute.entity';
 import { PsychologistsModule } from './psychologists/psychologists.module';
 import { PsychologistSede } from './psychologists/entities/psychologist-sede.entity';
@@ -109,7 +110,7 @@ import { PaymentsModule } from './payments/payments.module';
           SponsorAssignment, SponsorDesignation, PanicAlert,
           RefreshToken,
           DeviceToken,
-          FamilyLink, FamilyLinkReview, FamilySession, SessionAttendance,
+          FamilyLink, FamilyLinkReview, FamilySession, SessionAttendance, SessionPresence,
           CommunityMute,
           PsychologistSede, PatientAssignment,
           ClinicalRecord, ClinicalRecordVersion, ClinicalNote,

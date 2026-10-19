@@ -78,4 +78,6 @@ export type AppStackParamList = {
   DirectChat: { userId: string; name: string };
   /** El buscador del botón «+»: a quién escribirle. */
   NewDirectMessage: undefined;
+  /** HdU14 CA6 — las sesiones grupales de la sede, para confirmar o avisar que no irá. */
+  GroupSessions: undefined;
 };

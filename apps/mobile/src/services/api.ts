@@ -4,7 +4,8 @@ import type {
   ActiveAlertResponse,
   AchievementsData,
   RelapseResponse,
-  AiSessionSummary,
+  AiSessionHistoryItem,
+  AiSessionSummaryWithMemory,
   BadgeMilestone,
   BillingStatus,
   CheckIn,
@@ -17,7 +18,9 @@ import type {
   Notification,
   PaginatedResponse,
   PanicAlertDto,
+  PatientFeedback,
   PatientFamilyRequest,
+  PatientGroupSession,
   PaymentMethod,
   ReactionEmoji,
   ReactionSummary,
@@ -409,13 +412,13 @@ export const api = {
     }),
 
   closeAiSession: (userId: string, sessionId: string) =>
-    request<AiSessionSummary>(`/ai/sessions/${sessionId}/close`, {
+    request<AiSessionSummaryWithMemory>(`/ai/sessions/${sessionId}/close`, {
       userId,
       method: 'POST',
     }),
 
   getAiSummaries: (userId: string) =>
-    request<AiSessionSummary[]>('/ai/sessions/summaries', { userId }),
+    request<AiSessionHistoryItem[]>('/ai/sessions/summaries', { userId }),
 
   // ── Botón de pánico ──────────────────────────────────────────────────
   getSponsorInfo: (userId: string) =>
@@ -459,6 +462,18 @@ export const api = {
     request<AccompaniedResponse>('/panic/accompanied', { userId }),
 
   // ── Comunidad y red de apoyo ─────────────────────────────────────────
+  // ── Sesiones grupales (HdU14 CA6) ────────────────────────────────────
+  // Las de la sede del paciente; la sede la saca el backend de su cuenta.
+  getGroupSessions: () =>
+    request<{ sessions: PatientGroupSession[] }>('/family/patient-sessions'),
+
+  // 409 = la sesión se llenó o ya ocurrió (el mensaje viaja en el error).
+  respondGroupSession: (sessionId: string, confirmed: boolean) =>
+    request<void>(`/family/patient-sessions/${sessionId}/attendance`, {
+      method: 'POST',
+      body: JSON.stringify({ confirmed }),
+    }),
+
   getAnnouncements: (userId: string, sede: string) =>
     request<CommunityPost[]>(
       `/community/announcements?sede=${encodeURIComponent(sede)}`,
@@ -611,3 +626,10 @@ export const api = {
       body: JSON.stringify(data),
     }),
 };
+
+// ── HdU10: memoria del asistente ──
+export const sendAiFeedback = (sessionId: string, feedback: PatientFeedback) =>
+  request<AiSessionHistoryItem>(`/ai/sessions/${sessionId}/feedback`, {
+    method: 'PATCH',
+    body: JSON.stringify({ feedback }),
+  });
