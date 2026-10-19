@@ -13,6 +13,7 @@ import { Throttle } from '@nestjs/throttler';
 import { FamilyService } from './family.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
+import { UpdateFamilySessionDto } from './dto/update-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
 import { ConfirmFamilyLinkDto } from './dto/confirm-family-link.dto';
 import { AnswerFamilyRequestDto } from './dto/answer-family-request.dto';
@@ -258,5 +259,19 @@ export class FamilyController {
   @ApiResponse({ status: 403, description: 'La sede no es una de las que atiende el psicólogo' })
   createSession(@Body() dto: CreateFamilySessionDto, @CurrentUser() user: AuthUser) {
     return this.familyService.createSession(dto, user);
+  }
+
+  @Patch('sessions/:id')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HdU14 CA2 — Editar una sesión futura y avisar a los confirmados' })
+  @ApiResponse({ status: 200, description: 'Sesión actualizada' })
+  @ApiResponse({ status: 404, description: 'La sesión no existe o es de una sede que no atiende' })
+  @ApiResponse({ status: 409, description: 'La sesión ya ocurrió, o el cupo queda bajo los confirmados' })
+  updateSession(
+    @Param('id') sessionId: string,
+    @Body() dto: UpdateFamilySessionDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.familyService.updateSession(sessionId, dto, user);
   }
 }

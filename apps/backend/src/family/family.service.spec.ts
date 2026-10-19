@@ -358,6 +358,103 @@ describe('FamilyService (HU-11)', () => {
     expect(session).toEqual(expect.objectContaining({ capacity: 12, audience: 'patients' }));
   });
 
+  describe('updateSession (HdU14 CA2)', () => {
+    const futura = () => ({
+      id: 's1',
+      title: 'Grupo de apoyo',
+      sedeId: SEDE_UUID,
+      sessionDate: daysFromNow(3),
+      location: 'Sala 2',
+      capacity: 10,
+    });
+    const confirmados = [
+      { sessionId: 's1', familyUserId: 'f1', confirmed: true },
+      { sessionId: 's1', familyUserId: 'p1', confirmed: true },
+    ];
+
+    it('cambiar la fecha avisa a los confirmados en la app y la web, y por push', async () => {
+      // Fecha fija para poder comprobar el texto exacto del aviso.
+      jest.useFakeTimers({ now: new Date('2026-10-20T12:00:00Z'), doNotFake: ['nextTick', 'setImmediate'] });
+      sessionRepo.findOne.mockResolvedValue({ ...futura(), sessionDate: new Date('2026-10-25T22:00:00Z') });
+      attendanceRepo.find.mockResolvedValue(confirmados);
+      const nueva = new Date('2026-11-04T22:00:00Z');
+
+      await service.updateSession('s1', { sessionDate: nueva.toISOString() }, psychOf(SEDE_UUID));
+      jest.useRealTimers();
+
+      expect(attendanceRepo.find).toHaveBeenCalledWith({ where: { sessionId: 's1', confirmed: true } });
+      const avisos = notifRepo.save.mock.calls[0][0];
+      expect(avisos.map((n: { userId: string }) => n.userId)).toEqual(['f1', 'p1']);
+      expect(avisos[0]).toEqual(expect.objectContaining({ title: 'Cambió una sesión grupal', target: 'group-sessions' }));
+      expect(avisos[0].body).toBe('La sesión «Grupo de apoyo» ahora es el miércoles, 4 de noviembre, a las 19:00 h.');
+      expect(push.enviarAUsuarios).toHaveBeenCalledWith(['f1', 'p1'], 'Cambió una sesión grupal', expect.any(String));
+      expect(sessionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ sessionDate: nueva }));
+    });
+
+    it('cambiar el cupo también avisa, con el cupo nuevo', async () => {
+      sessionRepo.findOne.mockResolvedValue(futura());
+      attendanceRepo.find.mockResolvedValue(confirmados);
+
+      await service.updateSession('s1', { capacity: 15 }, psychOf(SEDE_UUID));
+
+      expect(notifRepo.save.mock.calls[0][0][0].body).toBe('La sesión «Grupo de apoyo» su cupo cambió a 15 personas.');
+    });
+
+    it('cambiar solo el nombre o el lugar no avisa a nadie', async () => {
+      sessionRepo.findOne.mockResolvedValue(futura());
+      attendanceRepo.find.mockResolvedValue(confirmados);
+
+      await service.updateSession('s1', { title: 'Grupo de los martes', location: 'Sala 3' }, psychOf(SEDE_UUID));
+
+      expect(sessionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ title: 'Grupo de los martes', location: 'Sala 3' }));
+      expect(notifRepo.save).not.toHaveBeenCalled();
+      expect(push.enviarAUsuarios).not.toHaveBeenCalled();
+    });
+
+    it('sin confirmados guarda el cambio sin avisar', async () => {
+      sessionRepo.findOne.mockResolvedValue(futura());
+
+      await service.updateSession('s1', { capacity: 20 }, psychOf(SEDE_UUID));
+
+      expect(sessionRepo.save).toHaveBeenCalled();
+      expect(notifRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('no deja bajar el cupo por debajo de los que ya confirmaron', async () => {
+      sessionRepo.findOne.mockResolvedValue(futura());
+      attendanceRepo.find.mockResolvedValue(confirmados);
+
+      await expect(service.updateSession('s1', { capacity: 1 }, psychOf(SEDE_UUID))).rejects.toThrow(
+        'El cupo no puede ser menor que las 2 personas que ya confirmaron',
+      );
+      expect(sessionRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('una sesión que ya ocurrió no se edita', async () => {
+      sessionRepo.findOne.mockResolvedValue({ ...futura(), sessionDate: daysFromNow(-1) });
+
+      await expect(service.updateSession('s1', { capacity: 12 }, psychOf(SEDE_UUID))).rejects.toThrow(
+        'Solo se pueden editar sesiones que todavía no ocurren',
+      );
+      expect(sessionRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('no deja mover la sesión a una fecha pasada', async () => {
+      sessionRepo.findOne.mockResolvedValue(futura());
+
+      await expect(
+        service.updateSession('s1', { sessionDate: daysFromNow(-2).toISOString() }, psychOf(SEDE_UUID)),
+      ).rejects.toThrow('La nueva fecha de la sesión tiene que ser futura');
+    });
+
+    it('una sesión de otra sede responde como inexistente', async () => {
+      sessionRepo.findOne.mockResolvedValue({ ...futura(), sedeId: OTRA_SEDE });
+
+      await expect(service.updateSession('s1', { capacity: 12 }, psychOf(SEDE_UUID))).rejects.toThrow('Sesión no encontrada');
+      expect(sessionRepo.save).not.toHaveBeenCalled();
+    });
+  });
+
   it('CA 11.4: la vista del psicólogo cuenta confirmaciones y rechazos por sesión', async () => {
     sessionRepo.find.mockResolvedValue([{ id: 's1', title: 'Grupo', sessionDate: daysFromNow(2) }]);
     attendanceRepo.find.mockResolvedValue([

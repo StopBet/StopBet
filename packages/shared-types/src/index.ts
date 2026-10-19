@@ -57,7 +57,8 @@ export type NotificationTarget =
   | 'payment'
   | 'family-links'
   | 'family-request'
-  | 'sponsor-alert';
+  | 'sponsor-alert'
+  | 'group-sessions';
 
 export interface Notification {
   id: string;

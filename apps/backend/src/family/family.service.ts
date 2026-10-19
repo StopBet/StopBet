@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -40,6 +41,7 @@ import { PushService } from '../push/push.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
+import { UpdateFamilySessionDto } from './dto/update-family-session.dto';
 import { RegisterFamilyDto } from './dto/register-family.dto';
 
 const UPCOMING_WEEKS = 4;
@@ -128,6 +130,21 @@ const toInvoiceView = (i: Invoice): FamilyInvoiceView => ({
   amountCLP: i.amountCLP,
   dueDate: i.dueDate,
 });
+
+// "miércoles, 4 de noviembre, a las 19:00 h" en hora de Chile, para el aviso de cambio (HdU14 CA2).
+const SESSION_DAY = new Intl.DateTimeFormat('es-CL', {
+  timeZone: 'America/Santiago',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+const SESSION_TIME = new Intl.DateTimeFormat('es-CL', {
+  timeZone: 'America/Santiago',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+const formatSessionWhen = (d: Date): string => `${SESSION_DAY.format(d)}, a las ${SESSION_TIME.format(d)} h`;
 
 const EMPTY_VIEW = (linkStatus: FamilyLinkState): FamilySessionsView => ({
   linkStatus,
@@ -892,6 +909,67 @@ export class FamilyService {
       isOnline: dto.isOnline ?? false,
     });
     return this.sessionRepo.save(session);
+  }
+
+  // HdU14 CA2 — solo sesiones futuras de una sede que atiende. Si cambian la fecha, la hora o
+  // el cupo, se avisa a quienes ya confirmaron; si solo cambia el nombre o el lugar, no.
+  async updateSession(sessionId: string, dto: UpdateFamilySessionDto, reviewer: AuthUser): Promise<FamilySession> {
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    // Una sesión de otra sede responde igual que una inexistente, como en getAttendancesForSession.
+    if (!session || !(await this.coversSede(reviewer, session.sedeId))) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+
+    const now = new Date();
+    if (session.sessionDate <= now) {
+      throw new ConflictException('Solo se pueden editar sesiones que todavía no ocurren');
+    }
+
+    const newDate = dto.sessionDate !== undefined ? new Date(dto.sessionDate) : session.sessionDate;
+    if (newDate <= now) {
+      throw new BadRequestException('La nueva fecha de la sesión tiene que ser futura');
+    }
+
+    const confirmed = await this.attendanceRepo.find({ where: { sessionId, confirmed: true } });
+    if (dto.capacity !== undefined && dto.capacity < confirmed.length) {
+      throw new ConflictException(
+        `El cupo no puede ser menor que las ${confirmed.length} personas que ya confirmaron`,
+      );
+    }
+
+    const dateChanged = newDate.getTime() !== session.sessionDate.getTime();
+    const capacityChanged = dto.capacity !== undefined && dto.capacity !== session.capacity;
+
+    Object.assign(session, { ...dto, sessionDate: newDate });
+    const saved = await this.sessionRepo.save(session);
+
+    if ((dateChanged || capacityChanged) && confirmed.length > 0) {
+      await this.notifySessionChange(saved, confirmed.map((a) => a.familyUserId), dateChanged, capacityChanged);
+    }
+    return saved;
+  }
+
+  private async notifySessionChange(
+    session: FamilySession,
+    userIds: string[],
+    dateChanged: boolean,
+    capacityChanged: boolean,
+  ): Promise<void> {
+    const cambios: string[] = [];
+    if (dateChanged) cambios.push(`ahora es el ${formatSessionWhen(session.sessionDate)}`);
+    if (capacityChanged) cambios.push(`su cupo cambió a ${session.capacity} personas`);
+    const body = `La sesión «${session.title}» ${cambios.join(' y ')}.`;
+
+    await this.notifRepo.save(
+      userIds.map((userId) =>
+        this.notifRepo.create({ userId, type: 'info', title: 'Cambió una sesión grupal', body, target: 'group-sessions' }),
+      ),
+    );
+    // Sin esperar, como pushFamilyRequest: si Firebase falla, el aviso ya quedó guardado. La
+    // pantalla de bloqueo la ve cualquiera, así que el push no dice de qué sesión se trata.
+    void this.push
+      .enviarAUsuarios(userIds, 'Cambió una sesión grupal', 'Ábrela en StopBet para ver el detalle.')
+      .catch(() => undefined);
   }
 
   // CA 11.1 + 11.5 + 11.6 — sesiones de la sede del paciente vinculado, ordenadas por proximidad.
