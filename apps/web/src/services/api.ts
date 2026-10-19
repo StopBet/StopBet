@@ -576,6 +576,13 @@ export const api = {
   // Vista del psicólogo: sesiones de su sede con quién confirmó (CA 11.4)
   getSedeFamilySessions: () => get<SedeFamilySession[]>('/family/sede/sessions'),
 
+  // HdU14 — gestión de sesiones grupales. Crear y editar van con *WithAuth porque el
+  // formulario muestra el mensaje del backend (cupo menor que los confirmados, sede ajena).
+  getSessionSedes: () => get<SessionSede[]>('/family/session-sedes'),
+
+  createGroupSession: (payload: GroupSessionPayload) =>
+    postWithAuth<SedeFamilySession>('/family/sessions', payload),
+
   // ── Gestión de cuentas de psicólogo (HU-24) ─────────────────────────────────
 
   getPsychologists: () =>
@@ -673,12 +680,33 @@ export interface FamilyAttendance {
   confirmedAt: string
 }
 
+export type SessionAudience = 'patients' | 'family'
+
+export interface SessionSede {
+  id: string
+  name: string
+}
+
+export interface GroupSessionPayload {
+  title: string
+  sessionDate: string
+  location: string
+  isOnline: boolean
+  sedeId: string
+  capacity: number
+  audience: SessionAudience
+}
+
 export interface SedeFamilySession {
   id: string
   title: string
   sessionDate: string
   location: string
   isOnline: boolean
+  // null en las sesiones creadas antes de la HdU14: sin cupo
+  capacity: number | null
+  audience: SessionAudience
+  sedeName: string
   confirmedCount: number
   declinedCount: number
   attendances: FamilyAttendance[]

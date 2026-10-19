@@ -1,7 +1,23 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useState, type CSSProperties } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from '../components/WIcon'
+import { SessionFormDialog } from '../components/SessionFormDialog'
 import { api, type SedeFamilySession } from '../services/api'
+
+const primaryBtnStyle: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', gap: 8, height: 42, padding: '0 22px', borderRadius: 9999, border: 'none',
+  background: 'var(--primary)', color: 'var(--fg-on-primary)', fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 14,
+  cursor: 'pointer',
+}
+
+function CreateButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={primaryBtnStyle}>
+      <WIcon name="plus" size={17} />
+      Crear sesión
+    </button>
+  )
+}
 
 const DATE_FMT = new Intl.DateTimeFormat('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })
 // hour12 explícito: sin esto algunos navegadores renderizan "07:00 p. m." y el
@@ -43,6 +59,12 @@ function SessionRow({ session }: { session: SedeFamilySession }) {
               <WIcon name={session.isOnline ? 'message-circle' : 'map-pin'} size={14} />
               {session.isOnline ? 'Online' : session.location}
             </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <WIcon name="users" size={14} />
+              {session.audience === 'patients' ? 'Pacientes' : 'Familiares'}
+              {session.capacity !== null && ` · cupo ${session.capacity}`}
+            </span>
+            <span>Sede {session.sedeName}</span>
           </div>
         </div>
 
@@ -96,10 +118,22 @@ function SessionRow({ session }: { session: SedeFamilySession }) {
 }
 
 export function SesionesFamiliaresPage() {
+  const qc = useQueryClient()
+  const [creating, setCreating] = useState(false)
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['family', 'sede-sessions'],
     queryFn: api.getSedeFamilySessions,
   })
+
+  const dialog = creating && (
+    <SessionFormDialog
+      onClose={() => setCreating(false)}
+      onSaved={() => {
+        setCreating(false)
+        void qc.invalidateQueries({ queryKey: ['family', 'sede-sessions'] })
+      }}
+    />
+  )
 
   if (isLoading) {
     return <div style={{ padding: 32, color: 'var(--fg2)' }}>Cargando sesiones de tu sede…</div>
@@ -117,15 +151,18 @@ export function SesionesFamiliaresPage() {
     )
   }
 
+  // HdU14 CA5 — sin sesiones próximas: el mensaje y el botón para crear la primera.
   if (!data || data.length === 0) {
     return (
       <div style={{ padding: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 320 }}>
         <div style={{ textAlign: 'center', color: 'var(--fg2)' }}>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 20, color: 'var(--fg1)', marginBottom: 6 }}>
-            Sin sesiones agendadas
+            No hay sesiones próximas
           </div>
-          <div style={{ fontSize: 14 }}>Tu sede no tiene sesiones grupales de familiares próximas.</div>
+          <div style={{ fontSize: 14, marginBottom: 18 }}>Tu sede no tiene sesiones grupales agendadas.</div>
+          <CreateButton onClick={() => setCreating(true)} />
         </div>
+        {dialog}
       </div>
     )
   }
@@ -134,16 +171,20 @@ export function SesionesFamiliaresPage() {
 
   return (
     <div style={{ padding: '26px 32px 48px' }}>
-      <p style={{ margin: '0 0 20px', fontSize: 14, color: 'var(--fg2)' }}>
-        {data.length === 1 ? '1 sesión próxima' : `${data.length} sesiones próximas`} en tu sede
-        {totalConfirmed > 0 && ` · ${totalConfirmed} confirmaciones de familiares`}
-      </p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', margin: '0 0 20px' }}>
+        <p style={{ margin: 0, fontSize: 14, color: 'var(--fg2)' }}>
+          {data.length === 1 ? '1 sesión próxima' : `${data.length} sesiones próximas`} en tu sede
+          {totalConfirmed > 0 && ` · ${totalConfirmed} confirmaciones`}
+        </p>
+        <CreateButton onClick={() => setCreating(true)} />
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {data.map((s) => (
           <SessionRow key={s.id} session={s} />
         ))}
       </div>
+      {dialog}
     </div>
   )
 }

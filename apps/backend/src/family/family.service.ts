@@ -96,6 +96,7 @@ export interface SedeSessionView {
   isOnline: boolean;
   capacity: number | null;
   audience: SessionAudience;
+  sedeName: string;
   confirmedCount: number;
   declinedCount: number;
   attendances: SessionAttendanceView[];
@@ -1215,14 +1216,32 @@ export class FamilyService {
     }));
   }
 
+  // HdU14 — sedes que atiende: las de psychologist_sedes (o la de su ficha, si no tiene), y
+  // todas las activas si es coordinación. La misma regla con la que createSession lo deja crear.
+  async sessionSedesFor(reviewer: AuthUser): Promise<{ id: string; name: string }[]> {
+    const ids = await this.reviewableSedeIds(reviewer);
+    if (ids !== null && ids.length === 0) return [];
+    const sedes = await this.sedeRepo.find({
+      where: ids === null ? { isActive: true } : { id: In(ids) },
+      order: { name: 'ASC' },
+    });
+    return sedes.map((s) => ({ id: s.id, name: s.name }));
+  }
+
   // CA 11.4 — el psicólogo necesita partir de la lista de sesiones de su sede.
   // `getSessionsForFamily` no le sirve: deriva del vínculo del familiar.
-  async getSedeSessions(sedeId: string): Promise<SedeSessionView[]> {
+  async getSedeSessions(sedes: { id: string; name: string }[]): Promise<SedeSessionView[]> {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 1);
 
+    // `sessions.sedeId` puede traer el UUID o el nombre de la sede, como `users.sedeId`.
+    const sedeName = new Map<string, string>();
+    for (const s of sedes) {
+      sedeName.set(s.id, s.name);
+      sedeName.set(s.name, s.name);
+    }
     const sessions = await this.sessionRepo.find({
-      where: { sedeId, sessionDate: MoreThanOrEqual(cutoff) },
+      where: { sedeId: In([...sedeName.keys()]), sessionDate: MoreThanOrEqual(cutoff) },
       order: { sessionDate: 'ASC' },
     });
     if (sessions.length === 0) return [];
@@ -1257,6 +1276,7 @@ export class FamilyService {
         isOnline: s.isOnline,
         capacity: s.capacity,
         audience: s.audience,
+        sedeName: sedeName.get(s.sedeId) ?? s.sedeId,
         confirmedCount: list.filter((a) => a.confirmed).length,
         declinedCount: list.filter((a) => !a.confirmed).length,
         attendances: list,

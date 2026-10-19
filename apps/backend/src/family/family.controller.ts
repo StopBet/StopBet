@@ -235,13 +235,24 @@ export class FamilyController {
     status: 200,
     description: 'Sesiones ordenadas por fecha, con confirmedCount, declinedCount y el detalle',
   })
-  getSedeSessions(@CurrentUser() user: AuthUser) {
+  async getSedeSessions(@CurrentUser() user: AuthUser) {
+    // HdU14: todas las sedes que atiende (psychologist_sedes), no solo la de su ficha; si no,
+    // una sesión creada en su segunda sede no aparecía en el listado (CA1).
+    const sedes = await this.familyService.sessionSedesFor(user);
     // Una cuenta clínica sin sede es un error de configuración, no un estado
     // normal: devolver lista vacía lo haría pasar por "no hay sesiones".
-    if (!user.sedeId) {
+    if (sedes.length === 0) {
       throw new UnprocessableEntityException('Tu cuenta no tiene una sede asignada');
     }
-    return this.familyService.getSedeSessions(user.sedeId);
+    return this.familyService.getSedeSessions(sedes);
+  }
+
+  // HdU14 CA1 — las sedes en que puede crear sesiones, para el selector del formulario.
+  @Get('session-sedes')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HdU14 — Sedes en las que puedo crear sesiones grupales' })
+  sessionSedes(@CurrentUser() user: AuthUser) {
+    return this.familyService.sessionSedesFor(user);
   }
 
   @Get('sessions/:id')

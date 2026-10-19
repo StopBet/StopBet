@@ -10,6 +10,7 @@ import { FamilyLinkReview } from './entities/family-link-review.entity';
 const FAMILY_ID = 'fam-1';
 const SEDE = 'sede-santiago';
 const SEDE_UUID = '11111111-1111-1111-1111-111111111111';
+const SEDES = [{ id: SEDE_UUID, name: 'Santiago' }];
 
 function daysFromNow(days: number): Date {
   const d = new Date();
@@ -25,7 +26,7 @@ describe('FamilyService (HU-11)', () => {
   let presenceRepo: { find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let userRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let notifRepo: { create: jest.Mock; save: jest.Mock };
-  let sedeRepo: { findOne: jest.Mock };
+  let sedeRepo: { findOne: jest.Mock; find: jest.Mock };
   let psychSedeRepo: { find: jest.Mock };
   let reviewRepo: { create: jest.Mock; save: jest.Mock; find: jest.Mock };
   let push: { enviarAUsuarios: jest.Mock };
@@ -65,7 +66,7 @@ describe('FamilyService (HU-11)', () => {
       save: jest.fn((v) => Promise.resolve({ id: 'fam-new', ...v })),
     };
     notifRepo = { create: jest.fn((v) => v), save: jest.fn().mockResolvedValue(undefined) };
-    sedeRepo = { findOne: jest.fn() };
+    sedeRepo = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     psychSedeRepo = { find: jest.fn().mockResolvedValue([]) };
     reviewRepo = {
       create: jest.fn((v) => v),
@@ -360,7 +361,7 @@ describe('FamilyService (HU-11)', () => {
       { id: 's1', title: 'Grupo', sessionDate: daysFromNow(2), capacity: 12, audience: 'patients' },
     ]);
 
-    const [session] = await service.getSedeSessions(SEDE);
+    const [session] = await service.getSedeSessions(SEDES);
 
     expect(session).toEqual(expect.objectContaining({ capacity: 12, audience: 'patients' }));
   });
@@ -638,17 +639,52 @@ describe('FamilyService (HU-11)', () => {
       { id: 'a3', sessionId: 's1', familyUserId: 'f3', confirmed: true, confirmedAt: new Date(), familyUser: { firstName: 'Eva', lastName: 'Ruiz' } },
     ]);
 
-    const [session] = await service.getSedeSessions(SEDE);
+    const [session] = await service.getSedeSessions(SEDES);
 
     expect(session.confirmedCount).toBe(2);
     expect(session.declinedCount).toBe(1);
     expect(session.attendances).toHaveLength(3);
   });
 
+  it('HdU14: lista las sesiones de todas sus sedes, por UUID y por nombre, con el nombre de la sede', async () => {
+    const VINA = '22222222-2222-2222-2222-222222222222';
+    sessionRepo.find.mockResolvedValue([
+      { id: 's1', title: 'Grupo', sedeId: 'Santiago', sessionDate: daysFromNow(1) },
+      { id: 's2', title: 'Grupo', sedeId: VINA, sessionDate: daysFromNow(2) },
+    ]);
+
+    const list = await service.getSedeSessions([...SEDES, { id: VINA, name: 'Viña del Mar' }]);
+
+    expect(sessionRepo.find.mock.calls[0][0].where.sedeId.value).toEqual([SEDE_UUID, 'Santiago', VINA, 'Viña del Mar']);
+    expect(list.map((x) => x.sedeName)).toEqual(['Santiago', 'Viña del Mar']);
+  });
+
+  it('HdU14: las sedes para crear sesiones son las que atiende el psicólogo', async () => {
+    const psych = psychOf(SEDE_UUID);
+    sedeRepo.find.mockResolvedValue([{ id: SEDE_UUID, name: 'Santiago', address: 'x', isActive: true }]);
+
+    expect(await service.sessionSedesFor(psych)).toEqual(SEDES);
+    expect(sedeRepo.find.mock.calls[0][0].where.id.value).toEqual([SEDE_UUID]);
+  });
+
+  it('HdU14: la coordinación ve todas las sedes activas', async () => {
+    await service.sessionSedesFor(coordinator);
+
+    expect(sedeRepo.find.mock.calls[0][0].where).toEqual({ isActive: true });
+  });
+
+  it('HdU14: un psicólogo sin sedes no tiene dónde crear sesiones', async () => {
+    psychSedeRepo.find.mockResolvedValue([]);
+    const sinSede = { id: 'psych-2', email: 'x@stopbet.cl', role: 'psychologist' as const, firstName: 'A', lastName: 'B', sedeId: null };
+
+    expect(await service.sessionSedesFor(sinSede)).toEqual([]);
+    expect(sedeRepo.find).not.toHaveBeenCalled();
+  });
+
   it('CA 11.4: sin sesiones en la sede no consulta asistencias', async () => {
     sessionRepo.find.mockResolvedValue([]);
 
-    expect(await service.getSedeSessions(SEDE)).toEqual([]);
+    expect(await service.getSedeSessions(SEDES)).toEqual([]);
     expect(attendanceRepo.find).not.toHaveBeenCalled();
   });
 
