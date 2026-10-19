@@ -6,6 +6,7 @@ import { FamilyLink } from './entities/family-link.entity';
 import { FamilyLinkReview } from './entities/family-link-review.entity';
 import { FamilySession } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
+import { SessionPresence } from './entities/session-presence.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
@@ -20,6 +21,7 @@ import { PushModule } from '../push/push.module';
       FamilyLinkReview,
       FamilySession,
       SessionAttendance,
+      SessionPresence,
       User,
       Notification,
       Sede,

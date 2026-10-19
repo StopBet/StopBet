@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Put,
   Post,
   UnprocessableEntityException,
   UseGuards,
@@ -14,6 +15,7 @@ import { FamilyService } from './family.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { UpdateFamilySessionDto } from './dto/update-family-session.dto';
+import { MarkPresenceDto } from './dto/mark-presence.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
 import { ConfirmFamilyLinkDto } from './dto/confirm-family-link.dto';
 import { AnswerFamilyRequestDto } from './dto/answer-family-request.dto';
@@ -248,6 +250,16 @@ export class FamilyController {
   @ApiResponse({ status: 404, description: 'La sesión no existe o es de una sede que no atiende' })
   getSessionDetail(@Param('id') sessionId: string, @CurrentUser() user: AuthUser) {
     return this.familyService.getSessionDetail(sessionId, user);
+  }
+
+  @Put('sessions/:id/presence')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HdU14 CA4 — Registrar quién asistió y quién no a una sesión pasada' })
+  @ApiResponse({ status: 200, description: 'Detalle de la sesión con la asistencia registrada' })
+  @ApiResponse({ status: 400, description: 'Alguna persona no estaba invitada a la sesión' })
+  @ApiResponse({ status: 409, description: 'La sesión todavía no comienza' })
+  markPresence(@Param('id') sessionId: string, @Body() dto: MarkPresenceDto, @CurrentUser() user: AuthUser) {
+    return this.familyService.markPresence(sessionId, dto, user);
   }
 
   // Psicólogo ve asistencias de una sesión (CA 11.4 segunda mitad)

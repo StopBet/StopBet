@@ -22,6 +22,7 @@ describe('FamilyService (HU-11)', () => {
   let linkRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock; update: jest.Mock };
   let sessionRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let attendanceRepo: { find: jest.Mock; findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let presenceRepo: { find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let userRepo: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let notifRepo: { create: jest.Mock; save: jest.Mock };
   let sedeRepo: { findOne: jest.Mock };
@@ -48,6 +49,11 @@ describe('FamilyService (HU-11)', () => {
     attendanceRepo = {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn(),
+      create: jest.fn((v) => v),
+      save: jest.fn((v) => Promise.resolve(v)),
+    };
+    presenceRepo = {
+      find: jest.fn().mockResolvedValue([]),
       create: jest.fn((v) => v),
       save: jest.fn((v) => Promise.resolve(v)),
     };
@@ -95,6 +101,7 @@ describe('FamilyService (HU-11)', () => {
       dataSource as any,
       push as any,
       reviewRepo as any,
+      presenceRepo as any,
     );
   });
 
@@ -546,6 +553,80 @@ describe('FamilyService (HU-11)', () => {
 
       await expect(service.getSessionDetail('s1', psychOf(SEDE_UUID))).rejects.toThrow('Sesión no encontrada');
       expect(userRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('markPresence (HdU14 CA4)', () => {
+    const pasada = {
+      id: 's1', title: 'Grupo', sedeId: SEDE_UUID, sessionDate: daysFromNow(-1), location: 'Sala 2',
+      isOnline: false, capacity: 10, audience: 'patients',
+    };
+
+    beforeEach(() => {
+      sedeRepo.findOne.mockResolvedValue({ id: SEDE_UUID, name: 'Santiago' });
+      userRepo.find.mockResolvedValue([
+        { id: 'p1', firstName: 'Carlos', lastName: 'Muñoz' },
+        { id: 'p2', firstName: 'Beatriz', lastName: 'Rojas' },
+      ]);
+    });
+
+    it('registra quién asistió y quién no, con quién pasó lista', async () => {
+      sessionRepo.findOne.mockResolvedValue(pasada);
+      const psych = psychOf(SEDE_UUID);
+
+      await service.markPresence('s1', { marks: [{ userId: 'p1', attended: true }, { userId: 'p2', attended: false }] }, psych);
+
+      expect(presenceRepo.save).toHaveBeenCalledWith([
+        expect.objectContaining({ sessionId: 's1', userId: 'p1', attended: true, markedBy: psych.id }),
+        expect.objectContaining({ sessionId: 's1', userId: 'p2', attended: false, markedBy: psych.id }),
+      ]);
+    });
+
+    it('marcar de nuevo corrige el registro existente en vez de duplicarlo', async () => {
+      sessionRepo.findOne.mockResolvedValue(pasada);
+      const previo = { id: 'pr1', sessionId: 's1', userId: 'p1', attended: true, markedBy: 'otro' };
+      presenceRepo.find.mockResolvedValue([previo]);
+
+      await service.markPresence('s1', { marks: [{ userId: 'p1', attended: false }] }, psychOf(SEDE_UUID));
+
+      expect(presenceRepo.create).not.toHaveBeenCalled();
+      expect(presenceRepo.save).toHaveBeenCalledWith([expect.objectContaining({ id: 'pr1', attended: false })]);
+    });
+
+    it('el detalle muestra lo registrado y deja pasar lista solo si la sesión ya empezó', async () => {
+      sessionRepo.findOne.mockResolvedValue(pasada);
+      presenceRepo.find.mockResolvedValue([{ sessionId: 's1', userId: 'p2', attended: true }]);
+
+      const d = await service.getSessionDetail('s1', psychOf(SEDE_UUID));
+
+      expect(d.canMarkPresence).toBe(true);
+      expect(d.pending.map((p) => [p.userId, p.attended])).toEqual([['p2', true], ['p1', null]]);
+    });
+
+    it('una sesión que todavía no empieza no deja pasar lista', async () => {
+      sessionRepo.findOne.mockResolvedValue({ ...pasada, sessionDate: daysFromNow(2) });
+
+      await expect(
+        service.markPresence('s1', { marks: [{ userId: 'p1', attended: true }] }, psychOf(SEDE_UUID)),
+      ).rejects.toThrow('Podrás registrar la asistencia cuando la sesión haya comenzado');
+      expect(presenceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('no deja marcar a alguien que no estaba invitado', async () => {
+      sessionRepo.findOne.mockResolvedValue(pasada);
+
+      await expect(
+        service.markPresence('s1', { marks: [{ userId: 'intruso', attended: true }] }, psychOf(SEDE_UUID)),
+      ).rejects.toThrow('Solo puedes marcar a personas invitadas a esta sesión');
+      expect(presenceRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('una sesión de otra sede responde como inexistente', async () => {
+      sessionRepo.findOne.mockResolvedValue({ ...pasada, sedeId: OTRA_SEDE });
+
+      await expect(
+        service.markPresence('s1', { marks: [{ userId: 'p1', attended: true }] }, psychOf(SEDE_UUID)),
+      ).rejects.toThrow('Sesión no encontrada');
     });
   });
 

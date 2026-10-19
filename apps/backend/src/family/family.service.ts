@@ -31,6 +31,7 @@ import { FamilyLink, FamilyLinkStatus, FamilyLinkVerification } from './entities
 import { FamilyLinkReview, FamilyLinkVerdict } from './entities/family-link-review.entity';
 import { FamilySession, type SessionAudience } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
+import { SessionPresence } from './entities/session-presence.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
@@ -42,6 +43,7 @@ import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
 import { UpdateFamilySessionDto } from './dto/update-family-session.dto';
+import { MarkPresenceDto } from './dto/mark-presence.dto';
 import { RegisterFamilyDto } from './dto/register-family.dto';
 
 const UPCOMING_WEEKS = 4;
@@ -108,6 +110,8 @@ export interface SessionParticipantView {
   // De quién es familiar, para distinguir a dos familiares con el mismo nombre.
   patientName: string | null;
   respondedAt: Date | null;
+  // HdU14 CA4 — null mientras no se pase lista.
+  attended: boolean | null;
 }
 
 export interface SessionDetailView {
@@ -118,6 +122,8 @@ export interface SessionDetailView {
   isOnline: boolean;
   capacity: number | null;
   audience: SessionAudience;
+  // La lista se pasa cuando la sesión ya empezó: antes no hay asistencia que registrar.
+  canMarkPresence: boolean;
   confirmed: SessionParticipantView[];
   declined: SessionParticipantView[];
   pending: SessionParticipantView[];
@@ -253,6 +259,8 @@ export class FamilyService {
     private readonly push: PushService,
     @InjectRepository(FamilyLinkReview)
     private readonly reviewRepo: Repository<FamilyLinkReview>,
+    @InjectRepository(SessionPresence)
+    private readonly presenceRepo: Repository<SessionPresence>,
   ) {}
 
   // ── Vínculo familiar ↔ paciente ───────────────────────────────────────────
@@ -1014,7 +1022,7 @@ export class FamilyService {
 
     const invited = new Map<string, SessionParticipantView>();
     for (const p of patients) {
-      invited.set(p.id, { userId: p.id, name: fullName(p), kind: 'patient', patientName: null, respondedAt: null });
+      invited.set(p.id, { userId: p.id, name: fullName(p), kind: 'patient', patientName: null, respondedAt: null, attended: null });
     }
 
     const familyOf = new Map<string, string | null>();
@@ -1032,6 +1040,7 @@ export class FamilyService {
           kind: 'family',
           patientName,
           respondedAt: null,
+          attended: null,
         });
       }
     }
@@ -1052,12 +1061,19 @@ export class FamilyService {
         kind: isFamily ? 'family' : 'patient',
         patientName: isFamily ? (familyOf.get(a.familyUserId) ?? null) : null,
         respondedAt: a.confirmedAt,
+        attended: null,
       };
       (a.confirmed ? confirmed : declined).push(view);
       invited.delete(a.familyUserId);
     }
 
     const pending = [...invited.values()].sort((x, y) => x.name.localeCompare(y.name, 'es'));
+
+    const presences = await this.presenceRepo.find({ where: { sessionId } });
+    const attendedBy = new Map(presences.map((p) => [p.userId, p.attended]));
+    for (const p of [...confirmed, ...declined, ...pending]) {
+      p.attended = attendedBy.get(p.userId) ?? null;
+    }
 
     return {
       id: session.id,
@@ -1067,10 +1083,39 @@ export class FamilyService {
       isOnline: session.isOnline,
       capacity: session.capacity,
       audience: session.audience,
+      canMarkPresence: session.sessionDate <= new Date(),
       confirmed,
       declined,
       pending,
     };
+  }
+
+  // HdU14 CA4 — pasar lista. Solo de sesiones que ya empezaron y solo a personas que estaban
+  // invitadas o respondieron: el mismo criterio del detalle, para que la lista y lo que se
+  // puede marcar no diverjan. Marcar de nuevo a alguien corrige su registro, no lo duplica.
+  async markPresence(sessionId: string, dto: MarkPresenceDto, reviewer: AuthUser): Promise<SessionDetailView> {
+    const detail = await this.getSessionDetail(sessionId, reviewer);
+    if (!detail.canMarkPresence) {
+      throw new ConflictException('Podrás registrar la asistencia cuando la sesión haya comenzado');
+    }
+
+    const participants = new Set([...detail.confirmed, ...detail.declined, ...detail.pending].map((p) => p.userId));
+    if (dto.marks.some((m) => !participants.has(m.userId))) {
+      throw new BadRequestException('Solo puedes marcar a personas invitadas a esta sesión');
+    }
+
+    const existing = await this.presenceRepo.find({ where: { sessionId, userId: In(dto.marks.map((m) => m.userId)) } });
+    const byUser = new Map(existing.map((p) => [p.userId, p]));
+    await this.presenceRepo.save(
+      dto.marks.map((m) => {
+        const row = byUser.get(m.userId) ?? this.presenceRepo.create({ sessionId, userId: m.userId });
+        row.attended = m.attended;
+        row.markedBy = reviewer.id;
+        return row;
+      }),
+    );
+
+    return this.getSessionDetail(sessionId, reviewer);
   }
 
   // CA 11.1 + 11.5 + 11.6 — sesiones de la sede del paciente vinculado, ordenadas por proximidad.
