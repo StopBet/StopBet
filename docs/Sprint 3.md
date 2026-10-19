@@ -3,8 +3,8 @@
 > Catálogo de las 8 historias del Sprint 3, con los criterios de aceptación del Plan de Proyecto
 > (sección 7). Las asignaciones están en [`sprint-3-reparto.md`](sprint-3-reparto.md).
 >
-> **Estado del código (revisado el 13-10-2026 sobre `origin/main`).** Cada criterio lleva una
-> marca: ✅ ya está hecho · 🟡 hay una parte · ⬜ no existe. Nada está completo, y aun lo que ya
+> **Estado del código (revisado el 19-10-2026 sobre `origin/main`).** Cada criterio lleva una
+> marca: ✅ ya está hecho · 🟡 hay una parte · ⬜ no existe. HdU14 y HdU10 ya se mergearon (PR #163 y #162); HdU09 y HdU12 tienen solo una base y HdU15 a HdU18 no existen. Aun lo que ya
 > existe se documenta dentro de este sprint. Los puntos son los re-estimados; entre paréntesis,
 > los del Plan de Proyecto.
 >
@@ -64,12 +64,12 @@ Después de la sesión, el psicólogo registra quién asistió realmente.
 **Por qué 8:** existen las sesiones de familiares de HdU11 (crear por API y ver confirmaciones),
 pero faltan editar, el tipo pacientes/familiares, la asistencia real, los avisos y el formulario.
 
-1. 🟡 Dado que el psicólogo está en la sección de sesiones del dashboard, cuando completa nombre, sede, fecha, hora, cupo y tipo de sesión y presiona "Crear sesión", entonces la sesión queda registrada y aparece en el listado de su sede. _Solo existe `POST /family/sessions`, sin formulario ni tipo._
-2. ⬜ Dado que una sesión futura ya tiene pacientes confirmados, cuando el psicólogo cambia su fecha, hora o cupo y guarda, entonces la sesión se actualiza y los confirmados reciben un aviso del cambio.
-3. 🟡 Dado que una sesión tiene personas invitadas, cuando el psicólogo abre su detalle, entonces ve tres listas separadas: confirmados, no asistirán y sin respuesta (en sesiones de tipo "familiar", con pacientes y familiares). _La web muestra las confirmaciones de familiares; faltan las tres listas y los pacientes._
-4. ⬜ Dado que la fecha y hora de una sesión ya pasaron, cuando el psicólogo abre su detalle, entonces puede marcar a cada participante como "asistió" o "no asistió" y el registro queda guardado.
-5. ✅ Dado que la sede del psicólogo no tiene sesiones futuras, cuando entra a la sección de sesiones, entonces ve un mensaje de que no hay sesiones próximas y un botón para crear una nueva. _El mensaje existe («Sin sesiones agendadas»); el botón depende del formulario del CA1._
-6. ⬜ Dado que el psicólogo crea una sesión de tipo "familiar", cuando queda registrada, entonces los pacientes la ven en la app y sus familiares vinculados en la web; las sesiones de tipo "pacientes" no las ven los familiares.
+1. ✅ Dado que el psicólogo está en la sección de sesiones del dashboard, cuando completa nombre, sede, fecha, hora, cupo y tipo de sesión y presiona "Crear sesión", entonces la sesión queda registrada y aparece en el listado de su sede. _Hecho en HdU14 (PR #163): formulario de crear en el dashboard (`SessionFormDialog`)._
+2. ✅ Dado que una sesión futura ya tiene pacientes confirmados, cuando el psicólogo cambia su fecha, hora o cupo y guarda, entonces la sesión se actualiza y los confirmados reciben un aviso del cambio. _Hecho en #163: editar, y aviso a quienes ya confirmaron si cambia fecha, hora o cupo._
+3. ✅ Dado que una sesión tiene personas invitadas, cuando el psicólogo abre su detalle, entonces ve tres listas separadas: confirmados, no asistirán y sin respuesta (en sesiones de tipo "familiar", con pacientes y familiares). _Hecho en #163: detalle con confirmados, no asistirán y sin respuesta, con pacientes y familiares._
+4. ✅ Dado que la fecha y hora de una sesión ya pasaron, cuando el psicólogo abre su detalle, entonces puede marcar a cada participante como "asistió" o "no asistió" y el registro queda guardado. _Hecho en #163: pasar lista (`session_presences`)._
+5. ✅ Dado que la sede del psicólogo no tiene sesiones futuras, cuando entra a la sección de sesiones, entonces ve un mensaje de que no hay sesiones próximas y un botón para crear una nueva. _Hecho en #163: mensaje «No hay sesiones próximas» y botón para crear._
+6. ✅ Dado que el psicólogo crea una sesión de tipo "familiar", cuando queda registrada, entonces los pacientes la ven en la app y sus familiares vinculados en la web; las sesiones de tipo "pacientes" no las ven los familiares. _Hecho en #163: `audience` filtra lo que ve cada rol; el paciente confirma desde la app (`GroupSessionsScreen`)._
 
 ---
 
@@ -143,10 +143,10 @@ HdU15) y fila de auditoría inmutable, como `registration_reviews`.
 **Por qué 8:** hoy el asistente recuerda la última técnica usada, no la que funcionó: hay que
 guardar si cada técnica ayudó (dato nuevo), tolerar el fallo de la base y crear la pantalla «Ver historial».
 
-1. ⬜ Dado que el paciente tiene al menos dos sesiones cerradas con una técnica registrada, cuando inicia una conversación por un detonante parecido, entonces el asistente le sugiere primero la técnica que le funcionó antes, en vez de una genérica. _Hoy solo dice «La última vez probaste X»._
-2. 🟡 Dado que el paciente no tiene sesiones previas, cuando inicia su primera conversación de crisis, entonces el asistente aplica una técnica general validada por AJUTER sin fallar por falta de historial. _Sin resumen previo no falla, pero no hay un caso pensado ni probado para esto._
-3. ⬜ Dado que el historial del paciente no se puede recuperar (por ejemplo, un error de base de datos), cuando inicia una nueva sesión, entonces el chat continúa sin contexto en vez de bloquearse y el fallo queda registrado. _`startSession` no tiene try/catch: si falla la consulta, falla el inicio._
-4. 🟡 Dado que el paciente quiere revisar sesiones anteriores, cuando toca "Ver historial" en el chat, entonces ve un resumen de cada sesión, sin que padrino, familiar ni otros roles puedan verlo. _`GET /ai/sessions/summaries` y `getAiSummaries` existen; ninguna pantalla los usa, y el endpoint no restringe el rol._
+1. ✅ Dado que el paciente tiene al menos dos sesiones cerradas con una técnica registrada, cuando inicia una conversación por un detonante parecido, entonces el asistente le sugiere primero la técnica que le funcionó antes, en vez de una genérica. _Hecho en HdU10 (PR #162): `technique-memory.ts` elige la técnica con mejor puntaje del mismo detonante, con al menos 2 sesiones._
+2. ✅ Dado que el paciente no tiene sesiones previas, cuando inicia su primera conversación de crisis, entonces el asistente aplica una técnica general validada por AJUTER sin fallar por falta de historial. _Hecho en #162: sin historial suficiente no se agrega memoria y responde igual (con prueba, CA2)._
+3. ✅ Dado que el historial del paciente no se puede recuperar (por ejemplo, un error de base de datos), cuando inicia una nueva sesión, entonces el chat continúa sin contexto en vez de bloquearse y el fallo queda registrado. _Hecho en #162: si el historial no se lee, el chat sigue sin contexto y el fallo queda en el log (con prueba, CA3)._
+4. 🟡 Dado que el paciente quiere revisar sesiones anteriores, cuando toca "Ver historial" en el chat, entonces ve un resumen de cada sesión, sin que padrino, familiar ni otros roles puedan verlo. _Pantalla «Ver historial» hecha en #162, pero el equipo clínico también ve las conversaciones (`GET /ai/patients/:id/summaries`), lo que el criterio descarta; confirmar con AJUTER._
 
 ---
 

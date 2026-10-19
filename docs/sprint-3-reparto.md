@@ -16,18 +16,19 @@ La asignación sigue a quien ya trabajó en el módulo, según el historial de P
 `docs/avisos-al-equipo.md`. Los puntos son los re-estimados (52 en total contra los 37 del plan,
 porque el tablero exige 50 como mínimo); la razón de cada alza está en `docs/Sprint 3.md`.
 
-Ningún criterio del sprint estaba completo al 13-10, pero varios tienen una base. Todo se documenta
-igual dentro del Sprint 3, y la tabla de abajo dice dónde hay algo hecho y de quién es.
+Al 13-10 ningún criterio estaba completo. Desde entonces se mergearon **HdU10** (PR #162, 15-10) y
+**HdU14** (PR #163, 19-10): sus pistas ya están hechas y lo que sigue ahí es revisarlas. El resto
+se documenta igual dentro del Sprint 3, y la tabla de abajo dice dónde hay algo hecho y de quién es.
 
 ## Resumen
 
 | Integrante | Historias | SP | Por qué esta pista |
 |---|---|---|---|
 | **José Meza** | HdU12 — Pago de mensualidad por el familiar | 8 | Hizo Webpay Oneclick (PR #149) y el módulo `family`; falta llevarlo al familiar |
-| **Alex Domínguez** | HdU14 — Grupos de sesión | 8 | Hizo las sesiones de familiares (HdU11) |
+| **Alex Domínguez** | HdU14 — Grupos de sesión | 8 | **Mergeada el 19-10 (PR #163)** |
 | **Eduardo Pacheco** | HdU15 — Lista de URLs + HdU18 — Actualización automática | 5 + 8 = **13** | Hizo el spike de bloqueo; crea el módulo `blocking` |
 | **Matías Lara** | HdU16 — Solicitud de revisión + HdU17 — Revisión de desbloqueos | 5 + 5 = **10** | Mismo flujo solicitud → veredicto que HdU19 (`registration`) |
-| **Matías Barraza** | HdU10 — Memoria del asistente IA | 8 | Dueño del asistente |
+| **Matías Barraza** | HdU10 — Memoria del asistente IA | 8 | **Mergeada el 15-10 (PR #162)** |
 | **Catalina Yáñez** | HdU09 — Estado de pago (vista del psicólogo) | 5 | Página web con estados visuales y vacío; sube desde el diseño de Finanzas |
 
 La carga no salió pareja: Eduardo lleva 13 SP, pero HdU18 depende de HdU15 y las dos comparten
@@ -79,16 +80,16 @@ confirmación y rechazo con reintento, y el comprobante PDF.
 
 Historia completa en `docs/Sprint 3.md` (HdU14, CA 1-6).
 
-**Qué ya existe:** de HdU11, `POST /family/sessions`, las confirmaciones de los familiares
-(`GET /family/sede/sessions` y `/sessions/:id/attendance`), la página `SesionesFamiliaresPage` con
-«Ver quiénes» y el estado vacío «Sin sesiones agendadas». Los pacientes tienen algo aparte: anuncios
-de evento en Comunidad con «asistiré» (`community.controller.ts`), de Catalina.
+**Estado:** hecha y mergeada el 19-10 (PR #163). Cubre los seis criterios: formulario de crear y
+editar en el dashboard (`SessionFormDialog`), cupo y tipo pacientes/familiares, detalle con las tres
+listas, pasar lista (`session_presences`), aviso a los confirmados cuando cambia algo, y que el
+paciente vea y confirme la sesión en la app (`GroupSessionsScreen`). El aviso del PR está en
+`docs/avisos-al-equipo.md`.
 
-**Qué cubre:** el formulario de crear y editar, el tipo pacientes/familiares (la entidad hoy es solo
-de familiares), las tres listas del detalle, marcar la asistencia real, avisar a quienes ya
-confirmaron cuando cambia algo, y que cada tipo lo vea quien corresponde.
+**Queda:** probarla en vivo con los datos de `seed:family` y, si sobra tiempo, ayudar a quien
+vaya más atrasado (ver «Cómo se armó»).
 
-**Rama sugerida:** `feature/HU-14-grupos-de-sesion`
+**Rama:** `feature/HU-14-grupos-sesion-alex-dominguez` (ya mergeada)
 
 ## Eduardo Pacheco — HdU15 + HdU18: Lista de URLs bloqueadas
 
@@ -127,18 +128,15 @@ lista de Eduardo: acuerden la forma de hacerlo (función del servicio, no consul
 
 Historia completa en `docs/Sprint 3.md` (HdU10, CA 1-4).
 
-**Qué ya existe:** cada resumen de sesión guarda `techniqueUsed`, y el asistente arma la frase
-«La última vez probaste X» con el último resumen (`ai-assistant.service.ts`). `GET /ai/sessions/summaries`
-(últimas 10, siempre del usuario del token) y `getAiSummaries` en mobile existen, pero ninguna pantalla
-los usa. Con respecto a lo pedido, **falta** el dato de si la técnica funcionó, el manejo de fallo de
-base en `startSession` y la pantalla «Ver historial».
+**Estado:** hecha y mergeada el 15-10 (PR #162). Guarda el detonante y la técnica de cada
+conversación, le pregunta al paciente si le ayudó, propone primero la técnica que mejor funcionó
+(`technique-memory.ts`), sigue sin contexto si la base falla y agrega «Ver historial» en el chat.
 
-**Qué cubre:** guardar si una técnica ayudó, priorizarla cuando el detonante es parecido, la apertura
-general sin historial, seguir sin contexto (y registrar el fallo) si la base no responde, «Ver
-historial» en el chat y cerrar el endpoint a `patient`. Ojo: lo que sale hacia el modelo sigue sin
-incluir nombre, RUT ni contacto (`sanitizePii`).
+**Queda un punto por confirmar:** el CA4 pide que ningún otro rol vea el historial, pero #162 le
+muestra las conversaciones al equipo clínico (`GET /ai/patients/:id/summaries`). Es una decisión
+con AJUTER, no un error de código; está anotada en `docs/ASUNCIONES-PENDIENTES.md` (punto 12).
 
-**Rama sugerida:** `feature/HU-10-memoria-tecnicas-asistente`
+**Rama:** `feature/HU-10-memoria-asistente-matias-barraza` (ya mergeada)
 
 ## Catalina Yáñez — HdU09: Estado de pago (vista del psicólogo)
 
