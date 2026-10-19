@@ -242,6 +242,14 @@ export class FamilyController {
     return this.familyService.getSedeSessions(user.sedeId);
   }
 
+  @Get('sessions/:id')
+  @Roles('psychologist', 'coordinator')
+  @ApiOperation({ summary: 'HdU14 CA3 — Detalle de una sesión: confirmados, no asistirán y sin respuesta' })
+  @ApiResponse({ status: 404, description: 'La sesión no existe o es de una sede que no atiende' })
+  getSessionDetail(@Param('id') sessionId: string, @CurrentUser() user: AuthUser) {
+    return this.familyService.getSessionDetail(sessionId, user);
+  }
+
   // Psicólogo ve asistencias de una sesión (CA 11.4 segunda mitad)
   @Get('sessions/:id/attendance')
   @Roles('psychologist', 'coordinator')

@@ -35,7 +35,7 @@ import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
-import { resolveSedeId, sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
+import { formasDeSede, resolveSedeId, sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
 import { Invoice } from '../billing/entities/invoice.entity';
 import { PushService } from '../push/push.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
@@ -97,6 +97,30 @@ export interface SedeSessionView {
   confirmedCount: number;
   declinedCount: number;
   attendances: SessionAttendanceView[];
+}
+
+// HdU14 CA3 — una persona invitada a la sesión. Solo el nombre: es lo que hace falta para pasar
+// lista, y nada más del User (ni correo ni RUT) sale del backend.
+export interface SessionParticipantView {
+  userId: string;
+  name: string;
+  kind: 'patient' | 'family';
+  // De quién es familiar, para distinguir a dos familiares con el mismo nombre.
+  patientName: string | null;
+  respondedAt: Date | null;
+}
+
+export interface SessionDetailView {
+  id: string;
+  title: string;
+  sessionDate: Date;
+  location: string;
+  isOnline: boolean;
+  capacity: number | null;
+  audience: SessionAudience;
+  confirmed: SessionParticipantView[];
+  declined: SessionParticipantView[];
+  pending: SessionParticipantView[];
 }
 
 export interface FamilyInvoiceView {
@@ -970,6 +994,83 @@ export class FamilyService {
     void this.push
       .enviarAUsuarios(userIds, 'Cambió una sesión grupal', 'Ábrela en StopBet para ver el detalle.')
       .catch(() => undefined);
+  }
+
+  // HdU14 CA3 — detalle con tres listas: confirmados, no asistirán y sin respuesta. Invitados son
+  // los pacientes activos de la sede y, en las de tipo "familiar", sus familiares con vínculo
+  // activo. Quien ya respondió sale en su lista aunque después lo hayan suspendido o desvinculado.
+  async getSessionDetail(sessionId: string, reviewer: AuthUser): Promise<SessionDetailView> {
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    if (!session || !(await this.coversSede(reviewer, session.sedeId))) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+
+    const patients = await this.userRepo.find({
+      where: { role: 'patient', accountStatus: 'active', sedeId: In(await formasDeSede(this.sedeRepo, session.sedeId)) },
+      select: ['id', 'firstName', 'lastName'],
+    });
+    const fullName = (u: { firstName: string; lastName: string }) => `${u.firstName} ${u.lastName}`.trim();
+    const patientNames = new Map(patients.map((p) => [p.id, fullName(p)]));
+
+    const invited = new Map<string, SessionParticipantView>();
+    for (const p of patients) {
+      invited.set(p.id, { userId: p.id, name: fullName(p), kind: 'patient', patientName: null, respondedAt: null });
+    }
+
+    const familyOf = new Map<string, string | null>();
+    if (session.audience === 'family' && patients.length > 0) {
+      const links = await this.linkRepo.find({
+        where: { status: 'active', patientUserId: In(patients.map((p) => p.id)) },
+        relations: ['familyUser'],
+      });
+      for (const l of links) {
+        const patientName = patientNames.get(l.patientUserId!) ?? null;
+        familyOf.set(l.familyUserId, patientName);
+        invited.set(l.familyUserId, {
+          userId: l.familyUserId,
+          name: fullName(l.familyUser),
+          kind: 'family',
+          patientName,
+          respondedAt: null,
+        });
+      }
+    }
+
+    const attendances = await this.attendanceRepo.find({
+      where: { sessionId },
+      relations: ['familyUser'],
+      order: { confirmedAt: 'DESC' },
+    });
+
+    const confirmed: SessionParticipantView[] = [];
+    const declined: SessionParticipantView[] = [];
+    for (const a of attendances) {
+      const isFamily = a.familyUser.role === 'family';
+      const view: SessionParticipantView = {
+        userId: a.familyUserId,
+        name: fullName(a.familyUser),
+        kind: isFamily ? 'family' : 'patient',
+        patientName: isFamily ? (familyOf.get(a.familyUserId) ?? null) : null,
+        respondedAt: a.confirmedAt,
+      };
+      (a.confirmed ? confirmed : declined).push(view);
+      invited.delete(a.familyUserId);
+    }
+
+    const pending = [...invited.values()].sort((x, y) => x.name.localeCompare(y.name, 'es'));
+
+    return {
+      id: session.id,
+      title: session.title,
+      sessionDate: session.sessionDate,
+      location: session.location,
+      isOnline: session.isOnline,
+      capacity: session.capacity,
+      audience: session.audience,
+      confirmed,
+      declined,
+      pending,
+    };
   }
 
   // CA 11.1 + 11.5 + 11.6 — sesiones de la sede del paciente vinculado, ordenadas por proximidad.

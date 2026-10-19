@@ -455,6 +455,100 @@ describe('FamilyService (HU-11)', () => {
     });
   });
 
+  describe('getSessionDetail (HdU14 CA3)', () => {
+    const sesion = (audience: 'patients' | 'family') => ({
+      id: 's1', title: 'Grupo', sedeId: SEDE_UUID, sessionDate: daysFromNow(3), location: 'Sala 2',
+      isOnline: false, capacity: 10, audience,
+    });
+    const pacientes = [
+      { id: 'p1', firstName: 'Carlos', lastName: 'Muñoz' },
+      { id: 'p2', firstName: 'Beatriz', lastName: 'Rojas' },
+      { id: 'p3', firstName: 'Andrés', lastName: 'Vera' },
+    ];
+    const respuesta = (familyUserId: string, confirmed: boolean, firstName: string, role: string) => ({
+      sessionId: 's1', familyUserId, confirmed, confirmedAt: new Date(),
+      familyUser: { firstName, lastName: 'X', role, email: 'no@debe.salir', rut: '12.345.678-9' },
+    });
+
+    beforeEach(() => {
+      sedeRepo.findOne.mockResolvedValue({ id: SEDE_UUID, name: 'Santiago' });
+      userRepo.find.mockResolvedValue(pacientes);
+    });
+
+    it('separa confirmados, no asistirán y sin respuesta en una sesión de pacientes', async () => {
+      sessionRepo.findOne.mockResolvedValue(sesion('patients'));
+      attendanceRepo.find.mockResolvedValue([
+        respuesta('p1', true, 'Carlos', 'patient'),
+        respuesta('p2', false, 'Beatriz', 'patient'),
+      ]);
+
+      const d = await service.getSessionDetail('s1', psychOf(SEDE_UUID));
+
+      expect(d.confirmed.map((p) => p.userId)).toEqual(['p1']);
+      expect(d.declined.map((p) => p.userId)).toEqual(['p2']);
+      expect(d.pending.map((p) => p.userId)).toEqual(['p3']);
+      // Sin familiares: ni siquiera consulta vínculos.
+      expect(linkRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('busca a los pacientes por las dos formas de la sede (UUID y nombre)', async () => {
+      sessionRepo.findOne.mockResolvedValue(sesion('patients'));
+
+      await service.getSessionDetail('s1', psychOf(SEDE_UUID));
+
+      const where = userRepo.find.mock.calls[0][0].where;
+      expect(where).toEqual(expect.objectContaining({ role: 'patient', accountStatus: 'active' }));
+      expect(where.sedeId.value).toEqual([SEDE_UUID, 'Santiago']);
+    });
+
+    it('en una sesión familiar suma a los familiares vinculados, con el nombre de su paciente', async () => {
+      sessionRepo.findOne.mockResolvedValue(sesion('family'));
+      linkRepo.find.mockResolvedValue([
+        { familyUserId: 'f1', patientUserId: 'p1', familyUser: { firstName: 'Ana', lastName: 'Muñoz' } },
+        { familyUserId: 'f2', patientUserId: 'p2', familyUser: { firstName: 'Luis', lastName: 'Rojas' } },
+      ]);
+      attendanceRepo.find.mockResolvedValue([respuesta('f1', true, 'Ana', 'family')]);
+
+      const d = await service.getSessionDetail('s1', psychOf(SEDE_UUID));
+
+      expect(linkRepo.find.mock.calls[0][0].where.status).toBe('active');
+      expect(d.confirmed).toEqual([expect.objectContaining({ userId: 'f1', kind: 'family', patientName: 'Carlos Muñoz' })]);
+      expect(d.pending.map((p) => [p.name, p.kind])).toEqual([
+        ['Andrés Vera', 'patient'],
+        ['Beatriz Rojas', 'patient'],
+        ['Carlos Muñoz', 'patient'],
+        ['Luis Rojas', 'family'],
+      ]);
+    });
+
+    it('quien respondió sigue en su lista aunque ya no esté entre los invitados', async () => {
+      sessionRepo.findOne.mockResolvedValue(sesion('patients'));
+      attendanceRepo.find.mockResolvedValue([respuesta('p9', false, 'Suspendido', 'patient')]);
+
+      const d = await service.getSessionDetail('s1', psychOf(SEDE_UUID));
+
+      expect(d.declined.map((p) => p.userId)).toEqual(['p9']);
+      expect(d.pending).toHaveLength(3);
+    });
+
+    it('no expone correo ni RUT de nadie', async () => {
+      sessionRepo.findOne.mockResolvedValue(sesion('patients'));
+      attendanceRepo.find.mockResolvedValue([respuesta('p1', true, 'Carlos', 'patient')]);
+
+      const d = await service.getSessionDetail('s1', psychOf(SEDE_UUID));
+
+      expect(JSON.stringify(d)).not.toContain('no@debe.salir');
+      expect(JSON.stringify(d)).not.toContain('12.345.678-9');
+    });
+
+    it('una sesión de otra sede responde como inexistente', async () => {
+      sessionRepo.findOne.mockResolvedValue({ ...sesion('patients'), sedeId: OTRA_SEDE });
+
+      await expect(service.getSessionDetail('s1', psychOf(SEDE_UUID))).rejects.toThrow('Sesión no encontrada');
+      expect(userRepo.find).not.toHaveBeenCalled();
+    });
+  });
+
   it('CA 11.4: la vista del psicólogo cuenta confirmaciones y rechazos por sesión', async () => {
     sessionRepo.find.mockResolvedValue([{ id: 's1', title: 'Grupo', sessionDate: daysFromNow(2) }]);
     attendanceRepo.find.mockResolvedValue([
