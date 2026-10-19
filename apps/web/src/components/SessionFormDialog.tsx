@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type FormEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { WIcon } from './WIcon'
 import { useDialog } from '../hooks/useDialog'
-import { api, type ApiError, type GroupSessionPayload, type SessionAudience } from '../services/api'
+import { api, type ApiError, type GroupSessionPayload, type SedeFamilySession, type SessionAudience } from '../services/api'
 
 const inputStyle: CSSProperties = {
   height: 40, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg)',
@@ -17,21 +17,44 @@ const AUDIENCES: { value: SessionAudience; label: string; hint: string }[] = [
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const hm = (d: Date) => `${pad(d.getHours())}:${pad(d.getMinutes())}`
 
-// HdU14 CA1 — crear una sesión grupal: nombre, sede, fecha, hora, cupo y tipo. La fecha y la
-// hora se piden por separado (como en el resto del dashboard) y se juntan en la hora local.
-export function SessionFormDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+// Nest manda un texto, o una lista cuando falla la validación del DTO.
+function backendMessage(err: unknown, fallback: string): string {
+  const raw = (err as ApiError).body?.message
+  const message = Array.isArray(raw) ? raw[0] : raw
+  return typeof message === 'string' ? message : fallback
+}
+
+// HdU14 CA1 y CA2 — crear o editar una sesión grupal. La fecha y la hora se piden por separado
+// (como en el resto del dashboard) y se juntan en la hora local. Al editar, la sede y el tipo
+// quedan fijos: el backend no los acepta, porque cambiarían a quiénes está invitada.
+export function SessionFormDialog({
+  session,
+  onClose,
+  onSaved,
+}: {
+  session?: SedeFamilySession
+  onClose: () => void
+  onSaved: () => void
+}) {
+  const editing = !!session
+  const initialDate = session ? new Date(session.sessionDate) : null
   const dialogRef = useDialog<HTMLDivElement>(onClose)
-  const { data: sedes } = useQuery({ queryKey: ['family', 'session-sedes'], queryFn: api.getSessionSedes })
+  const { data: sedes } = useQuery({
+    queryKey: ['family', 'session-sedes'],
+    queryFn: api.getSessionSedes,
+    enabled: !editing,
+  })
 
-  const [title, setTitle] = useState('')
+  const [title, setTitle] = useState(session?.title ?? '')
   const [sedeId, setSedeId] = useState('')
-  const [date, setDate] = useState('')
-  const [time, setTime] = useState('19:00')
-  const [capacity, setCapacity] = useState('15')
-  const [audience, setAudience] = useState<SessionAudience | ''>('')
-  const [isOnline, setIsOnline] = useState(false)
-  const [location, setLocation] = useState('')
+  const [date, setDate] = useState(initialDate ? ymd(initialDate) : '')
+  const [time, setTime] = useState(initialDate ? hm(initialDate) : '19:00')
+  const [capacity, setCapacity] = useState(String(session?.capacity ?? 15))
+  const [audience, setAudience] = useState<SessionAudience | ''>(session?.audience ?? '')
+  const [isOnline, setIsOnline] = useState(session?.isOnline ?? false)
+  const [location, setLocation] = useState(session && !session.isOnline ? session.location : '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,36 +65,42 @@ export function SessionFormDialog({ onClose, onSaved }: { onClose: () => void; o
 
   const problema =
     !title.trim() ? 'Escribe el nombre de la sesión.'
-    : !sede ? 'Elige la sede.'
+    : !editing && !sede ? 'Elige la sede.'
     : !when ? 'Indica la fecha y la hora.'
     : when <= new Date() ? 'La sesión tiene que ser en el futuro.'
     : !Number.isInteger(cupo) || cupo < 1 || cupo > 500 ? 'El cupo va de 1 a 500 personas.'
+    : editing && cupo < session.confirmedCount ? `Ya confirmaron ${session.confirmedCount} personas: el cupo no puede ser menor.`
     : !audience ? 'Elige si la sesión es de pacientes o de familiares.'
     : !isOnline && !location.trim() ? 'Indica el lugar de la sesión.'
     : null
+
+  // Lo mismo que decide el backend para avisar (family.service → updateSession).
+  const avisara =
+    editing && session.confirmedCount > 0 && !!when &&
+    (when.getTime() !== initialDate!.getTime() || cupo !== session.capacity)
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (problema || !when || !audience) return
     setSaving(true)
     setError(null)
-    const payload: GroupSessionPayload = {
+    const common = {
       title: title.trim(),
-      sedeId: sede,
       sessionDate: when.toISOString(),
       capacity: cupo,
-      audience,
       isOnline,
       location: isOnline ? 'Online' : location.trim(),
     }
     try {
-      await api.createGroupSession(payload)
+      if (editing) {
+        await api.updateGroupSession(session.id, common)
+      } else {
+        const payload: GroupSessionPayload = { ...common, sedeId: sede, audience }
+        await api.createGroupSession(payload)
+      }
       onSaved()
     } catch (err) {
-      // Nest manda un texto, o una lista cuando falla la validación del DTO.
-      const raw = (err as ApiError).body?.message
-      const message = Array.isArray(raw) ? raw[0] : raw
-      setError(typeof message === 'string' ? message : 'No se pudo crear la sesión. Intenta nuevamente.')
+      setError(backendMessage(err, editing ? 'No se pudieron guardar los cambios. Intenta nuevamente.' : 'No se pudo crear la sesión. Intenta nuevamente.'))
       setSaving(false)
     }
   }
@@ -95,9 +124,16 @@ export function SessionFormDialog({ onClose, onSaved }: { onClose: () => void; o
         }}
       >
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 18 }}>
-          <h2 id="sb-sesion-titulo" style={{ flex: 1, margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
-            Crear sesión
-          </h2>
+          <div style={{ flex: 1 }}>
+            <h2 id="sb-sesion-titulo" style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 19, color: 'var(--fg1)' }}>
+              {editing ? 'Editar sesión' : 'Crear sesión'}
+            </h2>
+            {editing && (
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--fg2)' }}>
+                Sede {session.sedeName} · {session.audience === 'patients' ? 'Pacientes' : 'Familiares'}
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             aria-label="Cerrar formulario"
@@ -113,7 +149,7 @@ export function SessionFormDialog({ onClose, onSaved }: { onClose: () => void; o
             <input id="sb-sesion-nombre" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Grupo de apoyo de los martes" style={inputStyle} />
           </div>
 
-          {sedes && sedes.length > 1 && (
+          {!editing && sedes && sedes.length > 1 && (
             <div>
               <label htmlFor="sb-sesion-sede" style={labelStyle}>Sede</label>
               <select id="sb-sesion-sede" value={sedeId} onChange={(e) => setSedeId(e.target.value)} style={inputStyle}>
@@ -138,26 +174,28 @@ export function SessionFormDialog({ onClose, onSaved }: { onClose: () => void; o
             </div>
           </div>
 
-          <fieldset style={{ border: 'none', margin: 0, padding: 0 }}>
-            <legend style={labelStyle}>Tipo de sesión</legend>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {AUDIENCES.map((a) => (
-                <label
-                  key={a.value}
-                  style={{
-                    display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                    border: `1px solid ${audience === a.value ? 'var(--primary)' : 'var(--border)'}`,
-                  }}
-                >
-                  <input type="radio" name="sb-sesion-tipo" value={a.value} checked={audience === a.value} onChange={() => setAudience(a.value)} style={{ marginTop: 2 }} />
-                  <span>
-                    <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--fg1)' }}>{a.label}</span>
-                    <span style={{ display: 'block', fontSize: 12.5, color: 'var(--fg2)' }}>{a.hint}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          {!editing && (
+            <fieldset style={{ border: 'none', margin: 0, padding: 0 }}>
+              <legend style={labelStyle}>Tipo de sesión</legend>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {AUDIENCES.map((a) => (
+                  <label
+                    key={a.value}
+                    style={{
+                      display: 'flex', gap: 10, alignItems: 'flex-start', padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                      border: `1px solid ${audience === a.value ? 'var(--primary)' : 'var(--border)'}`,
+                    }}
+                  >
+                    <input type="radio" name="sb-sesion-tipo" value={a.value} checked={audience === a.value} onChange={() => setAudience(a.value)} style={{ marginTop: 2 }} />
+                    <span>
+                      <span style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--fg1)' }}>{a.label}</span>
+                      <span style={{ display: 'block', fontSize: 12.5, color: 'var(--fg2)' }}>{a.hint}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          )}
 
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13.5, color: 'var(--fg1)', cursor: 'pointer' }}>
             <input type="checkbox" checked={isOnline} onChange={(e) => setIsOnline(e.target.checked)} />
@@ -168,6 +206,15 @@ export function SessionFormDialog({ onClose, onSaved }: { onClose: () => void; o
             <div>
               <label htmlFor="sb-sesion-lugar" style={labelStyle}>Lugar</label>
               <input id="sb-sesion-lugar" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Sala 2, segundo piso" style={inputStyle} />
+            </div>
+          )}
+
+          {avisara && (
+            <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', background: 'var(--surface-alt)', borderRadius: 10, padding: '10px 12px' }}>
+              <WIcon name="bell" size={15} style={{ color: 'var(--primary-text)', flexShrink: 0, marginTop: 1 }} />
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--fg2)' }}>
+                Avisaremos del cambio a {session!.confirmedCount === 1 ? 'la persona que confirmó' : `las ${session!.confirmedCount} personas que confirmaron`}.
+              </p>
             </div>
           )}
 
@@ -190,7 +237,7 @@ export function SessionFormDialog({ onClose, onSaved }: { onClose: () => void; o
               cursor: problema || saving ? 'not-allowed' : 'pointer',
             }}
           >
-            {saving ? 'Creando…' : 'Crear sesión'}
+            {saving ? 'Guardando…' : editing ? 'Guardar cambios' : 'Crear sesión'}
           </button>
         </form>
       </div>

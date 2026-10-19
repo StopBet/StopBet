@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import {
+  Between,
   DataSource,
   EntityManager,
   FindOptionsWhere,
@@ -191,6 +192,9 @@ const SESSION_TIME = new Intl.DateTimeFormat('es-CL', {
   hourCycle: 'h23',
 });
 const formatSessionWhen = (d: Date): string => `${SESSION_DAY.format(d)}, a las ${SESSION_TIME.format(d)} h`;
+
+export type SessionScope = 'upcoming' | 'past';
+const PAST_SESSIONS_DAYS = 90;
 
 const spotsLeft = (s: FamilySession, taken: Map<string, number>): number | null =>
   s.capacity === null || s.capacity === undefined ? null : Math.max(0, s.capacity - (taken.get(s.id) ?? 0));
@@ -1339,9 +1343,15 @@ export class FamilyService {
 
   // CA 11.4 — el psicólogo necesita partir de la lista de sesiones de su sede.
   // `getSessionsForFamily` no le sirve: deriva del vínculo del familiar.
-  async getSedeSessions(sedes: { id: string; name: string }[]): Promise<SedeSessionView[]> {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 1);
+  // HdU14 CA4 — 'past' trae las de los últimos 90 días, la más reciente primero, para pasar
+  // lista. Antes la lista solo llegaba hasta ayer y una sesión más vieja no se podía abrir.
+  // Las próximas parten ahora (ya no ayer): lo que ya ocurrió está en la otra pestaña.
+  async getSedeSessions(
+    sedes: { id: string; name: string }[],
+    scope: SessionScope = 'upcoming',
+  ): Promise<SedeSessionView[]> {
+    const now = new Date();
+    const since = new Date(now.getTime() - PAST_SESSIONS_DAYS * 86_400_000);
 
     // `sessions.sedeId` puede traer el UUID o el nombre de la sede, como `users.sedeId`.
     const sedeName = new Map<string, string>();
@@ -1350,8 +1360,11 @@ export class FamilyService {
       sedeName.set(s.name, s.name);
     }
     const sessions = await this.sessionRepo.find({
-      where: { sedeId: In([...sedeName.keys()]), sessionDate: MoreThanOrEqual(cutoff) },
-      order: { sessionDate: 'ASC' },
+      where: {
+        sedeId: In([...sedeName.keys()]),
+        sessionDate: scope === 'upcoming' ? MoreThanOrEqual(now) : Between(since, now),
+      },
+      order: { sessionDate: scope === 'upcoming' ? 'ASC' : 'DESC' },
     });
     if (sessions.length === 0) return [];
 

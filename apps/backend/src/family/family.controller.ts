@@ -6,10 +6,11 @@ import {
   Patch,
   Put,
   Post,
+  Query,
   UnprocessableEntityException,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { FamilyService } from './family.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
@@ -257,7 +258,8 @@ export class FamilyController {
     status: 200,
     description: 'Sesiones ordenadas por fecha, con confirmedCount, declinedCount y el detalle',
   })
-  async getSedeSessions(@CurrentUser() user: AuthUser) {
+  @ApiQuery({ name: 'scope', required: false, enum: ['upcoming', 'past'] })
+  async getSedeSessions(@CurrentUser() user: AuthUser, @Query('scope') scope?: string) {
     // HdU14: todas las sedes que atiende (psychologist_sedes), no solo la de su ficha; si no,
     // una sesión creada en su segunda sede no aparecía en el listado (CA1).
     const sedes = await this.familyService.sessionSedesFor(user);
@@ -266,7 +268,7 @@ export class FamilyController {
     if (sedes.length === 0) {
       throw new UnprocessableEntityException('Tu cuenta no tiene una sede asignada');
     }
-    return this.familyService.getSedeSessions(sedes);
+    return this.familyService.getSedeSessions(sedes, scope === 'past' ? 'past' : 'upcoming');
   }
 
   // HdU14 CA1 — las sedes en que puede crear sesiones, para el selector del formulario.

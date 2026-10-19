@@ -815,6 +815,24 @@ describe('FamilyService (HU-11)', () => {
     expect(list.map((x) => x.sedeName)).toEqual(['Santiago', 'Viña del Mar']);
   });
 
+  it('HdU14 CA4: las próximas parten ahora, de la más cercana a la más lejana', async () => {
+    await service.getSedeSessions(SEDES);
+
+    const { where, order } = sessionRepo.find.mock.calls[0][0];
+    expect(where.sessionDate.type).toBe('moreThanOrEqual');
+    expect(order).toEqual({ sessionDate: 'ASC' });
+  });
+
+  it('HdU14 CA4: las pasadas son las de los últimos 90 días, la más reciente primero', async () => {
+    await service.getSedeSessions(SEDES, 'past');
+
+    const { where, order } = sessionRepo.find.mock.calls[0][0];
+    expect(where.sessionDate.type).toBe('between');
+    const [desde, hasta] = where.sessionDate.value as Date[];
+    expect(Math.round((hasta.getTime() - desde.getTime()) / 86_400_000)).toBe(90);
+    expect(order).toEqual({ sessionDate: 'DESC' });
+  });
+
   it('HdU14: las sedes para crear sesiones son las que atiende el psicólogo', async () => {
     const psych = psychOf(SEDE_UUID);
     sedeRepo.find.mockResolvedValue([{ id: SEDE_UUID, name: 'Santiago', address: 'x', isActive: true }]);
