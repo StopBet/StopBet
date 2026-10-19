@@ -109,6 +109,10 @@ export function NotificationsScreen({ navigation }: Props) {
       case 'family-request':
         navigation.navigate('MainTabs', { screen: 'Home' });
         break;
+      // HdU14 CA2 — cambió la fecha, la hora o el cupo de una sesión que confirmó.
+      case 'group-sessions':
+        navigation.navigate('GroupSessions');
+        break;
       default:
         break;
     }

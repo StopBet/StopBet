@@ -14,11 +14,12 @@ import { useFocusEffect, useIsFocused } from '@react-navigation/native';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { CommunityPost, EmotionType, Notification, PatientProgress } from '@stopbet/shared-types';
+import type { CommunityPost, EmotionType, Notification, PatientGroupSession, PatientProgress } from '@stopbet/shared-types';
 import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { DayCounter } from '../components/DayCounter';
 import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
+import { formatSessionWhen, nextGroupSession } from '../utils/groupSessions';
 import { NotificationBell } from '../components/NotificationBell';
 import { NotificationCard } from '../components/NotificationCard';
 import { FamilyRequestCards } from '../components/FamilyRequestCard';
@@ -93,6 +94,8 @@ export function HomeScreen({ navigation }: Props) {
   // Los accesos rápidos repetían la barra de abajo. En su lugar va lo del día que el
   // paciente no tiene en ninguna otra parte de Inicio: la próxima sesión de su sede.
   const [nextEvent, setNextEvent] = useState<CommunityPost | null>(null);
+  // HdU14 CA6 — la próxima sesión grupal de su sede, con lo que respondió.
+  const [nextGroup, setNextGroup] = useState<PatientGroupSession | null>(null);
 
   const load = useCallback(async () => {
     setLoadFailed(false);
@@ -104,12 +107,15 @@ export function HomeScreen({ navigation }: Props) {
         return;
       }
 
-      const [achData, checkIn, notifs, anns] = await Promise.all([
+      const [achData, checkIn, notifs, anns, grupos] = await Promise.all([
         api.getAchievements(userId),
         api.getTodayCheckIn(userId),
         api.getNotifications(userId),
         api.getAnnouncements(userId, sede),
+        // Si falla, el Inicio carga igual: la tarjeta de sesiones es un acceso, no lo central.
+        api.getGroupSessions().catch(() => null),
       ]);
+      if (grupos) setNextGroup(nextGroupSession(grupos.sessions));
 
       // Solo eventos que todavía no ocurren; si no hay ninguno, no se muestra nada
       const ahora = Date.now();
@@ -434,6 +440,35 @@ export function HomeScreen({ navigation }: Props) {
 
           <QuickAccess onPressAssistant={() => navigation.navigate('Assistant')} />
 
+          {/* HdU14 CA6 — siempre visible, aunque no haya sesión agendada: es la puerta a la
+              pantalla donde el paciente confirma. Distinta de la tarjeta de abajo, que sale de
+              los anuncios con fecha de la Comunidad. */}
+          <Touchable
+            style={styles.eventCard}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('GroupSessions')}
+            accessibilityRole="button"
+            accessibilityLabel={
+              nextGroup
+                ? `Sesiones grupales. Próxima: ${formatSessionWhen(nextGroup.sessionDate)}. ${nextGroup.userAttends === null ? 'Sin responder' : nextGroup.userAttends ? 'Vas a asistir' : 'No vas a asistir'}`
+                : 'Sesiones grupales de tu sede'
+            }
+          >
+            <View style={styles.eventIcon}>
+              <Icon name="users" size={20} color={c.primaryText} />
+            </View>
+            <View style={styles.eventText}>
+              <Text style={styles.eventLabel}>Sesiones grupales</Text>
+              <Text style={styles.eventWhen}>
+                {nextGroup ? formatSessionWhen(nextGroup.sessionDate) : 'Ver las de tu sede'}
+              </Text>
+              {nextGroup && nextGroup.userAttends === null ? (
+                <Text style={styles.groupPending}>Confirma si vas a ir</Text>
+              ) : null}
+            </View>
+            <Icon name="chevron-right" size={20} color={c.fg2} />
+          </Touchable>
+
           {nextEvent && (
             <Touchable
               style={styles.eventCard}
@@ -614,5 +649,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   eventText: { flex: 1 },
   eventLabel: { fontFamily: Fonts.body, fontSize: 12.5, color: c.fg2 },
   eventWhen: { fontFamily: Fonts.bodyBold, fontSize: 14.5, color: c.ink900, marginTop: 2 },
+  groupPending: { fontFamily: Fonts.bodyBold, fontSize: 12.5, color: c.primaryText, marginTop: 2 },
 
 });

@@ -60,6 +60,25 @@ export type NotificationTarget =
   | 'sponsor-alert'
   | 'group-sessions';
 
+// ── Sesiones grupales (HdU14) ────────────────────────────────────────────
+
+/** Lo que ve el paciente en la app: una sesión grupal de su sede y su respuesta. */
+export interface PatientGroupSession {
+  id: string;
+  title: string;
+  sessionDate: string;
+  location: string;
+  isOnline: boolean;
+  isMandatory: boolean;
+  /** 'patients' = solo pacientes; 'family' = también van los familiares */
+  audience: 'patients' | 'family';
+  capacity: number | null;
+  /** Cupos libres; null = sin cupo */
+  spotsLeft: number | null;
+  /** null = todavía no responde */
+  userAttends: boolean | null;
+}
+
 export interface Notification {
   id: string;
   userId: string;

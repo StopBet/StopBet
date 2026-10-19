@@ -20,6 +20,7 @@ import type {
   PanicAlertDto,
   PatientFeedback,
   PatientFamilyRequest,
+  PatientGroupSession,
   PaymentMethod,
   ReactionEmoji,
   ReactionSummary,
@@ -461,6 +462,18 @@ export const api = {
     request<AccompaniedResponse>('/panic/accompanied', { userId }),
 
   // ── Comunidad y red de apoyo ─────────────────────────────────────────
+  // ── Sesiones grupales (HdU14 CA6) ────────────────────────────────────
+  // Las de la sede del paciente; la sede la saca el backend de su cuenta.
+  getGroupSessions: () =>
+    request<{ sessions: PatientGroupSession[] }>('/family/patient-sessions'),
+
+  // 409 = la sesión se llenó o ya ocurrió (el mensaje viaja en el error).
+  respondGroupSession: (sessionId: string, confirmed: boolean) =>
+    request<void>(`/family/patient-sessions/${sessionId}/attendance`, {
+      method: 'POST',
+      body: JSON.stringify({ confirmed }),
+    }),
+
   getAnnouncements: (userId: string, sede: string) =>
     request<CommunityPost[]>(
       `/community/announcements?sede=${encodeURIComponent(sede)}`,
