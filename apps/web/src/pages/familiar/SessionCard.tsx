@@ -30,18 +30,23 @@ function AttendanceToggle({
   onToggle,
   isPending,
   sessionTitle,
+  full,
 }: {
   sessionTitle: string
   state: AttendanceState
   onToggle: () => void
   isPending: boolean
+  // HdU14 — sin cupos y sin haber confirmado: ya no se puede pasar a "Asistiré".
+  full: boolean
 }) {
   const confirmed = state === 'yes'
   const pendingAnswer = state === 'unanswered'
 
   const accent = confirmed ? 'var(--secondary-text)' : 'var(--fg2)'
-  const label = confirmed ? 'Asistiré' : pendingAnswer ? 'Sin responder' : 'No podré ir'
-  const hint = pendingAnswer ? 'Toca para confirmar tu asistencia' : 'Toca para cambiar tu respuesta'
+  const label = full ? 'Sesión llena' : confirmed ? 'Asistiré' : pendingAnswer ? 'Sin responder' : 'No podré ir'
+  const hint = full
+    ? 'Ya no quedan cupos para esta sesión'
+    : pendingAnswer ? 'Toca para confirmar tu asistencia' : 'Toca para cambiar tu respuesta'
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
@@ -53,7 +58,7 @@ function AttendanceToggle({
         aria-checked={pendingAnswer ? 'mixed' : confirmed}
         aria-label={`Confirmar asistencia: ${sessionTitle}`}
         onClick={onToggle}
-        disabled={isPending}
+        disabled={isPending || full}
         style={{
           position: 'relative',
           width: 52,
@@ -66,8 +71,8 @@ function AttendanceToggle({
               ? '1px dashed var(--fg2)'
               : '1px solid var(--border)',
           background: confirmed ? 'var(--secondary)' : 'var(--surface-alt)',
-          cursor: isPending ? 'wait' : 'pointer',
-          opacity: isPending ? 0.6 : 1,
+          cursor: isPending ? 'wait' : full ? 'not-allowed' : 'pointer',
+          opacity: isPending || full ? 0.6 : 1,
           padding: 0,
           transition: 'background .18s ease, border-color .18s ease',
         }}
@@ -186,6 +191,11 @@ export function SessionCard({
             <WIcon name={session.isOnline ? 'message-circle' : 'map-pin'} size={14} />
             {session.isOnline ? `Online - ${session.location}` : session.location}
           </div>
+          {session.spotsLeft !== null && session.spotsLeft > 0 && session.spotsLeft <= 5 && session.userAttends !== true && (
+            <div style={{ marginTop: 4, fontSize: 12.5, color: 'var(--primary-text)' }}>
+              {session.spotsLeft === 1 ? 'Queda 1 cupo' : `Quedan ${session.spotsLeft} cupos`}
+            </div>
+          )}
         </div>
       </div>
 
@@ -194,6 +204,7 @@ export function SessionCard({
         onToggle={() => onRespond(session.userAttends !== true)}
         isPending={isPending}
         sessionTitle={session.title}
+        full={session.spotsLeft === 0 && session.userAttends !== true}
       />
 
       {/* Sin --danger: la regla clínica lo reserva para el botón de pánico, así que

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { SESSION_AUDIENCES, type SessionAudience } from '../entities/family-session.entity';
 
 export class CreateFamilySessionDto {
   @ApiProperty({ description: 'Nombre de la sesión' })
@@ -33,4 +34,14 @@ export class CreateFamilySessionDto {
   @IsBoolean()
   @IsOptional()
   isMandatory?: boolean;
+
+  @ApiProperty({ description: 'Cupo máximo de asistentes', minimum: 1, maximum: 500 })
+  @IsInt({ message: 'El cupo debe ser un número entero' })
+  @Min(1, { message: 'El cupo debe ser al menos 1' })
+  @Max(500, { message: 'El cupo no puede superar 500' })
+  capacity: number;
+
+  @ApiProperty({ enum: SESSION_AUDIENCES, description: 'patients = solo pacientes; family = pacientes y familiares' })
+  @IsIn(SESSION_AUDIENCES, { message: 'Indica si la sesión es de pacientes o de familiares' })
+  audience: SessionAudience;
 }

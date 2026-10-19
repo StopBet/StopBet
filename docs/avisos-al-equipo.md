@@ -20,6 +20,25 @@ está.
 
 ---
 
+## 2026-10-19 - Gestión de grupos de sesión (HdU14) (PR #163)
+
+**A quién le pega:** a todos, tras pullear.
+
+- `packages/shared-types` tiene exports nuevos (`PatientGroupSession`, destino `group-sessions`).
+  Si levantas Metro sin el backend, recompila con `pnpm --filter @stopbet/shared-types build`.
+- `POST /family/sessions` ahora **exige `capacity` y `audience`** (`patients` | `family`): un
+  script o seed que cree sesiones sin esos campos recibe 400. Las sesiones que ya existían
+  quedan como `family` y sin cupo.
+- Tablas y columnas nuevas (`family_sessions.capacity`/`audience`, `session_presences`): las
+  crea `synchronize` al levantar el backend, no hay que correr nada.
+- En el dashboard, «Sesiones de familiares» pasó a llamarse **«Sesiones grupales»** (misma
+  ruta) y su lista **parte ahora**, no ayer: lo que ya ocurrió está en la pestaña «Pasadas».
+  Si atiendes varias sedes, ves las sesiones de todas.
+- El familiar ya **no ve** las sesiones de tipo «pacientes», y con el cupo lleno no puede
+  confirmar (409). No es un bug.
+
+---
+
 ## 2026-10-14 - Memoria del asistente (HdU10) (PR por abrir)
 
 **A quién le pega:** a todos, tras pullear.

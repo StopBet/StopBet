@@ -573,8 +573,26 @@ export const api = {
   confirmAttendance: (sessionId: string, confirmed: boolean) =>
     post<SessionAttendance>(`/family/sessions/${sessionId}/attendance`, undefined, { confirmed }),
 
-  // Vista del psicólogo: sesiones de su sede con quién confirmó (CA 11.4)
-  getSedeFamilySessions: () => get<SedeFamilySession[]>('/family/sede/sessions'),
+  // Vista del psicólogo: sesiones de su sede con quién confirmó (CA 11.4). 'past' = últimos
+  // 90 días, para pasar lista (HdU14 CA4).
+  getSedeFamilySessions: (scope: 'upcoming' | 'past' = 'upcoming') =>
+    get<SedeFamilySession[]>(`/family/sede/sessions?scope=${scope}`),
+
+  // HdU14 — gestión de sesiones grupales. Crear y editar van con *WithAuth porque el
+  // formulario muestra el mensaje del backend (cupo menor que los confirmados, sede ajena).
+  getSessionSedes: () => get<SessionSede[]>('/family/session-sedes'),
+
+  createGroupSession: (payload: GroupSessionPayload) =>
+    postWithAuth<SedeFamilySession>('/family/sessions', payload),
+
+  updateGroupSession: (id: string, payload: Omit<GroupSessionPayload, 'sedeId' | 'audience'>) =>
+    patchWithAuth<SedeFamilySession>(`/family/sessions/${id}`, payload),
+
+  getGroupSessionDetail: (id: string) => get<GroupSessionDetail>(`/family/sessions/${id}`),
+
+  // put() conserva el cuerpo del error, para mostrar el mensaje del backend.
+  markSessionPresence: (id: string, marks: { userId: string; attended: boolean }[]) =>
+    put<GroupSessionDetail>(`/family/sessions/${id}/presence`, { marks }),
 
   // ── Gestión de cuentas de psicólogo (HU-24) ─────────────────────────────────
 
@@ -647,6 +665,8 @@ export interface FamilySession {
   isMandatory: boolean
   // null = el familiar todavía no respondió
   userAttends: boolean | null
+  // HdU14 — cupos libres; null = sin cupo
+  spotsLeft: number | null
 }
 
 export interface FamilySessionsResponse {
@@ -673,12 +693,58 @@ export interface FamilyAttendance {
   confirmedAt: string
 }
 
+export type SessionAudience = 'patients' | 'family'
+
+export interface SessionSede {
+  id: string
+  name: string
+}
+
+export interface GroupSessionPayload {
+  title: string
+  sessionDate: string
+  location: string
+  isOnline: boolean
+  sedeId: string
+  capacity: number
+  audience: SessionAudience
+}
+
+// HdU14 CA3 — una persona invitada. Solo el nombre: es lo único que manda el backend.
+export interface SessionParticipant {
+  userId: string
+  name: string
+  kind: 'patient' | 'family'
+  patientName: string | null
+  respondedAt: string | null
+  // CA4 — null mientras no se pase lista
+  attended: boolean | null
+}
+
+export interface GroupSessionDetail {
+  id: string
+  title: string
+  sessionDate: string
+  location: string
+  isOnline: boolean
+  capacity: number | null
+  audience: SessionAudience
+  canMarkPresence: boolean
+  confirmed: SessionParticipant[]
+  declined: SessionParticipant[]
+  pending: SessionParticipant[]
+}
+
 export interface SedeFamilySession {
   id: string
   title: string
   sessionDate: string
   location: string
   isOnline: boolean
+  // null en las sesiones creadas antes de la HdU14: sin cupo
+  capacity: number | null
+  audience: SessionAudience
+  sedeName: string
   confirmedCount: number
   declinedCount: number
   attendances: FamilyAttendance[]

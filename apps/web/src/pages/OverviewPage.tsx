@@ -99,7 +99,7 @@ export function OverviewPage({ user }: OverviewPageProps) {
   // HdU19 v2: las solicitudes de ingreso son solo del coordinador; al psicólogo el backend le responde 403.
   const { data: pending = [] } = useQuery({ queryKey: ['registration', 'pending'], queryFn: api.getPendingRequests, enabled: esCoordinador })
   const { data: sedes = [] } = useQuery({ queryKey: ['sedes'], queryFn: api.getSedes })
-  const { data: sesiones = [] } = useQuery({ queryKey: ['family', 'sede-sessions'], queryFn: api.getSedeFamilySessions })
+  const { data: sesiones = [] } = useQuery({ queryKey: ['family', 'sede-sessions', 'upcoming'], queryFn: () => api.getSedeFamilySessions('upcoming') })
   // La moderación es solo de psicólogos: al coordinador el backend le responde 403.
   const { data: flagged = [] } = useQuery({
     queryKey: ['flagged-posts'],
@@ -236,8 +236,8 @@ export function OverviewPage({ user }: OverviewPageProps) {
             </>}
         </Block>
 
-        <Block icon="heart-handshake" title="Próxima sesión de familiares"
-          cta="Ir a Sesiones de familiares" onCta={() => navigate('/sesiones-familiares')}>
+        <Block icon="heart-handshake" title="Próxima sesión grupal"
+          cta="Ir a Sesiones grupales" onCta={() => navigate('/sesiones-familiares')}>
           {!proxima
             ? <Empty>No hay sesiones programadas.</Empty>
             : <>
