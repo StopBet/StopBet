@@ -1102,6 +1102,18 @@ describe('FamilyService (HU-11)', () => {
       expect(linkRepo.save).not.toHaveBeenCalled();
     });
 
+    it('CA3: el correo se compara sin mayúsculas ni espacios, porque es la misma casilla', async () => {
+      userRepo.findOne.mockResolvedValue({ id: 'existing' });
+
+      await expect(service.registerFamily({ ...baseDto, email: '  Marta@StopBet.cl ' })).rejects.toThrow(ConflictException);
+
+      const { email } = userRepo.findOne.mock.calls[0][0].where;
+      expect(email.type).toBe('raw');
+      expect(email.getSql('"email"')).toBe('LOWER("email") = LOWER(:email)');
+      expect(email.objectLiteralParameters).toEqual({ email: 'Marta@StopBet.cl' });
+      expect(userRepo.save).not.toHaveBeenCalled();
+    });
+
     // El RUT va cifrado con IV aleatorio: no hay columna que filtrar, así que el chequeo
     // compara en memoria contra todas las cuentas existentes.
     it('CA3: rechaza con 409 si el RUT del familiar ya existe, sin crear cuenta ni vínculo', async () => {
