@@ -7,6 +7,7 @@ import * as request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { RefreshToken } from '../src/auth/entities/refresh-token.entity';
 import { Invoice } from '../src/billing/entities/invoice.entity';
+import { FamilyLink } from '../src/family/entities/family-link.entity';
 import { Notification } from '../src/notifications/entities/notification.entity';
 import { PaymentCharge } from '../src/payments/entities/payment-charge.entity';
 import { PaymentInscription } from '../src/payments/entities/payment-inscription.entity';
@@ -28,6 +29,7 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
   let inscriptionRepo: Repository<PaymentInscription>;
   let notifRepo: Repository<Notification>;
   let refreshTokenRepo: Repository<RefreshToken>;
+  let linkRepo: Repository<FamilyLink>;
 
   const PASSWORD = 'TestE2E2026!';
   const unique = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -38,6 +40,9 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
   let otherPatient: { id: string; email: string; token: string };
   let attacker: { id: string; email: string; token: string };
   let coordinator: { id: string; email: string; token: string };
+  let famPatient: { id: string; email: string; token: string };
+  let familiar: { id: string; email: string; token: string };
+  let familiarSinVinculo: { id: string; email: string; token: string };
   let invoiceA: Invoice;
   let invoiceB: Invoice;
 
@@ -81,7 +86,7 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
     gateway.chargeStatus.mockResolvedValue(approved);
   }
 
-  async function createUser(role: 'patient' | 'coordinator', label: string) {
+  async function createUser(role: 'patient' | 'coordinator' | 'family', label: string) {
     const passwordHash = await bcrypt.hash(PASSWORD, 10);
     const user = await userRepo.save(
       userRepo.create({
@@ -136,6 +141,7 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
     chargeRepo = moduleFixture.get(getRepositoryToken(PaymentCharge));
     inscriptionRepo = moduleFixture.get(getRepositoryToken(PaymentInscription));
     notifRepo = moduleFixture.get(getRepositoryToken(Notification));
+    linkRepo = moduleFixture.get(getRepositoryToken(FamilyLink));
     refreshTokenRepo = moduleFixture.get(getRepositoryToken(RefreshToken));
 
     process.env.ENABLE_DEV_TOOLS = 'true';
@@ -145,6 +151,13 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
     otherPatient = await createUser('patient', 'Otro');
     attacker = await createUser('patient', 'Atacante');
     coordinator = await createUser('coordinator', 'Coordinacion');
+    // HdU12: un paciente suspendido con un familiar de vínculo activo, y otro familiar sin vínculo.
+    famPatient = await createUser('patient', 'PacienteSuspendido');
+    // Suspender cierra el login: se suspende después de obtener el token, como lo hace el cron de morosidad.
+    await userRepo.update({ id: famPatient.id }, { accountStatus: 'suspended' });
+    familiar = await createUser('family', 'Familiar');
+    familiarSinVinculo = await createUser('family', 'FamiliarSinVinculo');
+    await linkRepo.save(linkRepo.create({ familyUserId: familiar.id, patientUserId: famPatient.id, status: 'active' }));
 
     // Dos cuotas vencidas del paciente: la primera la paga él (cobro 1) y la segunda el backend (cobro 2).
     invoiceA = await invoiceRepo.save(
@@ -164,6 +177,7 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
     for (const id of userIds) {
       // payments no tiene FK hacia users a propósito (es un registro de auditoría): se borra a mano.
       await chargeRepo.delete({ userId: id });
+      await chargeRepo.delete({ payerUserId: id });
       await inscriptionRepo.delete({ userId: id });
       await invoiceRepo.delete({ userId: id });
       await notifRepo.delete({ userId: id });
@@ -455,6 +469,110 @@ describe('Pagos con Webpay Oneclick (e2e)', () => {
       // El índice único solo cuenta cobros en curso o autorizados: uno rechazado no bloquea el reintento.
       const retry = await http().post('/payments/oneclick/charges').set(as(patient.token)).send({ invoiceId: pending.id }).expect(201);
       expect(retry.body.status).toBe('authorized');
+    });
+  });
+
+  // ── HdU12: el familiar paga las cuotas del paciente ───────────────────────────────────────
+
+  describe('pago del familiar', () => {
+    let famInvoice: Invoice;
+    let famInvoice2: Invoice;
+    let paidInvoice: Invoice;
+    let otherInvoice: Invoice;
+
+    beforeAll(async () => {
+      const mk = (userId: string, month: string, status: Invoice['status'], dueDate: string) =>
+        invoiceRepo.save(invoiceRepo.create({ userId, month, amountCLP: 30000, status, dueDate }));
+      famInvoice = await mk(famPatient.id, '2021-01', 'overdue', '2021-01-31');
+      famInvoice2 = await mk(famPatient.id, '2021-02', 'pending', '2021-02-28');
+      paidInvoice = await mk(famPatient.id, '2020-12', 'paid', '2020-12-31');
+      otherInvoice = await mk(otherPatient.id, '2021-01', 'overdue', '2021-01-31');
+    });
+
+    it('solo el rol family puede cobrar por otro: el paciente y la coordinación reciben 403, sin token 401', async () => {
+      const body = { invoiceIds: [famInvoice.id] };
+      await http().post('/payments/oneclick/family/charge').send(body).expect(401);
+      await http().post('/payments/oneclick/family/charge').set(as(patient.token)).send(body).expect(403);
+      await http().post('/payments/oneclick/family/charge').set(as(coordinator.token)).send(body).expect(403);
+    });
+
+    it('un familiar sin vínculo activo recibe 403 y no se cobra nada', async () => {
+      await enroll(familiarSinVinculo);
+
+      await http().post('/payments/oneclick/family/charge').set(as(familiarSinVinculo.token)).send({ invoiceIds: [famInvoice.id] }).expect(403);
+
+      expect(gateway.authorize).not.toHaveBeenCalled();
+    });
+
+    it('sin tarjeta inscrita responde 409', async () => {
+      await http().post('/payments/oneclick/family/charge').set(as(familiar.token)).send({ invoiceIds: [famInvoice.id] }).expect(409);
+    });
+
+    it('valida el cuerpo: vacío, no uuid o con campos de más dan 400', async () => {
+      await enroll(familiar);
+
+      await http().post('/payments/oneclick/family/charge').set(as(familiar.token)).send({ invoiceIds: [] }).expect(400);
+      await http().post('/payments/oneclick/family/charge').set(as(familiar.token)).send({ invoiceIds: ['no-es-uuid'] }).expect(400);
+      await http()
+        .post('/payments/oneclick/family/charge')
+        .set(as(familiar.token))
+        .send({ invoiceIds: [famInvoice.id], patientId: otherPatient.id })
+        .expect(400);
+    });
+
+    it('una cuota de otro paciente responde 404 y no se cobra ninguna, ni la propia', async () => {
+      await http()
+        .post('/payments/oneclick/family/charge')
+        .set(as(familiar.token))
+        .send({ invoiceIds: [famInvoice.id, otherInvoice.id] })
+        .expect(404);
+
+      expect(gateway.authorize).not.toHaveBeenCalled();
+      expect((await invoiceRepo.findOneByOrFail({ id: otherInvoice.id })).status).toBe('overdue');
+    });
+
+    it('una cuota ya pagada responde 409 (CA4)', async () => {
+      await http().post('/payments/oneclick/family/charge').set(as(familiar.token)).send({ invoiceIds: [paidInvoice.id] }).expect(409);
+    });
+
+    it('una tarjeta rechazada no cambia nada y deja reintentar (CA5)', async () => {
+      gateway.authorize.mockResolvedValueOnce({ ...approved, approved: false, status: 'FAILED', responseCode: -1, authorizationCode: null });
+
+      const res = await http().post('/payments/oneclick/family/charge').set(as(familiar.token)).send({ invoiceIds: [famInvoice.id] }).expect(201);
+
+      expect(res.body).toMatchObject({ status: 'rejected', totalPaidCLP: 0, paidAt: null });
+      expect((await invoiceRepo.findOneByOrFail({ id: famInvoice.id })).status).toBe('overdue');
+      expect((await userRepo.findOneByOrFail({ id: famPatient.id })).accountStatus).toBe('suspended');
+    });
+
+    it('paga una vencida y una por adelantado: salda ambas, reactiva la cuenta y avisa al paciente (CA2, CA3, CA6)', async () => {
+      const res = await http()
+        .post('/payments/oneclick/family/charge')
+        .set(as(familiar.token))
+        .send({ invoiceIds: [famInvoice2.id, famInvoice.id] })
+        .expect(201);
+
+      expect(res.body).toMatchObject({ status: 'paid', totalPaidCLP: 60000, card: { cardType: 'Visa', cardLast4: '6623' } });
+      expect(res.body.items.map((i: { month: string }) => i.month)).toEqual(['2021-01', '2021-02']);
+      expect(res.body.paidAt).toBe('2026-10-07T22:30:00.000Z');
+
+      for (const id of [famInvoice.id, famInvoice2.id]) {
+        expect((await invoiceRepo.findOneByOrFail({ id })).status).toBe('paid');
+      }
+      expect((await userRepo.findOneByOrFail({ id: famPatient.id })).accountStatus).toBe('active');
+
+      const charges = await chargeRepo.find({ where: { userId: famPatient.id, status: 'authorized' } });
+      expect(charges).toHaveLength(2);
+      expect(charges.every((c) => c.payerUserId === familiar.id)).toBe(true);
+
+      const notifs = await notifRepo.find({ where: { userId: famPatient.id } });
+      expect(notifs.some((n) => n.target === 'payment')).toBe(true);
+    });
+
+    it('volver a pagar lo ya pagado responde 409: no hay doble cobro', async () => {
+      await http().post('/payments/oneclick/family/charge').set(as(familiar.token)).send({ invoiceIds: [famInvoice.id] }).expect(409);
+
+      expect(gateway.authorize).not.toHaveBeenCalled();
     });
   });
 

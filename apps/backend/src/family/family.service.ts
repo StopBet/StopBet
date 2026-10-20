@@ -147,9 +147,17 @@ export interface SessionDetailView {
 }
 
 export interface FamilyInvoiceView {
+  id: string;
   month: string;
   amountCLP: number;
   dueDate: string;
+}
+
+// Una fila de la lista de cuotas (HdU12 CA1 y CA4): las pagadas también viajan, con su fecha, para
+// que el familiar las vea como «Pagada» y no pueda volver a seleccionarlas.
+export interface FamilyInvoiceRow extends FamilyInvoiceView {
+  status: Invoice['status'];
+  paidAt: string | null;
 }
 
 // Lo mínimo para que el familiar pague: el nombre de pila del paciente y sus cuotas,
@@ -161,6 +169,9 @@ export interface FamilyBillingView {
   overdueInvoices: FamilyInvoiceView[];
   totalOwedCLP: number;
   nextInvoice: FamilyInvoiceView | null;
+  // Aditivos de HdU12: lo anterior no cambia, para que lo que ya lo lee siga funcionando.
+  invoices: FamilyInvoiceRow[];
+  nextBillingDate: string | null;
 }
 
 const EMPTY_BILLING = (linkStatus: FamilyLinkState): FamilyBillingView => ({
@@ -170,9 +181,12 @@ const EMPTY_BILLING = (linkStatus: FamilyLinkState): FamilyBillingView => ({
   overdueInvoices: [],
   totalOwedCLP: 0,
   nextInvoice: null,
+  invoices: [],
+  nextBillingDate: null,
 });
 
 const toInvoiceView = (i: Invoice): FamilyInvoiceView => ({
+  id: i.id,
   month: i.month,
   amountCLP: i.amountCLP,
   dueDate: i.dueDate,
@@ -927,8 +941,7 @@ export class FamilyService {
 
   // ── Mensualidad ───────────────────────────────────────────────────────────
 
-  // Solo lectura: el cobro todavía no tiene pasarela (ASUNCIONES-PENDIENTES, puntos 4 y 6),
-  // así que el familiar ve qué hay que pagar pero nada de acá marca una cuota como pagada.
+  // Solo lectura: el cobro pasa por `payments` (HdU12) y nada de acá marca una cuota como pagada.
   async getBillingForFamily(familyUserId: string): Promise<FamilyBillingView> {
     const link = await this.currentLinkFor(familyUserId);
 
@@ -947,6 +960,14 @@ export class FamilyService {
       }),
     ]);
 
+    // Las últimas cuotas de cualquier estado, para mostrar también lo ya pagado. 18 cubre un año y
+    // medio de historia sin traer toda la vida del paciente.
+    const recent = await this.invoiceRepo.find({
+      where: { userId: patientId },
+      order: { dueDate: 'DESC' },
+      take: 18,
+    });
+
     return {
       linkStatus: 'active',
       patientFirstName: link.patientUser.firstName,
@@ -954,7 +975,23 @@ export class FamilyService {
       overdueInvoices: overdue.map(toInvoiceView),
       totalOwedCLP: overdue.reduce((sum, i) => sum + i.amountCLP, 0),
       nextInvoice: next ? toInvoiceView(next) : null,
+      invoices: [...recent].reverse().map((i) => ({
+        ...toInvoiceView(i),
+        status: i.status,
+        paidAt: i.paidAt ? i.paidAt.toISOString() : null,
+      })),
+      nextBillingDate: next?.dueDate ?? null,
     };
+  }
+
+  // El paciente cuyas cuotas puede pagar este familiar. Sale SIEMPRE del vínculo activo y nunca de lo
+  // que mande el cliente: es lo que impide pagar (y por lo tanto reactivar) la cuenta de cualquiera.
+  async getActivePatientId(familyUserId: string): Promise<string> {
+    const link = await this.currentLinkFor(familyUserId);
+    if (!link || link.status !== 'active') {
+      throw new ForbiddenException('Tu vínculo con el paciente no está activo');
+    }
+    return link.patientUserId;
   }
 
   // ── Sesiones ──────────────────────────────────────────────────────────────

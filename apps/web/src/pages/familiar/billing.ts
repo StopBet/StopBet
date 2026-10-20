@@ -1,10 +1,18 @@
-import type { FamilyBilling, FamilyInvoice } from '../../services/api'
+import type { FamilyBilling, FamilyInvoice, FamilyInvoiceRow } from '../../services/api'
 
 export const BILLING_KEY = ['family', 'billing']
 
 const CLP_FMT = new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' })
 const MONTH_FMT = new Intl.DateTimeFormat('es-CL', { month: 'long' })
 const DUE_FMT = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long' })
+
+// Las horas de los pagos son instantes: se muestran siempre en hora de Chile, no en la del navegador.
+const SANTIAGO = 'America/Santiago'
+const PAID_DATE_FMT = new Intl.DateTimeFormat('es-CL', { day: 'numeric', month: 'long', year: 'numeric', timeZone: SANTIAGO })
+const PAID_TIME_FMT = new Intl.DateTimeFormat('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: SANTIAGO })
+
+export const formatPaidDate = (iso: string) => PAID_DATE_FMT.format(new Date(iso))
+export const formatPaidTime = (iso: string) => PAID_TIME_FMT.format(new Date(iso))
 
 export const formatCLP = (amount: number) => CLP_FMT.format(amount)
 
@@ -30,4 +38,16 @@ export function amountDue(billing: FamilyBilling): { items: FamilyInvoice[]; tot
     return { items: [billing.nextInvoice], total: billing.nextInvoice.amountCLP }
   }
   return { items: [], total: 0 }
+}
+
+// Lo que el familiar puede seleccionar: todo lo que no está pagado (CA4).
+export const unpaidInvoices = (billing: FamilyBilling): FamilyInvoiceRow[] =>
+  billing.invoices.filter((i) => i.status !== 'paid')
+
+// Con cuotas vencidas, esas vienen marcadas; al día, se ofrece solo la próxima por adelantado (CA3).
+export function defaultSelection(billing: FamilyBilling): string[] {
+  const unpaid = unpaidInvoices(billing)
+  const overdue = unpaid.filter((i) => i.status === 'overdue')
+  if (overdue.length > 0) return overdue.map((i) => i.id)
+  return unpaid.length > 0 ? [unpaid[0].id] : []
 }

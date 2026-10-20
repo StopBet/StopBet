@@ -51,6 +51,28 @@ export interface ChargeView {
   createdAt: string;
 }
 
+// Lo que el familiar ve al pagar (HdU12 CA5 y CA6): cuáles cuotas se cobraron y cuáles no, con lo
+// necesario para armar el comprobante. Nada de la tarjeta salvo el tipo y los últimos 4 dígitos.
+export interface FamilyPaymentItem {
+  chargeId: string;
+  invoiceId: string;
+  month: string;
+  amountCLP: number;
+  status: PaymentChargeStatus;
+  buyOrder: string;
+  authorizationCode: string | null;
+  transactionDate: string | null;
+}
+
+export interface FamilyPaymentView {
+  // `paid`: todas las pedidas. `partial`: se cobraron algunas y se frenó en la primera que falló.
+  status: 'paid' | 'partial' | 'rejected' | 'error' | 'processing';
+  items: FamilyPaymentItem[];
+  totalPaidCLP: number;
+  paidAt: string | null;
+  card: { cardType: string | null; cardLast4: string | null };
+}
+
 export interface DueChargeSummary {
   invoiceId: string;
   month: string;
@@ -243,49 +265,58 @@ export class OneclickPaymentsService {
     if (!inscription || !inscription.tbkUser) throw new ConflictException('Primero inscribe una tarjeta');
 
     const invoice = await this.pickInvoice(userId, invoiceId);
+    return this.runCharge({ inscription, invoice, payerId: userId, triggeredBy, reactivateAccount: false });
+  }
 
-    const parentBuyOrder = newBuyOrder();
-    const created = this.chargeRepo.create({
-      userId,
-      invoiceId: invoice.id,
-      inscriptionId: inscription.id,
-      parentBuyOrder,
-      childBuyOrder: `${parentBuyOrder}1`,
-      amountCLP: invoice.amountCLP,
-      triggeredBy,
-      status: 'processing',
-    });
-    // La fila va ANTES de llamar a Transbank. Si dos pedidos intentan cobrar la misma cuota, el
-    // índice único hace perder al segundo sin que Transbank llegue a enterarse.
-    let charge: PaymentCharge;
-    try {
-      charge = await this.chargeRepo.save(created);
-    } catch (err) {
-      if (isUniqueViolation(err)) throw new ConflictException('Esa cuota ya tiene un cobro en curso o pagado');
-      throw err;
-    }
+  // HdU12: el familiar paga cuotas del paciente vinculado con SU tarjeta. `patientId` lo resuelve el
+  // controlador desde el vínculo activo, nunca desde el cuerpo. A diferencia del cobro del paciente,
+  // acá sí se acepta una cuenta suspendida: es justamente lo que el familiar viene a regularizar, y
+  // quien la reabre es una persona con sesión, no un cobro sin nadie detrás (CA2). Se cobra de a una,
+  // en orden de vencimiento, y se frena en la primera que no se autoriza para no seguir cobrando
+  // sobre una tarjeta que ya falló (CA5): las anteriores quedan pagadas y las siguientes, intactas.
+  async chargeInvoicesForFamily(
+    familyUserId: string,
+    patientId: string,
+    invoiceIds: string[],
+  ): Promise<FamilyPaymentView> {
+    this.assertEnabled();
 
-    let outcome: GatewayErrorOutcome;
-    try {
-      const result = await this.gateway.authorize({
-        username: inscription.username,
-        tbkUser: inscription.tbkUser,
-        parentBuyOrder,
-        childBuyOrder: charge.childBuyOrder,
+    const inscription = await this.inscriptionRepo.findOne({ where: { userId: familyUserId, status: 'active' } });
+    if (!inscription || !inscription.tbkUser) throw new ConflictException('Primero inscribe una tarjeta');
+
+    const invoices = await this.pickInvoicesOf(patientId, invoiceIds);
+
+    const items: FamilyPaymentItem[] = [];
+    for (const invoice of invoices) {
+      let charge: ChargeView;
+      try {
+        charge = await this.runCharge({
+          inscription,
+          invoice,
+          payerId: familyUserId,
+          triggeredBy: 'user',
+          reactivateAccount: true,
+        });
+      } catch (err) {
+        // Un cobro en curso de esa cuota (otra pestaña, un doble clic) no debe esconder lo que ya se
+        // pagó en este mismo pedido. Si fue la primera, no hay nada que informar y se propaga.
+        if (items.length === 0 || !(err instanceof ConflictException)) throw err;
+        break;
+      }
+      items.push({
+        chargeId: charge.id,
+        invoiceId: invoice.id,
+        month: invoice.month,
         amountCLP: invoice.amountCLP,
+        status: charge.status,
+        buyOrder: charge.buyOrder,
+        authorizationCode: charge.authorizationCode,
+        transactionDate: charge.transactionDate,
       });
-      outcome = { kind: 'result', result };
-    } catch (err) {
-      outcome = await this.resolveAfterGatewayError(charge, err);
+      if (charge.status !== 'authorized') break;
     }
 
-    if (outcome.kind === 'result') return this.recordResult(charge, invoice, outcome.result);
-    if (outcome.kind === 'closed') return this.toChargeView(charge);
-
-    // Transbank no contestó y tampoco pudo confirmar qué pasó: se deja `processing`, que mantiene
-    // la cuota bloqueada. Es a propósito: liberarla arriesga cobrarle dos veces a quien sí pagó.
-    this.logger.error(`Cobro ${charge.id} quedó sin confirmar: requiere conciliación con Transbank`);
-    return this.toChargeView(charge);
+    return this.toFamilyPaymentView(items, invoices.length, inscription);
   }
 
   // El cobro automático: recorre las cuotas vencidas de quienes tienen tarjeta y las cobra sin
@@ -389,6 +420,72 @@ export class OneclickPaymentsService {
     return invoice;
   }
 
+  // Lo que comparten todos los cobros: fila en `processing` ANTES de llamar a Transbank, `authorize`
+  // y cierre. `payerId` es quien puso la tarjeta; el dueño de la cuota es `invoice.userId`.
+  private async runCharge(opts: {
+    inscription: PaymentInscription;
+    invoice: Invoice;
+    payerId: string;
+    triggeredBy: PaymentChargeTrigger;
+    reactivateAccount: boolean;
+  }): Promise<ChargeView> {
+    const { inscription, invoice, payerId, triggeredBy, reactivateAccount } = opts;
+
+    const parentBuyOrder = newBuyOrder();
+    const created = this.chargeRepo.create({
+      userId: invoice.userId,
+      payerUserId: payerId === invoice.userId ? null : payerId,
+      invoiceId: invoice.id,
+      inscriptionId: inscription.id,
+      parentBuyOrder,
+      childBuyOrder: `${parentBuyOrder}1`,
+      amountCLP: invoice.amountCLP,
+      triggeredBy,
+      status: 'processing',
+    });
+    // La fila va ANTES de llamar a Transbank. Si dos pedidos intentan cobrar la misma cuota, el
+    // índice único hace perder al segundo sin que Transbank llegue a enterarse.
+    let charge: PaymentCharge;
+    try {
+      charge = await this.chargeRepo.save(created);
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new ConflictException('Esa cuota ya tiene un cobro en curso o pagado');
+      throw err;
+    }
+
+    let outcome: GatewayErrorOutcome;
+    try {
+      const result = await this.gateway.authorize({
+        username: inscription.username,
+        tbkUser: inscription.tbkUser as string,
+        parentBuyOrder,
+        childBuyOrder: charge.childBuyOrder,
+        amountCLP: invoice.amountCLP,
+      });
+      outcome = { kind: 'result', result };
+    } catch (err) {
+      outcome = await this.resolveAfterGatewayError(charge, err);
+    }
+
+    if (outcome.kind === 'result') return this.recordResult(charge, invoice, outcome.result, reactivateAccount);
+    if (outcome.kind === 'closed') return this.toChargeView(charge);
+
+    // Transbank no contestó y tampoco pudo confirmar qué pasó: se deja `processing`, que mantiene
+    // la cuota bloqueada. Es a propósito: liberarla arriesga cobrarle dos veces a quien sí pagó.
+    this.logger.error(`Cobro ${charge.id} quedó sin confirmar: requiere conciliación con Transbank`);
+    return this.toChargeView(charge);
+  }
+
+  // Todas las cuotas pedidas tienen que ser del paciente y estar sin pagar, o no se cobra ninguna.
+  // Una ajena responde igual que una inexistente. Salen por orden de vencimiento.
+  private async pickInvoicesOf(ownerId: string, invoiceIds: string[]): Promise<Invoice[]> {
+    const ids = [...new Set(invoiceIds)];
+    const found = await this.invoiceRepo.find({ where: { id: In(ids), userId: ownerId }, order: { dueDate: 'ASC' } });
+    if (found.length !== ids.length) throw new NotFoundException('Cuota no encontrada');
+    if (found.some((i) => i.status === 'paid')) throw new ConflictException('Una de las cuotas ya está pagada');
+    return found;
+  }
+
   // El `authorize` falló. ¿Se cobró o no? Ver `answeredWithClientError`.
   private async resolveAfterGatewayError(charge: PaymentCharge, err: unknown): Promise<GatewayErrorOutcome> {
     if (answeredWithClientError(err)) {
@@ -414,7 +511,12 @@ export class OneclickPaymentsService {
     charge.status = 'error';
   }
 
-  private async recordResult(charge: PaymentCharge, invoice: Invoice, result: ChargeResult): Promise<ChargeView> {
+  private async recordResult(
+    charge: PaymentCharge,
+    invoice: Invoice,
+    result: ChargeResult,
+    reactivateAccount: boolean,
+  ): Promise<ChargeView> {
     const fields = {
       responseCode: result.responseCode,
       authorizationCode: result.authorizationCode,
@@ -431,7 +533,7 @@ export class OneclickPaymentsService {
           .getRepository(PaymentCharge)
           .update({ id: charge.id, status: 'processing' }, { status: 'authorized', ...fields });
         if (!updated.affected) return;
-        await this.billing.settleInvoices(charge.userId, [invoice], { notification: 'payment', reactivateAccount: false, manager });
+        await this.billing.settleInvoices(charge.userId, [invoice], { notification: 'payment', reactivateAccount, manager });
       });
       this.logger.log(`Cobro ${charge.id} autorizado (${charge.triggeredBy})`);
     } else {
@@ -452,6 +554,27 @@ export class OneclickPaymentsService {
       buyOrder: charge?.buyOrder ?? null,
       responseCode: charge?.responseCode ?? null,
       authorizationCode: charge?.authorizationCode ?? null,
+    };
+  }
+
+  private toFamilyPaymentView(
+    items: FamilyPaymentItem[],
+    requested: number,
+    inscription: PaymentInscription,
+  ): FamilyPaymentView {
+    const authorized = items.filter((i) => i.status === 'authorized');
+    const last = items[items.length - 1];
+    let status: FamilyPaymentView['status'];
+    if (authorized.length === requested) status = 'paid';
+    else if (authorized.length > 0) status = 'partial';
+    else status = last.status as 'rejected' | 'error' | 'processing';
+    const dates = authorized.map((i) => i.transactionDate).filter((d): d is string => !!d);
+    return {
+      status,
+      items,
+      totalPaidCLP: authorized.reduce((sum, i) => sum + i.amountCLP, 0),
+      paidAt: dates.length > 0 ? dates.sort()[dates.length - 1] : null,
+      card: { cardType: inscription.cardType, cardLast4: inscription.cardLast4 },
     };
   }
 

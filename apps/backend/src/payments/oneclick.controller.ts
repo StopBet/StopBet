@@ -19,15 +19,18 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserId } from '../common/decorators/user-id.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { FamilyService } from '../family/family.service';
 import { ChargeInvoiceDto } from './dto/charge-invoice.dto';
+import { ChargeInvoicesDto } from './dto/charge-invoices.dto';
 import { FinishInscriptionDto } from './dto/finish-inscription.dto';
 import { RunDueChargesDto } from './dto/run-due-charges.dto';
 import { InscriptionOutcome, OneclickPaymentsService } from './oneclick-payments.service';
 import { ONECLICK_TEST_PAGE } from './oneclick-test-page';
 import { TbkReturn, TbkReturnParams } from './tbk-return-params.decorator';
 
-// SPIKE 2 CA6 — sandbox de Webpay Oneclick. Ningún paciente ni familiar lo usa todavía: las
-// pantallas siguen con el pago simulado (docs/planning/spike2-pasarela-pago.md, §7).
+// SPIKE 2 CA6 — sandbox de Webpay Oneclick. HdU12: el familiar lo usa desde el portal web para pagar
+// la mensualidad del paciente vinculado (inscripción y `family/charge`). El paciente todavía no: su
+// app sigue con el pago simulado (docs/planning/spike2-pasarela-pago.md, §7).
 @ApiTags('payments')
 @ApiBearerAuth()
 @UseGuards(RolesGuard)
@@ -35,6 +38,7 @@ import { TbkReturn, TbkReturnParams } from './tbk-return-params.decorator';
 export class OneclickController {
   constructor(
     private readonly payments: OneclickPaymentsService,
+    private readonly family: FamilyService,
     private readonly config: ConfigService,
   ) {}
 
@@ -47,7 +51,7 @@ export class OneclickController {
   // ── Inscripción de la tarjeta ─────────────────────────────────────────────────────────────
 
   @Post('inscriptions')
-  @Roles('patient')
+  @Roles('patient', 'family')
   @ApiOperation({ summary: 'Inicia la inscripción de una tarjeta: devuelve el token y la URL del formulario de Transbank' })
   @ApiResponse({ status: 201, description: '{ inscriptionId, token, urlWebpay } — el navegador debe hacer POST a urlWebpay con TBK_TOKEN' })
   @ApiResponse({ status: 409, description: 'Ya tiene una tarjeta inscrita' })
@@ -82,7 +86,7 @@ export class OneclickController {
   }
 
   @Post('inscriptions/finish')
-  @Roles('patient')
+  @Roles('patient', 'family')
   @HttpCode(200)
   @ApiOperation({ summary: 'Cierra la inscripción con lo que Transbank devolvió al navegador. Solo la puede cerrar quien la abrió' })
   @ApiResponse({ status: 200, description: '{ outcome: "ok" | "rechazada" | "anulada" | "error" }. Una inscripción ajena o inexistente responde "error"' })
@@ -99,7 +103,7 @@ export class OneclickController {
   }
 
   @Get('inscription')
-  @Roles('patient')
+  @Roles('patient', 'family')
   @ApiOperation({ summary: 'Tarjeta inscrita del paciente (tipo y últimos 4 dígitos), o null' })
   @ApiResponse({ status: 200, description: 'InscriptionView | null' })
   getInscription(@UserId() userId: string) {
@@ -107,7 +111,7 @@ export class OneclickController {
   }
 
   @Delete('inscription')
-  @Roles('patient')
+  @Roles('patient', 'family')
   @HttpCode(204)
   @ApiOperation({ summary: 'Elimina la tarjeta inscrita, en Transbank y acá' })
   @ApiResponse({ status: 204, description: 'Tarjeta eliminada' })
@@ -125,6 +129,21 @@ export class OneclickController {
   @ApiResponse({ status: 409, description: 'Sin tarjeta, o la cuota ya está pagada o tiene un cobro en curso' })
   chargeInvoice(@UserId() userId: string, @Body() dto: ChargeInvoiceDto) {
     return this.payments.chargeInvoice(userId, 'user', dto.invoiceId);
+  }
+
+  // HdU12. El paciente sale del vínculo activo del familiar, nunca del cuerpo. Sin vínculo activo, 403;
+  // una cuota que no es de ese paciente, 404; una ya pagada, 409.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
+  @Post('family/charge')
+  @Roles('family')
+  @ApiOperation({ summary: 'HdU12: el familiar paga cuotas del paciente vinculado con su tarjeta inscrita' })
+  @ApiResponse({ status: 201, description: 'FamilyPaymentView — status paid | partial | rejected | error | processing' })
+  @ApiResponse({ status: 403, description: 'Su vínculo con el paciente no está activo' })
+  @ApiResponse({ status: 404, description: 'Alguna cuota no es del paciente vinculado' })
+  @ApiResponse({ status: 409, description: 'Sin tarjeta, o una cuota ya está pagada o tiene un cobro en curso' })
+  async chargeForFamily(@UserId() userId: string, @Body() dto: ChargeInvoicesDto) {
+    const patientId = await this.family.getActivePatientId(userId);
+    return this.payments.chargeInvoicesForFamily(userId, patientId, dto.invoiceIds);
   }
 
   @Get('charges')

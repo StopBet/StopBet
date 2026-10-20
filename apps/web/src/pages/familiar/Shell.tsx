@@ -108,7 +108,7 @@ export function Notice({
   title,
   children,
 }: {
-  icon: 'clock' | 'circle-alert' | 'calendar'
+  icon: 'clock' | 'circle-alert' | 'calendar' | 'circle-check'
   title: string
   children: React.ReactNode
 }) {
