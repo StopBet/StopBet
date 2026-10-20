@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { WIcon } from './WIcon'
 import { MoodChart } from './MoodChart'
 import { AlertStatusBadge } from './AlertStatusBadge'
+import { AssistantHistorySection } from './AssistantHistorySection'
 import { api } from '../services/api'
 import { needsAttention } from '../utils/alertStatus'
 import { useDialog } from '../hooks/useDialog'
@@ -200,21 +201,7 @@ export function PatientDrawer({ patient, onClose }: { patient: Patient; onClose:
             )
           )}
 
-          {tab === 'sesiones' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {/* Antes decía "aún no ha usado el asistente" siempre, aunque sí lo hubiera usado:
-                  el panel todavía no recibe esas sesiones, y eso es lo único cierto que se puede decir. */}
-              {(patient.sessions.length ? patient.sessions : [{ date: 'Todavía no disponible', summary: 'El panel aún no muestra las sesiones de este paciente con el asistente. Que esté vacío no significa que no lo haya usado.' }]).map((s, i) => (
-                <div key={i} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <WIcon name="message-circle" size={16} color="var(--primary-text)" />
-                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 13.5, color: 'var(--fg1)' }}>{s.date}</span>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: 'var(--fg2)', lineHeight: 1.5 }}>{s.summary}</p>
-                </div>
-              ))}
-            </div>
-          )}
+          {tab === 'sesiones' && <AssistantHistorySection patientId={patient.id} />}
 
           {tab === 'datos' && (
             // Antes eran campos editables con un "Guardar cambios" que no llamaba a nada: el

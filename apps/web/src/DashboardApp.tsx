@@ -37,7 +37,7 @@ const PAGE_TITLES: Record<NavId, string> = {
   requests:  'Solicitudes de ingreso',
   moderation: 'Moderación de la comunidad',
   familyLinks: 'Familiares',
-  familySessions: 'Sesiones de familiares',
+  familySessions: 'Sesiones grupales',
   equipo:    'Equipo',
   reports:   'Reportes',
   finanzas:  'Finanzas',

@@ -5,12 +5,13 @@ import {
   Text,
   View,
 } from 'react-native';
-import type { AiSessionSummary } from '@stopbet/shared-types';
+import type { AiSessionSummaryWithMemory, PatientFeedback } from '@stopbet/shared-types';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
+import { TECHNIQUE } from './AssistantHistorySheet';
 
 interface SummaryChip {
   bg: string;
@@ -26,7 +27,7 @@ function aiVal(v: string | null | undefined, fallback: string): string {
   return v.trim();
 }
 
-function buildChips(summary: AiSessionSummary, durationMinutes: number, c: Palette): SummaryChip[] {
+function buildChips(summary: AiSessionSummaryWithMemory, durationMinutes: number, c: Palette): SummaryChip[] {
   return [
     {
       bg: c.infoSurface,
@@ -48,7 +49,8 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number, c: Palet
       icon: 'wind',
       iconColor: c.primary,
       label: 'Técnica usada',
-      value: aiVal(summary.techniqueUsed, 'Ninguna'),
+      // La técnica que decidió el código manda; el texto libre del modelo es el respaldo.
+      value: summary.technique ? TECHNIQUE[summary.technique] : aiVal(summary.techniqueUsed, 'Ninguna'),
     },
     {
       bg: c.sage50,
@@ -62,9 +64,11 @@ function buildChips(summary: AiSessionSummary, durationMinutes: number, c: Palet
 
 interface Props {
   visible: boolean;
-  summary: AiSessionSummary | null;
+  summary: AiSessionSummaryWithMemory | null;
   durationMinutes: number;
   onContinue: () => void;
+  feedback: PatientFeedback | null;
+  onFeedback: (f: PatientFeedback) => void;
 }
 
 export function SessionSummaryModal({
@@ -72,6 +76,8 @@ export function SessionSummaryModal({
   summary,
   durationMinutes,
   onContinue,
+  feedback,
+  onFeedback,
 }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -118,10 +124,29 @@ export function SessionSummaryModal({
             ))}
           </View>
 
+          <Text style={styles.askTitle}>¿Te ayudó lo que hicimos?</Text>
+          <View style={styles.askRow}>
+            {([['yes', 'Sí'], ['somewhat', 'Un poco'], ['no', 'No']] as const).map(([value, label]) => {
+              const selected = feedback === value;
+              return (
+                <Touchable
+                  key={value}
+                  onPress={() => onFeedback(value)}
+                  style={[styles.askBtn, selected && styles.askBtnSelected]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`¿Te ayudó lo que hicimos? ${label}`}
+                  accessibilityState={{ selected }}
+                >
+                  <Text style={[styles.askText, selected && styles.askTextSelected]}>{label}</Text>
+                </Touchable>
+              );
+            })}
+          </View>
+
           <View style={styles.noteRow}>
             <Icon name="lock" size={14} color={c.fg2} />
             <Text style={styles.note}>
-              Este resumen ayuda al asistente a retomar la próxima vez. La conversación queda guardada en tu cuenta y tu psicólogo no la lee.
+              Este resumen ayuda al asistente a retomar la próxima vez. Tu equipo clínico puede ver este resumen, pero no la conversación.
             </Text>
           </View>
 
@@ -207,6 +232,13 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   chipText: { flex: 1 },
   chipLabel: { fontFamily: Fonts.bodyBold, fontSize: 12, color: c.fg2, letterSpacing: 0.3 },
   chipValue: { fontFamily: Fonts.bodyBold, fontSize: 13.5, color: c.ink900, marginTop: 2 },
+
+  askTitle: { fontFamily: Fonts.bodyBold, fontSize: 15, color: c.ink900, marginTop: 18 },
+  askRow: { flexDirection: 'row', gap: 8, marginTop: 10, width: '100%' },
+  askBtn: { flex: 1, borderRadius: 9999, borderWidth: 1.5, borderColor: c.border, paddingVertical: 11, minHeight: 48, alignItems: 'center', justifyContent: 'center' },
+  askBtnSelected: { backgroundColor: c.primary, borderColor: c.primary },
+  askText: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg1 },
+  askTextSelected: { color: c.white },
 
   noteRow: {
     flexDirection: 'row',

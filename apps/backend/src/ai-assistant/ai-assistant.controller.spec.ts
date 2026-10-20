@@ -1,3 +1,7 @@
+import { Reflector } from '@nestjs/core';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
+import { ROLES_KEY } from '../common/decorators/roles.decorator';
+import { PatientAccessGuard } from '../common/guards/patient-access.guard';
 import { AiAssistantController } from './ai-assistant.controller';
 import { AiAssistantService } from './ai-assistant.service';
 
@@ -11,6 +15,7 @@ describe('AiAssistantController', () => {
     sendMessage: jest.Mock;
     closeSession: jest.Mock;
     getSummaries: jest.Mock;
+    setFeedback: jest.Mock;
   };
   let controller: AiAssistantController;
 
@@ -21,6 +26,7 @@ describe('AiAssistantController', () => {
       sendMessage: jest.fn().mockResolvedValue({ crisis: null }),
       closeSession: jest.fn().mockResolvedValue({ sessionId: SESSION_ID }),
       getSummaries: jest.fn().mockResolvedValue([]),
+      setFeedback: jest.fn().mockResolvedValue({ patientFeedback: 'yes' }),
     };
     controller = new AiAssistantController(service as unknown as AiAssistantService);
   });
@@ -49,5 +55,22 @@ describe('AiAssistantController', () => {
   it('getSummaries delega con el usuario del header', async () => {
     expect(await controller.getSummaries(USER_ID)).toEqual([]);
     expect(service.getSummaries).toHaveBeenCalledWith(USER_ID);
+  });
+
+  it('setFeedback delega sesión, usuario y respuesta del cuerpo', async () => {
+    await controller.setFeedback(SESSION_ID, USER_ID, { feedback: 'yes' });
+    expect(service.setFeedback).toHaveBeenCalledWith(SESSION_ID, USER_ID, 'yes');
+  });
+});
+
+describe('HdU10 CA4 — el historial clínico', () => {
+  const handler = AiAssistantController.prototype.getPatientSummaries;
+
+  it('solo lo pide el equipo clínico', () => {
+    expect(new Reflector().get(ROLES_KEY, handler)).toEqual(['psychologist', 'coordinator']);
+  });
+
+  it('acota al psicólogo a sus pacientes asignados', () => {
+    expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toContain(PatientAccessGuard);
   });
 });

@@ -240,8 +240,11 @@ function SessionsHome({ user, onLogout }: { user: AuthUser; onLogout: () => void
           </div>
 
           {respond.isError && (
-            <p style={{ marginTop: 16, fontSize: 13.5, color: 'var(--fg2)' }}>
-              No pudimos guardar tu respuesta. Vuelve a intentarlo.
+            <p role="alert" style={{ marginTop: 16, fontSize: 13.5, color: 'var(--fg2)' }}>
+              {/* 409 = otra persona tomó el último cupo, o la sesión ya ocurrió (HdU14) */}
+              {(respond.error as { status?: number }).status === 409
+                ? 'No pudimos confirmar: la sesión se llenó o ya ocurrió.'
+                : 'No pudimos guardar tu respuesta. Vuelve a intentarlo.'}
             </p>
           )}
         </section>

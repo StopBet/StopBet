@@ -6,7 +6,7 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { RiskLevel } from '@stopbet/shared-types';
+import { PatientFeedback, RiskLevel, TechniqueType, TriggerCategory } from '@stopbet/shared-types';
 import { AiSession } from './ai-session.entity';
 
 const RISK_LEVELS: RiskLevel[] = ['low', 'medium', 'high'];
@@ -45,6 +45,19 @@ export class AiSessionSummary {
 
   @Column({ nullable: true })
   progressNote: string | null;
+
+  // HdU10: todas nullable, para que los resúmenes anteriores sigan siendo válidos.
+  @Column({ type: 'varchar', nullable: true })
+  triggerCategory: TriggerCategory | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  technique: TechniqueType | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  patientFeedback: PatientFeedback | null;
+
+  @Column({ type: 'boolean', nullable: true })
+  llmThoughtHelpful: boolean | null;
 
   @CreateDateColumn()
   createdAt: Date;

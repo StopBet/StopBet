@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-10-07 - Comando nuevo para borrar las cuentas de familiar de la demo
+## 2026-10-19 - Comando nuevo para borrar las cuentas de familiar de la demo (PR #161)
 
 **A quién le pega:** a quien haga la demo de las HDU 22 y 23 con la guía de criterios.
 
@@ -30,6 +30,53 @@ está.
 - **Qué borra:** solo los familiares `familiar.{uno,dos,tres}.juego{1,2}@correo.cl` (y el intento del
   CA3), con sus vínculos, su historial de decisiones, notificaciones y sesiones. Nunca toca a un
   usuario que no tenga rol familiar.
+
+---
+
+## 2026-10-19 - `seed:family` ahora deja el historial de decisiones de los vínculos (HDU 23 CA6) (PR #159)
+
+**A quién le pega:** a quien arme una demo de Familiares o quiera ver el *Historial* con datos.
+
+- **Qué hacer:** `pnpm run seed:family` desde la raíz (necesita `pnpm run seed` corrido antes: busca a
+  Miguel, Valentina y Tomás). Es idempotente.
+- **Qué cambia:** los vínculos del seed dejan de verse activos pero sin autor. Ahora cada uno muestra
+  «Confirmado por {psicólogo} · fecha» y el enlace *Historial*; Jorge Gómez trae cuatro decisiones
+  (confirmó, revocó, devolvió a revisión, volvió a confirmar) para ver una línea de tiempo completa.
+- **No pisa nada real:** solo siembra el historial de los vínculos que no tienen ninguna decisión. Una
+  base ya sembrada, como la de Railway, lo recibe al volver a correrlo.
+
+---
+
+## 2026-10-19 - Gestión de grupos de sesión (HdU14) (PR #163)
+
+**A quién le pega:** a todos, tras pullear.
+
+- `packages/shared-types` tiene exports nuevos (`PatientGroupSession`, destino `group-sessions`).
+  Si levantas Metro sin el backend, recompila con `pnpm --filter @stopbet/shared-types build`.
+- `POST /family/sessions` ahora **exige `capacity` y `audience`** (`patients` | `family`): un
+  script o seed que cree sesiones sin esos campos recibe 400. Las sesiones que ya existían
+  quedan como `family` y sin cupo.
+- Tablas y columnas nuevas (`family_sessions.capacity`/`audience`, `session_presences`): las
+  crea `synchronize` al levantar el backend, no hay que correr nada.
+- En el dashboard, «Sesiones de familiares» pasó a llamarse **«Sesiones grupales»** (misma
+  ruta) y su lista **parte ahora**, no ayer: lo que ya ocurrió está en la pestaña «Pasadas».
+  Si atiendes varias sedes, ves las sesiones de todas.
+- El familiar ya **no ve** las sesiones de tipo «pacientes», y con el cupo lleno no puede
+  confirmar (409). No es un bug.
+
+---
+
+## 2026-10-14 - Memoria del asistente (HdU10) (PR por abrir)
+
+**A quién le pega:** a todos, tras pullear.
+
+- `packages/shared-types` tiene exports nuevos. Si levantas Metro sin el backend, recompila con
+  `pnpm --filter @stopbet/shared-types build`; si no, mobile no ve los tipos nuevos.
+- El asistente ahora manda al LLM los **últimos 12 mensajes** (antes los primeros 12): en chats
+  largos las respuestas cambian, no es un bug.
+- La pestaña **«Sesiones IA»** de la web (Mis pacientes › Seguimiento) ahora muestra datos reales.
+- `ai_session_summaries` tiene columnas nuevas, todas nullable; las crea `synchronize` al arrancar
+  el backend, no hay que correr nada.
 
 ---
 

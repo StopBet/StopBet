@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -6,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import {
+  Between,
   DataSource,
   EntityManager,
   FindOptionsWhere,
@@ -28,18 +30,21 @@ import {
 } from '@stopbet/shared-types';
 import { FamilyLink, FamilyLinkStatus, FamilyLinkVerification } from './entities/family-link.entity';
 import { FamilyLinkReview, FamilyLinkVerdict } from './entities/family-link-review.entity';
-import { FamilySession } from './entities/family-session.entity';
+import { FamilySession, type SessionAudience } from './entities/family-session.entity';
 import { SessionAttendance } from './entities/session-attendance.entity';
+import { SessionPresence } from './entities/session-presence.entity';
 import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
-import { resolveSedeId, sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
+import { formasDeSede, resolveSedeId, sedeIdsOfPsychologist } from '../psychologists/sedes-of-user';
 import { Invoice } from '../billing/entities/invoice.entity';
 import { PushService } from '../push/push.service';
 import { CreateFamilyLinkDto } from './dto/create-family-link.dto';
 import { CreateFamilySessionDto } from './dto/create-family-session.dto';
 import { ConfirmAttendanceDto } from './dto/confirm-attendance.dto';
+import { UpdateFamilySessionDto } from './dto/update-family-session.dto';
+import { MarkPresenceDto } from './dto/mark-presence.dto';
 import { RegisterFamilyDto } from './dto/register-family.dto';
 
 const UPCOMING_WEEKS = 4;
@@ -65,7 +70,22 @@ const LINK_PRIORITY: Record<FamilyLinkStatus, number> = {
   rejected: 0,
 };
 
-export type FamilySessionView = FamilySession & { userAttends: boolean | null };
+// spotsLeft: cupos libres (null = sin cupo, sesiones anteriores a la HdU14).
+export type FamilySessionView = FamilySession & { userAttends: boolean | null; spotsLeft: number | null };
+
+// HdU14 CA6 — lo que ve el paciente en la app: las sesiones de su sede, de los dos tipos.
+export interface PatientSessionView {
+  id: string;
+  title: string;
+  sessionDate: Date;
+  location: string;
+  isOnline: boolean;
+  isMandatory: boolean;
+  audience: SessionAudience;
+  capacity: number | null;
+  spotsLeft: number | null;
+  userAttends: boolean | null;
+}
 
 export interface FamilySessionsView {
   linkStatus: FamilyLinkState;
@@ -90,9 +110,40 @@ export interface SedeSessionView {
   sessionDate: Date;
   location: string;
   isOnline: boolean;
+  capacity: number | null;
+  audience: SessionAudience;
+  sedeName: string;
   confirmedCount: number;
   declinedCount: number;
   attendances: SessionAttendanceView[];
+}
+
+// HdU14 CA3 — una persona invitada a la sesión. Solo el nombre: es lo que hace falta para pasar
+// lista, y nada más del User (ni correo ni RUT) sale del backend.
+export interface SessionParticipantView {
+  userId: string;
+  name: string;
+  kind: 'patient' | 'family';
+  // De quién es familiar, para distinguir a dos familiares con el mismo nombre.
+  patientName: string | null;
+  respondedAt: Date | null;
+  // HdU14 CA4 — null mientras no se pase lista.
+  attended: boolean | null;
+}
+
+export interface SessionDetailView {
+  id: string;
+  title: string;
+  sessionDate: Date;
+  location: string;
+  isOnline: boolean;
+  capacity: number | null;
+  audience: SessionAudience;
+  // La lista se pasa cuando la sesión ya empezó: antes no hay asistencia que registrar.
+  canMarkPresence: boolean;
+  confirmed: SessionParticipantView[];
+  declined: SessionParticipantView[];
+  pending: SessionParticipantView[];
 }
 
 export interface FamilyInvoiceView {
@@ -126,6 +177,27 @@ const toInvoiceView = (i: Invoice): FamilyInvoiceView => ({
   amountCLP: i.amountCLP,
   dueDate: i.dueDate,
 });
+
+// "miércoles, 4 de noviembre, a las 19:00 h" en hora de Chile, para el aviso de cambio (HdU14 CA2).
+const SESSION_DAY = new Intl.DateTimeFormat('es-CL', {
+  timeZone: 'America/Santiago',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+const SESSION_TIME = new Intl.DateTimeFormat('es-CL', {
+  timeZone: 'America/Santiago',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+const formatSessionWhen = (d: Date): string => `${SESSION_DAY.format(d)}, a las ${SESSION_TIME.format(d)} h`;
+
+export type SessionScope = 'upcoming' | 'past';
+const PAST_SESSIONS_DAYS = 90;
+
+const spotsLeft = (s: FamilySession, taken: Map<string, number>): number | null =>
+  s.capacity === null || s.capacity === undefined ? null : Math.max(0, s.capacity - (taken.get(s.id) ?? 0));
 
 const EMPTY_VIEW = (linkStatus: FamilyLinkState): FamilySessionsView => ({
   linkStatus,
@@ -210,6 +282,8 @@ export class FamilyService {
     private readonly push: PushService,
     @InjectRepository(FamilyLinkReview)
     private readonly reviewRepo: Repository<FamilyLinkReview>,
+    @InjectRepository(SessionPresence)
+    private readonly presenceRepo: Repository<SessionPresence>,
   ) {}
 
   // ── Vínculo familiar ↔ paciente ───────────────────────────────────────────
@@ -220,7 +294,12 @@ export class FamilyService {
   async registerFamily(dto: RegisterFamilyDto): Promise<RegisterFamilyResponse> {
     const cleanFamilyRut = cleanRut(dto.rut);
 
-    const emailTaken = await this.userRepo.findOne({ where: { email: dto.email } });
+    // "Jose@…" y "jose@…" son la misma casilla, pero el índice único de users.email distingue
+    // mayúsculas: sin comparar así, la misma persona podía crear una segunda cuenta (CA3).
+    const email = dto.email.trim();
+    const emailTaken = await this.userRepo.findOne({
+      where: { email: Raw((alias) => `LOWER(${alias}) = LOWER(:email)`, { email }) },
+    });
     if (emailTaken) {
       throw new ConflictException('Ya existe una cuenta con esos datos');
     }
@@ -244,7 +323,7 @@ export class FamilyService {
       try {
         created = await manager.getRepository(User).save(
           manager.getRepository(User).create({
-            email: dto.email,
+            email,
             passwordHash,
             role: 'family',
             firstName: dto.firstName,
@@ -892,6 +971,181 @@ export class FamilyService {
     return this.sessionRepo.save(session);
   }
 
+  // HdU14 CA2 — solo sesiones futuras de una sede que atiende. Si cambian la fecha, la hora o
+  // el cupo, se avisa a quienes ya confirmaron; si solo cambia el nombre o el lugar, no.
+  async updateSession(sessionId: string, dto: UpdateFamilySessionDto, reviewer: AuthUser): Promise<FamilySession> {
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    // Una sesión de otra sede responde igual que una inexistente, como en getAttendancesForSession.
+    if (!session || !(await this.coversSede(reviewer, session.sedeId))) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+
+    const now = new Date();
+    if (session.sessionDate <= now) {
+      throw new ConflictException('Solo se pueden editar sesiones que todavía no ocurren');
+    }
+
+    const newDate = dto.sessionDate !== undefined ? new Date(dto.sessionDate) : session.sessionDate;
+    if (newDate <= now) {
+      throw new BadRequestException('La nueva fecha de la sesión tiene que ser futura');
+    }
+
+    const confirmed = await this.attendanceRepo.find({ where: { sessionId, confirmed: true } });
+    if (dto.capacity !== undefined && dto.capacity < confirmed.length) {
+      throw new ConflictException(
+        `El cupo no puede ser menor que las ${confirmed.length} personas que ya confirmaron`,
+      );
+    }
+
+    const dateChanged = newDate.getTime() !== session.sessionDate.getTime();
+    const capacityChanged = dto.capacity !== undefined && dto.capacity !== session.capacity;
+
+    Object.assign(session, { ...dto, sessionDate: newDate });
+    const saved = await this.sessionRepo.save(session);
+
+    if ((dateChanged || capacityChanged) && confirmed.length > 0) {
+      await this.notifySessionChange(saved, confirmed.map((a) => a.familyUserId), dateChanged, capacityChanged);
+    }
+    return saved;
+  }
+
+  private async notifySessionChange(
+    session: FamilySession,
+    userIds: string[],
+    dateChanged: boolean,
+    capacityChanged: boolean,
+  ): Promise<void> {
+    const cambios: string[] = [];
+    if (dateChanged) cambios.push(`ahora es el ${formatSessionWhen(session.sessionDate)}`);
+    if (capacityChanged) cambios.push(`su cupo cambió a ${session.capacity} personas`);
+    const body = `La sesión «${session.title}» ${cambios.join(' y ')}.`;
+
+    await this.notifRepo.save(
+      userIds.map((userId) =>
+        this.notifRepo.create({ userId, type: 'info', title: 'Cambió una sesión grupal', body, target: 'group-sessions' }),
+      ),
+    );
+    // Sin esperar, como pushFamilyRequest: si Firebase falla, el aviso ya quedó guardado. La
+    // pantalla de bloqueo la ve cualquiera, así que el push no dice de qué sesión se trata.
+    void this.push
+      .enviarAUsuarios(userIds, 'Cambió una sesión grupal', 'Ábrela en StopBet para ver el detalle.')
+      .catch(() => undefined);
+  }
+
+  // HdU14 CA3 — detalle con tres listas: confirmados, no asistirán y sin respuesta. Invitados son
+  // los pacientes activos de la sede y, en las de tipo "familiar", sus familiares con vínculo
+  // activo. Quien ya respondió sale en su lista aunque después lo hayan suspendido o desvinculado.
+  async getSessionDetail(sessionId: string, reviewer: AuthUser): Promise<SessionDetailView> {
+    const session = await this.sessionRepo.findOne({ where: { id: sessionId } });
+    if (!session || !(await this.coversSede(reviewer, session.sedeId))) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+
+    const patients = await this.userRepo.find({
+      where: { role: 'patient', accountStatus: 'active', sedeId: In(await formasDeSede(this.sedeRepo, session.sedeId)) },
+      select: ['id', 'firstName', 'lastName'],
+    });
+    const fullName = (u: { firstName: string; lastName: string }) => `${u.firstName} ${u.lastName}`.trim();
+    const patientNames = new Map(patients.map((p) => [p.id, fullName(p)]));
+
+    const invited = new Map<string, SessionParticipantView>();
+    for (const p of patients) {
+      invited.set(p.id, { userId: p.id, name: fullName(p), kind: 'patient', patientName: null, respondedAt: null, attended: null });
+    }
+
+    const familyOf = new Map<string, string | null>();
+    if (session.audience === 'family' && patients.length > 0) {
+      const links = await this.linkRepo.find({
+        where: { status: 'active', patientUserId: In(patients.map((p) => p.id)) },
+        relations: ['familyUser'],
+      });
+      for (const l of links) {
+        const patientName = patientNames.get(l.patientUserId!) ?? null;
+        familyOf.set(l.familyUserId, patientName);
+        invited.set(l.familyUserId, {
+          userId: l.familyUserId,
+          name: fullName(l.familyUser),
+          kind: 'family',
+          patientName,
+          respondedAt: null,
+          attended: null,
+        });
+      }
+    }
+
+    const attendances = await this.attendanceRepo.find({
+      where: { sessionId },
+      relations: ['familyUser'],
+      order: { confirmedAt: 'DESC' },
+    });
+
+    const confirmed: SessionParticipantView[] = [];
+    const declined: SessionParticipantView[] = [];
+    for (const a of attendances) {
+      const isFamily = a.familyUser.role === 'family';
+      const view: SessionParticipantView = {
+        userId: a.familyUserId,
+        name: fullName(a.familyUser),
+        kind: isFamily ? 'family' : 'patient',
+        patientName: isFamily ? (familyOf.get(a.familyUserId) ?? null) : null,
+        respondedAt: a.confirmedAt,
+        attended: null,
+      };
+      (a.confirmed ? confirmed : declined).push(view);
+      invited.delete(a.familyUserId);
+    }
+
+    const pending = [...invited.values()].sort((x, y) => x.name.localeCompare(y.name, 'es'));
+
+    const presences = await this.presenceRepo.find({ where: { sessionId } });
+    const attendedBy = new Map(presences.map((p) => [p.userId, p.attended]));
+    for (const p of [...confirmed, ...declined, ...pending]) {
+      p.attended = attendedBy.get(p.userId) ?? null;
+    }
+
+    return {
+      id: session.id,
+      title: session.title,
+      sessionDate: session.sessionDate,
+      location: session.location,
+      isOnline: session.isOnline,
+      capacity: session.capacity,
+      audience: session.audience,
+      canMarkPresence: session.sessionDate <= new Date(),
+      confirmed,
+      declined,
+      pending,
+    };
+  }
+
+  // HdU14 CA4 — pasar lista. Solo de sesiones que ya empezaron y solo a personas que estaban
+  // invitadas o respondieron: el mismo criterio del detalle, para que la lista y lo que se
+  // puede marcar no diverjan. Marcar de nuevo a alguien corrige su registro, no lo duplica.
+  async markPresence(sessionId: string, dto: MarkPresenceDto, reviewer: AuthUser): Promise<SessionDetailView> {
+    const detail = await this.getSessionDetail(sessionId, reviewer);
+    if (!detail.canMarkPresence) {
+      throw new ConflictException('Podrás registrar la asistencia cuando la sesión haya comenzado');
+    }
+
+    const participants = new Set([...detail.confirmed, ...detail.declined, ...detail.pending].map((p) => p.userId));
+    if (dto.marks.some((m) => !participants.has(m.userId))) {
+      throw new BadRequestException('Solo puedes marcar a personas invitadas a esta sesión');
+    }
+
+    const existing = await this.presenceRepo.find({ where: { sessionId, userId: In(dto.marks.map((m) => m.userId)) } });
+    const byUser = new Map(existing.map((p) => [p.userId, p]));
+    await this.presenceRepo.save(
+      dto.marks.map((m) => {
+        const row = byUser.get(m.userId) ?? this.presenceRepo.create({ sessionId, userId: m.userId });
+        row.attended = m.attended;
+        row.markedBy = reviewer.id;
+        return row;
+      }),
+    );
+
+    return this.getSessionDetail(sessionId, reviewer);
+  }
+
   // CA 11.1 + 11.5 + 11.6 — sesiones de la sede del paciente vinculado, ordenadas por proximidad.
   // Sin vínculo no es un error: es el estado que la vista de familiar tiene que pintar (11.6).
   async getSessionsForFamily(familyUserId: string): Promise<FamilySessionsView> {
@@ -906,8 +1160,9 @@ export class FamilyService {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 1);
 
+    // HdU14 CA6: las sesiones de tipo "pacientes" no las ven los familiares.
     const sessions = await this.sessionRepo.find({
-      where: { sedeId, sessionDate: MoreThanOrEqual(cutoff) },
+      where: { sedeId, audience: 'family', sessionDate: MoreThanOrEqual(cutoff) },
       order: { sessionDate: 'ASC' },
     });
 
@@ -919,10 +1174,12 @@ export class FamilyService {
       where: { familyUserId },
     });
     const attendanceMap = new Map(attendances.map((a) => [a.sessionId, a.confirmed]));
+    const taken = await this.confirmedCounts(sessions.map((s) => s.id));
 
     const enriched = sessions.map((s) => ({
       ...s,
       userAttends: attendanceMap.has(s.id) ? attendanceMap.get(s.id)! : null,
+      spotsLeft: spotsLeft(s, taken),
     }));
 
     return { linkStatus: 'active', sessions: enriched, hasUpcoming };
@@ -947,18 +1204,107 @@ export class FamilyService {
       resolveSedeId(this.sedeRepo, session?.sedeId),
       resolveSedeId(this.sedeRepo, link.patientUser.sedeId),
     ]);
-    if (!session || !sessionSede || sessionSede !== patientSede) {
+    // HdU14 CA6: una sesión solo de pacientes no existe para el familiar.
+    if (!session || !sessionSede || sessionSede !== patientSede || session.audience === 'patients') {
       throw new NotFoundException('Sesión no encontrada');
     }
 
-    const existing = await this.attendanceRepo.findOne({ where: { sessionId, familyUserId } });
-    if (existing) {
-      existing.confirmed = dto.confirmed;
-      return this.attendanceRepo.save(existing);
-    }
+    return this.saveResponse(familyUserId, sessionId, dto.confirmed);
+  }
 
-    const attendance = this.attendanceRepo.create({ sessionId, familyUserId, confirmed: dto.confirmed });
-    return this.attendanceRepo.save(attendance);
+  // HdU14 CA6 — sesiones de la sede del paciente, de los dos tipos: las de pacientes son de él,
+  // y en las de familiares participa junto a su familia.
+  async getSessionsForPatient(patientId: string): Promise<{ sessions: PatientSessionView[] }> {
+    const patient = await this.userRepo.findOne({ where: { id: patientId } });
+    if (!patient?.sedeId) return { sessions: [] };
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 1);
+    const sessions = await this.sessionRepo.find({
+      where: { sedeId: In(await formasDeSede(this.sedeRepo, patient.sedeId)), sessionDate: MoreThanOrEqual(cutoff) },
+      order: { sessionDate: 'ASC' },
+    });
+    if (sessions.length === 0) return { sessions: [] };
+
+    const mine = await this.attendanceRepo.find({
+      where: { familyUserId: patientId, sessionId: In(sessions.map((s) => s.id)) },
+    });
+    const answered = new Map(mine.map((a) => [a.sessionId, a.confirmed]));
+    const taken = await this.confirmedCounts(sessions.map((s) => s.id));
+
+    return {
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        title: s.title,
+        sessionDate: s.sessionDate,
+        location: s.location,
+        isOnline: s.isOnline,
+        isMandatory: s.isMandatory,
+        audience: s.audience,
+        capacity: s.capacity,
+        spotsLeft: spotsLeft(s, taken),
+        userAttends: answered.has(s.id) ? answered.get(s.id)! : null,
+      })),
+    };
+  }
+
+  async confirmPatientAttendance(
+    patientId: string,
+    sessionId: string,
+    dto: ConfirmAttendanceDto,
+  ): Promise<SessionAttendance> {
+    const [patient, session] = await Promise.all([
+      this.userRepo.findOne({ where: { id: patientId } }),
+      this.sessionRepo.findOne({ where: { id: sessionId } }),
+    ]);
+    const [sessionSede, patientSede] = await Promise.all([
+      resolveSedeId(this.sedeRepo, session?.sedeId),
+      resolveSedeId(this.sedeRepo, patient?.sedeId),
+    ]);
+    // Misma respuesta que una sesión inexistente: no confirma que exista en otra sede.
+    if (!session || !sessionSede || sessionSede !== patientSede) {
+      throw new NotFoundException('Sesión no encontrada');
+    }
+    return this.saveResponse(patientId, sessionId, dto.confirmed);
+  }
+
+  // Guarda la respuesta de un paciente o un familiar (`session_attendances.familyUserId` es en
+  // realidad el usuario que responde: el nombre viene de la HdU11, cuando solo respondían
+  // familiares, y renombrar la columna con synchronize la borraría con sus datos).
+  // HdU14 — con la sesión bloqueada, para que dos personas que confirman a la vez el último
+  // cupo no lo pasen. Pasar de "no asistiré" a "asistiré" también ocupa cupo; quien ya había
+  // confirmado no se rechaza aunque el cupo esté justo.
+  private saveResponse(userId: string, sessionId: string, confirmed: boolean): Promise<SessionAttendance> {
+    return this.dataSource.transaction(async (manager) => {
+      const sessions = manager.getRepository(FamilySession);
+      const attendances = manager.getRepository(SessionAttendance);
+
+      const session = await sessions.findOne({ where: { id: sessionId }, lock: { mode: 'pessimistic_write' } });
+      if (!session) throw new NotFoundException('Sesión no encontrada');
+      if (session.sessionDate <= new Date()) {
+        throw new ConflictException('Esta sesión ya ocurrió');
+      }
+
+      const existing = await attendances.findOne({ where: { sessionId, familyUserId: userId } });
+      if (confirmed && existing?.confirmed !== true && session.capacity !== null) {
+        const taken = await attendances.count({ where: { sessionId, confirmed: true } });
+        if (taken >= session.capacity) throw new ConflictException('La sesión está llena');
+      }
+
+      if (existing) {
+        existing.confirmed = confirmed;
+        return attendances.save(existing);
+      }
+      return attendances.save(attendances.create({ sessionId, familyUserId: userId, confirmed }));
+    });
+  }
+
+  private async confirmedCounts(sessionIds: string[]): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (sessionIds.length === 0) return counts;
+    const rows = await this.attendanceRepo.find({ where: { sessionId: In(sessionIds), confirmed: true } });
+    for (const r of rows) counts.set(r.sessionId, (counts.get(r.sessionId) ?? 0) + 1);
+    return counts;
   }
 
   // Para que el psicólogo vea asistencias en su dashboard (CA 11.4 segunda mitad).
@@ -988,15 +1334,42 @@ export class FamilyService {
     }));
   }
 
+  // HdU14 — sedes que atiende: las de psychologist_sedes (o la de su ficha, si no tiene), y
+  // todas las activas si es coordinación. La misma regla con la que createSession lo deja crear.
+  async sessionSedesFor(reviewer: AuthUser): Promise<{ id: string; name: string }[]> {
+    const ids = await this.reviewableSedeIds(reviewer);
+    if (ids !== null && ids.length === 0) return [];
+    const sedes = await this.sedeRepo.find({
+      where: ids === null ? { isActive: true } : { id: In(ids) },
+      order: { name: 'ASC' },
+    });
+    return sedes.map((s) => ({ id: s.id, name: s.name }));
+  }
+
   // CA 11.4 — el psicólogo necesita partir de la lista de sesiones de su sede.
   // `getSessionsForFamily` no le sirve: deriva del vínculo del familiar.
-  async getSedeSessions(sedeId: string): Promise<SedeSessionView[]> {
-    const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - 1);
+  // HdU14 CA4 — 'past' trae las de los últimos 90 días, la más reciente primero, para pasar
+  // lista. Antes la lista solo llegaba hasta ayer y una sesión más vieja no se podía abrir.
+  // Las próximas parten ahora (ya no ayer): lo que ya ocurrió está en la otra pestaña.
+  async getSedeSessions(
+    sedes: { id: string; name: string }[],
+    scope: SessionScope = 'upcoming',
+  ): Promise<SedeSessionView[]> {
+    const now = new Date();
+    const since = new Date(now.getTime() - PAST_SESSIONS_DAYS * 86_400_000);
 
+    // `sessions.sedeId` puede traer el UUID o el nombre de la sede, como `users.sedeId`.
+    const sedeName = new Map<string, string>();
+    for (const s of sedes) {
+      sedeName.set(s.id, s.name);
+      sedeName.set(s.name, s.name);
+    }
     const sessions = await this.sessionRepo.find({
-      where: { sedeId, sessionDate: MoreThanOrEqual(cutoff) },
-      order: { sessionDate: 'ASC' },
+      where: {
+        sedeId: In([...sedeName.keys()]),
+        sessionDate: scope === 'upcoming' ? MoreThanOrEqual(now) : Between(since, now),
+      },
+      order: { sessionDate: scope === 'upcoming' ? 'ASC' : 'DESC' },
     });
     if (sessions.length === 0) return [];
 
@@ -1028,6 +1401,9 @@ export class FamilyService {
         sessionDate: s.sessionDate,
         location: s.location,
         isOnline: s.isOnline,
+        capacity: s.capacity,
+        audience: s.audience,
+        sedeName: sedeName.get(s.sedeId) ?? s.sedeId,
         confirmedCount: list.filter((a) => a.confirmed).length,
         declinedCount: list.filter((a) => !a.confirmed).length,
         attendances: list,

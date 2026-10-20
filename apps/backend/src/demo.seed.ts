@@ -36,6 +36,7 @@ import { DeviceToken } from './push/entities/device-token.entity';
 import { FamilyLink } from './family/entities/family-link.entity';
 import { FamilySession } from './family/entities/family-session.entity';
 import { SessionAttendance } from './family/entities/session-attendance.entity';
+import { SessionPresence } from './family/entities/session-presence.entity';
 import { PsychologistSede } from './psychologists/entities/psychologist-sede.entity';
 import { PatientAssignment } from './psychologists/entities/patient-assignment.entity';
 import { todayInChile, daysAgoInChile } from './common/chile-date';
@@ -194,7 +195,7 @@ async function seedDemo(): Promise<void> {
       SponsorAssignment, PanicAlert,
       RefreshToken,
       DeviceToken,
-      FamilyLink, FamilySession, SessionAttendance,
+      FamilyLink, FamilySession, SessionAttendance, SessionPresence,
       CommunityMute,
       PsychologistSede, PatientAssignment,
     ],
