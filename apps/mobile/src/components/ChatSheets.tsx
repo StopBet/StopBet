@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Modal, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReactionEmoji, ReactionSummary } from '@stopbet/shared-types';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
 import { REACTION_ICON_MAP, REACTION_NAME } from './ChatMessage';
+import { EmojiPanel, borrarUltimo } from './EmojiPanel';
 import type { Palette } from '../constants/colors';
 import { useColors, useStyles } from '../context/ThemeContext';
 import { Fonts } from '../constants/typography';
@@ -230,35 +231,100 @@ export function ComposerDeChat({
   const styles = useStyles(makeStyles);
   const margen = useMargenInferior();
   const puede = !apagado && !!valor.trim() && !ocupado;
+  const campo = useRef<TextInput>(null);
+  // Como en WhatsApp: el panel de emojis ocupa el lugar del teclado, nunca están los dos.
+  const [conEmojis, setConEmojis] = useState(false);
+  // Con el panel abierto el campo pierde el foco, así que el cursor se recuerda aparte para
+  // insertar el emoji donde estaba y no siempre al final.
+  const cursor = useRef({ start: valor.length, end: valor.length });
+
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => setConEmojis(false));
+    return () => sub.remove();
+  }, []);
+
+  const alternarEmojis = () => {
+    if (conEmojis) {
+      setConEmojis(false);
+      campo.current?.focus();
+    } else {
+      Keyboard.dismiss();
+      setConEmojis(true);
+    }
+  };
+
+  // Al enviar, el texto se vacía desde afuera y el cursor guardado puede quedar más allá.
+  const cursorActual = () => ({
+    start: Math.min(cursor.current.start, valor.length),
+    end: Math.min(cursor.current.end, valor.length),
+  });
+
+  const insertar = (emoji: string) => {
+    const { start, end } = cursorActual();
+    const nuevo = valor.slice(0, start) + emoji + valor.slice(end);
+    if (nuevo.length > 1000) return;
+    cursor.current = { start: start + emoji.length, end: start + emoji.length };
+    onCambio(nuevo);
+  };
+
+  const borrar = () => {
+    const { start, end } = cursorActual();
+    const antes = start === end ? borrarUltimo(valor.slice(0, start)) : valor.slice(0, start);
+    cursor.current = { start: antes.length, end: antes.length };
+    onCambio(antes + valor.slice(end));
+  };
+
   return (
-    <View style={[styles.composer, { paddingBottom: 14 + margen }, apagado && styles.composerOff]}>
-      <TextInput
-        style={styles.composerInput}
-        accessibilityLabel={etiqueta}
-        placeholder={placeholder}
-        placeholderTextColor={c.fg2}
-        value={valor}
-        onChangeText={onCambio}
-        editable={!apagado}
-        maxLength={1000}
-        multiline
-      />
-      <Touchable
-        rippleColor="rgba(255,255,255,0.28)"
-        style={[styles.sendBtn, !puede && styles.sendBtnDisabled]}
-        onPress={onEnviar}
-        disabled={!puede}
-        accessibilityRole="button"
-        accessibilityLabel="Enviar mensaje"
-        accessibilityState={{ disabled: !puede, busy: ocupado }}
-        activeOpacity={0.85}
-      >
-        {ocupado ? (
-          <ActivityIndicator size="small" color={c.white} />
-        ) : (
-          <Icon name="send" size={18} color={c.white} />
-        )}
-      </Touchable>
+    <View style={apagado && styles.composerOff}>
+      <View style={[styles.composer, { paddingBottom: conEmojis ? 10 : 14 + margen }]}>
+        <View style={styles.composerCaja}>
+          <Touchable
+            style={styles.emojiBtn}
+            onPress={alternarEmojis}
+            disabled={apagado}
+            borderless
+            accessibilityRole="button"
+            accessibilityLabel={conEmojis ? 'Mostrar teclado' : 'Mostrar emojis'}
+          >
+            <Icon name={conEmojis ? 'keyboard' : 'smile'} size={22} color={c.fg2} />
+          </Touchable>
+          <TextInput
+            ref={campo}
+            style={styles.composerInput}
+            accessibilityLabel={etiqueta}
+            placeholder={placeholder}
+            placeholderTextColor={c.fg2}
+            value={valor}
+            onChangeText={onCambio}
+            onSelectionChange={(e) => { cursor.current = e.nativeEvent.selection; }}
+            onFocus={() => setConEmojis(false)}
+            editable={!apagado}
+            maxLength={1000}
+            multiline
+          />
+        </View>
+        <Touchable
+          rippleColor="rgba(255,255,255,0.28)"
+          style={[styles.sendBtn, !puede && styles.sendBtnDisabled]}
+          onPress={onEnviar}
+          disabled={!puede}
+          accessibilityRole="button"
+          accessibilityLabel="Enviar mensaje"
+          accessibilityState={{ disabled: !puede, busy: ocupado }}
+          activeOpacity={0.85}
+        >
+          {ocupado ? (
+            <ActivityIndicator size="small" color={c.white} />
+          ) : (
+            <Icon name="send" size={18} color={c.white} />
+          )}
+        </Touchable>
+      </View>
+      {conEmojis && !apagado && (
+        <View style={{ paddingBottom: margen }}>
+          <EmojiPanel onElegir={insertar} onBorrar={borrar} />
+        </View>
+      )}
     </View>
   );
 }
@@ -363,14 +429,20 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     borderTopColor: c.border,
   },
   composerOff: { opacity: 0.7 },
-  composerInput: {
-    fontFamily: Fonts.body,
+  composerCaja: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
     backgroundColor: c.bg,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: 24,
-    paddingHorizontal: 16,
+  },
+  emojiBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  composerInput: {
+    fontFamily: Fonts.body,
+    flex: 1,
+    paddingRight: 16,
     paddingVertical: 11,
     fontSize: 14,
     color: c.ink900,

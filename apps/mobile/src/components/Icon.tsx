@@ -74,6 +74,8 @@ import EllipsisVertical from 'lucide-react-native/dist/esm/icons/ellipsis-vertic
 import Plus from 'lucide-react-native/dist/esm/icons/plus.mjs';
 import Pin from 'lucide-react-native/dist/esm/icons/pin.mjs';
 import Ban from 'lucide-react-native/dist/esm/icons/ban.mjs';
+import Keyboard from 'lucide-react-native/dist/esm/icons/keyboard.mjs';
+import Delete from 'lucide-react-native/dist/esm/icons/delete.mjs';
 import type { LucideProps } from 'lucide-react-native';
 import { useColors } from '../context/ThemeContext';
 
@@ -151,6 +153,8 @@ const ICON_MAP: Record<string, FC<LucideProps>> = {
   'plus': Plus,
   'pin': Pin,
   'ban': Ban,
+  'keyboard': Keyboard,
+  'delete': Delete,
 };
 
 export type IconName = keyof typeof ICON_MAP;
