@@ -22,8 +22,13 @@ export class PaymentCharge {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  // Dueño de la cuota (el paciente), aunque la haya pagado un familiar.
   @Column()
   userId: string;
+
+  // Quién puso la tarjeta. Null = el propio dueño (todos los cobros anteriores a HdU12).
+  @Column({ type: 'varchar', nullable: true })
+  payerUserId: string | null;
 
   @Column()
   invoiceId: string;

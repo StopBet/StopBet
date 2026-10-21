@@ -29,6 +29,24 @@ está.
 - **Lo que se mantiene:** si alguien te cita, el aviso aparece en la campana de la app (no push). El
   interruptor «Silenciar notificaciones de comunidad» de Perfil apaga solo eso.
 - **Qué hacer:** nada. El canal de Android `comunidad` cambia su descripción al recompilar.
+## 2026-10-19 - El familiar paga la mensualidad del paciente con Webpay Oneclick (HdU12)
+
+**A quién le pega:** a quien levante el backend o la web después de pullear, y a quien despliegue en Railway/Vercel.
+
+- **Columna nueva:** `payment_charges.payerUserId` (nullable, quién pagó). Con `synchronize` se crea sola; no hay que
+  correr nada. Los cobros anteriores quedan en `null` (= pagó el dueño de la cuota).
+- **Variable nueva para que funcione en la nube:** `TBK_RESULT_URL=https://<tu-vercel>/familiar/pago` en Railway
+  (en local: `http://localhost:5173/familiar/pago`). Es la página a la que el backend reenvía al familiar cuando
+  Transbank lo devuelve tras inscribir la tarjeta. Sin ella el retorno cae en la página de prueba del backend y el
+  portal nunca cierra la inscripción.
+- **Cambio de comportamiento:** el rol `family` ahora puede usar las rutas de inscripción de tarjeta
+  (`/payments/oneclick/inscription*`) y la nueva `POST /payments/oneclick/family/charge`. El familiar paga con **su
+  propia** tarjeta; el paciente sale de su vínculo activo, nunca del cuerpo. **Pagar una cuota vencida reactiva la
+  cuenta suspendida del paciente** (solo por este camino; el cobro automático sigue sin reactivar). Detalle de la
+  decisión en `docs/ASUNCIONES-PENDIENTES.md`.
+- **Para probarlo a mano:** `pnpm run seed && pnpm run seed:family && pnpm run seed:demo -- --reset` y entra a
+  `/familiar/pago` con el familiar con vínculo activo. Con tarjeta de prueba de Transbank (integración).
+- No toca `billing.controller.ts` ni el cron que pasa cuotas a vencidas (HdU09).
 
 ---
 

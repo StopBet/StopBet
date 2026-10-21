@@ -1,4 +1,4 @@
-import { ConflictException, Logger } from '@nestjs/common';
+import { ConflictException, Logger, NotFoundException } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 import { PaymentCharge } from './entities/payment-charge.entity';
 import { answeredWithClientError, newBuyOrder, OneclickPaymentsService } from './oneclick-payments.service';
@@ -464,6 +464,166 @@ describe('OneclickPaymentsService', () => {
       expect(written).not.toContain(EMAIL);
       expect(written).not.toContain(TBK_USER);
       expect(written).not.toContain('TOKEN123');
+    });
+  });
+
+  // ── HdU12: el familiar paga las cuotas del paciente ───────────────────────────────────────
+
+  describe('chargeInvoicesForFamily', () => {
+    const FAMILY_ID = 'fam-1';
+    const familyInscription = { ...activeInscription, id: 'insc-fam', userId: FAMILY_ID, username: FAMILY_ID };
+    const inv = (id: string, month: string, dueDate: string, over: Record<string, unknown> = {}) =>
+      invoice({ id, month, dueDate, status: 'overdue', ...over });
+
+    // La base de mentira devuelve solo las cuotas pedidas que son del dueño, como el `WHERE` real.
+    let rows: ReturnType<typeof inv>[];
+    beforeEach(() => {
+      rows = [inv('inv-8', '2026-08', '2026-08-31'), inv('inv-9', '2026-09', '2026-09-30')];
+      inscriptionRepo.findOne.mockResolvedValue(familyInscription);
+      invoiceRepo.find.mockImplementation(({ where }: { where: { id: { value: string[] }; userId: string } }) =>
+        Promise.resolve(rows.filter((r) => r.userId === where.userId && where.id.value.includes(r.id))),
+      );
+    });
+
+    it('cobra con la tarjeta del familiar: la cuota sigue siendo del paciente y el cobro guarda quién pagó', async () => {
+      await service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8']);
+
+      expect(inscriptionRepo.findOne).toHaveBeenCalledWith({ where: { userId: FAMILY_ID, status: 'active' } });
+      expect(gateway.authorize).toHaveBeenCalledWith(expect.objectContaining({ username: FAMILY_ID, tbkUser: TBK_USER }));
+      expect(chargeRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({ userId: USER_ID, payerUserId: FAMILY_ID, inscriptionId: 'insc-fam' }),
+      );
+    });
+
+    it('busca las cuotas solo entre las del paciente vinculado', async () => {
+      await service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8', 'inv-9']);
+
+      expect(invoiceRepo.find.mock.calls[0][0].where).toMatchObject({ userId: USER_ID });
+    });
+
+    it('al pagar el familiar pide reactivar la cuenta, y la cuota se salda a nombre del paciente (CA2)', async () => {
+      await service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8']);
+
+      expect(billing.settleInvoices).toHaveBeenCalledWith(USER_ID, [expect.objectContaining({ id: 'inv-8' })], {
+        notification: 'payment',
+        reactivateAccount: true,
+        manager: expect.anything(),
+      });
+    });
+
+    it('acepta una cuenta suspendida: es justo lo que el familiar viene a regularizar', async () => {
+      userRepo.findOne.mockResolvedValue({ id: USER_ID, accountStatus: 'suspended' });
+
+      const view = await service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8']);
+
+      expect(view.status).toBe('paid');
+      expect(gateway.authorize).toHaveBeenCalledTimes(1);
+    });
+
+    it('el cobro del propio paciente sigue sin pagador distinto', async () => {
+      inscriptionRepo.findOne.mockResolvedValue(activeInscription);
+      invoiceRepo.findOne.mockResolvedValue(inv('inv-8', '2026-08', '2026-08-31', { status: 'overdue' }));
+
+      await service.chargeInvoice(USER_ID, 'user', 'inv-8');
+
+      expect(chargeRepo.create).toHaveBeenCalledWith(expect.objectContaining({ userId: USER_ID, payerUserId: null }));
+    });
+
+    it('cobra varias cuotas en serie, la más antigua primero, y arma el comprobante (CA6)', async () => {
+      const view = await service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-9', 'inv-8']);
+
+      expect(gateway.authorize).toHaveBeenCalledTimes(2);
+      expect(invoiceRepo.find.mock.calls[0][0].order).toEqual({ dueDate: 'ASC' });
+      expect(view).toMatchObject({
+        status: 'paid',
+        totalPaidCLP: 60000,
+        paidAt: '2026-10-07T18:00:00.000Z',
+        card: { cardType: 'Visa', cardLast4: '6623' },
+      });
+      expect(view.items.map((i) => [i.month, i.status, i.authorizationCode])).toEqual([
+        ['2026-08', 'authorized', '1213'],
+        ['2026-09', 'authorized', '1213'],
+      ]);
+    });
+
+    it('si la tarjeta falla en la segunda de tres, queda pagada solo la primera y no se intenta la tercera (CA5)', async () => {
+      rows.push(inv('inv-10', '2026-10', '2026-10-31', { status: 'pending' }));
+      gateway.authorize.mockResolvedValueOnce(approved).mockResolvedValueOnce(rejected);
+
+      const view = await service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8', 'inv-9', 'inv-10']);
+
+      expect(gateway.authorize).toHaveBeenCalledTimes(2);
+      expect(billing.settleInvoices).toHaveBeenCalledTimes(1);
+      expect(billing.settleInvoices.mock.calls[0][1]).toEqual([expect.objectContaining({ id: 'inv-8' })]);
+      expect(view.status).toBe('partial');
+      expect(view.totalPaidCLP).toBe(30000);
+      expect(view.items.map((i) => i.status)).toEqual(['authorized', 'rejected']);
+    });
+
+    it('si rechazan la primera, no se salda nada y se puede reintentar con otra tarjeta (CA5)', async () => {
+      gateway.authorize.mockResolvedValueOnce(rejected);
+
+      const view = await service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8', 'inv-9']);
+
+      expect(view).toMatchObject({ status: 'rejected', totalPaidCLP: 0, paidAt: null });
+      expect(gateway.authorize).toHaveBeenCalledTimes(1);
+      expect(billing.settleInvoices).not.toHaveBeenCalled();
+    });
+
+    it('sin tarjeta inscrita responde 409 sin tocar nada', async () => {
+      inscriptionRepo.findOne.mockResolvedValue(null);
+
+      await expect(service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8'])).rejects.toThrow(ConflictException);
+
+      expect(gateway.authorize).not.toHaveBeenCalled();
+      expect(chargeRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('una cuota que no es del paciente responde 404 y no se cobra ninguna', async () => {
+      await expect(service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8', 'inv-ajena'])).rejects.toThrow(
+        NotFoundException,
+      );
+
+      expect(gateway.authorize).not.toHaveBeenCalled();
+      expect(chargeRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('una cuota ya pagada responde 409 y no se cobra ninguna, ni las demás del pedido (CA4)', async () => {
+      rows[0] = inv('inv-8', '2026-08', '2026-08-31', { status: 'paid' });
+
+      await expect(service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8', 'inv-9'])).rejects.toThrow(
+        ConflictException,
+      );
+
+      expect(gateway.authorize).not.toHaveBeenCalled();
+    });
+
+    it('un cobro en curso en la segunda cuota no esconde que la primera ya se pagó', async () => {
+      chargeRepo.save
+        .mockImplementationOnce((v) => {
+          stored = { id: 'charge-1', createdAt: new Date('2026-10-07T18:00:00Z'), transactionDate: null, ...v };
+          return Promise.resolve(stored);
+        })
+        .mockRejectedValueOnce(uniqueViolation());
+
+      const view = await service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8', 'inv-9']);
+
+      expect(view.status).toBe('partial');
+      expect(view.items).toHaveLength(1);
+    });
+
+    it('un cobro en curso en la primera cuota responde 409', async () => {
+      chargeRepo.save.mockRejectedValueOnce(uniqueViolation());
+
+      await expect(service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8'])).rejects.toThrow(ConflictException);
+    });
+
+    it('503 si los pagos no están configurados', async () => {
+      gateway.isEnabled.mockReturnValue(false);
+
+      await expect(service.chargeInvoicesForFamily(FAMILY_ID, USER_ID, ['inv-8'])).rejects.toThrow(
+        'Los pagos no están configurados',
+      );
     });
   });
 
