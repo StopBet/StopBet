@@ -187,6 +187,22 @@ function PrivadoChip() {
   )
 }
 
+// Lo reportado puede ser solo un GIF: sin mostrarlo, la cola enseñaba un mensaje vacío y no
+// había cómo decidir.
+function ContenidoReportado({ post, recorte, estilo }: { post: FlaggedPost; recorte?: number; estilo: React.CSSProperties }) {
+  const texto = post.body ?? ''
+  const visible = recorte && texto.length > recorte ? texto.slice(0, recorte) + '…' : texto
+  return (
+    <>
+      {post.gif && (
+        <img src={post.gif.url} alt={post.gif.title ? `GIF: ${post.gif.title}` : 'GIF'}
+          style={{ display: 'block', width: 160, maxWidth: '100%', aspectRatio: `${post.gif.width} / ${post.gif.height}`, objectFit: 'cover', borderRadius: 10, background: 'var(--border)', marginTop: 4 }} />
+      )}
+      {visible ? <div style={estilo}>{visible}</div> : !post.gif && <div style={estilo}>-</div>}
+    </>
+  )
+}
+
 function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedPost; onClose: () => void; onConfirm: () => void; loading: boolean }) {
   const dialogRef = useDialog<HTMLDivElement>(onClose)
   return (
@@ -215,9 +231,13 @@ function DeletePostModal({ post, onClose, onConfirm, loading }: { post: FlaggedP
               <span style={{ fontSize: 12, color: 'var(--fg2)', marginLeft: 8 }}>Sede {post.sede}</span>
             </div>
           </div>
-          <p style={{ margin: 0, fontSize: 13, color: 'var(--fg1)', lineHeight: 1.5, fontStyle: 'italic' }}>
-            "{(post.body ?? '').length > 160 ? (post.body ?? '').slice(0, 160) + '…' : (post.body ?? '')}"
-          </p>
+          <ContenidoReportado post={post} recorte={160}
+            estilo={{ margin: 0, fontSize: 13, color: 'var(--fg1)', lineHeight: 1.5, fontStyle: 'italic' }} />
+          {post.gif && (
+            <p style={{ margin: '10px 0 0', fontSize: 12.5, color: 'var(--fg2)', lineHeight: 1.5 }}>
+              El GIF quedará bloqueado: no volverá a aparecer en el buscador ni se podrá enviar de nuevo.
+            </p>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
@@ -318,7 +338,7 @@ export function FlaggedPostsSection() {
                     </span>
                   </div>
 
-                  <div style={{ fontSize: 13, color: 'var(--fg2)', lineHeight: 1.5 }}>{p.body ?? '-'}</div>
+                  <ContenidoReportado post={p} estilo={{ fontSize: 13, color: 'var(--fg2)', lineHeight: 1.5 }} />
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ display: 'inline-block', whiteSpace: 'nowrap', background: 'var(--teal-50)', color: 'var(--primary-text)', borderRadius: 8, padding: '3px 9px', fontSize: 12, fontWeight: 600 }}>{p.sede}</span>
@@ -358,9 +378,7 @@ export function FlaggedPostsSection() {
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 600, fontSize: 13.5, color: 'var(--fg1)' }}>{p.authorName ?? 'Usuario'}</div>
                         {esPrivado(p) && <PrivadoChip />}
-                        <div style={{ fontSize: 12.5, color: 'var(--fg2)', marginTop: 3, lineHeight: 1.5 }}>
-                          {p.body ?? '-'}
-                        </div>
+                        <ContenidoReportado post={p} estilo={{ fontSize: 12.5, color: 'var(--fg2)', marginTop: 3, lineHeight: 1.5 }} />
                       </div>
                     </div>
                   </td>

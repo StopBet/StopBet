@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -19,6 +20,7 @@ import { PostReport } from './entities/post-report.entity';
 import { AttendanceConfirmation } from './entities/attendance-confirmation.entity';
 import { User } from '../users/entities/user.entity';
 import { Sede } from '../sedes/entities/sede.entity';
+import { GifsService } from '../gifs/gifs.service';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import {
   formasDeSede,
@@ -62,6 +64,7 @@ export class CommunityService {
     @InjectRepository(PsychologistSede)
     private readonly psychSedeRepo: Repository<PsychologistSede>,
     private readonly directMessages: DirectMessagesService,
+    private readonly gifs: GifsService,
   ) {}
 
   /**
@@ -238,6 +241,10 @@ export class CommunityService {
       if (existing) return this.serializePost(existing, [], 0, authorId);
     }
 
+    if (!dto.body?.trim() && !dto.gifId) {
+      throw new BadRequestException('Escribe un mensaje o elige un GIF');
+    }
+
     // Citar un mensaje de otra sede sería una forma de leerlo: la cita viaja dentro de la
     // respuesta, así que el original tiene que ser de la misma comunidad.
     const sedeDelAutor = await this.sedeParaEscribir(authorId);
@@ -246,6 +253,7 @@ export class CommunityService {
       if (!citado) throw new NotFoundException('El mensaje que respondes ya no existe');
       await this.assertPuedeEscribirEn(authorId, citado.sede);
     }
+    const gif = dto.gifId ? await this.gifs.resolver(dto.gifId) : null;
 
     const post = await this.postRepo.save(
       this.postRepo.create({
@@ -256,7 +264,8 @@ export class CommunityService {
         // La sede sale de la cuenta, no del cuerpo: `dto.sede` la elegía el cliente, así que
         // cualquier sesión podía publicar en el foro de una sede ajena.
         sede: sedeDelAutor,
-        body: dto.body,
+        body: dto.body ?? '',
+        gif,
         clientRequestId: dto.clientRequestId ?? null,
       }),
     );
@@ -439,15 +448,19 @@ export class CommunityService {
       // Para cualquier otro rol sigue siendo un 404, como antes.
       const requester = await this.userRepo.findOne({ where: { id: requesterId } });
       if (requester?.role === 'psychologist') {
-        const directo = await this.directMessages.deleteAsModerator(postId);
+        const directo = await this.directMessages.deleteAsModerator(postId, requesterId);
         if (directo) return directo;
       }
       throw new NotFoundException('Publicación no encontrada');
     }
-    if (post.authorId !== requesterId) {
+    const porModeración = post.authorId !== requesterId;
+    if (porModeración) {
       await this.assertPsychologist(requesterId);
     }
     await this.postRepo.delete(postId);
+    // Si el equipo clínico sacó un GIF, nadie más puede volver a mandarlo. Si lo borra su
+    // autor, no: arrepentirse de un mensaje no dice nada del GIF.
+    if (porModeración && post.gif) await this.gifs.bloquear(post.gif, requesterId);
     return { deleted: true };
   }
 
@@ -541,6 +554,7 @@ export class CommunityService {
       reactions: this.buildReactionSummaries(reactions, userId),
       replyTo: this.citar(p.replyTo),
       achievementDays: p.achievementDays ?? null,
+      gif: p.gif ?? null,
       createdAt: p.createdAt.toISOString(),
     };
   }
@@ -555,13 +569,15 @@ export class CommunityService {
     const nombre = original.author
       ? `${original.author.firstName} ${original.author.lastName}`
       : 'Alguien';
+    // Un mensaje que es solo un GIF no tiene texto que citar.
+    const texto = original.body || (original.gif ? 'GIF' : '');
     return {
       id: original.id,
       authorName: nombre,
       body:
-        original.body.length > LARGO_DE_CITA
-          ? `${original.body.slice(0, LARGO_DE_CITA).trimEnd()}…`
-          : original.body,
+        texto.length > LARGO_DE_CITA
+          ? `${texto.slice(0, LARGO_DE_CITA).trimEnd()}…`
+          : texto,
     };
   }
 

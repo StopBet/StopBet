@@ -7,6 +7,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import type { GifAttachment } from '@stopbet/shared-types';
 import { User } from '../../users/entities/user.entity';
 import { DirectConversation } from './direct-conversation.entity';
 
@@ -32,6 +33,13 @@ export class DirectMessage {
 
   @Column({ type: 'text' })
   body: string;
+
+  /**
+   * El GIF que acompaña al mensaje, ya revisado por el filtro de apuestas. Se guarda entero y no
+   * solo el id para no depender de GIPHY al leer el chat. Con GIF, `body` puede ir vacío.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  gif: GifAttachment | null;
 
   // `SET NULL` como en el foro: borrar el original no se lleva las respuestas.
   @Column({ type: 'uuid', nullable: true })

@@ -4,6 +4,7 @@ import { User } from '../users/entities/user.entity';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { PushModule } from '../push/push.module';
+import { GifsModule } from '../gifs/gifs.module';
 import { DirectMessagesController } from './direct-messages.controller';
 import { DirectMessagesService } from './direct-messages.service';
 import { DirectConversation } from './entities/direct-conversation.entity';
@@ -23,6 +24,7 @@ import { UserBlock } from './entities/user-block.entity';
       PsychologistSede,
     ]),
     PushModule,
+    GifsModule,
   ],
   controllers: [DirectMessagesController],
   providers: [DirectMessagesService],

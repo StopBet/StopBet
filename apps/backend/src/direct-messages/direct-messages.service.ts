@@ -21,6 +21,7 @@ import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 import { formasDeSede, formasDeSedesDeUsuario, resolveSedeId } from '../psychologists/sedes-of-user';
 import { PushService } from '../push/push.service';
+import { GifsService } from '../gifs/gifs.service';
 import { DirectConversation } from './entities/direct-conversation.entity';
 import { DirectMessage } from './entities/direct-message.entity';
 import { DirectMessageReport } from './entities/direct-message-report.entity';
@@ -62,6 +63,7 @@ export class DirectMessagesService {
     @InjectRepository(PsychologistSede)
     private readonly psychSedeRepo: Repository<PsychologistSede>,
     private readonly pushService: PushService,
+    private readonly gifs: GifsService,
   ) {}
 
   /**
@@ -131,7 +133,7 @@ export class DirectMessagesService {
           id: c.id,
           other: this.contacto(otro),
           lastMessage: {
-            body: recortar(último.body, LARGO_DE_VISTA_PREVIA),
+            body: recortar(textoDe(último), LARGO_DE_VISTA_PREVIA),
             senderId: último.senderId,
             createdAt: último.createdAt.toISOString(),
           },
@@ -247,6 +249,7 @@ export class DirectMessagesService {
     }
 
     if (meId === otherId) throw new BadRequestException('No puedes enviarte mensajes a tu propia cuenta');
+    if (!dto.body && !dto.gifId) throw new BadRequestException('Escribe un mensaje o elige un GIF');
     const [yo, otro] = await Promise.all([
       this.userRepo.findOneOrFail({ where: { id: meId } }),
       this.userRepo.findOne({ where: { id: otherId } }),
@@ -268,12 +271,15 @@ export class DirectMessagesService {
         throw new NotFoundException('El mensaje que respondes ya no existe');
       }
     }
+    // Recién acá, ya comprobado que puede escribirle: no se le pregunta a GIPHY por nadie más.
+    const gif = dto.gifId ? await this.gifs.resolver(dto.gifId) : null;
 
     const guardado = await this.messageRepo.save(
       this.messageRepo.create({
         conversationId: conversación.id,
         senderId: meId,
-        body: dto.body,
+        body: dto.body ?? '',
+        gif,
         replyToId: dto.replyToId ?? null,
         clientRequestId: dto.clientRequestId ?? null,
       }),
@@ -391,6 +397,7 @@ export class DirectMessagesService {
       reactions: [],
       replyTo: null,
       achievementDays: null,
+      gif: m.gif ?? null,
       createdAt: m.createdAt.toISOString(),
       reportReasons: motivos.get(m.id) ?? [],
     }));
@@ -412,13 +419,15 @@ export class DirectMessagesService {
    * Solo mensajes reportados: el equipo clínico no tiene acceso a las conversaciones, y un
    * borrado sin reporte sería una forma de actuar sobre algo que no debería haber visto.
    */
-  async deleteAsModerator(messageId: string) {
+  async deleteAsModerator(messageId: string, moderatorId: string) {
     const mensaje = await this.messageRepo.findOne({ where: { id: messageId } });
     if (!mensaje) return null;
     if (mensaje.reportCount < UMBRAL_DE_REPORTE) {
       throw new ForbiddenException('Solo se pueden eliminar mensajes directos reportados');
     }
     await this.borrar(mensaje);
+    // Igual que en el foro: un GIF que el equipo clínico sacó no se vuelve a mandar.
+    if (mensaje.gif) await this.gifs.bloquear(mensaje.gif, moderatorId);
     return { deleted: true as const };
   }
 
@@ -534,6 +543,7 @@ export class DirectMessagesService {
       senderRole: m.sender.role,
       body: m.body,
       replyTo: citar(m.replyTo),
+      gif: m.gif ?? null,
       createdAt: m.createdAt.toISOString(),
     };
   }
@@ -556,8 +566,13 @@ function citar(original: DirectMessage | null | undefined): QuotedMessage | null
   return {
     id: original.id,
     authorName: nombreDe(original.sender),
-    body: recortar(original.body, LARGO_DE_CITA),
+    body: recortar(textoDe(original), LARGO_DE_CITA),
   };
+}
+
+/** Lo que se muestra de un mensaje en una cita o en la lista de chats: un GIF solo no trae texto. */
+function textoDe(m: DirectMessage): string {
+  return m.body || (m.gif ? 'GIF' : '');
 }
 
 function sinTildes(texto: string): string {

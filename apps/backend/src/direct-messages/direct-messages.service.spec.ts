@@ -10,6 +10,15 @@ const DE_OTRA_SEDE = { id: '33333333-3333-3333-3333-333333333333', firstName: 'C
 const PSICÓLOGA = { id: '44444444-4444-4444-4444-444444444444', firstName: 'Dra', lastName: 'Luz', role: 'psychologist', sedeId: 'Santiago', accountStatus: 'active' };
 const USUARIOS = [ANA, BETO, DE_OTRA_SEDE, PSICÓLOGA];
 
+const GIF = {
+  id: 'abc123',
+  title: 'Abrazo',
+  url: 'https://media1.giphy.com/media/abc123/200w.gif',
+  previewUrl: 'https://media1.giphy.com/media/abc123/100w.gif',
+  width: 200,
+  height: 150,
+};
+
 const CONVERSACIÓN = { id: 'cccccccc-0000-0000-0000-000000000001', userAId: ANA.id, userBId: BETO.id, sede: 'Santiago' };
 
 function insertQb() {
@@ -26,6 +35,7 @@ describe('DirectMessagesService', () => {
   let reportRepo: Record<string, jest.Mock>;
   let blockRepo: Record<string, jest.Mock>;
   let pushService: { enviarAUsuarios: jest.Mock };
+  let gifs: { resolver: jest.Mock; bloquear: jest.Mock };
   let service: DirectMessagesService;
 
   beforeEach(() => {
@@ -72,6 +82,7 @@ describe('DirectMessagesService', () => {
       find: jest.fn().mockResolvedValue([SEDE]),
     };
     pushService = { enviarAUsuarios: jest.fn().mockResolvedValue(1) };
+    gifs = { resolver: jest.fn().mockResolvedValue(GIF), bloquear: jest.fn() };
 
     service = new DirectMessagesService(
       conversationRepo as any,
@@ -82,6 +93,7 @@ describe('DirectMessagesService', () => {
       sedeRepo as any,
       { find: jest.fn().mockResolvedValue([]) } as any,
       pushService as any,
+      gifs as any,
     );
   });
 
@@ -148,6 +160,25 @@ describe('DirectMessagesService', () => {
     });
   });
 
+  describe('mensajes con GIF', () => {
+    it('guarda el GIF que devuelve el backend, con el texto vacío', async () => {
+      await service.send(ANA.id, BETO.id, { gifId: 'abc123' });
+
+      expect(gifs.resolver).toHaveBeenCalledWith('abc123');
+      expect(messageRepo.save).toHaveBeenCalledWith(expect.objectContaining({ body: '', gif: GIF }));
+    });
+
+    it('sin texto ni GIF responde 400', async () => {
+      await expect(service.send(ANA.id, BETO.id, { body: '' })).rejects.toThrow(BadRequestException);
+      expect(messageRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('no le pregunta a GIPHY por un mensaje que igual se iba a rechazar', async () => {
+      await expect(service.send(ANA.id, DE_OTRA_SEDE.id, { gifId: 'abc123' })).rejects.toThrow(NotFoundException);
+      expect(gifs.resolver).not.toHaveBeenCalled();
+    });
+  });
+
   describe('report', () => {
     const MENSAJE = { id: 'm1', senderId: BETO.id, conversationId: CONVERSACIÓN.id, conversation: CONVERSACIÓN };
 
@@ -172,12 +203,26 @@ describe('DirectMessagesService', () => {
   describe('moderación', () => {
     it('el equipo clínico no puede borrar un mensaje directo que nadie reportó', async () => {
       messageRepo.findOne.mockResolvedValue({ id: 'm1', reportCount: 0 });
-      await expect(service.deleteAsModerator('m1')).rejects.toThrow(ForbiddenException);
+      await expect(service.deleteAsModerator('m1', PSICÓLOGA.id)).rejects.toThrow(ForbiddenException);
       expect(messageRepo.delete).not.toHaveBeenCalled();
     });
 
+    it('eliminar un mensaje reportado con GIF deja el GIF bloqueado', async () => {
+      messageRepo.findOne.mockResolvedValue({
+        id: 'm1',
+        reportCount: 3,
+        conversationId: CONVERSACIÓN.id,
+        gif: GIF,
+      });
+
+      await service.deleteAsModerator('m1', PSICÓLOGA.id);
+
+      expect(messageRepo.delete).toHaveBeenCalledWith('m1');
+      expect(gifs.bloquear).toHaveBeenCalledWith(GIF, PSICÓLOGA.id);
+    });
+
     it('devuelve null si el id no es de un mensaje directo, para que siga el foro', async () => {
-      expect(await service.deleteAsModerator('no-existe')).toBeNull();
+      expect(await service.deleteAsModerator('no-existe', PSICÓLOGA.id)).toBeNull();
       expect(await service.dismissReportsAsModerator('no-existe', PSICÓLOGA.id)).toBeNull();
     });
   });

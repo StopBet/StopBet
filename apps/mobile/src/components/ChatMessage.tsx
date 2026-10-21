@@ -1,6 +1,12 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import type { CommunityPost, QuotedMessage, ReactionEmoji, ReactionSummary } from '@stopbet/shared-types';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import type {
+  CommunityPost,
+  GifAttachment,
+  QuotedMessage,
+  ReactionEmoji,
+  ReactionSummary,
+} from '@stopbet/shared-types';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
 import type { Palette } from '../constants/colors';
@@ -176,7 +182,13 @@ function ChatMessageBase({
                 </View>
               </View>
             ) : (
-              <Text style={[styles.bubbleBody, isOwn && styles.bubbleBodyOwn]}>{post.body}</Text>
+              <>
+                {post.gif ? <GifDelMensaje gif={post.gif} /> : null}
+                {/* Un mensaje que es solo un GIF llega con el texto vacío. */}
+                {post.body ? (
+                  <Text style={[styles.bubbleBody, isOwn && styles.bubbleBodyOwn]}>{post.body}</Text>
+                ) : null}
+              </>
             )}
 
             <View style={styles.bubbleFoot}>
@@ -294,11 +306,30 @@ export function CitaEnComposer({ cita, onQuitar }: { cita: QuotedMessage; onQuit
 
 /** Lo que va en la cita: el comienzo del mensaje, no el mensaje entero. */
 export function citaDe(post: CommunityPost): QuotedMessage {
+  const texto = post.body || (post.gif ? 'GIF' : '');
   return {
     id: post.id,
     authorName: post.authorName,
-    body: post.body.length > 120 ? `${post.body.slice(0, 120).trimEnd()}…` : post.body,
+    body: texto.length > 120 ? `${texto.slice(0, 120).trimEnd()}…` : texto,
   };
+}
+
+const ANCHO_GIF = 220;
+const ALTO_MÁXIMO_GIF = 280;
+
+/** El GIF dentro de la burbuja, con su proporción y sin pasarse de alto. */
+function GifDelMensaje({ gif }: { gif: GifAttachment }) {
+  const styles = useStyles(makeStyles);
+  const alto = Math.min(ALTO_MÁXIMO_GIF, Math.round((ANCHO_GIF * gif.height) / gif.width));
+  return (
+    <Image
+      source={{ uri: gif.url }}
+      style={[styles.gif, { width: ANCHO_GIF, height: alto }]}
+      resizeMode="cover"
+      accessibilityRole="image"
+      accessibilityLabel={gif.title ? `GIF: ${gif.title}` : 'GIF'}
+    />
+  );
 }
 
 export function initial(name: string): string {
@@ -497,6 +528,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     marginBottom: 3,
   },
   bubbleBody: { fontFamily: Fonts.body, fontSize: 15, color: c.ink900, lineHeight: 21 },
+  gif: { borderRadius: 12, backgroundColor: c.border, marginBottom: 4 },
   // Blanco sobre el azul de marca: 5,09:1
   bubbleBodyOwn: { color: c.white },
 
