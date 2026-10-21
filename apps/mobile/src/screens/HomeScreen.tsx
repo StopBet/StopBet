@@ -17,6 +17,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CommunityPost, EmotionType, Notification, PatientGroupSession, PatientProgress } from '@stopbet/shared-types';
 import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
 import { ProgressMap } from '../components/ProgressMap';
+import { journeyAnimationStart } from '../components/JourneyPath';
 import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
 import { formatSessionWhen, nextGroupSession } from '../utils/groupSessions';
@@ -39,8 +40,10 @@ import {
 } from '../services/checkInQueue';
 import { registrarParaNotificaciones } from '../services/pushNotifications';
 import {
+  readJourneySeen,
   readProgress,
   readReminderChoice,
+  saveJourneySeen,
   saveProgress,
   saveReminderChoice,
 } from '../services/offlineStore';
@@ -84,6 +87,9 @@ export function HomeScreen({ navigation }: Props) {
   const [progress, setProgress] = useState<PatientProgress | null>(null);
   // Para las fechas de «Mi camino»; el progreso guardado sin conexión no la trae.
   const [periodStart, setPeriodStart] = useState<string | null>(null);
+  // Desde cuántos días anima el mapa el avance; solo se fija, nunca se limpia, para que una
+  // recarga del Inicio a mitad de la animación no la corte.
+  const [journeyFrom, setJourneyFrom] = useState<number | null>(null);
   const [todayEmotion, setTodayEmotion] = useState<EmotionType | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -109,13 +115,14 @@ export function HomeScreen({ navigation }: Props) {
         return;
       }
 
-      const [achData, checkIn, notifs, anns, grupos] = await Promise.all([
+      const [achData, checkIn, notifs, anns, grupos, seenDays] = await Promise.all([
         api.getAchievements(userId),
         api.getTodayCheckIn(userId),
         api.getNotifications(userId),
         api.getAnnouncements(userId, sede),
         // Si falla, el Inicio carga igual: la tarjeta de sesiones es un acceso, no lo central.
         api.getGroupSessions().catch(() => null),
+        readJourneySeen(userId),
       ]);
       if (grupos) setNextGroup(nextGroupSession(grupos.sessions));
 
@@ -128,6 +135,9 @@ export function HomeScreen({ navigation }: Props) {
 
       const days = achData.currentPeriod.daysAchieved;
       setPeriodStart(achData.currentPeriod.startDate);
+      const from = journeyAnimationStart(seenDays, days);
+      if (from !== null) setJourneyFrom(from);
+      void saveJourneySeen(userId, days);
       const HOME_MILESTONES = [30, 60, 90, 180, 365];
       const nextMilestone = HOME_MILESTONES.find(m => m > days) ?? 365;
       setProgress({
@@ -423,6 +433,7 @@ export function HomeScreen({ navigation }: Props) {
           {progress ? (
             <ProgressMap
               days={progress.daysStreak}
+              animateFrom={journeyFrom}
               onOpenJourney={() => navigation.navigate('Journey', { days: progress.daysStreak, startDate: periodStart })}
               onOpenAchievements={() => navigation.navigate('Achievements')}
             />

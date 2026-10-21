@@ -9,6 +9,8 @@ import { Touchable } from './Touchable';
 
 interface Props {
   days: number;
+  /** Días desde los que se anima el avance; `null` lo muestra quieto. */
+  animateFrom: number | null;
   onOpenJourney: () => void;
   onOpenAchievements: () => void;
 }
@@ -17,7 +19,7 @@ interface Props {
 // paciente. El camino entero se recorre en «Mi camino», que se abre tocando la tarjeta.
 const VISIBLE_STOPS = 3;
 
-export function ProgressMap({ days, onOpenJourney, onOpenAchievements }: Props) {
+export function ProgressMap({ days, animateFrom, onOpenJourney, onOpenAchievements }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
 
@@ -48,7 +50,7 @@ export function ProgressMap({ days, onOpenJourney, onOpenAchievements }: Props) 
 
         {/* Con tres paradas se deja la última ganada y las dos que vienen: lo recorrido ya
             asoma como camino verde por abajo, y lo que motiva es lo que falta. */}
-        <JourneyPath days={days} first={reached} count={VISIBLE_STOPS} />
+        <JourneyPath days={days} first={reached} count={VISIBLE_STOPS} animateFrom={animateFrom} />
       </Touchable>
 
       <Touchable style={styles.footer} onPress={onOpenAchievements} accessibilityRole="button">
