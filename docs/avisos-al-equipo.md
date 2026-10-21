@@ -20,7 +20,7 @@ está.
 
 ---
 
-## 2026-10-20 - El chat de la sede ya no manda push; los mensajes privados sí (PR pendiente)
+## 2026-10-20 - El chat de la sede ya no manda push; los mensajes privados sí (PR #169)
 
 **A quién le pega:** a quien pruebe o demuestre la Comunidad.
 
