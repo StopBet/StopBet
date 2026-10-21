@@ -22,6 +22,24 @@ describe('gif-blocklist', () => {
     'make-it-rain',
     'bet365',
     'jackpot!!!',
+    // Marcas que pegan «bet» o «casino» a otra cosa: como palabra completa se escapaban.
+    '1xbet',
+    '1XBET bonus',
+    '22bet',
+    'melbet',
+    'mostbet',
+    'rojabet',
+    'sportingbet',
+    'Bet',
+    '888casino',
+    'PokerStars',
+    'ggpoker',
+    // Las que no dicen «bet» ni «casino»
+    'parimatch',
+    '1win',
+    'Pin-Up',
+    'leovegas',
+    'Marina del Sol',
   ])('bloquea «%s»', (texto) => {
     expect(contieneTerminoBloqueado(texto)).toBe(true);
   });
@@ -38,6 +56,13 @@ describe('gif-blocklist', () => {
     'good luck',
     'fuerza',
     'me han dado ánimo',
+    // Contienen «bet» sin tener que ver con apuestas
+    'diabetes',
+    'betarraga',
+    'Beto',
+    'alfabeto',
+    'between friends',
+    'Elizabeth',
   ])('deja pasar «%s»', (texto) => {
     expect(contieneTerminoBloqueado(texto)).toBe(false);
   });
