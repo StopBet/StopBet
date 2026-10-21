@@ -984,3 +984,23 @@ export const deleteFamilyCard = () => del<void>('/payments/oneclick/inscription'
 
 export const chargeFamilyInvoices = (invoiceIds: string[]) =>
   post<FamilyPaymentResult>('/payments/oneclick/family/charge', undefined, { invoiceIds })
+
+// ── Finanzas (HdU09) ─────────────────────────────────────────────────────────
+// Espeja `PatientBillingRow` de @stopbet/shared-types (ver la nota de arriba sobre por qué la
+// web redeclara sus tipos).
+
+export type PatientPaymentState = 'up_to_date' | 'pending' | 'overdue'
+
+export interface PatientBillingRow {
+  patientId: string
+  firstName: string
+  lastName: string
+  sedeId: string | null
+  state: PatientPaymentState
+  totalOwedCLP: number
+  nextDueDate: string | null
+  daysOverdue: number
+  overdueMonths: number
+}
+
+export const getPatientsBilling = () => get<PatientBillingRow[]>('/billing/patients')

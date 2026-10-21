@@ -746,3 +746,5 @@ export interface AiSessionClinicalItem extends AiSessionHistoryItem {
 export interface AiSessionSummaryWithMemory extends AiSessionSummary {
   technique?: TechniqueType | null;
 }
+
+export * from './billing-overview';

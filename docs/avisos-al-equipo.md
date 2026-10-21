@@ -20,6 +20,20 @@ está.
 
 ---
 
+## 2026-10-21 - Las cuotas pasan solas a «vencida» y Finanzas muestra datos reales (HdU09, PR #178)
+
+**A quién le pega:** a quien trabaje con pagos (HdU12, `payments`, portal del familiar) o demuestre Finanzas.
+
+- **Qué cambia:** al arrancar el backend y cada día a las 00:05 de Chile, toda cuota `pending` cuyo
+  vencimiento ya pasó queda `overdue` (`billing/overdue-invoices.service.ts`). Antes solo el seed creaba
+  vencidas. **No es un bug** si una cuota de tu base local aparece vencida después de pullear: es que ya
+  venció. **No suspende cuentas ni avisa al paciente**; eso sigue sin decidir.
+- **Finanzas ya no es de ejemplo:** lee `GET /billing/patients` (psicólogo: sus asignados; coordinación:
+  todos). Sin `pnpm run seed:demo` la base local no tiene cuotas y la página dice «Aún no hay pagos
+  registrados».
+- **Qué hacer:** nada para que compile. Para ver la página con datos, `pnpm run seed:demo` y entra con
+  `sofia.reyes@ajuter.cl` o `miguel.lara@ajuter.cl`.
+
 ## 2026-10-20 - GIFs en el chat: recompilar la app y variable nueva `GIPHY_API_KEY` (PR pendiente)
 
 **A quién le pega:** a todo el que corra la app mobile (recompilar). La variable, solo a quien
