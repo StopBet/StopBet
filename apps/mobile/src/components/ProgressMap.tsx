@@ -32,7 +32,7 @@ const DAYS_BETWEEN_EXTRA_STOPS = 30;
 
 // El Inicio es un scroll con el check-in debajo: el mapa muestra solo el tramo en que va
 // el paciente. Entero (10 hitos y los que siguen) dejaría el check-in a varias pantallas.
-const VISIBLE_STOPS = 4;
+const VISIBLE_STOPS = 3;
 const NODE = 56;
 const GAP = 84;
 const PAD_TOP = 44;
@@ -101,7 +101,9 @@ export function ProgressMap({ days, onOpenAchievements }: Props) {
   const daysLeft = nextStop.days - days;
   const segmentProgress = (days - reachedStop.days) / (nextStop.days - reachedStop.days);
 
-  const first = Math.max(0, reached - 1);
+  // Con tres paradas se deja la última ganada y las dos que vienen: lo recorrido ya asoma
+  // como camino verde por abajo, y lo que motiva es lo que falta.
+  const first = reached;
   const leftX = width * 0.24;
   const rightX = width * 0.76;
   const pointOf = (index: number): Point => ({
