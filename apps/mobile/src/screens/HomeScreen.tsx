@@ -16,7 +16,7 @@ import type { MaterialTopTabScreenProps } from '@react-navigation/material-top-t
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { CommunityPost, EmotionType, Notification, PatientGroupSession, PatientProgress } from '@stopbet/shared-types';
 import type { AppStackParamList, MainTabsParamList } from '../navigation/types';
-import { DayCounter } from '../components/DayCounter';
+import { ProgressMap } from '../components/ProgressMap';
 import { EmotionCheckin } from '../components/EmotionCheckin';
 import { QuickAccess } from '../components/QuickAccess';
 import { formatSessionWhen, nextGroupSession } from '../utils/groupSessions';
@@ -311,9 +311,6 @@ export function HomeScreen({ navigation }: Props) {
             <Text style={styles.greeting}>Hola, {(user?.firstName ?? '')}</Text>
             <Icon name="hand" size={20} color={c.white} />
           </View>
-          <Text style={styles.subtitle}>
-            Día {progress?.daysStreak ?? '…'} de tu camino
-          </Text>
         </View>
         <NotificationBell
           sinLeer={unreadNotifs.length}
@@ -412,9 +409,19 @@ export function HomeScreen({ navigation }: Props) {
             </View>
           )}
 
+          {/* Va antes que el mapa: el mapa es alto y dejaba el registro del día fuera de pantalla */}
+          <EmotionCheckin
+            done={checkInDone}
+            selected={todayEmotion}
+            onPick={handlePickEmotion}
+          />
+
           {/* Sin dato no se dibuja el contador: un 0 se leería como racha perdida */}
           {progress ? (
-            <DayCounter days={progress.daysStreak} milestone={progress.nextMilestone} />
+            <ProgressMap
+              days={progress.daysStreak}
+              onOpenAchievements={() => navigation.navigate('Achievements')}
+            />
           ) : (
             <View style={styles.counterPlaceholder}>
               <Text style={styles.counterPlaceholderText}>
@@ -431,12 +438,6 @@ export function HomeScreen({ navigation }: Props) {
               )}
             </View>
           )}
-
-          <EmotionCheckin
-            done={checkInDone}
-            selected={todayEmotion}
-            onPick={handlePickEmotion}
-          />
 
           <QuickAccess onPressAssistant={() => navigation.navigate('Assistant')} />
 
@@ -523,12 +524,6 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     fontSize: 22,
     color: c.white,
     lineHeight: 28,
-  },
-  subtitle: {
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: c.onPrimaryMuted,
-    marginTop: 2,
   },
   avatar: {
     width: 48,
