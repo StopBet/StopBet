@@ -80,4 +80,6 @@ export type AppStackParamList = {
   NewDirectMessage: undefined;
   /** HdU14 CA6 — las sesiones grupales de la sede, para confirmar o avisar que no irá. */
   GroupSessions: undefined;
+  /** HdU3 — el camino completo de días sin apostar; `days` llega del Inicio, que ya los cargó. */
+  Journey: { days: number };
 };
