@@ -32,7 +32,7 @@ describe('CommunityService — escrituras idempotentes', () => {
   let notificationRepo: { create: jest.Mock; save: jest.Mock };
   let communityMuteRepo: { findOne: jest.Mock; find: jest.Mock };
   let sedeRepo: { find: jest.Mock; findOne: jest.Mock };
-  let gifs: { resolver: jest.Mock };
+  let gifs: { resolver: jest.Mock; bloquear: jest.Mock };
 
   const noopRepo = () => ({ find: jest.fn().mockResolvedValue([]), findOne: jest.fn() });
 
@@ -67,7 +67,7 @@ describe('CommunityService — escrituras idempotentes', () => {
       find: jest.fn().mockResolvedValue([SEDE]),
       findOne: jest.fn().mockResolvedValue(SEDE),
     };
-    gifs = { resolver: jest.fn().mockResolvedValue(GIF) };
+    gifs = { resolver: jest.fn().mockResolvedValue(GIF), bloquear: jest.fn() };
 
     service = new CommunityService(
       postRepo as any,
@@ -154,6 +154,25 @@ describe('CommunityService — escrituras idempotentes', () => {
 
       await expect(service.createPost({ gifId: 'casino1' }, AUTHOR_ID)).rejects.toThrow(BadRequestException);
       expect(postRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('si el equipo clínico elimina un mensaje con GIF, el GIF queda bloqueado', async () => {
+      (postRepo as any).delete = jest.fn();
+      postRepo.findOne.mockResolvedValue({ id: 'p1', authorId: 'otra-persona', gif: GIF });
+      userRepo.findOne.mockResolvedValue({ id: 'psico', role: 'psychologist' });
+
+      await service.deletePost('p1', 'psico');
+
+      expect(gifs.bloquear).toHaveBeenCalledWith(GIF, 'psico');
+    });
+
+    it('si el autor borra su propio mensaje con GIF, no se bloquea nada', async () => {
+      (postRepo as any).delete = jest.fn();
+      postRepo.findOne.mockResolvedValue({ id: 'p1', authorId: AUTHOR_ID, gif: GIF });
+
+      await service.deletePost('p1', AUTHOR_ID);
+
+      expect(gifs.bloquear).not.toHaveBeenCalled();
     });
 
     it('citar un mensaje que es solo un GIF muestra «GIF»', async () => {

@@ -448,15 +448,19 @@ export class CommunityService {
       // Para cualquier otro rol sigue siendo un 404, como antes.
       const requester = await this.userRepo.findOne({ where: { id: requesterId } });
       if (requester?.role === 'psychologist') {
-        const directo = await this.directMessages.deleteAsModerator(postId);
+        const directo = await this.directMessages.deleteAsModerator(postId, requesterId);
         if (directo) return directo;
       }
       throw new NotFoundException('Publicación no encontrada');
     }
-    if (post.authorId !== requesterId) {
+    const porModeración = post.authorId !== requesterId;
+    if (porModeración) {
       await this.assertPsychologist(requesterId);
     }
     await this.postRepo.delete(postId);
+    // Si el equipo clínico sacó un GIF, nadie más puede volver a mandarlo. Si lo borra su
+    // autor, no: arrepentirse de un mensaje no dice nada del GIF.
+    if (porModeración && post.gif) await this.gifs.bloquear(post.gif, requesterId);
     return { deleted: true };
   }
 
