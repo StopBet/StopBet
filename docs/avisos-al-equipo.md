@@ -20,6 +20,18 @@ está.
 
 ---
 
+## 2026-10-20 - El chat de la sede ya no manda push; los mensajes privados sí (PR pendiente)
+
+**A quién le pega:** a quien pruebe o demuestre la Comunidad.
+
+- **Qué cambia:** escribir en el grupo de la sede ya no hace sonar el teléfono de nadie, a pedido
+  del cliente (se habla mucho). **No es un bug.** Los mensajes privados siguen avisando por push.
+- **Lo que se mantiene:** si alguien te cita, el aviso aparece en la campana de la app (no push). El
+  interruptor «Silenciar notificaciones de comunidad» de Perfil apaga solo eso.
+- **Qué hacer:** nada. El canal de Android `comunidad` cambia su descripción al recompilar.
+
+---
+
 ## 2026-10-19 - Comando nuevo para borrar las cuentas de familiar de la demo (PR #161)
 
 **A quién le pega:** a quien haga la demo de las HDU 22 y 23 con la guía de criterios.

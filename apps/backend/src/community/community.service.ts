@@ -27,7 +27,6 @@ import {
 } from '../psychologists/sedes-of-user';
 import { Notification } from '../notifications/entities/notification.entity';
 import { CommunityMute } from '../notifications/entities/community-mute.entity';
-import { PushService } from '../push/push.service';
 import { DirectMessagesService } from '../direct-messages/direct-messages.service';
 import { CreateAnnouncementDto } from './dto/create-announcement.dto';
 import { CreatePostDto } from './dto/create-post.dto';
@@ -62,7 +61,6 @@ export class CommunityService {
     private readonly sedeRepo: Repository<Sede>,
     @InjectRepository(PsychologistSede)
     private readonly psychSedeRepo: Repository<PsychologistSede>,
-    private readonly pushService: PushService,
     private readonly directMessages: DirectMessagesService,
   ) {}
 
@@ -275,8 +273,6 @@ export class CommunityService {
       await this.notifyInteraction(post.replyTo, authorId, 'respondió a');
     }
 
-    void this.avisarALaSede(post, author);
-
     const serializado = this.serializePost(post, [], 0, authorId);
     // El serializador del foro no trae los campos de anuncio; en el evento hay que
     // completarlos porque `CommunityPost` los declara.
@@ -457,45 +453,6 @@ export class CommunityService {
 
   // CA5.5: notificar al autor cuando alguien reacciona o responde a su post
   // CA5.6: no notificar si el autor silenció las notificaciones de comunidad
-  /**
-   * Avisa por push a la sede que alguien escribió, como un grupo de WhatsApp.
-   *
-   * **El mensaje no viaja en la notificación**, solo quién escribió: la pantalla de bloqueo
-   * la ve cualquiera que pase cerca y en el foro se habla de recaídas y de días difíciles.
-   * Decisión del PO del 22-09.
-   *
-   * No se espera a que termine ni se propaga su error: un problema de Firebase no puede
-   * tumbar la publicación, que ya está guardada y es lo que importa.
-   */
-  private async avisarALaSede(post: CommunityPost, autor: User): Promise<void> {
-    try {
-      const formas = await this.formasDeSede(post.sede);
-      const vecinos = await this.userRepo.find({
-        // El equipo clínico queda fuera: un psicólogo con dos sedes recibiría el teléfono
-        // encendido todo el día, y ya tiene la vista de comunidad para mirarlo cuando quiera.
-        where: { sedeId: In(formas), role: In(['patient', 'sponsor']) },
-        select: ['id'],
-      });
-
-      const silenciados = await this.communityMuteRepo.find({ select: ['userId'] });
-      const mudos = new Set(silenciados.map((m) => m.userId));
-
-      const destinatarios = vecinos
-        .map((v) => v.id)
-        .filter((id) => id !== post.authorId && !mudos.has(id));
-      if (!destinatarios.length) return;
-
-      await this.pushService.enviarAUsuarios(
-        destinatarios,
-        `Comunidad de ${post.sede}`,
-        `${autor.firstName} ${autor.lastName} escribió en la comunidad`,
-        'comunidad',
-      );
-    } catch {
-      // Ver arriba: el push es un extra sobre algo que ya quedó publicado.
-    }
-  }
-
   private async notifyInteraction(post: CommunityPost, actorId: string, verb: string) {
     if (post.authorId === actorId) return;
     const muted = await this.communityMuteRepo.findOne({ where: { userId: post.authorId } });

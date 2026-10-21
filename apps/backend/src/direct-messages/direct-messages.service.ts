@@ -501,10 +501,11 @@ export class DirectMessagesService {
 
   /**
    * Push a quien recibe. **Dice quién escribió, nunca qué**: la pantalla de bloqueo la ve
-   * cualquiera, y es la misma regla que el push del foro (decisión del PO del 22-09).
+   * cualquiera (decisión del PO del 22-09).
    *
-   * No respeta el silencio de la comunidad (`community_mutes`): ese interruptor apaga el aviso
-   * del grupo, y un mensaje dirigido a uno no es ruido de grupo. Un fallo de Firebase no
+   * Es el único push de la comunidad: el grupo de la sede dejó de avisar el 20-10 porque se
+   * habla mucho (pedido del cliente). No respeta `community_mutes`, que solo apaga los avisos
+   * de reacciones y respuestas dentro de la app. Un fallo de Firebase no
    * puede tumbar el envío, que ya está guardado.
    */
   private async avisar(destinatarioId: string, autor: User): Promise<void> {
