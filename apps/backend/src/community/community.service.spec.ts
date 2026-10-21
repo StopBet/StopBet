@@ -25,7 +25,6 @@ describe('CommunityService — escrituras idempotentes', () => {
   let sedeRepo: { find: jest.Mock; findOne: jest.Mock };
   // El push a la sede es un extra sobre algo ya publicado: acá solo se comprueba a quién
   // se le manda, no que Firebase responda.
-  let pushService: { enviarAUsuarios: jest.Mock };
 
   const noopRepo = () => ({ find: jest.fn().mockResolvedValue([]), findOne: jest.fn() });
 
@@ -60,7 +59,6 @@ describe('CommunityService — escrituras idempotentes', () => {
       find: jest.fn().mockResolvedValue([SEDE]),
       findOne: jest.fn().mockResolvedValue(SEDE),
     };
-    pushService = { enviarAUsuarios: jest.fn().mockResolvedValue(1) };
 
     service = new CommunityService(
       postRepo as any,
@@ -73,7 +71,6 @@ describe('CommunityService — escrituras idempotentes', () => {
       communityMuteRepo as any,
       sedeRepo as any,
       noopRepo() as any,
-      pushService as any,
       noopRepo() as any,
     );
   });
@@ -125,53 +122,6 @@ describe('CommunityService — escrituras idempotentes', () => {
       expect(postRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({ clientRequestId: null }),
       );
-    });
-  });
-
-  describe('aviso por push a la sede', () => {
-    // El aviso sale sin bloquear la publicación (`void`), así que hay que dejar correr la
-    // microcola antes de mirar si se mandó.
-    const dejarSalirElPush = () => new Promise<void>((listo) => setImmediate(listo));
-
-    it('avisa a la sede con el autor, sin el texto del mensaje', async () => {
-      userRepo.find = jest.fn().mockResolvedValue([
-        { id: AUTHOR_ID },
-        { id: 'vecina-1' },
-        { id: 'vecino-2' },
-      ]);
-
-      await service.createPost({ body: 'Hoy fue difícil' }, AUTHOR_ID);
-      await dejarSalirElPush();
-
-      expect(pushService.enviarAUsuarios).toHaveBeenCalledTimes(1);
-      const [destinatarios, titulo, cuerpo] = pushService.enviarAUsuarios.mock.calls[0];
-      // El autor no se entera de su propio mensaje
-      expect(destinatarios).toEqual(['vecina-1', 'vecino-2']);
-      expect(titulo).toContain('Santiago');
-      expect(cuerpo).toBe('Carlos Demo escribió en la comunidad');
-      // Lo escrito no viaja: la pantalla de bloqueo la ve cualquiera
-      expect(cuerpo).not.toContain('Hoy fue difícil');
-    });
-
-    it('no le llega a quien silenció la comunidad', async () => {
-      userRepo.find = jest.fn().mockResolvedValue([{ id: 'vecina-1' }, { id: 'vecino-2' }]);
-      communityMuteRepo.find = jest.fn().mockResolvedValue([{ userId: 'vecina-1' }]);
-
-      await service.createPost({ body: 'Hola' }, AUTHOR_ID);
-      await dejarSalirElPush();
-
-      const [destinatarios] = pushService.enviarAUsuarios.mock.calls[0];
-      expect(destinatarios).toEqual(['vecino-2']);
-    });
-
-    it('un fallo del push no tumba la publicación', async () => {
-      userRepo.find = jest.fn().mockResolvedValue([{ id: 'vecina-1' }]);
-      pushService.enviarAUsuarios.mockRejectedValue(new Error('Firebase caído'));
-
-      await expect(service.createPost({ body: 'Hola' }, AUTHOR_ID)).resolves.toBeDefined();
-      await dejarSalirElPush();
-      expect(pushService.enviarAUsuarios).toHaveBeenCalled();
-      expect(postRepo.save).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -315,7 +265,7 @@ describe('CommunityService — descartar reportes', () => {
     const noop = () => ({}) as any;
     service = new CommunityService(
       postRepo as any, noop(), noop(), reportRepo as any, noop(), userRepo as any, noop(), noop(),
-      noop(), noop(), noop(), noop(),
+      noop(), noop(), noop(),
     );
   });
 

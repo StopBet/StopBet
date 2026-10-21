@@ -169,7 +169,7 @@ class MainApplication : Application(), ReactApplication {
             "comunidad",
             "Comunidad",
             NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply { description = "Mensajes nuevos en el chat de tu sede" }
+        ).apply { description = "Mensajes privados que te envían" }
     )
 
     manager.createNotificationChannel(
