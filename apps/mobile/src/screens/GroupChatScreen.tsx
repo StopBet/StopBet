@@ -359,7 +359,7 @@ export function GroupChatScreen({ navigation, route }: Props) {
             onEnviar={handlePost}
             apagado={offline}
             ocupado={posting}
-            placeholder={offline ? 'Necesitas conexión para publicar' : 'Escribe un mensaje de apoyo…'}
+            placeholder={offline ? 'Necesitas conexión para publicar' : 'Escribe un mensaje…'}
             etiqueta="Mensaje para la comunidad"
           />
         </KeyboardAvoidingView>
