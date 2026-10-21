@@ -120,6 +120,9 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    // Sin esto, <Image> muestra un GIF quieto en su primer cuadro (los GIFs del chat). La
+    // versión tiene que ser la misma Fresco que trae react-native (gradle/libs.versions.toml).
+    implementation("com.facebook.fresco:animated-gif:3.6.0")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")

@@ -12,7 +12,13 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { AuthUser, CommunityPost, QuotedMessage, ReactionEmoji } from '@stopbet/shared-types';
+import type {
+  AuthUser,
+  CommunityPost,
+  GifAttachment,
+  QuotedMessage,
+  ReactionEmoji,
+} from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
 import { Icon } from '../components/Icon';
 import {
@@ -176,25 +182,31 @@ export function GroupChatScreen({ navigation, route }: Props) {
     }
   };
 
-  const handlePost = async () => {
-    const body = draft.trim();
-    if (!body || posting) return;
-    // Misma clave mientras el texto no cambie: el reintento se reconoce como el mismo envío.
-    const requestId = pendingPost?.body === body ? pendingPost.id : newRequestId();
-    setPendingPost({ id: requestId, body });
+  /** Un mensaje de texto o un GIF: los dos viajan igual, con su provisorio y su reintento. */
+  const publicar = async (
+    body: string,
+    gif: GifAttachment | null,
+    citado: QuotedMessage | null = citando,
+  ) => {
+    if ((!body && !gif) || posting) return;
+    // Misma clave mientras el texto (o el GIF) no cambie: el reintento se reconoce como el
+    // mismo envío.
+    const clave = gif ? `gif:${gif.id}` : body;
+    const requestId = pendingPost?.body === clave ? pendingPost.id : newRequestId();
+    setPendingPost({ id: requestId, body: clave });
     setPosting(true);
 
     // El mensaje aparece al tiro con su reloj, como en cualquier chat.
-    const citado = citando;
-    const enCamino = mensajeEnCamino(requestId, body, sede, user, citado);
+    const enCamino = mensajeEnCamino(requestId, body, sede, user, citado, gif);
     provisorios.current.add(enCamino.id);
     setPosts((prev) => [enCamino, ...prev]);
-    setDraft('');
+    // Mandar un GIF no se lleva lo que estaba a medio escribir.
+    if (!gif) setDraft('');
     setCitando(null);
 
     try {
       const created = await withRetry(() =>
-        api.createForumPost(userId, sede, body, requestId, citado?.id),
+        api.createForumPost(userId, sede, body, requestId, citado?.id, gif?.id),
       );
       // El de verdad reemplaza al provisorio, salvo que el stream ya lo haya traído.
       provisorios.current.delete(enCamino.id);
@@ -212,27 +224,37 @@ export function GroupChatScreen({ navigation, route }: Props) {
       // Se queda en la lista marcado como no enviado: el texto no se pierde y se puede
       // reintentar tocándolo, con la misma clave, así que no se publica dos veces.
       setEnvíosFallidos((prev) => ({ ...prev, [requestId]: true }));
-      avisarFalla('publicar tu mensaje', err);
+      avisarFalla(gif ? 'enviar el GIF' : 'publicar tu mensaje', err);
     } finally {
       setPosting(false);
     }
   };
 
+  const handlePost = () => publicar(draft.trim(), null);
+  const handleGif = (gif: GifAttachment) => publicar('', gif);
+
   const citar = useCallback((post: CommunityPost) => {
     setCitando(citaDe(post));
   }, []);
 
-  const reintentarEnvío = useCallback((post: CommunityPost) => {
+  // Sin `useCallback`: la burbuja ignora los callbacks al compararse, y el reenvío de un GIF
+  // necesita el `publicar` de este render.
+  const reintentarEnvío = (post: CommunityPost) => {
     provisorios.current.delete(post.id);
     setPosts((prev) => prev.filter((p) => p.id !== post.id));
-    setDraft(post.body);
-    // Si citaba a alguien, la cita vuelve al composer junto con el texto.
-    setCitando(post.replyTo ?? null);
     setEnvíosFallidos((prev) => {
       const { [post.id]: _descartado, ...resto } = prev;
       return resto;
     });
-  }, []);
+    // Un GIF no tiene texto que devolver al campo: se reenvía tal cual, con la misma clave.
+    if (post.gif) {
+      void publicar('', post.gif, post.replyTo ?? null);
+      return;
+    }
+    setDraft(post.body);
+    // Si citaba a alguien, la cita vuelve al composer junto con el texto.
+    setCitando(post.replyTo ?? null);
+  };
 
   const enviarReporte = async (reason: string) => {
     if (!reportPostId) return false;
@@ -367,6 +389,7 @@ export function GroupChatScreen({ navigation, route }: Props) {
             ocupado={posting}
             placeholder={offline ? 'Necesitas conexión para publicar' : 'Escribe un mensaje…'}
             etiqueta="Mensaje para la comunidad"
+            onEnviarGif={handleGif}
           />
         </KeyboardAvoidingView>
       )}
@@ -419,6 +442,7 @@ function mensajeEnCamino(
   sede: string,
   user: AuthUser | null,
   citado: QuotedMessage | null,
+  gif: GifAttachment | null,
 ): CommunityPost {
   return {
     id: requestId,
@@ -435,6 +459,7 @@ function mensajeEnCamino(
     reactions: [],
     userAttends: false,
     replyTo: citado,
+    gif,
     createdAt: new Date().toISOString(),
   };
 }

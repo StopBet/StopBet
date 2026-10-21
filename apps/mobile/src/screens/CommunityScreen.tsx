@@ -78,7 +78,7 @@ export function CommunityScreen({ navigation, route }: Props) {
         ? {
             autor: p.authorName.split(' ')[0] ?? p.authorName,
             propio: p.authorId === userId,
-            texto: p.achievementDays ? '🏅 Compartió un logro' : p.body,
+            texto: p.achievementDays ? '🏅 Compartió un logro' : p.body || (p.gif ? 'GIF' : ''),
             createdAt: p.createdAt,
           }
         : null,
