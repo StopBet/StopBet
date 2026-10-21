@@ -8,6 +8,7 @@ import { Fonts } from '../constants/typography';
 import { useColors, useStyles } from '../context/ThemeContext';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
+import { Touchable } from './Touchable';
 
 interface Stop {
   days: number;
@@ -107,10 +108,12 @@ interface Props {
    * en «Mi camino» el dibujo es el contenido, así que cada parada se anuncia.
    */
   announceStops?: boolean;
+  /** Con esto cada parada se puede tocar; la tarjeta del Inicio no lo pasa porque se toca entera. */
+  onPressStop?: (index: number) => void;
 }
 
 /** El camino de paradas con lo recorrido en verde y el marcador de dónde va el paciente. */
-export function JourneyPath({ days, first, count, announceStops = false }: Props) {
+export function JourneyPath({ days, first, count, announceStops = false, onPressStop }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const [width, setWidth] = useState(0);
@@ -152,6 +155,16 @@ export function JourneyPath({ days, first, count, announceStops = false }: Props
       : { x: reachedPoint.x + (reached % 2 === 0 ? -1 : 1) * (NODE / 2 - 4), y: reachedPoint.y - NODE / 2 + 4 };
 
   const labelWidth = rightX - leftX - NODE - 20;
+  const describe = (index: number): string => {
+    const stop = stopAt(index);
+    const state =
+      index <= reached
+        ? 'logrado'
+        : index === reached + 1
+        ? `tu próxima meta, ${daysLeftText(stop.days - days).toLowerCase()}`
+        : 'por delante';
+    return `${stop.label}${stop.days > 0 ? `, ${daysText(stop.days)}` : ''}: ${state}`;
+  };
   const visible = Array.from({ length: count }, (_, k) => first + k);
 
   return (
@@ -185,18 +198,15 @@ export function JourneyPath({ days, first, count, announceStops = false }: Props
             const isReached = index <= reached;
             const isNext = index === reached + 1;
             const onLeft = index % 2 === 0;
-            const state = isReached
-              ? 'logrado'
-              : isNext
-              ? `tu próxima meta, ${daysLeftText(stop.days - days).toLowerCase()}`
-              : 'por delante';
+            const description = describe(index);
             return (
               <View
                 key={index}
                 style={StyleSheet.absoluteFill}
-                pointerEvents="none"
-                accessible={announceStops}
-                accessibilityLabel={`${stop.label}${stop.days > 0 ? `, ${daysText(stop.days)}` : ''}: ${state}`}
+                pointerEvents="box-none"
+                accessible={announceStops && !onPressStop}
+                accessibilityLabel={announceStops && !onPressStop ? description : undefined}
+                importantForAccessibility={onPressStop ? 'no-hide-descendants' : 'auto'}
               >
                 <View
                   style={[
@@ -232,9 +242,28 @@ export function JourneyPath({ days, first, count, announceStops = false }: Props
             );
           })}
 
+          {/* Toda la fila responde, no solo el círculo: con el nombre al lado, un dedo grande
+              apunta al texto tanto como al ícono. Van aparte de las paradas para que el
+              lector de pantalla anuncie un botón por parada y no el dibujo. */}
+          {onPressStop &&
+            visible.map((index) => {
+              const p = pointOf(index);
+              return (
+                <Touchable
+                  key={`hit-${index}`}
+                  style={[styles.hit, { top: p.y - NODE / 2, left: leftX - NODE / 2, width: rightX - leftX + NODE }]}
+                  onPress={() => onPressStop(index)}
+                  accessibilityRole="button"
+                  accessibilityLabel={describe(index)}
+                  accessibilityHint="Muestra el detalle de esta parada"
+                />
+              );
+          })}
+
           <View
             style={[styles.marker, { left: marker.x - MARKER / 2, top: marker.y - MARKER / 2 }]}
             importantForAccessibility="no-hide-descendants"
+            pointerEvents="none"
           >
             <Icon name="user" size={14} color={c.white} strokeWidth={2.5} />
           </View>
@@ -295,6 +324,11 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 13,
     color: c.fg2,
+  },
+  hit: {
+    position: 'absolute',
+    height: NODE,
+    borderRadius: NODE / 2,
   },
   marker: {
     position: 'absolute',

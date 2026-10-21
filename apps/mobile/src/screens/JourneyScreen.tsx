@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -8,6 +8,7 @@ import { Fonts } from '../constants/typography';
 import { useColors, useStyles } from '../context/ThemeContext';
 import { Icon } from '../components/Icon';
 import { Touchable } from '../components/Touchable';
+import { StopDetailSheet } from '../components/StopDetailSheet';
 import {
   BADGE_STOP_COUNT,
   JourneyPath,
@@ -35,9 +36,10 @@ const PAD_CONTENT = 12;
 export function JourneyScreen({ navigation, route }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
-  const { days } = route.params;
+  const { days, startDate } = route.params;
   const scrollRef = useRef<ScrollView>(null);
   const centered = useRef(false);
+  const [openStop, setOpenStop] = useState<number | null>(null);
 
   const reached = lastReachedIndex(days);
   const nextStop = stopAt(reached + 1);
@@ -80,8 +82,19 @@ export function JourneyScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.content}
         onLayout={(e) => centerOnToday(e.nativeEvent.layout.height)}
       >
-        <JourneyPath days={days} first={0} count={count} announceStops />
+        <JourneyPath days={days} first={0} count={count} announceStops onPressStop={setOpenStop} />
       </ScrollView>
+
+      <StopDetailSheet
+        index={openStop}
+        days={days}
+        startDate={startDate}
+        onClose={() => setOpenStop(null)}
+        onOpenAchievements={() => {
+          setOpenStop(null);
+          navigation.navigate('MainTabs', { screen: 'Achievements' });
+        }}
+      />
     </SafeAreaView>
   );
 }
