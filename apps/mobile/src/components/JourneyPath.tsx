@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import type { BadgeMilestone } from '@stopbet/shared-types';
 import type { Palette } from '../constants/colors';
 import { BADGE_CONFIG } from '../constants/badges';
 import { Fonts } from '../constants/typography';
 import { useColors, useStyles } from '../context/ThemeContext';
+import { useReduceMotion } from '../hooks/useReduceMotion';
 import { Icon } from './Icon';
 import type { IconName } from './Icon';
 import { Touchable } from './Touchable';
@@ -63,6 +64,21 @@ export function daysLeftText(n: number): string {
   return n === 1 ? 'Falta 1 día' : `Faltan ${n} días`;
 }
 
+/**
+ * Desde cuántos días anima el Inicio el avance, o `null` si no hay nada que animar.
+ *
+ * Si en el camino quedó un hito, se parte justo antes de él para que se vea ganarlo; si
+ * no, se anima el último día. Animar todo lo que pasó desde la última visita podría cruzar
+ * paradas que la tarjeta ya no muestra. Sin visita anterior, o tras una recaída (vio más
+ * días de los que hay), no se anima.
+ */
+export function journeyAnimationStart(seen: number | null, days: number): number | null {
+  if (seen === null || seen >= days) return null;
+  const reachedStop = stopAt(lastReachedIndex(days));
+  if (reachedStop.days > 0 && seen < reachedStop.days) return Math.max(seen, reachedStop.days - 1);
+  return Math.max(seen, days - 1);
+}
+
 export function journeyHeight(count: number): number {
   return PAD_TOP + (count - 1) * GAP + PAD_BOTTOM;
 }
@@ -110,18 +126,86 @@ interface Props {
   announceStops?: boolean;
   /** Con esto cada parada se puede tocar; la tarjeta del Inicio no lo pasa porque se toca entera. */
   onPressStop?: (index: number) => void;
+  /** Días desde los que se anima el avance hasta `days` (ver `journeyAnimationStart`). */
+  animateFrom?: number | null;
 }
 
 /** El camino de paradas con lo recorrido en verde y el marcador de dónde va el paciente. */
-export function JourneyPath({ days, first, count, announceStops = false, onPressStop }: Props) {
+export function JourneyPath({ days, first, count, announceStops = false, onPressStop, animateFrom = null }: Props) {
   const c = useColors();
   const styles = useStyles(makeStyles);
   const [width, setWidth] = useState(0);
+  const reduceMotion = useReduceMotion();
 
-  const reached = lastReachedIndex(days);
+  // Lo dibujado sale de `drawDays`, que durante la animación va de `animateFrom` a `days`;
+  // los textos y lo que lee el lector de pantalla usan siempre `days`.
+  const [drawDays, setDrawDays] = useState(animateFrom ?? days);
+  const animating = useRef(false);
+  const halo = useRef(new Animated.Value(0)).current;
+  const pops = useRef(new Map<number, Animated.Value>()).current;
+  const popOf = (index: number): Animated.Value => {
+    let v = pops.get(index);
+    if (!v) {
+      v = new Animated.Value(1);
+      pops.set(index, v);
+    }
+    return v;
+  };
+
+  useEffect(() => {
+    if (animateFrom === null || animateFrom >= days || reduceMotion) {
+      if (!animating.current) setDrawDays(days);
+      return;
+    }
+    animating.current = true;
+    setDrawDays(animateFrom);
+    const progress = new Animated.Value(0);
+    const id = progress.addListener(({ value }) => setDrawDays(animateFrom + (days - animateFrom) * value));
+    // No va con el driver nativo: lo que cambia es la forma del trazo, no una transformación.
+    const run = Animated.timing(progress, {
+      toValue: 1,
+      duration: 1400,
+      delay: 500,
+      easing: Easing.inOut(Easing.cubic),
+      useNativeDriver: false,
+    });
+    run.start(({ finished }) => {
+      animating.current = false;
+      setDrawDays(days);
+      if (!finished) return;
+      // Dos latidos y se queda quieto: un halo en bucle es justo lo que se sacó de la cuenta
+      // reactivada por quienes son sensibles al movimiento.
+      halo.setValue(0);
+      Animated.loop(
+        Animated.timing(halo, { toValue: 1, duration: 900, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        { iterations: 2 },
+      ).start(() => halo.setValue(0));
+    });
+    return () => {
+      progress.removeListener(id);
+      run.stop();
+      animating.current = false;
+    };
+  }, [animateFrom, days, reduceMotion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const reached = lastReachedIndex(drawDays);
   const reachedStop = stopAt(reached);
   const nextStop = stopAt(reached + 1);
-  const segmentProgress = (days - reachedStop.days) / (nextStop.days - reachedStop.days);
+  const segmentProgress = (drawDays - reachedStop.days) / (nextStop.days - reachedStop.days);
+  const realReached = lastReachedIndex(days);
+
+  // La parada que el marcador acaba de alcanzar durante la animación da un salto.
+  const lastDrawnReached = useRef(reached);
+  useEffect(() => {
+    if (animating.current && reached > lastDrawnReached.current) {
+      const pop = popOf(reached);
+      Animated.sequence([
+        Animated.timing(pop, { toValue: 1.3, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.spring(pop, { toValue: 1, friction: 4, useNativeDriver: true }),
+      ]).start();
+    }
+    lastDrawnReached.current = reached;
+  }, [reached]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const height = journeyHeight(count);
   const leftX = width * 0.24;
@@ -158,9 +242,9 @@ export function JourneyPath({ days, first, count, announceStops = false, onPress
   const describe = (index: number): string => {
     const stop = stopAt(index);
     const state =
-      index <= reached
+      index <= realReached
         ? 'logrado'
-        : index === reached + 1
+        : index === realReached + 1
         ? `tu próxima meta, ${daysLeftText(stop.days - days).toLowerCase()}`
         : 'por delante';
     return `${stop.label}${stop.days > 0 ? `, ${daysText(stop.days)}` : ''}: ${state}`;
@@ -208,11 +292,11 @@ export function JourneyPath({ days, first, count, announceStops = false, onPress
                 accessibilityLabel={announceStops && !onPressStop ? description : undefined}
                 importantForAccessibility={onPressStop ? 'no-hide-descendants' : 'auto'}
               >
-                <View
+                <Animated.View
                   style={[
                     styles.node,
                     isReached ? styles.nodeReached : isNext ? styles.nodeNext : styles.nodeLocked,
-                    { left: p.x - NODE / 2, top: p.y - NODE / 2 },
+                    { left: p.x - NODE / 2, top: p.y - NODE / 2, transform: [{ scale: popOf(index) }] },
                   ]}
                 >
                   <Icon
@@ -220,7 +304,7 @@ export function JourneyPath({ days, first, count, announceStops = false, onPress
                     size={26}
                     color={isReached ? c.greenText : isNext ? c.primaryText : c.fg2}
                   />
-                </View>
+                </Animated.View>
                 <View
                   style={[
                     styles.label,
@@ -260,6 +344,18 @@ export function JourneyPath({ days, first, count, announceStops = false, onPress
               );
           })}
 
+          <Animated.View
+            style={[
+              styles.halo,
+              {
+                left: marker.x - MARKER / 2,
+                top: marker.y - MARKER / 2,
+                opacity: halo.interpolate({ inputRange: [0, 0.01, 1], outputRange: [0, 0.45, 0] }),
+                transform: [{ scale: halo.interpolate({ inputRange: [0, 1], outputRange: [1, 2.6] }) }],
+              },
+            ]}
+            pointerEvents="none"
+          />
           <View
             style={[styles.marker, { left: marker.x - MARKER / 2, top: marker.y - MARKER / 2 }]}
             importantForAccessibility="no-hide-descendants"
@@ -329,6 +425,13 @@ const makeStyles = (c: Palette) => StyleSheet.create({
     position: 'absolute',
     height: NODE,
     borderRadius: NODE / 2,
+  },
+  halo: {
+    position: 'absolute',
+    width: MARKER,
+    height: MARKER,
+    borderRadius: MARKER / 2,
+    backgroundColor: c.primary,
   },
   marker: {
     position: 'absolute',
