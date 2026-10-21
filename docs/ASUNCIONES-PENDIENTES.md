@@ -7,6 +7,22 @@
 
 ---
 
+## 2026-10-19 · HdU12: ¿pagar como familiar reactiva la cuenta suspendida del paciente?
+
+**Estado: SUPUESTO por plazo del Sprint 3.** El CA2 dice que al pagar las cuotas vencidas «la cuenta suspendida se
+reactiva». Se implementó tal cual, pero solo por el camino del familiar (`chargeInvoicesForFamily`); el cobro
+automático y el pago del propio paciente no reactivan.
+
+- **Qué se decidió:** el familiar con vínculo activo puede pagar con su propia tarjeta (inscripción propia por
+  `userId`), en serie y parando en la primera falla. «Al día» = sin cuotas vencidas; las pendientes se pueden pagar
+  por adelantado.
+- **Qué hay que confirmar con el PO/AJUTER:** si un tercero puede reactivar por sí solo una cuenta suspendida (¿o
+  debería aprobarlo el equipo clínico?), y qué pasa con la cuenta si el paciente fue suspendido por otro motivo que
+  no sea mora. Hoy se reactiva igual.
+- **Cómo revertir:** en `OneclickPaymentsService.chargeInvoicesForFamily`, pasar `reactivateAccount: false`.
+
+---
+
 ## 2026-10-04 · HdU19: ¿solo el coordinador decide las solicitudes de ingreso?
 
 **Estado: SUPUESTO, esperando la respuesta literal de Miguel Ángel (coordinador de AJUTER),

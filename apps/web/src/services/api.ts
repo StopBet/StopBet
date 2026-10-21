@@ -810,6 +810,7 @@ async function postPublicWithError<T>(path: string, body: unknown): Promise<T> {
 
 // Shape real de GET /family/billing (family.service.ts → getBillingForFamily)
 export interface FamilyInvoice {
+  id: string
   month: string
   amountCLP: number
   dueDate: string
@@ -822,6 +823,14 @@ export interface FamilyBilling {
   overdueInvoices: FamilyInvoice[]
   totalOwedCLP: number
   nextInvoice: FamilyInvoice | null
+  // HdU12: todas las cuotas recientes (también las pagadas) y la fecha del próximo cobro.
+  invoices: FamilyInvoiceRow[]
+  nextBillingDate: string | null
+}
+
+export interface FamilyInvoiceRow extends FamilyInvoice {
+  status: 'pending' | 'paid' | 'overdue'
+  paidAt: string | null
 }
 
 // ── HdU20: compañero de viaje (asignación desde el perfil del paciente) ──
@@ -918,3 +927,57 @@ export interface AssistantHistoryItem {
 
 export const getPatientAssistantHistory = (patientId: string) =>
   get<AssistantHistoryItem[]>(`/ai/patients/${patientId}/summaries`)
+
+// ── HdU12: el familiar paga la mensualidad con Webpay Oneclick ──
+// Van sueltas, como las de arriba, porque este archivo es compartido y se agrega solo al final.
+export interface FamilyCard {
+  id: string
+  status: string
+  cardType: string | null
+  cardLast4: string | null
+}
+
+export interface StartedInscription {
+  inscriptionId: string
+  token: string
+  urlWebpay: string
+}
+
+export type InscriptionOutcome = 'ok' | 'rechazada' | 'anulada' | 'error'
+
+export interface FamilyPaymentItem {
+  chargeId: string
+  invoiceId: string
+  month: string
+  amountCLP: number
+  status: 'processing' | 'authorized' | 'rejected' | 'error'
+  buyOrder: string
+  authorizationCode: string | null
+  transactionDate: string | null
+}
+
+export interface FamilyPaymentResult {
+  status: 'paid' | 'partial' | 'rejected' | 'error' | 'processing'
+  items: FamilyPaymentItem[]
+  totalPaidCLP: number
+  paidAt: string | null
+  card: { cardType: string | null; cardLast4: string | null }
+}
+
+/** Sin tarjeta el backend responde 200 con el cuerpo vacío, que `get()` no sabe leer. */
+export async function getFamilyCard(): Promise<FamilyCard | null> {
+  const res = await request('/payments/oneclick/inscription', {})
+  if (!res.ok) throw failed('GET', '/payments/oneclick/inscription', res)
+  const text = await res.text()
+  return text ? (JSON.parse(text) as FamilyCard) : null
+}
+
+export const startFamilyInscription = () => post<StartedInscription>('/payments/oneclick/inscriptions')
+
+export const finishFamilyInscription = (params: { token: string; abortedBuyOrder?: string; abortedSessionId?: string }) =>
+  post<{ outcome: InscriptionOutcome }>('/payments/oneclick/inscriptions/finish', undefined, params)
+
+export const deleteFamilyCard = () => del<void>('/payments/oneclick/inscription')
+
+export const chargeFamilyInvoices = (invoiceIds: string[]) =>
+  post<FamilyPaymentResult>('/payments/oneclick/family/charge', undefined, { invoiceIds })

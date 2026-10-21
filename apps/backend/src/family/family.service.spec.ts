@@ -1775,4 +1775,61 @@ describe('FamilyService (HU-11)', () => {
     });
     expect(view.overdueInvoices).toHaveLength(2);
   });
+
+  it('mensualidad: trae también las cuotas pagadas, con su fecha, y la próxima fecha de cobro (HdU12 CA1, CA4, CA7)', async () => {
+    linkRepo.find.mockResolvedValue([
+      { status: 'active', patientUserId: 'pat-1', patientUser: { firstName: 'Lucía', accountStatus: 'active' } },
+    ]);
+    const paidAt = new Date('2026-09-02T15:00:00Z');
+    invoiceRepo.find.mockImplementation((opts: { where: { status?: string }; take?: number }) =>
+      Promise.resolve(
+        opts.where.status === 'overdue'
+          ? []
+          : [
+              // Llegan de la más nueva a la más vieja: la vista las entrega en orden cronológico.
+              { id: 'i-10', month: '2026-10', amountCLP: 30000, dueDate: '2026-10-31', status: 'pending', paidAt: null },
+              { id: 'i-09', month: '2026-09', amountCLP: 30000, dueDate: '2026-09-30', status: 'paid', paidAt },
+            ],
+      ),
+    );
+    invoiceRepo.findOne.mockResolvedValue({ id: 'i-10', month: '2026-10', amountCLP: 30000, dueDate: '2026-10-31' });
+
+    const view = await service.getBillingForFamily(FAMILY_ID);
+
+    expect(view.overdueInvoices).toEqual([]);
+    expect(view.nextBillingDate).toBe('2026-10-31');
+    expect(view.invoices.map((i) => [i.id, i.status, i.paidAt])).toEqual([
+      ['i-09', 'paid', paidAt.toISOString()],
+      ['i-10', 'pending', null],
+    ]);
+    expect(view.nextInvoice).toMatchObject({ id: 'i-10' });
+  });
+
+  it('mensualidad: sin vínculo activo no hay cuotas ni fecha de cobro', async () => {
+    linkRepo.find.mockResolvedValue([]);
+
+    const view = await service.getBillingForFamily(FAMILY_ID);
+
+    expect(view).toMatchObject({ linkStatus: 'unlinked', invoices: [], nextBillingDate: null });
+  });
+
+  describe('getActivePatientId', () => {
+    it('devuelve el paciente del vínculo activo', async () => {
+      linkRepo.find.mockResolvedValue([{ status: 'active', patientUserId: 'pat-1', patientUser: {} }]);
+
+      await expect(service.getActivePatientId(FAMILY_ID)).resolves.toBe('pat-1');
+    });
+
+    it.each(['pending', 'rejected', 'revoked'])('403 con el vínculo %s', async (status) => {
+      linkRepo.find.mockResolvedValue([{ status, patientUserId: 'pat-1', patientUser: {} }]);
+
+      await expect(service.getActivePatientId(FAMILY_ID)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('403 sin ningún vínculo', async () => {
+      linkRepo.find.mockResolvedValue([]);
+
+      await expect(service.getActivePatientId(FAMILY_ID)).rejects.toThrow(ForbiddenException);
+    });
+  });
 });
