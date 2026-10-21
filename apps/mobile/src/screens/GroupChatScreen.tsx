@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -80,6 +80,9 @@ export function GroupChatScreen({ navigation, route }: Props) {
   const [totalPosts, setTotalPosts] = useState(0);
   const [cargandoMás, setCargandoMás] = useState(false);
   const [envíosFallidos, setEnvíosFallidos] = useState<Record<string, boolean>>({});
+  // Los mensajes propios que el servidor todavía no confirmó: recargar no puede borrarlos,
+  // o un texto que no se envió desaparecería sin aviso.
+  const provisorios = useRef(new Set<string>());
 
   // `navigate` sobre una pantalla ya montada cambia los params pero no vuelve a correr el
   // `useState` inicial: sin esto, el borrador del pánico no aparecía si el chat ya estaba abierto.
@@ -93,7 +96,7 @@ export function GroupChatScreen({ navigation, route }: Props) {
   const load = useCallback(async () => {
     try {
       const forum = await api.getForumPosts(userId, sede);
-      setPosts(forum.data);
+      setPosts((prev) => [...prev.filter((p) => provisorios.current.has(p.id)), ...forum.data]);
       setTotalPosts(forum.total);
       setOffline(false);
       guardarEnCaché(userId, { posts: forum.data });
@@ -156,8 +159,8 @@ export function GroupChatScreen({ navigation, route }: Props) {
           return [llegado, ...prev];
         });
         setTotalPosts((n) => n + 1);
-      });
-    }, [sede, offline]),
+      }, () => { void load(); });
+    }, [sede, offline, load]),
   );
 
   const handleReaction = async (post: CommunityPost, emoji: ReactionEmoji) => {
@@ -184,6 +187,7 @@ export function GroupChatScreen({ navigation, route }: Props) {
     // El mensaje aparece al tiro con su reloj, como en cualquier chat.
     const citado = citando;
     const enCamino = mensajeEnCamino(requestId, body, sede, user, citado);
+    provisorios.current.add(enCamino.id);
     setPosts((prev) => [enCamino, ...prev]);
     setDraft('');
     setCitando(null);
@@ -193,6 +197,7 @@ export function GroupChatScreen({ navigation, route }: Props) {
         api.createForumPost(userId, sede, body, requestId, citado?.id),
       );
       // El de verdad reemplaza al provisorio, salvo que el stream ya lo haya traído.
+      provisorios.current.delete(enCamino.id);
       setPosts((prev) => {
         const sinProvisorio = prev.filter((p) => p.id !== enCamino.id);
         if (sinProvisorio.some((p) => p.id === created.id)) return sinProvisorio;
@@ -218,6 +223,7 @@ export function GroupChatScreen({ navigation, route }: Props) {
   }, []);
 
   const reintentarEnvío = useCallback((post: CommunityPost) => {
+    provisorios.current.delete(post.id);
     setPosts((prev) => prev.filter((p) => p.id !== post.id));
     setDraft(post.body);
     // Si citaba a alguien, la cita vuelve al composer junto con el texto.

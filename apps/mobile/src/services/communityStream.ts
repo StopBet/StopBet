@@ -17,24 +17,51 @@ import { logInfo } from '../utils/log';
 export function abrirStreamDeComunidad(
   sede: string,
   onEvento: (evento: CommunityStreamEvent) => void,
+  alReconectar?: () => void,
 ): () => void {
-  return abrirStream(`/community/stream?sede=${encodeURIComponent(sede)}`, onEvento);
+  return abrirStream(`/community/stream?sede=${encodeURIComponent(sede)}`, onEvento, alReconectar);
 }
 
 /**
  * Los mensajes directos propios, en vivo: los que llegan y los que uno manda desde otro
  * teléfono. El servidor filtra por la sesión, así que no hace falta decir de quién.
  */
-export function abrirStreamDeMensajes(onEvento: (evento: DirectStreamEvent) => void): () => void {
-  return abrirStream('/messages/stream', onEvento);
+export function abrirStreamDeMensajes(
+  onEvento: (evento: DirectStreamEvent) => void,
+  alReconectar?: () => void,
+): () => void {
+  return abrirStream('/messages/stream', onEvento, alReconectar);
 }
 
+/**
+ * `alReconectar` corre cada vez que la conexión vuelve tras caerse (no en la primera). El
+ * servidor no guarda lo que emitió mientras uno no estaba: lo que se escribió durante el
+ * corte (wifi que se va, pantalla bloqueada, redeploy de Railway) solo aparece si la
+ * pantalla lo vuelve a pedir.
+ */
 function abrirStream<E extends { kind: string }>(
   ruta: string,
   onEvento: (evento: E) => void,
+  alReconectar?: () => void,
 ): () => void {
   let fuente: EventSource | null = null;
   let cerrado = false;
+  let yaConectó = false;
+  let vigilante: ReturnType<typeof setTimeout> | null = null;
+
+  // Una conexión puede morir sin que llegue ningún error: al cambiar de wifi a datos, o si el
+  // servidor se reinicia, Android a veces la deja colgada y la pantalla queda sorda sin
+  // aviso. El servidor manda un latido cada 25 s; si pasa más que eso sin oír nada, la
+  // conexión se da por muerta y se abre otra.
+  const vigilar = () => {
+    if (vigilante) clearTimeout(vigilante);
+    vigilante = setTimeout(() => {
+      vigilante = null;
+      logInfo(`[Stream ${ruta.split('?')[0]}] sin latido, se reconecta`);
+      cerrarFuente();
+      programarReintento();
+    }, SILENCIO_MÁXIMO_MS);
+  };
   let reintento: ReturnType<typeof setTimeout> | null = null;
   let esperaMs = ESPERA_INICIAL_MS;
 
@@ -56,12 +83,17 @@ function abrirStream<E extends { kind: string }>(
         pollingInterval: 0,
       },
     );
+    vigilar();
 
     fuente.addEventListener('open', () => {
+      vigilar();
       esperaMs = ESPERA_INICIAL_MS;
+      if (yaConectó) alReconectar?.();
+      yaConectó = true;
     });
 
     fuente.addEventListener('message', (evento) => {
+      vigilar();
       if (!evento.data) return;
       try {
         const datos = JSON.parse(evento.data) as E;
@@ -93,6 +125,8 @@ function abrirStream<E extends { kind: string }>(
   };
 
   const cerrarFuente = () => {
+    if (vigilante) clearTimeout(vigilante);
+    vigilante = null;
     fuente?.removeAllEventListeners();
     fuente?.close();
     fuente = null;
@@ -109,3 +143,5 @@ function abrirStream<E extends { kind: string }>(
 
 const ESPERA_INICIAL_MS = 2_000;
 const ESPERA_MÁXIMA_MS = 60_000;
+// Dos latidos del servidor (25 s) y algo de margen.
+const SILENCIO_MÁXIMO_MS = 60_000;

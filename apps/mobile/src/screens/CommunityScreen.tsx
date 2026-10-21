@@ -136,9 +136,10 @@ export function CommunityScreen({ navigation, route }: Props) {
   useFocusEffect(
     useCallback(() => {
       if (tab !== 'chats' || !sede || offline) return;
+      // Al volver la conexión se recarga la lista entera: cubre lo que llegó por los dos streams.
       const cerrarGrupo = abrirStreamDeComunidad(sede, (evento) => {
         if (evento.kind === 'post') setGrupo(vistaDe(evento.post));
-      });
+      }, () => { void load(); });
       const cerrarDirectos = abrirStreamDeMensajes((evento) => {
         if (evento.kind !== 'message') {
           // Un borrado puede cambiar la vista previa: se pide la lista de nuevo.
@@ -170,7 +171,7 @@ export function CommunityScreen({ navigation, route }: Props) {
         cerrarGrupo();
         cerrarDirectos();
       };
-    }, [tab, sede, offline, userId, vistaDe]),
+    }, [tab, sede, offline, userId, vistaDe, load]),
   );
 
   const handleToggleAttendance = async (announcementId: string) => {

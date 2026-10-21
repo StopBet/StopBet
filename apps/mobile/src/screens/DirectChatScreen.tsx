@@ -132,8 +132,8 @@ export function DirectChatScreen({ navigation, route }: Props) {
           } else if (evento.kind === 'deleted') {
             setMensajes((prev) => prev.filter((m) => m.id !== evento.messageId));
           }
-        }),
-      [otherId, meId, marcarLeído],
+        }, () => { void cargar(); }),
+      [otherId, meId, marcarLeído, cargar],
     ),
   );
 
