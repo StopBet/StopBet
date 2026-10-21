@@ -43,14 +43,11 @@ import { logInfo, logWarn, logError } from '../utils/log';
 import { useIntervaloActivo } from '../hooks/useIntervaloActivo';
 
 import { BADGE_CONFIG } from '../constants/badges';
+import { fechaLarga } from '../utils/tiempo';
 
 // Ajustar cuando se conecte autenticación real
 const REFRESH_MS = 3 * 60 * 1000;
 
-const MONTHS_LONG = [
-  'enero','febrero','marzo','abril','mayo','junio',
-  'julio','agosto','septiembre','octubre','noviembre','diciembre',
-];
 const MONTHS_SHORT = [
   'ene','feb','mar','abr','may','jun',
   'jul','ago','sep','oct','nov','dic',
@@ -64,11 +61,6 @@ const NEW_BADGE_TTL_MS = 60 * 60 * 1000;
 // Persiste mientras la app sigue viva - evita re-mostrar el modal al navegar de vuelta
 const shownMilestones = new Set<BadgeMilestone>();
 
-
-function formatDateLong(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return `${d} de ${MONTHS_LONG[m - 1]} de ${y}`;
-}
 
 function formatDateShort(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
@@ -311,7 +303,7 @@ export function AchievementsScreen({ navigation }: Props) {
             {currentPeriod?.startDate && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 }}>
                 <Icon name="calendar" size={13} color={c.fg2} />
-                <Text style={styles.counterStart}>Comenzaste el {formatDateLong(currentPeriod.startDate)}</Text>
+                <Text style={styles.counterStart}>Comenzaste el {fechaLarga(currentPeriod.startDate)}</Text>
               </View>
             )}
 

@@ -82,6 +82,8 @@ export function HomeScreen({ navigation }: Props) {
   const styles = useStyles(makeStyles);
   const { showToast } = useToast();
   const [progress, setProgress] = useState<PatientProgress | null>(null);
+  // Para las fechas de «Mi camino»; el progreso guardado sin conexión no la trae.
+  const [periodStart, setPeriodStart] = useState<string | null>(null);
   const [todayEmotion, setTodayEmotion] = useState<EmotionType | null>(null);
   const [checkInDone, setCheckInDone] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -125,6 +127,7 @@ export function HomeScreen({ navigation }: Props) {
       setNextEvent(proximo ?? null);
 
       const days = achData.currentPeriod.daysAchieved;
+      setPeriodStart(achData.currentPeriod.startDate);
       const HOME_MILESTONES = [30, 60, 90, 180, 365];
       const nextMilestone = HOME_MILESTONES.find(m => m > days) ?? 365;
       setProgress({
@@ -420,7 +423,7 @@ export function HomeScreen({ navigation }: Props) {
           {progress ? (
             <ProgressMap
               days={progress.daysStreak}
-              onOpenJourney={() => navigation.navigate('Journey', { days: progress.daysStreak })}
+              onOpenJourney={() => navigation.navigate('Journey', { days: progress.daysStreak, startDate: periodStart })}
               onOpenAchievements={() => navigation.navigate('Achievements')}
             />
           ) : (
