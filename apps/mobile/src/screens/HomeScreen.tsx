@@ -420,6 +420,7 @@ export function HomeScreen({ navigation }: Props) {
           {progress ? (
             <ProgressMap
               days={progress.daysStreak}
+              onOpenJourney={() => navigation.navigate('Journey', { days: progress.daysStreak })}
               onOpenAchievements={() => navigation.navigate('Achievements')}
             />
           ) : (
