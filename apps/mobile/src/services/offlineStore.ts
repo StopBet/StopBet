@@ -87,6 +87,28 @@ export async function readAchievements(userId: string): Promise<AchievementsData
   }
 }
 
+// El mapa del Inicio anima el avance desde el último día que el paciente vio hasta hoy.
+// Lleva el prefijo `last-` para que la poda al cambiar de cuenta también lo borre.
+const JOURNEY_SEEN_KEY = '@stopbet/last-journey-seen';
+
+export async function saveJourneySeen(userId: string, days: number): Promise<void> {
+  try {
+    await AsyncStorage.setItem(claveDe(JOURNEY_SEEN_KEY, userId), String(days));
+  } catch {
+    // Sin esto solo se pierde la animación.
+  }
+}
+
+export async function readJourneySeen(userId: string): Promise<number | null> {
+  try {
+    const raw = await AsyncStorage.getItem(claveDe(JOURNEY_SEEN_KEY, userId));
+    const days = raw === null ? NaN : Number(raw);
+    return Number.isFinite(days) ? days : null;
+  } catch {
+    return null;
+  }
+}
+
 // Comunidad ya guardaba lo último cargado, pero en memoria: sobrevivía a navegar
 // entre pantallas y no al reinicio de la app. Sin red, al abrir la app el feed
 // aparecía vacío, como si nadie hubiera publicado nada.
