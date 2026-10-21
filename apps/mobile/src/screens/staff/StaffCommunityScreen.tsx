@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   RefreshControl,
   StatusBar,
   StyleSheet,
@@ -165,11 +166,12 @@ export function StaffCommunityScreen() {
     showDialog({
       title: post.type === 'direct_message' ? 'Eliminar este mensaje privado' : 'Eliminar esta publicación',
       message:
-        post.type === 'direct_message'
+        (post.type === 'direct_message'
           ? 'Se borra de la conversación para las dos personas y no se puede recuperar. ' +
             'Quien lo escribió no recibe aviso.'
           : 'Desaparece del chat para toda la sede y no se puede recuperar. ' +
-            'Quien la escribió no recibe aviso.',
+            'Quien la escribió no recibe aviso.') +
+        (post.gif ? ' El GIF queda bloqueado: no vuelve a aparecer en el buscador.' : ''),
       actions: [
         {
           label: 'Eliminar',
@@ -436,7 +438,18 @@ const Reportada = React.memo(function Reportada({
           <Text style={styles.privadoTexto}>Mensaje privado · solo se ve este mensaje</Text>
         </View>
       ) : null}
-      <Text style={styles.reportadaCuerpo}>{post.body ?? '(sin texto)'}</Text>
+      {/* Lo reportado puede ser solo un GIF: sin mostrarlo no hay cómo decidir. */}
+      {post.gif ? (
+        <Image
+          source={{ uri: post.gif.url }}
+          style={[styles.reportadaGif, { aspectRatio: post.gif.width / post.gif.height }]}
+          resizeMode="cover"
+          accessibilityLabel={post.gif.title ? `GIF: ${post.gif.title}` : 'GIF'}
+        />
+      ) : null}
+      {post.body || !post.gif ? (
+        <Text style={styles.reportadaCuerpo}>{post.body || '(sin texto)'}</Text>
+      ) : null}
       <View style={styles.reportadaAcciones}>
         <Touchable
           style={styles.botónEliminar}
@@ -520,6 +533,7 @@ const makeStyles = (c: Palette) => StyleSheet.create({
   reportadaFecha: { fontFamily: Fonts.body, fontSize: 11, color: c.fg2 },
   reportadaAutor: { fontFamily: Fonts.bodyBold, fontSize: 14, color: c.fg1 },
   reportadaCuerpo: { fontFamily: Fonts.body, fontSize: 14, color: c.fg1, lineHeight: 21 },
+  reportadaGif: { width: 200, maxHeight: 260, borderRadius: 10, backgroundColor: c.border },
   reportadaAcciones: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 4 },
   botónEliminar: {
     flexDirection: 'row', alignItems: 'center', gap: 7,

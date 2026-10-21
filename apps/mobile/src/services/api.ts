@@ -15,6 +15,7 @@ import type {
   DirectMessage,
   DirectThread,
   EmotionType,
+  GifAttachment,
   GifSearchResponse,
   Notification,
   PaginatedResponse,
@@ -205,6 +206,8 @@ export interface FlaggedPost {
   body: string | null;
   reportCount: number;
   replyCount: number;
+  /** Con GIF, `body` puede venir vacío. */
+  gif?: GifAttachment | null;
   createdAt: string;
 }
 

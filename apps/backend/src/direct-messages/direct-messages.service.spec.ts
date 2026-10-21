@@ -35,7 +35,7 @@ describe('DirectMessagesService', () => {
   let reportRepo: Record<string, jest.Mock>;
   let blockRepo: Record<string, jest.Mock>;
   let pushService: { enviarAUsuarios: jest.Mock };
-  let gifs: { resolver: jest.Mock };
+  let gifs: { resolver: jest.Mock; bloquear: jest.Mock };
   let service: DirectMessagesService;
 
   beforeEach(() => {
@@ -82,7 +82,7 @@ describe('DirectMessagesService', () => {
       find: jest.fn().mockResolvedValue([SEDE]),
     };
     pushService = { enviarAUsuarios: jest.fn().mockResolvedValue(1) };
-    gifs = { resolver: jest.fn().mockResolvedValue(GIF) };
+    gifs = { resolver: jest.fn().mockResolvedValue(GIF), bloquear: jest.fn() };
 
     service = new DirectMessagesService(
       conversationRepo as any,
@@ -203,12 +203,26 @@ describe('DirectMessagesService', () => {
   describe('moderación', () => {
     it('el equipo clínico no puede borrar un mensaje directo que nadie reportó', async () => {
       messageRepo.findOne.mockResolvedValue({ id: 'm1', reportCount: 0 });
-      await expect(service.deleteAsModerator('m1')).rejects.toThrow(ForbiddenException);
+      await expect(service.deleteAsModerator('m1', PSICÓLOGA.id)).rejects.toThrow(ForbiddenException);
       expect(messageRepo.delete).not.toHaveBeenCalled();
     });
 
+    it('eliminar un mensaje reportado con GIF deja el GIF bloqueado', async () => {
+      messageRepo.findOne.mockResolvedValue({
+        id: 'm1',
+        reportCount: 3,
+        conversationId: CONVERSACIÓN.id,
+        gif: GIF,
+      });
+
+      await service.deleteAsModerator('m1', PSICÓLOGA.id);
+
+      expect(messageRepo.delete).toHaveBeenCalledWith('m1');
+      expect(gifs.bloquear).toHaveBeenCalledWith(GIF, PSICÓLOGA.id);
+    });
+
     it('devuelve null si el id no es de un mensaje directo, para que siga el foro', async () => {
-      expect(await service.deleteAsModerator('no-existe')).toBeNull();
+      expect(await service.deleteAsModerator('no-existe', PSICÓLOGA.id)).toBeNull();
       expect(await service.dismissReportsAsModerator('no-existe', PSICÓLOGA.id)).toBeNull();
     });
   });

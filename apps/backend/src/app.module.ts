@@ -58,6 +58,7 @@ import { PsychologistSede } from './psychologists/entities/psychologist-sede.ent
 import { PatientAssignment } from './psychologists/entities/patient-assignment.entity';
 import { MailModule } from './mail/mail.module';
 import { GifsModule } from './gifs/gifs.module';
+import { BlockedGif } from './gifs/entities/blocked-gif.entity';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { DirectMessagesModule } from './direct-messages/direct-messages.module';
 import { DirectConversation } from './direct-messages/entities/direct-conversation.entity';
@@ -118,6 +119,7 @@ import { PaymentsModule } from './payments/payments.module';
           DirectConversation, DirectMessage, DirectMessageReport, UserBlock,
           RegistrationReview,
           PaymentInscription, PaymentCharge,
+          BlockedGif,
         ],
         // synchronize solo en desarrollo; en producción usar migraciones explícitas
         synchronize: config.get<string>('NODE_ENV') !== 'production',

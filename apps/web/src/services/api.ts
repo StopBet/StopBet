@@ -304,6 +304,9 @@ export interface FlaggedPost {
   body: string | null
   reportCount: number
   replyCount: number
+  // Espeja `GifAttachment` de @stopbet/shared-types (solo lo que la cola necesita). Con GIF,
+  // `body` puede venir vacío.
+  gif?: { id: string; title: string; url: string; width: number; height: number } | null
   createdAt: string
 }
 

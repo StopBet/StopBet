@@ -397,6 +397,7 @@ export class DirectMessagesService {
       reactions: [],
       replyTo: null,
       achievementDays: null,
+      gif: m.gif ?? null,
       createdAt: m.createdAt.toISOString(),
       reportReasons: motivos.get(m.id) ?? [],
     }));
@@ -418,13 +419,15 @@ export class DirectMessagesService {
    * Solo mensajes reportados: el equipo clínico no tiene acceso a las conversaciones, y un
    * borrado sin reporte sería una forma de actuar sobre algo que no debería haber visto.
    */
-  async deleteAsModerator(messageId: string) {
+  async deleteAsModerator(messageId: string, moderatorId: string) {
     const mensaje = await this.messageRepo.findOne({ where: { id: messageId } });
     if (!mensaje) return null;
     if (mensaje.reportCount < UMBRAL_DE_REPORTE) {
       throw new ForbiddenException('Solo se pueden eliminar mensajes directos reportados');
     }
     await this.borrar(mensaje);
+    // Igual que en el foro: un GIF que el equipo clínico sacó no se vuelve a mandar.
+    if (mensaje.gif) await this.gifs.bloquear(mensaje.gif, moderatorId);
     return { deleted: true as const };
   }
 

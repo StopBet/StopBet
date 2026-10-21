@@ -18,11 +18,23 @@ function gif(id: string, title: string, otros: string[] = []): GifDeGiphy {
 
 describe('GifsService', () => {
   let giphy: { activo: boolean; buscar: jest.Mock; porId: jest.Mock };
+  let bloqueados: { find: jest.Mock; createQueryBuilder: jest.Mock };
+  let insertados: unknown[];
   let service: GifsService;
 
   beforeEach(() => {
     giphy = { activo: true, buscar: jest.fn().mockResolvedValue([]), porId: jest.fn() };
-    service = new GifsService(giphy as any);
+    insertados = [];
+    const qb: Record<string, jest.Mock> = {};
+    qb.insert = jest.fn(() => qb);
+    qb.values = jest.fn((v) => {
+      insertados.push(v);
+      return qb;
+    });
+    qb.orIgnore = jest.fn(() => qb);
+    qb.execute = jest.fn().mockResolvedValue({});
+    bloqueados = { find: jest.fn().mockResolvedValue([]), createQueryBuilder: jest.fn(() => qb) };
+    service = new GifsService(giphy as any, bloqueados as any);
   });
 
   it('una búsqueda con un término bloqueado no llega a GIPHY', async () => {
@@ -59,6 +71,27 @@ describe('GifsService', () => {
   it('al enviar, un id que GIPHY no conoce se rechaza', async () => {
     giphy.porId.mockResolvedValue(null);
     await expect(service.resolver('noexiste')).rejects.toThrow(BadRequestException);
+  });
+
+  it('no muestra los GIFs que el equipo clínico sacó por moderación', async () => {
+    giphy.buscar.mockResolvedValue([gif('a', 'Hug'), gif('b', 'Big hug'), gif('c', 'Abrazo')]);
+    bloqueados.find.mockResolvedValue([{ gifId: 'b' }]);
+
+    const r = await service.buscar('abrazo');
+
+    expect(r.gifs.map((g) => g.id)).toEqual(['a', 'c']);
+  });
+
+  it('al enviar, un GIF bloqueado por moderación se rechaza sin preguntarle a GIPHY', async () => {
+    bloqueados.find.mockResolvedValue([{ gifId: 'b' }]);
+
+    await expect(service.resolver('b')).rejects.toThrow(BadRequestException);
+    expect(giphy.porId).not.toHaveBeenCalled();
+  });
+
+  it('bloquear guarda el GIF con quién lo sacó', async () => {
+    await service.bloquear(gif('b', 'Big hug').gif, 'psicologa-1');
+    expect(insertados).toEqual([{ gifId: 'b', title: 'Big hug', blockedBy: 'psicologa-1' }]);
   });
 
   it('sin API key responde 503 en vez de fallar a medias', async () => {
