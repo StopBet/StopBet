@@ -323,6 +323,8 @@ export interface CommunityPost {
   replyTo?: QuotedMessage | null;
   /** Días de abstinencia que celebra, si es un logro compartido con la comunidad. */
   achievementDays?: number | null;
+  /** El GIF que acompaña al mensaje. Con GIF, `body` puede venir vacío. */
+  gif?: GifAttachment | null;
   createdAt: string;
 }
 
@@ -349,6 +351,26 @@ export type CommunityStreamEvent =
   | { kind: 'post'; post: CommunityPost }
   | { kind: 'ping' };
 
+// ── GIFs ──────────────────────────────────────────────────────────────────
+
+/** Un GIF ya revisado por el backend: viene de GIPHY y pasó el filtro de apuestas. */
+export interface GifAttachment {
+  id: string;
+  title: string;
+  /** Para mostrarlo en el mensaje (unos 200 px de ancho). */
+  url: string;
+  /** Más liviano, para la grilla del buscador. */
+  previewUrl: string;
+  width: number;
+  height: number;
+}
+
+export interface GifSearchResponse {
+  gifs: GifAttachment[];
+  /** La búsqueda tenía un término bloqueado: no se consultó a GIPHY. */
+  blocked: boolean;
+}
+
 // ── Mensajes directos ─────────────────────────────────────────────────────
 
 /** Alguien de la sede a quien se le puede escribir, o con quien ya se habla. */
@@ -366,6 +388,8 @@ export interface DirectMessage {
   senderRole: UserRole;
   body: string;
   replyTo: QuotedMessage | null;
+  /** El GIF que acompaña al mensaje. Con GIF, `body` puede venir vacío. */
+  gif: GifAttachment | null;
   createdAt: string;
 }
 

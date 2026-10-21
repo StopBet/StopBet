@@ -20,6 +20,23 @@ está.
 
 ---
 
+## 2026-10-20 - GIFs en el chat: recompilar la app y variable nueva `GIPHY_API_KEY` (PR pendiente)
+
+**A quién le pega:** a todo el que corra la app mobile (recompilar). La variable, solo a quien
+quiera probar el buscador: sin ella el backend arranca igual.
+
+- **Recompilar:** `pnpm run android` (o `android:device`). Hay una dependencia nativa nueva,
+  `com.facebook.fresco:animated-gif`. Con solo recargar Metro los GIFs se ven quietos.
+
+- **Qué hacer:** si quieres GIFs en local, agrega `GIPHY_API_KEY=` a `apps/backend/.env` con una
+  key de developers.giphy.com. Sin ella verás `GIPHY sin configurar` en el log y `GET /gifs`
+  responde 503. Es normal.
+- **Qué cambia:** `community_posts` y `direct_messages` tienen una columna nueva `gif` (la crea
+  `synchronize`). Un mensaje puede llevar `gifId` y entonces `body` puede ir vacío. En la app, la
+  pestaña «GIF» está en el panel de emojis del chat.
+
+---
+
 ## 2026-10-20 - El chat de la sede ya no manda push; los mensajes privados sí (PR #169)
 
 **A quién le pega:** a quien pruebe o demuestre la Comunidad.

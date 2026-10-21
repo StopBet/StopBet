@@ -1,13 +1,24 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 import { IsDbUuid } from '../../registration/dto/is-db-uuid.validator';
 
 export class CreatePostDto {
-  @ApiProperty({ example: 'Hoy fue difícil pero lo logré. Quería compartirlo con ustedes.' })
-  @IsNotEmpty()
+  @ApiPropertyOptional({
+    example: 'Hoy fue difícil pero lo logré. Quería compartirlo con ustedes.',
+    description: 'Puede ir vacío si el mensaje lleva un GIF; si no, es obligatorio.',
+  })
+  @IsOptional()
   @IsString()
   @MaxLength(1000)
-  body: string;
+  body?: string;
+
+  @ApiPropertyOptional({
+    example: 'xT9IgG50Fb7Mi0prBC',
+    description: 'Id de GIPHY, tal como lo devuelve GET /gifs. El backend lo vuelve a revisar.',
+  })
+  @IsOptional()
+  @Matches(/^[A-Za-z0-9]{1,40}$/)
+  gifId?: string;
 
   /**
    * @deprecated Se ignora: la sede sale de la cuenta que publica. Se sigue aceptando porque

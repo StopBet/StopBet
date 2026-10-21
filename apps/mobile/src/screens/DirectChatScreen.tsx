@@ -16,6 +16,7 @@ import type {
   AuthUser,
   CommunityPost,
   DirectMessage,
+  GifAttachment,
   QuotedMessage,
 } from '@stopbet/shared-types';
 import type { AppStackParamList } from '../navigation/types';
@@ -156,21 +157,28 @@ export function DirectChatScreen({ navigation, route }: Props) {
     }
   }, [cargandoMás, error, mensajes, otherId, total]);
 
-  const enviar = async () => {
-    const body = borrador.trim();
-    if (!body || enviando || bloqueado) return;
-    // Misma clave mientras el texto no cambie: el reintento no duplica el mensaje.
-    const requestId = pendiente?.body === body ? pendiente.id : newRequestId();
-    setPendiente({ id: requestId, body });
+  /** Un mensaje de texto o un GIF: los dos viajan igual, con su provisorio y su reintento. */
+  const mandar = async (
+    body: string,
+    gif: GifAttachment | null,
+    citado: QuotedMessage | null = citando,
+  ) => {
+    if ((!body && !gif) || enviando || bloqueado) return;
+    // Misma clave mientras el texto (o el GIF) no cambie: el reintento no duplica el mensaje.
+    const clave = gif ? `gif:${gif.id}` : body;
+    const requestId = pendiente?.body === clave ? pendiente.id : newRequestId();
+    setPendiente({ id: requestId, body: clave });
     setEnviando(true);
 
-    const citado = citando;
-    setMensajes((prev) => [enCamino(requestId, body, user, citado), ...prev]);
-    setBorrador('');
+    setMensajes((prev) => [enCamino(requestId, body, user, citado, gif), ...prev]);
+    // Mandar un GIF no se lleva lo que estaba a medio escribir.
+    if (!gif) setBorrador('');
     setCitando(null);
 
     try {
-      const creado = await withRetry(() => api.sendDirectMessage(otherId, body, requestId, citado?.id));
+      const creado = await withRetry(() =>
+        api.sendDirectMessage(otherId, body, requestId, citado?.id, gif?.id),
+      );
       setMensajes((prev) => {
         const sinProvisorio = prev.filter((m) => m.id !== requestId);
         if (sinProvisorio.some((m) => m.id === creado.id)) return sinProvisorio;
@@ -185,19 +193,29 @@ export function DirectChatScreen({ navigation, route }: Props) {
       if (estadoDe(err) === 403) {
         showToast('No puedes enviarle mensajes a esta persona.', 'error');
       } else {
-        avisarFalla('enviar tu mensaje', err);
+        avisarFalla(gif ? 'enviar el GIF' : 'enviar tu mensaje', err);
       }
     } finally {
       setEnviando(false);
     }
   };
 
-  const reintentar = useCallback((m: DirectMessage) => {
+  const enviar = () => mandar(borrador.trim(), null);
+  const enviarGif = (gif: GifAttachment) => mandar('', gif);
+
+  // Sin `useCallback`: la burbuja ignora los callbacks al compararse, y el reenvío de un GIF
+  // necesita el `mandar` de este render.
+  const reintentar = (m: DirectMessage) => {
     setMensajes((prev) => prev.filter((x) => x.id !== m.id));
+    setFallidos(({ [m.id]: _d, ...resto }) => resto);
+    // Un GIF no tiene texto que devolver al campo: se reenvía tal cual, con la misma clave.
+    if (m.gif) {
+      void mandar('', m.gif, m.replyTo);
+      return;
+    }
     setBorrador(m.body);
     setCitando(m.replyTo);
-    setFallidos(({ [m.id]: _d, ...resto }) => resto);
-  }, []);
+  };
 
   const eliminar = (m: DirectMessage) => {
     showDialog({
@@ -412,6 +430,7 @@ export function DirectChatScreen({ navigation, route }: Props) {
               ocupado={enviando}
               placeholder="Escribe un mensaje…"
               etiqueta={`Mensaje para ${nombre}`}
+              onEnviarGif={enviarGif}
             />
           </>
         )}
@@ -438,10 +457,11 @@ export function DirectChatScreen({ navigation, route }: Props) {
 }
 
 function citaDe(m: DirectMessage): QuotedMessage {
+  const texto = m.body || (m.gif ? 'GIF' : '');
   return {
     id: m.id,
     authorName: m.senderName,
-    body: m.body.length > LARGO_DE_CITA ? `${m.body.slice(0, LARGO_DE_CITA).trimEnd()}…` : m.body,
+    body: texto.length > LARGO_DE_CITA ? `${texto.slice(0, LARGO_DE_CITA).trimEnd()}…` : texto,
   };
 }
 
@@ -450,6 +470,7 @@ function enCamino(
   body: string,
   user: AuthUser | null,
   citado: QuotedMessage | null,
+  gif: GifAttachment | null,
 ): DirectMessage {
   return {
     id: requestId,
@@ -459,6 +480,7 @@ function enCamino(
     senderRole: user?.role ?? 'patient',
     body,
     replyTo: citado,
+    gif,
     createdAt: new Date().toISOString(),
   };
 }
@@ -479,6 +501,7 @@ function aPublicación(m: DirectMessage): CommunityPost {
     reactions: [],
     userAttends: false,
     replyTo: m.replyTo,
+    gif: m.gif,
     createdAt: m.createdAt,
   };
 }

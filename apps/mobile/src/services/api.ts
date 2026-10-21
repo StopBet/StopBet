@@ -15,6 +15,7 @@ import type {
   DirectMessage,
   DirectThread,
   EmotionType,
+  GifSearchResponse,
   Notification,
   PaginatedResponse,
   PanicAlertDto,
@@ -501,11 +502,12 @@ export const api = {
     body: string,
     clientRequestId?: string,
     replyToId?: string,
+    gifId?: string,
   ) =>
     request<CommunityPost>('/community/posts', {
       userId,
       method: 'POST',
-      body: JSON.stringify({ sede, body, clientRequestId, replyToId }),
+      body: JSON.stringify({ sede, body, clientRequestId, replyToId, gifId }),
     }),
 
   addReaction: (userId: string, postId: string, emoji: ReactionEmoji) =>
@@ -556,11 +558,21 @@ export const api = {
   getDirectThread: (otherId: string, page = 1, limit = 30) =>
     request<DirectThread>(`/messages/with/${otherId}?page=${page}&limit=${limit}`),
 
-  sendDirectMessage: (otherId: string, body: string, clientRequestId: string, replyToId?: string) =>
+  sendDirectMessage: (
+    otherId: string,
+    body: string,
+    clientRequestId: string,
+    replyToId?: string,
+    gifId?: string,
+  ) =>
     request<DirectMessage>(`/messages/with/${otherId}`, {
       method: 'POST',
-      body: JSON.stringify({ body, clientRequestId, replyToId }),
+      body: JSON.stringify({ body, clientRequestId, replyToId, gifId }),
     }),
+
+  // El filtro de apuestas corre en el backend: la app nunca habla con GIPHY directo.
+  searchGifs: (q: string, offset = 0) =>
+    request<GifSearchResponse>(`/gifs?q=${encodeURIComponent(q)}&offset=${offset}`),
 
   markDirectRead: (otherId: string) =>
     request<{ read: true }>(`/messages/with/${otherId}/read`, { method: 'POST' }),

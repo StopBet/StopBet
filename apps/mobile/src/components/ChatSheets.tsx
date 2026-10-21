@@ -1,7 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  BackHandler,
+  Keyboard,
+  Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { ReactionEmoji, ReactionSummary } from '@stopbet/shared-types';
+import type { GifAttachment, ReactionEmoji, ReactionSummary } from '@stopbet/shared-types';
 import { Icon, type IconName } from './Icon';
 import { Touchable } from './Touchable';
 import { REACTION_ICON_MAP, REACTION_NAME } from './ChatMessage';
@@ -217,6 +226,7 @@ export function ComposerDeChat({
   ocupado,
   placeholder,
   etiqueta,
+  onEnviarGif,
 }: {
   valor: string;
   onCambio: (t: string) => void;
@@ -226,6 +236,8 @@ export function ComposerDeChat({
   ocupado: boolean;
   placeholder: string;
   etiqueta: string;
+  /** Tocar un GIF del panel lo envía de inmediato, como en WhatsApp. Sin esto no hay pestaña GIF. */
+  onEnviarGif?: (gif: GifAttachment) => void;
 }) {
   const c = useColors();
   const styles = useStyles(makeStyles);
@@ -238,10 +250,15 @@ export function ComposerDeChat({
   // insertar el emoji donde estaba y no siempre al final.
   const cursor = useRef({ start: valor.length, end: valor.length });
 
+  // Como en WhatsApp: con el panel abierto, «atrás» lo cierra en vez de salir del chat.
   useEffect(() => {
-    const sub = Keyboard.addListener('keyboardDidShow', () => setConEmojis(false));
+    if (!conEmojis) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      setConEmojis(false);
+      return true;
+    });
     return () => sub.remove();
-  }, []);
+  }, [conEmojis]);
 
   const alternarEmojis = () => {
     if (conEmojis) {
@@ -322,7 +339,17 @@ export function ComposerDeChat({
       </View>
       {conEmojis && !apagado && (
         <View style={{ paddingBottom: margen }}>
-          <EmojiPanel onElegir={insertar} onBorrar={borrar} />
+          <EmojiPanel
+            onElegir={insertar}
+            onBorrar={borrar}
+            onGif={
+              onEnviarGif &&
+              ((gif) => {
+                setConEmojis(false);
+                onEnviarGif(gif);
+              })
+            }
+          />
         </View>
       )}
     </View>

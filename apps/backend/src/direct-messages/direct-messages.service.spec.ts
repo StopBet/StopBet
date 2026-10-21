@@ -10,6 +10,15 @@ const DE_OTRA_SEDE = { id: '33333333-3333-3333-3333-333333333333', firstName: 'C
 const PSICÓLOGA = { id: '44444444-4444-4444-4444-444444444444', firstName: 'Dra', lastName: 'Luz', role: 'psychologist', sedeId: 'Santiago', accountStatus: 'active' };
 const USUARIOS = [ANA, BETO, DE_OTRA_SEDE, PSICÓLOGA];
 
+const GIF = {
+  id: 'abc123',
+  title: 'Abrazo',
+  url: 'https://media1.giphy.com/media/abc123/200w.gif',
+  previewUrl: 'https://media1.giphy.com/media/abc123/100w.gif',
+  width: 200,
+  height: 150,
+};
+
 const CONVERSACIÓN = { id: 'cccccccc-0000-0000-0000-000000000001', userAId: ANA.id, userBId: BETO.id, sede: 'Santiago' };
 
 function insertQb() {
@@ -26,6 +35,7 @@ describe('DirectMessagesService', () => {
   let reportRepo: Record<string, jest.Mock>;
   let blockRepo: Record<string, jest.Mock>;
   let pushService: { enviarAUsuarios: jest.Mock };
+  let gifs: { resolver: jest.Mock };
   let service: DirectMessagesService;
 
   beforeEach(() => {
@@ -72,6 +82,7 @@ describe('DirectMessagesService', () => {
       find: jest.fn().mockResolvedValue([SEDE]),
     };
     pushService = { enviarAUsuarios: jest.fn().mockResolvedValue(1) };
+    gifs = { resolver: jest.fn().mockResolvedValue(GIF) };
 
     service = new DirectMessagesService(
       conversationRepo as any,
@@ -82,6 +93,7 @@ describe('DirectMessagesService', () => {
       sedeRepo as any,
       { find: jest.fn().mockResolvedValue([]) } as any,
       pushService as any,
+      gifs as any,
     );
   });
 
@@ -145,6 +157,25 @@ describe('DirectMessagesService', () => {
       await service.send(ANA.id, BETO.id, { body: 'hola' });
       const [evento] = await recibidos;
       expect(evento).toMatchObject({ kind: 'message', otherId: ANA.id });
+    });
+  });
+
+  describe('mensajes con GIF', () => {
+    it('guarda el GIF que devuelve el backend, con el texto vacío', async () => {
+      await service.send(ANA.id, BETO.id, { gifId: 'abc123' });
+
+      expect(gifs.resolver).toHaveBeenCalledWith('abc123');
+      expect(messageRepo.save).toHaveBeenCalledWith(expect.objectContaining({ body: '', gif: GIF }));
+    });
+
+    it('sin texto ni GIF responde 400', async () => {
+      await expect(service.send(ANA.id, BETO.id, { body: '' })).rejects.toThrow(BadRequestException);
+      expect(messageRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('no le pregunta a GIPHY por un mensaje que igual se iba a rechazar', async () => {
+      await expect(service.send(ANA.id, DE_OTRA_SEDE.id, { gifId: 'abc123' })).rejects.toThrow(NotFoundException);
+      expect(gifs.resolver).not.toHaveBeenCalled();
     });
   });
 
