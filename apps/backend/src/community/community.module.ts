@@ -11,6 +11,7 @@ import { User } from '../users/entities/user.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { CommunityMute } from '../notifications/entities/community-mute.entity';
 import { DirectMessagesModule } from '../direct-messages/direct-messages.module';
+import { GifsModule } from '../gifs/gifs.module';
 import { Sede } from '../sedes/entities/sede.entity';
 import { PsychologistSede } from '../psychologists/entities/psychologist-sede.entity';
 
@@ -29,6 +30,7 @@ import { PsychologistSede } from '../psychologists/entities/psychologist-sede.en
       PsychologistSede,
     ]),
     DirectMessagesModule,
+    GifsModule,
   ],
   controllers: [CommunityController],
   providers: [CommunityService],

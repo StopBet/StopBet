@@ -20,6 +20,20 @@ está.
 
 ---
 
+## 2026-10-20 - GIFs en el chat: variable nueva `GIPHY_API_KEY` (opcional) (PR pendiente)
+
+**A quién le pega:** a quien quiera probar el buscador de GIFs. A nadie más: sin la variable el
+backend arranca igual.
+
+- **Qué hacer:** si quieres GIFs en local, agrega `GIPHY_API_KEY=` a `apps/backend/.env` con una
+  key de developers.giphy.com. Sin ella verás `GIPHY sin configurar` en el log y `GET /gifs`
+  responde 503. Es normal.
+- **Qué cambia:** `community_posts` y `direct_messages` tienen una columna nueva `gif` (la crea
+  `synchronize`). Un mensaje puede llevar `gifId` y entonces `body` puede ir vacío. La app todavía
+  no los muestra.
+
+---
+
 ## 2026-10-20 - El chat de la sede ya no manda push; los mensajes privados sí (PR #169)
 
 **A quién le pega:** a quien pruebe o demuestre la Comunidad.

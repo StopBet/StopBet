@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { CommunityService } from './community.service';
 
 const AUTHOR_ID = 'user-1';
@@ -14,6 +15,14 @@ const AUTHOR = {
   sedeId: 'Santiago',
 };
 const SEDE = { id: 'sede-stgo', name: 'Santiago' };
+const GIF = {
+  id: 'abc123',
+  title: 'Abrazo',
+  url: 'https://media1.giphy.com/media/abc123/200w.gif',
+  previewUrl: 'https://media1.giphy.com/media/abc123/100w.gif',
+  width: 200,
+  height: 150,
+};
 
 describe('CommunityService — escrituras idempotentes', () => {
   let service: CommunityService;
@@ -23,8 +32,7 @@ describe('CommunityService — escrituras idempotentes', () => {
   let notificationRepo: { create: jest.Mock; save: jest.Mock };
   let communityMuteRepo: { findOne: jest.Mock; find: jest.Mock };
   let sedeRepo: { find: jest.Mock; findOne: jest.Mock };
-  // El push a la sede es un extra sobre algo ya publicado: acá solo se comprueba a quién
-  // se le manda, no que Firebase responda.
+  let gifs: { resolver: jest.Mock };
 
   const noopRepo = () => ({ find: jest.fn().mockResolvedValue([]), findOne: jest.fn() });
 
@@ -59,6 +67,7 @@ describe('CommunityService — escrituras idempotentes', () => {
       find: jest.fn().mockResolvedValue([SEDE]),
       findOne: jest.fn().mockResolvedValue(SEDE),
     };
+    gifs = { resolver: jest.fn().mockResolvedValue(GIF) };
 
     service = new CommunityService(
       postRepo as any,
@@ -72,6 +81,7 @@ describe('CommunityService — escrituras idempotentes', () => {
       sedeRepo as any,
       noopRepo() as any,
       noopRepo() as any,
+      gifs as any,
     );
   });
 
@@ -122,6 +132,36 @@ describe('CommunityService — escrituras idempotentes', () => {
       expect(postRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({ clientRequestId: null }),
       );
+    });
+  });
+
+  describe('mensajes con GIF', () => {
+    it('guarda el GIF que devuelve el backend, no lo que manda el cliente', async () => {
+      const post = await service.createPost({ gifId: 'abc123' }, AUTHOR_ID);
+
+      expect(gifs.resolver).toHaveBeenCalledWith('abc123');
+      expect(postRepo.save).toHaveBeenCalledWith(expect.objectContaining({ body: '', gif: GIF }));
+      expect(post.gif).toEqual(GIF);
+    });
+
+    it('sin texto ni GIF responde 400 y no guarda nada', async () => {
+      await expect(service.createPost({ body: '   ' }, AUTHOR_ID)).rejects.toThrow(BadRequestException);
+      expect(postRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('si el GIF no pasa el filtro, el mensaje no se publica', async () => {
+      gifs.resolver.mockRejectedValue(new BadRequestException('Ese GIF no se puede enviar'));
+
+      await expect(service.createPost({ gifId: 'casino1' }, AUTHOR_ID)).rejects.toThrow(BadRequestException);
+      expect(postRepo.save).not.toHaveBeenCalled();
+    });
+
+    it('citar un mensaje que es solo un GIF muestra «GIF»', async () => {
+      postRepo.findOne.mockResolvedValue({ id: 'citado', sede: 'Santiago', body: '', gif: GIF, author: AUTHOR });
+
+      const post = await service.createPost({ body: 'jaja', replyToId: 'citado' }, AUTHOR_ID);
+
+      expect(post.replyTo?.body).toBe('GIF');
     });
   });
 
@@ -265,7 +305,7 @@ describe('CommunityService — descartar reportes', () => {
     const noop = () => ({}) as any;
     service = new CommunityService(
       postRepo as any, noop(), noop(), reportRepo as any, noop(), userRepo as any, noop(), noop(),
-      noop(), noop(), noop(),
+      noop(), noop(), noop(), noop(),
     );
   });
 

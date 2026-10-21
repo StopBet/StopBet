@@ -459,6 +459,7 @@ function enCamino(
     senderRole: user?.role ?? 'patient',
     body,
     replyTo: citado,
+    gif: null,
     createdAt: new Date().toISOString(),
   };
 }

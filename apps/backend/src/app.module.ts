@@ -57,6 +57,7 @@ import { PsychologistsModule } from './psychologists/psychologists.module';
 import { PsychologistSede } from './psychologists/entities/psychologist-sede.entity';
 import { PatientAssignment } from './psychologists/entities/patient-assignment.entity';
 import { MailModule } from './mail/mail.module';
+import { GifsModule } from './gifs/gifs.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { DirectMessagesModule } from './direct-messages/direct-messages.module';
 import { DirectConversation } from './direct-messages/entities/direct-conversation.entity';
@@ -148,6 +149,7 @@ import { PaymentsModule } from './payments/payments.module';
     PushModule,
     PsychologistsModule,
     MailModule,
+    GifsModule,
   ],
   controllers: [],
   providers: [

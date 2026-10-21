@@ -7,7 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { CommunityPostType } from '@stopbet/shared-types';
+import { CommunityPostType, type GifAttachment } from '@stopbet/shared-types';
 import { User } from '../../users/entities/user.entity';
 
 const POST_TYPES: CommunityPostType[] = ['announcement', 'forum_post'];
@@ -51,6 +51,13 @@ export class CommunityPost {
    */
   @Column({ type: 'int', nullable: true })
   achievementDays: number | null;
+
+  /**
+   * El GIF que acompaña al mensaje, ya revisado por el filtro de apuestas. Se guarda entero y no
+   * solo el id para no depender de GIPHY al leer el chat. Con GIF, `body` puede ir vacío.
+   */
+  @Column({ type: 'jsonb', nullable: true })
+  gif: GifAttachment | null;
 
   /**
    * El mensaje al que este responde, si cita a alguno.
